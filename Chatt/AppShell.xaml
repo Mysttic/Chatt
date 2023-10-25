@@ -4,11 +4,56 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:Chatt"
-    Shell.FlyoutBehavior="Disabled">
+    xmlns:views="clr-namespace:Chatt.Views"
+    xmlns:sys="clr-namespace:System;assembly=netstandard"
+    xmlns:system="clr-namespace:System;assembly=netstandard"
+    Shell.FlyoutBehavior="Flyout">
 
     <ShellContent
         Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+        ContentTemplate="{DataTemplate local:UI.ListOfConversations}"
+        Route="ListOfConversations" />
 
+    <FlyoutItem Title="Settings" Icon="icon.png">
+        <Tab>
+            <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" />
+        </Tab>
+    </FlyoutItem>
+
+    <!--FlyoutHeader-->
+    <Shell.FlyoutHeader>
+        <Grid BackgroundColor="MidnightBlue" ColumnDefinitions="*,*">
+            <Image Grid.Column="0"
+               Source="dotnet_bot.png"
+               HeightRequest="100"
+               Opacity="0.5" />
+            <Label Grid.Column="1"
+               FontSize="Large" TextColor="White"
+               FontAttributes="Bold" VerticalOptions="Center">
+                <Label.FormattedText>
+                    <FormattedString>
+                        <FormattedString.Spans>
+                            <Span Text="Welcome"/>
+                            <Span Text="{x:Static system:Environment.NewLine}"/>
+                        </FormattedString.Spans>
+                    </FormattedString>
+                </Label.FormattedText>
+            </Label>
+        </Grid>
+    </Shell.FlyoutHeader>
+
+    <!--FlyoutFooter-->
+    <Shell.FlyoutFooter>
+        <StackLayout BackgroundColor="#c1c1c1">
+            <Label Text="Chatt"
+              TextColor="Black"
+              FontAttributes="Bold"
+              HorizontalOptions="Center" />
+            <Label Text="{Binding Source={x:Static sys:DateTime.Now}, StringFormat='{0:MMMM dd, yyyy}'}"
+              TextColor="Black"
+              HorizontalOptions="Center" />
+        </StackLayout>
+    </Shell.FlyoutFooter>
+    
+    
 </Shell>

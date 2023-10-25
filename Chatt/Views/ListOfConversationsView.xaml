@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Chatt.UI.ListOfConversations"
+             Title="ListOfConversations">
+    <ScrollView Orientation="Vertical">
+        <StackLayout>
+            <CollectionView ItemsSource="{Binding Conversations}" x:Name="collectionViewConversations">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <StackLayout Margin="10" BackgroundColor="Gray" HeightRequest="70" Padding="10">
+                            <Grid ColumnDefinitions=".15*,*">
+                                <Frame 
+                                    Grid.Column="0" 
+                                    BackgroundColor="#13CF13" 
+                                    Padding="5" 
+                                    HorizontalOptions="Start" 
+                                    WidthRequest="50" 
+                                    HeightRequest="50" 
+                                    CornerRadius="40">
+                                    <Label 
+                                        WidthRequest="40" 
+                                        Text="{Binding ConversationUserInitials}" 
+                                        FontAttributes="Bold"
+                                        HorizontalTextAlignment="Center"
+                                        VerticalTextAlignment="Center"/>
+                                </Frame>
+                                <Label Grid.Column="1" VerticalOptions="StartAndExpand" Text="{Binding ConversationTitle}"/>
+                            </Grid>                            
+                        </StackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+            <Frame 
+                BackgroundColor="#13CF13" 
+                Padding="5" 
+                Margin="10"
+                HorizontalOptions="EndAndExpand" 
+                VerticalOptions="EndAndExpand"
+                WidthRequest="70" 
+                HeightRequest="70" 
+                CornerRadius="40">
+                <ImageButton
+                    Source="dotnet_bot.png"/>
+            </Frame>
+        </StackLayout>
+    </ScrollView>
+</ContentPage>

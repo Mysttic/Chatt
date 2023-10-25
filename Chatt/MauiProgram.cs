@@ -7,8 +7,6 @@ namespace Chatt;
 
 public static class MauiProgram
 {
-    public static Server Server { get; private set; }
-    public static List<GreetingService.GreetingServiceClient> greetingServiceClient { get; private set; }
 
     static int Port;
     public static MauiApp CreateMauiApp()
@@ -23,8 +21,7 @@ public static class MauiProgram
 			});
 
         Port = new Random().Next(50050, 50060);
-        Server = CreateGrpcServer();
-        //greetingServiceClient = CreateGrpcClient();
+        builder.Services.AddSingleton<IGrpcFactor>(GrpcFactor.Instance);
 
 #if DEBUG
 		builder.Logging.AddDebug();
