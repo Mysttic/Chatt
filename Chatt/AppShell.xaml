@@ -11,29 +11,23 @@
 
     <ShellContent
         Title="Home"
-        ContentTemplate="{DataTemplate local:UI.ListOfConversations}"
+        ContentTemplate="{DataTemplate local:UI.ConversationsView}"
         Route="ListOfConversations" />
-
-    <FlyoutItem Title="Settings" Icon="icon.png">
-        <Tab>
-            <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" />
-        </Tab>
-    </FlyoutItem>
 
     <!--FlyoutHeader-->
     <Shell.FlyoutHeader>
         <Grid BackgroundColor="MidnightBlue" ColumnDefinitions="*,*">
-            <Image Grid.Column="0"
+            <ImageButton Grid.Column="0"
                Source="dotnet_bot.png"
                HeightRequest="100"
-               Opacity="0.5" />
+               Opacity="0.5"/>
             <Label Grid.Column="1"
                FontSize="Large" TextColor="White"
                FontAttributes="Bold" VerticalOptions="Center">
                 <Label.FormattedText>
                     <FormattedString>
                         <FormattedString.Spans>
-                            <Span Text="Welcome"/>
+                            <Span Text="Chatt"/>
                             <Span Text="{x:Static system:Environment.NewLine}"/>
                         </FormattedString.Spans>
                     </FormattedString>
@@ -41,11 +35,29 @@
             </Label>
         </Grid>
     </Shell.FlyoutHeader>
+    
+    <Shell.FlyoutContent>
+        <VerticalStackLayout Padding="10">
+            <Label Text="SOME INFO AND COMMON SETTINGS HERE" Margin="0,10,0,20"/>
+            
+            <Label Text="Your nickname:"/>
+            <Entry Text="Dante devilry" Margin="0,0,0,10"/>
+
+            <Line BackgroundColor="LightGray" HeightRequest="3" Margin="1,5,0,10" HorizontalOptions="FillAndExpand"/>
+
+            <Label Text="Welcome message:"/>
+            <Editor Text="There will be your welcome message that will be send to other users in greeting call" Margin="0,0,0,10"/>
+
+            <Line BackgroundColor="LightGray" HeightRequest="3" Margin="1,5,0,10" HorizontalOptions="FillAndExpand"/>
+
+            <Button Text="Settings" HorizontalOptions="FillAndExpand" ContentLayout="{Binding views:SettingsView}"  Command="{Binding GoSettings}" />
+        </VerticalStackLayout>
+    </Shell.FlyoutContent>
 
     <!--FlyoutFooter-->
     <Shell.FlyoutFooter>
         <StackLayout BackgroundColor="#c1c1c1">
-            <Label Text="Chatt"
+            <Label Text="Copyright | Mysttic"
               TextColor="Black"
               FontAttributes="Bold"
               HorizontalOptions="Center" />
@@ -54,6 +66,5 @@
               HorizontalOptions="Center" />
         </StackLayout>
     </Shell.FlyoutFooter>
-    
     
 </Shell>

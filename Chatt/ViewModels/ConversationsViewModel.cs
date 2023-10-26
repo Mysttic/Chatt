@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 
 namespace Chatt.ViewModels
 {
-    public class ListOfConversationsViewModel
+    public class ConversationsViewModel
     {
         public ObservableCollection<ConversationModel> Conversations { get; set; }
-        public ListOfConversationsViewModel()
+        public ConversationsViewModel()
         {
             Load();
         }

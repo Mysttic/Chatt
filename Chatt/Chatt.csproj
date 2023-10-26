@@ -51,6 +51,7 @@
 	<ItemGroup>
 	  <None Remove="Platforms\Android\Linker.xml" />
 	  <None Remove="Platforms\iOS\Linker.xml" />
+	  <None Remove="Resources\Images\search_people.svg" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -83,17 +84,26 @@
     <MauiXaml Update="ChattPage.xaml">
       <Generator>MSBuild:Compile</Generator>
     </MauiXaml>
-    <MauiXaml Update="Views\ListOfConversationsView.xaml">
+    <MauiXaml Update="Views\ConversationView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </MauiXaml>
-    <MauiXaml Update="Views\SettingsPage.xaml">
+    <MauiXaml Update="Views\DevicesNearbyView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+    <MauiXaml Update="Views\ConversationsView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
+    <MauiXaml Update="Views\SettingsView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </MauiXaml>
   </ItemGroup>
   
   <ItemGroup>
-    <Compile Update="Views\ListOfConversationsView.xaml.cs">
-      <DependentUpon>ListOfConversationsView.xaml</DependentUpon>
+    <Compile Update="Views\ConversationsView.xaml.cs">
+      <DependentUpon>ConversationsView.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\SettingsView.xaml.cs">
+      <DependentUpon>SettingsView.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
 
