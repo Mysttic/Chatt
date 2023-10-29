@@ -1,18 +1,34 @@
 ﻿using Chatt.Entities.Model;
+using Chatt.UI;
+using Chatt.Views;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Chatt.ViewModels
 {
     public class ConversationsViewModel
     {
+        ConversationsView ContentPage { get; set; }
         public ObservableCollection<ConversationModel> Conversations { get; set; }
-        public ConversationsViewModel()
+        public ConversationModel SelectedConversation { get; set; }
+        public ICommand SearchDevices => new Command(async (object obj) =>
         {
+            await ContentPage.Window.Navigation.PushModalAsync(new UsersNearbyView());
+        });
+
+        public ICommand OpenConversationCommand => new Command(async (object obj) =>
+        {
+            await ContentPage.Window.Navigation.PushModalAsync(new ConversationView((ConversationModel)obj));
+        });
+
+        public ConversationsViewModel(ConversationsView contentPage)
+        {
+            ContentPage = contentPage;
             Load();
         }
 
@@ -45,5 +61,7 @@ namespace Chatt.ViewModels
                 },
             };
         }
+
+
     }
 }

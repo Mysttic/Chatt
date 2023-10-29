@@ -1,5 +1,8 @@
-﻿namespace Chatt.Entities.Model
+﻿using PropertyChanged;
+
+namespace Chatt.Entities.Model
 {
+    [AddINotifyPropertyChangedInterface]
     public class ConversationMessageModel
     {
 

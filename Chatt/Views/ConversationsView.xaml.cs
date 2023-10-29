@@ -8,6 +8,6 @@ public partial class ConversationsView : ContentPage
 	public ConversationsView()
 	{
 		InitializeComponent();
-		BindingContext = new ConversationsViewModel();
+		BindingContext = new ConversationsViewModel(this);
 	}
 }

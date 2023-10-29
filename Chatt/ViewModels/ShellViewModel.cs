@@ -15,7 +15,10 @@ namespace Chatt.ViewModels
         {
             shell = appShell;
         }
-        public ICommand GoSettings => new Command(async (object obj) => { await shell.Window.Navigation.PushModalAsync(new SettingsView()); });
+        public ICommand GoSettings => new Command(async (object obj) => 
+        { 
+            await shell.Window.Navigation.PushModalAsync(new SettingsView()); 
+        });
 
 
     }

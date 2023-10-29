@@ -1,5 +1,8 @@
-﻿namespace Chatt.Entities.Model
+﻿using PropertyChanged;
+
+namespace Chatt.Entities.Model
 {
+    [AddINotifyPropertyChangedInterface]
     public class UserModel
     {
         public int UserId { get; set; }
@@ -12,5 +15,7 @@
         public DateTime Created { get; set; }
         public DateTime LastUpdated { get; set; } = DateTime.MinValue;
         public List<ConversationMessageModel> ConversationMessages { get; set; } = new List<ConversationMessageModel>();
+
+        public string UserInitials => NickName?.FirstOrDefault().ToString().ToUpperInvariant() ?? "-";
     }
 }

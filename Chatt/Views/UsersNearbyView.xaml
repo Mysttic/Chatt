@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Chatt.Views.UsersNearbyView"
+             Title="UsersNearbyView">
+    <ScrollView Orientation="Vertical">
+        <StackLayout>
+            <Grid ColumnDefinitions=".1*, *" VerticalOptions="Start" BackgroundColor="DodgerBlue">
+                <ImageButton 
+                    Source="dotnet_bot.png" 
+                    HeightRequest="40" 
+                    WidthRequest="40" 
+                    Grid.Column="0" 
+                    HorizontalOptions="Start"
+                    Command="{Binding GoHome}"/>
+                <Label 
+                    Text="Users nearby" 
+                    FontSize="26" 
+                    VerticalTextAlignment="Center"
+                    Grid.Column="1" 
+                    HorizontalOptions="CenterAndExpand"
+                    Margin="-70,0,0,0"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,.2*">
+                <VerticalStackLayout Margin="10" Grid.Column="0">
+                    <Label Text="Ip filter:"/>
+                    <Entry Text="{Binding SettingsModel.IpFilter}"/>
+
+                    <Label Text="Port filter:" Margin="0,20,0,0"/>
+                    <Entry Text="{Binding SettingsModel.PortFilter}"/>
+                </VerticalStackLayout>
+                <ImageButton Grid.Column="1"
+                             Source="search_people.png"
+                             HeightRequest="150" Padding="20"
+                             />
+            </Grid>
+            <CollectionView ItemsSource="{Binding Users}" x:Name="collectionViewUsers">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <StackLayout Margin="10" BackgroundColor="Gray" HeightRequest="70" Padding="10,0,10,0">
+                            <Grid ColumnDefinitions=".2*,*" RowDefinitions="*,*,*">
+                                <HorizontalStackLayout>
+                                    <Frame 
+                                    Grid.Column="0"
+                                    Grid.Row="0"
+                                    Grid.RowSpan="3"
+                                    Margin="0,0,20,0"
+                                    BackgroundColor="Green" 
+                                    Padding="5" 
+                                    HorizontalOptions="Start" 
+                                    WidthRequest="50" 
+                                    HeightRequest="50" 
+                                    CornerRadius="40">
+                                        <Label 
+                                        WidthRequest="40" 
+                                        Text="{Binding UserInitials}" 
+                                        FontAttributes="Bold"
+                                        HorizontalTextAlignment="Center"
+                                        VerticalTextAlignment="Center"/>
+                                    </Frame>
+                                    <VerticalStackLayout>
+                                        <Label 
+                                            Grid.Column="1" 
+                                            Grid.Row="0" 
+                                            VerticalOptions="StartAndExpand" 
+                                            Text="{Binding NickName}"/>
+                                        <Label 
+                                            Grid.Column="1" 
+                                            Grid.Row="1" 
+                                            VerticalOptions="StartAndExpand" 
+                                            Text="{Binding IpAddress}"/>
+                                        <Label 
+                                            Grid.Column="1" 
+                                            Grid.Row="2" 
+                                            VerticalOptions="StartAndExpand" 
+                                            Text="{Binding WelcomeMessage}"/>
+                                    </VerticalStackLayout>
+                                </HorizontalStackLayout>
+                                <ImageButton Grid.Row="0"
+                                             Grid.RowSpan="3"
+                                             Grid.Column="1" 
+                                             HeightRequest="50"
+                                             HorizontalOptions="EndAndExpand"
+                                             Source="search_people.png"/>
+                            </Grid>
+                        </StackLayout>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </StackLayout>
+        
+    </ScrollView>
+</ContentPage>

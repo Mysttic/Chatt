@@ -1,5 +1,8 @@
-﻿namespace Chatt.Entities.Model
+﻿using PropertyChanged;
+
+namespace Chatt.Entities.Model
 {
+    [AddINotifyPropertyChangedInterface]
     public class ConversationModel
     {
         public int ConversationId { get; set; }
@@ -10,6 +13,6 @@
         public List<ConversationMessageModel> ConversationMessages { get; set; } = new List<ConversationMessageModel>();
 
         public string ConversationTitle => ConversationMessages?.LastOrDefault()?.Message ?? "-";
-        public string ConversationUserInitials => User?.NickName?.FirstOrDefault().ToString().ToUpperInvariant() ?? "-";
+        public string ConversationUserInitials => User?.UserInitials ?? "-";
     }
 }

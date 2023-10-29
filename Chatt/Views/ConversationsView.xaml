@@ -2,13 +2,20 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Chatt.UI.ConversationsView"
-             Title="ListOfConversations">
+             Title="ListOfConversations"
+             Shell.BackgroundColor="DodgerBlue">
     <ScrollView Orientation="Vertical">
         <StackLayout>
-            <CollectionView ItemsSource="{Binding Conversations}" x:Name="collectionViewConversations">
+            <CollectionView ItemsSource="{Binding Conversations}" SelectionMode="Single" x:Name="collectionViewConversations">
                 <CollectionView.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate>                        
                         <StackLayout Margin="10" BackgroundColor="Gray" HeightRequest="70" Padding="10">
+                            <StackLayout.GestureRecognizers>
+                                <TapGestureRecognizer 
+                                            NumberOfTapsRequired="1"
+                                            Command="{Binding Path=BindingContext.OpenConversationCommand, Source={Reference collectionViewConversations}}"
+                                            CommandParameter="{Binding .}"/>
+                            </StackLayout.GestureRecognizers>
                             <Grid ColumnDefinitions=".15*,*">
                                 <Frame 
                                     Grid.Column="0" 
@@ -41,7 +48,8 @@
                 HeightRequest="70" 
                 CornerRadius="40">
                 <ImageButton
-                    Source="search_people.png"/>
+                    Source="search_people.png"
+                    Command="{Binding SearchDevices}"/>
             </Frame>
         </StackLayout>
     </ScrollView>

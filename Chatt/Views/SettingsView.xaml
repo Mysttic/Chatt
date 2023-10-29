@@ -3,8 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Chatt.Views.SettingsView"
              Title="SettingsPage">
-    <VerticalStackLayout>
-        <Grid ColumnDefinitions=".1*, *" VerticalOptions="Start" BackgroundColor="Red">
+    <StackLayout>
+        <Grid ColumnDefinitions=".1*, *" VerticalOptions="Start" BackgroundColor="DodgerBlue">
             <ImageButton 
                 Source="dotnet_bot.png" 
                 HeightRequest="40" 
@@ -12,7 +12,44 @@
                 Grid.Column="0" 
                 HorizontalOptions="Start"
                 Command="{Binding GoHome}"/>
-            <Label Text="Title of the form" Grid.Column="1" HorizontalOptions="CenterAndExpand"/>
+            <Label 
+                Text="Settings" 
+                FontSize="26" 
+                VerticalTextAlignment="Center"
+                Grid.Column="1" 
+                HorizontalOptions="CenterAndExpand"
+                Margin="-70,0,0,0"/>
         </Grid>
-    </VerticalStackLayout>
+        <VerticalStackLayout Margin="10">
+            <Label Text="Your nickname:"/>
+            <Entry Text="{Binding SettingsModel.Nickname}"/>
+
+            <Label Text="Welcome message:" Margin="0,20,0,0"/>
+            <Editor Text="{Binding SettingsModel.WelcomeMessage}" AutoSize="TextChanges"/>
+
+            <Label Text="Custom port:" Margin="0,30,0,0"/>
+            <Entry Text="{Binding SettingsModel.CustomPort}"/>
+
+            <Label Text="Ip filter:" Margin="0,40,0,0"/>
+            <Entry Text="{Binding SettingsModel.IpFilter}"/>
+
+            <Label Text="Port filter:" Margin="0,20,0,0"/>
+            <Entry Text="{Binding SettingsModel.PortFilter}"/>
+        </VerticalStackLayout>
+
+        <Frame 
+                BackgroundColor="LightGray" 
+                Padding="5" 
+                Margin="10"
+                HorizontalOptions="EndAndExpand" 
+                VerticalOptions="EndAndExpand"
+                WidthRequest="70" 
+                HeightRequest="70" 
+                CornerRadius="40">
+            <ImageButton
+                    Source="search_people.png"/>
+        </Frame>
+    </StackLayout>
+    
+    
 </ContentPage>
