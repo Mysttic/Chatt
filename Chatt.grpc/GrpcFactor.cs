@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Chatt.grpc
+namespace Chatt.Grpc
 {
     public interface IGrpcFactor { }
 
@@ -21,6 +21,15 @@ namespace Chatt.grpc
         private GrpcFactor()
         {
             // Prywatny konstruktor, aby uniemożliwić bezpośrednie tworzenie instancji
+
+            Server = GrpcInitiator.CreateGrpcServer(Port: 50051);
+            Server.Start();
+            Console.WriteLine("The server is listening on the port: " + 50051);
+            //TODO: nie będzie tu tworzony domyślny klient tylko nowa instancja listy
+            greetingServiceClient = new List<GreetingService.GreetingServiceClient>
+            {
+                GrpcInitiator.CreateGrpcClient(Port: 50051)
+            };
         }
 
         public static GrpcFactor Instance

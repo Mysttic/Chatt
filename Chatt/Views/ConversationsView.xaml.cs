@@ -1,4 +1,4 @@
-using Chatt.grpc;
+using Chatt.Grpc;
 using Chatt.ViewModels;
 
 namespace Chatt.UI;

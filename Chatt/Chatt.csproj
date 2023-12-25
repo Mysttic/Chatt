@@ -78,7 +78,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\Chatt.Entities\Chatt.Entities.csproj" />
-	  <ProjectReference Include="..\Chatt.grpc\Chatt.grpc.csproj" />
+	  <ProjectReference Include="..\Chatt.grpc\Chatt.Grpc.csproj" />
 	</ItemGroup>
   
   <ItemGroup>

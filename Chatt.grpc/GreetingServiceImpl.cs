@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static Greet.GreetingService;
 
-namespace Chatt.grpc
+namespace Chatt.Grpc
 {
     public class GreetingServiceImpl : GreetingServiceBase
     {
