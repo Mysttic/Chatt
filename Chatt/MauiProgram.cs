@@ -1,4 +1,6 @@
-﻿using Chatt.Grpc;
+﻿using Chatt.Entities;
+using Chatt.Entities.Model;
+using Chatt.Grpc;
 using Greet;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
@@ -20,7 +22,12 @@ public static class MauiProgram
 			});
 
         builder.Services.AddSingleton<IGrpcFactor>(GrpcFactor.Instance);
-        
+
+		builder.Services.AddSingleton<BaseRepository<UserModel>>();
+		builder.Services.AddSingleton<BaseRepository<SettingsModel>>();
+		builder.Services.AddSingleton<BaseRepository<MessageModel>>();
+		builder.Services.AddSingleton<BaseRepository<ConversationModel>>();
+
 #if DEBUG
 		builder.Logging.AddDebug();
 #endif

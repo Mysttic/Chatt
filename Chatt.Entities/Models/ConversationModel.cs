@@ -1,18 +1,28 @@
 ﻿using PropertyChanged;
+using SQLite;
+using SQLiteNetExtensions.Attributes;
 
 namespace Chatt.Entities.Model
 {
     [AddINotifyPropertyChangedInterface]
-    public class ConversationModel
+    [Table("Conversations")]
+    public class ConversationModel : TableData
     {
-        public int ConversationId { get; set; }
+        [ManyToMany(typeof(UserModel))]
         public int UserId { get; set; }
+        [Ignore]
         public UserModel? User { get; set; }
         public DateTime Created { get; set; }
         public DateTime Updated { get; set; } = DateTime.Now;
-        public List<ConversationMessageModel> ConversationMessages { get; set; } = new List<ConversationMessageModel>();
 
+        [Ignore]
         public string ConversationTitle => ConversationMessages?.LastOrDefault()?.Message ?? "-";
+        [Ignore]
         public string ConversationUserInitials => User?.UserInitials ?? "-";
+
+        [ManyToMany(typeof(MessageModel), CascadeOperations = CascadeOperation.All)]
+        public List<MessageModel> ConversationMessages { get; set; } = new List<MessageModel>();
+
+        
     }
 }

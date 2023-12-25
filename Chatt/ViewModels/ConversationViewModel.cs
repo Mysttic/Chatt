@@ -18,7 +18,7 @@ namespace Chatt.ViewModels
         ConversationView ContentPage { get; set; }
         public ConversationModel ConversationModel { get; set; }
         SettingsModel SettingsModel { get; set; }
-        public ObservableCollection<ConversationMessageModel> ConversationMessages { get; set; }
+        public ObservableCollection<MessageModel> ConversationMessages { get; set; }
         public ConversationViewModel(ConversationView contentPage, ConversationModel conversationModel) 
         { 
             ContentPage = contentPage;
@@ -35,37 +35,8 @@ namespace Chatt.ViewModels
 
         async Task Load()
         {
-            ConversationMessages = new ObservableCollection<ConversationMessageModel>()
-            {
-                new ConversationMessageModel()
-                {
-                    Message = "Hello"
-                },
-                new ConversationMessageModel()
-                {
-                    Message = "Hello"
-                },
-                new ConversationMessageModel()
-                {
-                    Message = "How are you?"
-                },
-                new ConversationMessageModel()
-                {
-                    Message = "Good, and you?"
-                },
-                new ConversationMessageModel()
-                {
-                    Message = "Good, thanks."
-                },
-                new ConversationMessageModel()
-                {
-                    Message = "Wypierdalaj"
-                },
-                new ConversationMessageModel()
-                {
-                    Message = "Też wypierdalaj"
-                }
-            };
+            var messages = App.MessagesRepo.GetItems();
+            ConversationMessages = new ObservableCollection<MessageModel>(messages);
         }
 
         public void GreetWelcome(GreetingServiceClient client)
@@ -80,6 +51,10 @@ namespace Chatt.ViewModels
             var greetingResponse = client.Greet(greetingRequest);
 
             Console.WriteLine(greetingResponse.Result);
+
+            App.MessagesRepo.SaveItem(new MessageModel() { Message = greetingResponse.Result });
+            Load();
+            //ConversationMessages.Add();
         }
     }
 }

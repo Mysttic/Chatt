@@ -38,25 +38,25 @@ namespace Chatt.ViewModels
             {
                 new ConversationModel()
                 {
-                    ConversationId = 1, Created = DateTime.Now, UserId = 1, User = new UserModel(){ NickName = "Juzek" },
-                    ConversationMessages = new List<ConversationMessageModel>()
+                    Id = 1, Created = DateTime.Now, UserId = 1, User = new UserModel(){ NickName = "Juzek" },
+                    ConversationMessages = new List<MessageModel>()
                     {
-                        new ConversationMessageModel { Message = "Siema byku" }
+                        new MessageModel { Message = "Siema byku" }
                     }
                 },
                 new ConversationModel()
                 {
-                    ConversationId = 2, Created = DateTime.Now, UserId = 2, User = new UserModel(){ NickName = "Franek" },
-                    ConversationMessages = new List<ConversationMessageModel>()
+                    Id = 2, Created = DateTime.Now, UserId = 2, User = new UserModel(){ NickName = "Franek" },
+                    ConversationMessages = new List<MessageModel>()
                     {
-                        new ConversationMessageModel { Message = "Elo" }
+                        new MessageModel { Message = "Elo" }
                     }
                 },new ConversationModel()
                 {
-                    ConversationId = 3, Created = DateTime.Now, UserId = 3, User = new UserModel(){ NickName = "Staszek" },
-                    ConversationMessages = new List<ConversationMessageModel>()
+                    Id = 3, Created = DateTime.Now, UserId = 3, User = new UserModel(){ NickName = "Staszek" },
+                    ConversationMessages = new List<MessageModel>()
                     {
-                        new ConversationMessageModel { Message = "Daj 5 złotych" }
+                        new MessageModel { Message = "Daj 5 złotych" }
                     }
                 },
             };

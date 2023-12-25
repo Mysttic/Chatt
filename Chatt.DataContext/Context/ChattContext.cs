@@ -12,7 +12,7 @@ namespace Chatt.DataContext.Context
     {
         public DbSet<UserModel> Users { get; set; }
         public DbSet<ConversationModel> Conversations { get; set; }
-        public DbSet<ConversationMessageModel> ConversationMessages { get; set; }
+        public DbSet<MessageModel> ConversationMessages { get; set; }
 
         string DbPath { get; set; }
         public ChattContext()
@@ -31,7 +31,7 @@ namespace Chatt.DataContext.Context
         {
             modelBuilder.Entity<UserModel>().ToTable("Users");
             modelBuilder.Entity<ConversationModel>().ToTable("Conversations");
-            modelBuilder.Entity<ConversationMessageModel>().ToTable("ConversationMessages");
+            modelBuilder.Entity<MessageModel>().ToTable("ConversationMessages");
         }
     }
 }

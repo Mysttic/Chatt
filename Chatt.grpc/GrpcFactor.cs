@@ -10,9 +10,10 @@ namespace Chatt.Grpc
 {
     public interface IGrpcFactor { }
 
-    public class GrpcFactor : IGrpcFactor
+    public sealed class GrpcFactor : IGrpcFactor
     {
-        private static GrpcFactor _instance;
+        private static GrpcFactor _instance = null;
+        private static readonly object padlock = new object();
 
         // Twoja zmienna globalna
         public Server Server { get; set; }
@@ -37,9 +38,9 @@ namespace Chatt.Grpc
             get
             {
                 if (_instance == null)
-                {
-                    _instance = new GrpcFactor();
-                }
+                    lock (padlock)
+                        if (_instance == null)
+                            _instance = new GrpcFactor();
                 return _instance;
             }
         }
