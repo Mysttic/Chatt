@@ -13,8 +13,8 @@ namespace Chatt.Grpc
     {
         public override Task<GreetingResponse> Greet(GreetingRequest request, ServerCallContext context)
         {
-            string result = String.Format("hello {0} {1}", request.Greeting.FirstName, request.Greeting.LastName);
-            Console.WriteLine("{0} {1} just called for server.", request.Greeting.FirstName, request.Greeting.LastName);
+            string result = String.Format("hello {0}\n{1}", request.Greeting.Nickname, request.Greeting.WelcomeMessage);
+            Console.WriteLine("{0} ({1}) just called for server.", request.Greeting.Nickname, request.Greeting.Address);
             return Task.FromResult(new GreetingResponse() { Result = result });
         }
     }

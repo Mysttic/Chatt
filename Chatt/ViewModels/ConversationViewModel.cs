@@ -43,7 +43,7 @@ namespace Chatt.ViewModels
         {
             var greeting = new Greeting()
             {
-                FirstName = ConversationModel?.User?.NickName,
+                Nickname = ConversationModel?.User?.NickName,
             };
 
             var greetingRequest = new GreetingRequest() { Greeting = greeting };

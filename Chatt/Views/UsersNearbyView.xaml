@@ -31,7 +31,9 @@
                 </VerticalStackLayout>
                 <ImageButton Grid.Column="1"
                              Source="search_people.png"
-                             HeightRequest="150" Padding="20"
+                             HeightRequest="150" 
+                             Padding="20"
+                             Command="{Binding SearchPeople}"
                              />
             </Grid>
             <CollectionView ItemsSource="{Binding Users}" x:Name="collectionViewUsers">

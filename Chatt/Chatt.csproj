@@ -79,6 +79,7 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\Chatt.Entities\Chatt.Entities.csproj" />
 	  <ProjectReference Include="..\Chatt.grpc\Chatt.Grpc.csproj" />
+	  <ProjectReference Include="..\Chatt.Network\Chatt.Network.csproj" />
 	</ItemGroup>
   
   <ItemGroup>

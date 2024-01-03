@@ -7,7 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chatt", "Chatt\Chatt.csproj
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1EC0A929-5E47-4C08-859A-6BFB7FC0F390}"
 	ProjectSection(SolutionItems) = preProject
-		chatt.proto = chatt.proto
+		greet.proto = greet.proto
+		test.proto = test.proto
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chatt.Grpc", "Chatt.grpc\Chatt.Grpc.csproj", "{87558C5F-3069-4D12-AE2A-B1E3DD6C4AC4}"
@@ -15,6 +16,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chatt.DataContext", "Chatt.DataContext\Chatt.DataContext.csproj", "{36E75F97-E566-45CD-B02B-850868DC2620}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chatt.Entities", "Chatt.Entities\Chatt.Entities.csproj", "{14B7F2DF-E95B-4BD8-A2CD-6DC8F7BE497D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chatt.Network", "Chatt.Network\Chatt.Network.csproj", "{289ED4A6-CD64-40AC-B480-D0AA97CF9EE5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,6 +43,10 @@ Global
 		{14B7F2DF-E95B-4BD8-A2CD-6DC8F7BE497D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{14B7F2DF-E95B-4BD8-A2CD-6DC8F7BE497D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{14B7F2DF-E95B-4BD8-A2CD-6DC8F7BE497D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{289ED4A6-CD64-40AC-B480-D0AA97CF9EE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{289ED4A6-CD64-40AC-B480-D0AA97CF9EE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{289ED4A6-CD64-40AC-B480-D0AA97CF9EE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{289ED4A6-CD64-40AC-B480-D0AA97CF9EE5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
