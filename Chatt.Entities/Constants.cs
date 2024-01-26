@@ -9,7 +9,8 @@ namespace Chatt.Entities
 {
     internal static class Constants
     {
-        private const string DBFileName = "SQLite.db3";
+        //Remember when modify to change that in file Chatt.DataContext/Constants.cs
+        private const string DBFileName = "chatt.db";
 
         public const SQLiteOpenFlags Flags =
              SQLiteOpenFlags.ReadWrite |
@@ -20,8 +21,12 @@ namespace Chatt.Entities
         {
             get
             {
-                return Path
-                     .Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), DBFileName);
+                var folder = Environment.SpecialFolder.LocalApplicationData;
+                var path = Environment.GetFolderPath(folder);
+                path = Path.Join(path, "Chatt");
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+                return Path.Join(path, DBFileName);
             }
         }
     }

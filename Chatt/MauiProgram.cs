@@ -1,9 +1,12 @@
 ﻿using Chatt.Entities;
 using Chatt.Entities.Model;
+using Chatt.Entities.Repositories;
 using Chatt.Grpc;
+using Chatt.Network;
 using Greet;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Chatt;
 
@@ -21,20 +24,18 @@ public static class MauiProgram
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
 			});
 
-        builder.Services.AddSingleton<IGrpcFactor>(GrpcFactor.Instance);
 
 		builder.Services.AddSingleton<BaseRepository<UserModel>>();
-		builder.Services.AddSingleton<BaseRepository<SettingsModel>>();
+		builder.Services.AddSingleton<SettingsRepository>();
 		builder.Services.AddSingleton<BaseRepository<MessageModel>>();
 		builder.Services.AddSingleton<BaseRepository<ConversationModel>>();
+
 
 #if DEBUG
 		builder.Logging.AddDebug();
 #endif
 
 		return builder.Build();
-	}
+    }
 
-
-    
 }

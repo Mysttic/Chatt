@@ -12,7 +12,6 @@ namespace Chatt.Network
         public static async IAsyncEnumerable<(string address,int port)> Discover(string[] addresses, int[] ports)
         {
             //var channel = Channel.CreateUnbounded<string>();
-
             foreach (string address in addresses)
             {
                 if (await IsHostAvailableAsync(address, 1000))
@@ -38,11 +37,6 @@ namespace Chatt.Network
                 }
             }
 
-            //channel.Writer.Complete();
-            //await foreach (var item in channel.Reader.ReadAllAsync())
-            //{
-            //    yield return item;
-            //}
         }
 
         public static async Task<bool> IsHostAvailableAsync(string ipAddress, int timeout)

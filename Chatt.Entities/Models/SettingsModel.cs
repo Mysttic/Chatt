@@ -22,10 +22,8 @@ namespace Chatt.Entities.Model
         /// This field determine on which port app is listening actualy
         /// It can be any value from all values defined in CustomPort field
         /// </summary>
-        [MaxLength(255)] 
-        public string ActivePort { get; set; } = string.Empty;
-        [MaxLength(255)]
-        public string CustomPort { get; set; } = string.Empty;
+        public int ActivePort { get; set; } = 0;
+        public int CustomPort { get; set; }
         [MaxLength(255)]
         public string IpFilter { get; set; } = string.Empty;
         [MaxLength(255)]

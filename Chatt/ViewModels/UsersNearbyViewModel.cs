@@ -105,10 +105,10 @@ namespace Chatt.ViewModels
             {
                 Nickname = "Dante devilry",
                 WelcomeMessage = "Your welcome message",
-                CustomPort = "50001-50010;50050;50075",
-                ActivePort = "50001",
-                IpFilter = "192.168.0.1-192.168.0.255;192.168.10.10;192.168.10.*",
-                PortFilter = "50001-50010;50050;50075"
+                CustomPort = 50004,
+                ActivePort = 0,
+                IpFilter = "192.168.68.130-192.168.68.140",
+                PortFilter = "50001-50010"
             };
             Users = new ObservableCollection<UserModel>()
             {

@@ -25,7 +25,7 @@ namespace Chatt.ViewModels
             ConversationModel = conversationModel;
             SettingsModel = new SettingsModel();
             Load();
-            GreetWelcome(GrpcFactor.Instance.greetingServiceClient.FirstOrDefault());
+            GreetWelcome(GrpcFactor.Instance().greetingServiceClient.FirstOrDefault());
         }
 
         public ICommand GoHome => new Command(async (object obj) =>

@@ -12,10 +12,28 @@ namespace Chatt.DataContext.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "Settings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Nickname = table.Column<string>(type: "TEXT", nullable: false),
+                    WelcomeMessage = table.Column<string>(type: "TEXT", nullable: false),
+                    ActivePort = table.Column<int>(type: "INTEGER", nullable: false),
+                    CustomPort = table.Column<int>(type: "INTEGER", nullable: false),
+                    IpFilter = table.Column<string>(type: "TEXT", nullable: false),
+                    PortFilter = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Settings", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
-                    UserId = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     UniqueIdentifier = table.Column<string>(type: "TEXT", nullable: true),
                     NickName = table.Column<string>(type: "TEXT", nullable: true),
@@ -28,14 +46,14 @@ namespace Chatt.DataContext.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Users", x => x.UserId);
+                    table.PrimaryKey("PK_Users", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "Conversations",
                 columns: table => new
                 {
-                    ConversationId = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     UserId = table.Column<int>(type: "INTEGER", nullable: false),
                     Created = table.Column<DateTime>(type: "TEXT", nullable: false),
@@ -43,12 +61,12 @@ namespace Chatt.DataContext.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Conversations", x => x.ConversationId);
+                    table.PrimaryKey("PK_Conversations", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Conversations_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "UserId",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -56,31 +74,36 @@ namespace Chatt.DataContext.Migrations
                 name: "ConversationMessages",
                 columns: table => new
                 {
-                    ConversationMessageId = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     ConversationId = table.Column<int>(type: "INTEGER", nullable: false),
                     UserId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Created = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Received = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    Resend = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Created = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    Received = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    Resend = table.Column<DateTime>(type: "TEXT", nullable: true),
                     Message = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ConversationMessages", x => x.ConversationMessageId);
+                    table.PrimaryKey("PK_ConversationMessages", x => x.Id);
                     table.ForeignKey(
                         name: "FK_ConversationMessages_Conversations_ConversationId",
                         column: x => x.ConversationId,
                         principalTable: "Conversations",
-                        principalColumn: "ConversationId",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_ConversationMessages_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
-                        principalColumn: "UserId",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.InsertData(
+                table: "Settings",
+                columns: new[] { "Id", "ActivePort", "CustomPort", "IpFilter", "Nickname", "PortFilter", "WelcomeMessage" },
+                values: new object[] { 1, 0, 50004, "", "Standardowy Nick", "", "Witaj w naszej aplikacji!" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ConversationMessages_ConversationId",
@@ -103,6 +126,9 @@ namespace Chatt.DataContext.Migrations
         {
             migrationBuilder.DropTable(
                 name: "ConversationMessages");
+
+            migrationBuilder.DropTable(
+                name: "Settings");
 
             migrationBuilder.DropTable(
                 name: "Conversations");

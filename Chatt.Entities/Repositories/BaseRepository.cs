@@ -8,7 +8,7 @@ namespace Chatt.Entities
     public class BaseRepository<T> :
           IBaseRepository<T> where T : TableData, new()
     {
-        SQLiteConnection connection;
+        protected SQLiteConnection connection;
         public string StatusMessage { get; set; }
 
         public BaseRepository()

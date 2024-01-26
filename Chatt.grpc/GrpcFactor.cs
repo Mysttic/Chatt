@@ -18,15 +18,15 @@ namespace Chatt.Grpc
         internal static int port = 0;
         private static GreetingService.GreetingServiceClient GreetingClient = null;
         private static readonly object padlock = new object();
-
+        public static int Port { get => port; }
         // Twoja zmienna globalna
         public Server Server { get; set; }
         public List<GreetingService.GreetingServiceClient> greetingServiceClient { get; private set; }
         public List<TestingService.TestingServiceClient> testingServiceClient { get; private set; }
-        private GrpcFactor()
+        private GrpcFactor(int _port)
         {
             // Prywatny konstruktor, aby uniemożliwić bezpośrednie tworzenie instancji
-            port = new Random().Next(50000, 50010);
+            port = _port;
             Server = GrpcInitiator.CreateGrpcServer(Port: port);
             Server.Start();
             Debug.WriteLine("The server is listening on the port: " + port);
@@ -39,6 +39,7 @@ namespace Chatt.Grpc
             {
                 GrpcInitiator.GrpcClientInitiator<TestingService.TestingServiceClient>.CreateGrpcClient(Port: 44444)
             };
+            
         }
 
         public static GreetingService.GreetingServiceClient GetClient(string address, int port)
@@ -47,16 +48,17 @@ namespace Chatt.Grpc
             return GreetingClient;
         }
 
-        public static GrpcFactor Instance
+        public static GrpcFactor Instance(int _port = 0)
         {
-            get
-            {
-                if (_instance == null)
-                    lock (padlock)
-                        if (_instance == null)
-                            _instance = new GrpcFactor();
+            if (port != 0) //Nie można drugi raz utworzyć instancji jeśli wcześniej już ją utworzono
                 return _instance;
-            }
+            if (_instance == null)
+                lock (padlock)
+                    if (_instance == null)
+                        _instance = new GrpcFactor(_port);
+            return _instance;
         }
+
     }
 }
+

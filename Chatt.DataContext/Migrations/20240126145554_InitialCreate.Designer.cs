@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Chatt.DataContext.Migrations
 {
     [DbContext(typeof(ChattContext))]
-    [Migration("20230717110713_InitialCreate")]
+    [Migration("20240126145554_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -20,9 +20,9 @@ namespace Chatt.DataContext.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "7.0.9");
 
-            modelBuilder.Entity("Chatt.Entities.Model.Conversation", b =>
+            modelBuilder.Entity("Chatt.Entities.Model.ConversationModel", b =>
                 {
-                    b.Property<int>("ConversationId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
@@ -35,50 +35,95 @@ namespace Chatt.DataContext.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("ConversationId");
+                    b.HasKey("Id");
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Conversations");
+                    b.ToTable("Conversations", (string)null);
                 });
 
-            modelBuilder.Entity("Chatt.Entities.Model.ConversationMessage", b =>
+            modelBuilder.Entity("Chatt.Entities.Model.MessageModel", b =>
                 {
-                    b.Property<int>("ConversationMessageId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("ConversationId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("Created")
+                    b.Property<DateTime?>("Created")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("Received")
+                    b.Property<DateTime?>("Received")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("Resend")
+                    b.Property<DateTime?>("Resend")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("UserId")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("ConversationMessageId");
+                    b.HasKey("Id");
 
                     b.HasIndex("ConversationId");
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ConversationMessages");
+                    b.ToTable("ConversationMessages", (string)null);
                 });
 
-            modelBuilder.Entity("Chatt.Entities.Model.User", b =>
+            modelBuilder.Entity("Chatt.Entities.Model.SettingsModel", b =>
                 {
-                    b.Property<int>("UserId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ActivePort")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("CustomPort")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("IpFilter")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Nickname")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PortFilter")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WelcomeMessage")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Settings", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            ActivePort = 0,
+                            CustomPort = 50004,
+                            IpFilter = "",
+                            Nickname = "Standardowy Nick",
+                            PortFilter = "",
+                            WelcomeMessage = "Witaj w naszej aplikacji!"
+                        });
+                });
+
+            modelBuilder.Entity("Chatt.Entities.Model.UserModel", b =>
+                {
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
@@ -106,14 +151,14 @@ namespace Chatt.DataContext.Migrations
                     b.Property<string>("WelcomeMessage")
                         .HasColumnType("TEXT");
 
-                    b.HasKey("UserId");
+                    b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("Chatt.Entities.Model.Conversation", b =>
+            modelBuilder.Entity("Chatt.Entities.Model.ConversationModel", b =>
                 {
-                    b.HasOne("Chatt.Entities.Model.User", "User")
+                    b.HasOne("Chatt.Entities.Model.UserModel", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -122,15 +167,15 @@ namespace Chatt.DataContext.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Chatt.Entities.Model.ConversationMessage", b =>
+            modelBuilder.Entity("Chatt.Entities.Model.MessageModel", b =>
                 {
-                    b.HasOne("Chatt.Entities.Model.Conversation", "Conversation")
+                    b.HasOne("Chatt.Entities.Model.ConversationModel", "Conversation")
                         .WithMany("ConversationMessages")
                         .HasForeignKey("ConversationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Chatt.Entities.Model.User", "User")
+                    b.HasOne("Chatt.Entities.Model.UserModel", "User")
                         .WithMany("ConversationMessages")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -141,12 +186,12 @@ namespace Chatt.DataContext.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Chatt.Entities.Model.Conversation", b =>
+            modelBuilder.Entity("Chatt.Entities.Model.ConversationModel", b =>
                 {
                     b.Navigation("ConversationMessages");
                 });
 
-            modelBuilder.Entity("Chatt.Entities.Model.User", b =>
+            modelBuilder.Entity("Chatt.Entities.Model.UserModel", b =>
                 {
                     b.Navigation("ConversationMessages");
                 });
