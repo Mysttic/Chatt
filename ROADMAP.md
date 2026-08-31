@@ -35,31 +35,32 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 
 ## 3. Fazy
 
-### Faza 0 — Szkielet projektu
-- [ ] `flutter create app` (platformy: linux, windows, android, web) + struktura `lib/{core,data,network,ui}` + lints
-- [ ] Baza `drift`: tabele users/conversations/messages/settings + repozytoria + testy
-- [ ] Tożsamość: GUID przy pierwszym starcie, ekran ustawień zapisujący nick/wiadomość/port do bazy
-- [ ] Smoke: `flutter test` zielone w sesji chmurowej; build linux przechodzi
+### Faza 0 — Szkielet projektu ✅ (31.08.2026)
+- [x] `flutter create app` (platformy: linux, windows, android) + struktura `lib/{core,data,network,services,ui}` + lints
+- [x] Baza `drift`: tabele settings/peers/conversations/messages + zapytania + testy
+- [x] Tożsamość: GUID przy pierwszym starcie, ekran ustawień zapisujący nick/wiadomość/port do bazy
+- [x] Smoke: `flutter test` zielone w sesji chmurowej; build linux przechodzi
 
-### Faza 1 — Discovery
-- [ ] Responder UDP (nasłuch + odpowiedź z tożsamością) uruchamiany ze startem aplikacji
-- [ ] Skaner: broadcast + zbieranie odpowiedzi → lista urządzeń (GUID, nick, IP, port)
-- [ ] Zapis znalezionych do bazy; ręczne dodanie po IP:port; opcjonalne filtry IP/portów (przepisać parsery z C#)
-- [ ] Testy: dwie instancje stosu w jednym procesie znajdują się nawzajem
+### Faza 1 — Discovery ✅ (31.08.2026)
+- [x] Responder UDP (nasłuch + odpowiedź z tożsamością) uruchamiany ze startem aplikacji; zapytanie niesie tożsamość skanującego, więc jeden skan uczy obie strony
+- [x] Skaner: broadcast (globalny + kierowane /24) z powtórką → lista urządzeń (GUID, nick, IP, port)
+- [x] Zapis znalezionych do bazy; ręczne dodanie po IP:port (dialog + `GET /info`)
+- [ ] Opcjonalne filtry IP/portów z prototypu C# (świadomie odłożone — broadcast czyni je mniej potrzebnymi; wrócą, jeśli zajdzie potrzeba)
+- [x] Testy: dwie instancje stosu w jednym procesie znajdują się nawzajem
 
-### Faza 2 — Wiadomości (rdzeń)
-- [ ] Serwer `shelf`: `GET /info`, `POST /message` (+ ack), WebSocket zdarzeń
-- [ ] Klient + kolejka wysyłki: zapis→wysłanie→ack→status; oznaczanie niedostarczonych i ponowienie (przepływ z diagramu)
-- [ ] Odbiór: wiadomość → znajdź/utwórz konwersację → zapis → zdarzenie do UI
-- [ ] **Test E2E w sesji chmurowej: dwie pełne instancje na Linuksie wymieniają wiadomości** (uruchamiane i weryfikowane przez Claude)
+### Faza 2 — Wiadomości (rdzeń) ✅ (31.08.2026)
+- [x] Serwer `shelf`: `GET /info`, `POST /message` (+ ack, dedupe po GUID wiadomości, odporność na śmieci); WebSocket zdarzeń niepotrzebny — UI aktualizują strumienie z bazy
+- [x] Wysyłka: zapis(pending)→dostarczenie→ack→delivered/failed; ponowienie niedostarczonych z UI (przepływ z diagramu)
+- [x] Odbiór: upsert nadawcy (IP z połączenia, port z payloadu) → znajdź/utwórz konwersację → zapis → strumień do UI
+- [x] **Test E2E w sesji chmurowej: dwie pełne instancje wymieniają wiadomości w obie strony, offline→failed→retry→delivered, dedupe** (`app/test/`)
 
-### Faza 3 — Pełny UI
-- [ ] Lista konwersacji z bazy (ostatnia wiadomość, inicjały, nieprzeczytane) — wg `ListOfConversation.PNG`
-- [ ] Ekran konwersacji: dymki moje/cudze, pole tekstowe, statusy dostarczenia, retry — wg `Conversation.PNG`
-- [ ] Urządzenia w pobliżu + przejście do rozmowy — wg `ListOfNearbyDevices.PNG`; ustawienia — wg `EditConfiguration.PNG`
-- [ ] Weryfikacja obecności rozmówców przy starcie (ping `GET /info`)
-- [ ] Golden testy / screenshoty z sesji do oceny wyglądu
-- [ ] **Kamień milowy: kompletna aplikacja działa na Linux desktop → usuwamy kod C#**
+### Faza 3 — Pełny UI ✅ (31.08.2026)
+- [x] Lista konwersacji z bazy (ostatnia wiadomość, inicjały, czas, badge nieprzeczytanych) — wg `ListOfConversation.PNG`
+- [x] Ekran konwersacji: dymki moje/cudze, pole tekstowe, statusy (zegarek/podwójny check/błąd), przycisk „ponów" — wg `Conversation.PNG`
+- [x] Urządzenia w pobliżu (skan na żywo + znane urządzenia) — wg `ListOfNearbyDevices.PNG`; ustawienia z adresami do ręcznego parowania — wg `EditConfiguration.PNG`
+- [x] Weryfikacja obecności rozmówcy („dostępny/niedostępny") przy otwarciu rozmowy
+- [x] Screenshoty z żywej aplikacji (`docs/screenshots/`, generowane przez `app/tool/ui_e2e.sh` — dwie instancje pod Xvfb sterowane xdotool)
+- [x] **Kamień milowy: kompletna aplikacja działa na Linux desktop** (usunięcie kodu C# — po potwierdzeniu działania na Windows/Androidzie przez właściciela)
 
 ### Faza 4 — Pliki
 - [ ] Protokół: oferta pliku → akceptacja → streaming HTTP z postępem → suma kontrolna
@@ -85,4 +86,8 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 
 ## 5. Następny krok
 
-Faza 0 w całości — po niej w repo jest szkielet aplikacji z bazą i ustawieniami, testy przechodzą w chmurze, a build Linux działa. Potem od razu Faza 1 (discovery), bo to pierwszy „efekt wow" do zobaczenia na Twoim sprzęcie.
+Fazy 0–3 są zrobione i zweryfikowane w chmurze (testy + żywe E2E dwóch instancji ze zrzutami ekranu). Teraz:
+
+1. **Właściciel**: uruchomienie na Windows (`cd app && flutter run -d windows`; instrukcje w README.md) i na telefonie — pierwszy test w fizycznej sieci Wi‑Fi. Zgłoszenie, co nie działa/przeszkadza.
+2. **Równolegle (sesje chmurowe)**: Faza 4 — przesyłanie plików.
+3. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` niedostępny — tam mieszka Android SDK i artefakty Gradle). Jeśli chcesz, żeby sesje mogły budować APK do sideloadu: w ustawieniach środowiska Claude Code (claude.ai → Environments) dopuść domeny `dl.google.com` i `maven.google.com`.
