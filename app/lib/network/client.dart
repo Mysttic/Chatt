@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -50,6 +52,42 @@ class PeerClient {
       if (response.statusCode != 200) return false;
       final json = tryDecodeJsonMap(utf8.encode(response.body));
       return json?['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Wysyła plik strumieniowo (bez ładowania do pamięci). [onProgress]
+  /// dostaje liczbę bajtów już wysłanych. Timeout skaluje się z rozmiarem
+  /// (wolne Wi-Fi nie może ubijać dużych transferów).
+  Future<bool> sendFile({
+    required String host,
+    required int port,
+    required Map<String, String> headers,
+    required File file,
+    void Function(int sentBytes, int totalBytes)? onProgress,
+  }) async {
+    try {
+      final total = await file.length();
+      final request = http.StreamedRequest('POST', Uri.http('$host:$port', '/file'))
+        ..contentLength = total
+        ..headers.addAll({...headers, 'content-type': 'application/octet-stream'});
+
+      var sent = 0;
+      unawaited(file.openRead().forEach((chunk) {
+        request.sink.add(chunk);
+        sent += chunk.length;
+        onProgress?.call(sent, total);
+      }).then((_) => request.sink.close(), onError: (Object e) {
+        // błąd czytania pliku -> zerwane body, serwer odrzuci transfer
+        request.sink.close();
+      }));
+
+      final timeout = Duration(seconds: 30 + total ~/ (512 * 1024));
+      final response = await _http.send(request).timeout(timeout);
+      final body = await response.stream.bytesToString().timeout(timeout);
+      if (response.statusCode != 200) return false;
+      return tryDecodeJsonMap(utf8.encode(body))?['ok'] == true;
     } catch (_) {
       return false;
     }

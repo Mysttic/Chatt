@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/env.dart';
@@ -24,12 +26,21 @@ class AppServices {
   final ChattServer server;
   final DiscoveryResponder responder;
 
+  /// Katalog na pliki odebrane od innych urządzeń.
+  final String receivedDir;
+
   DeviceIdentity _identity;
   DeviceIdentity get identity => _identity;
 
+  /// Postęp trwających wysyłek plików: id wiadomości -> 0..1. UI podpina się
+  /// przez [progressOf]; wpis znika po zakończeniu transferu.
+  final Map<int, ValueNotifier<double>> _transferProgress = {};
+  ValueListenable<double>? progressOf(int messageId) => _transferProgress[messageId];
+
   static const _uuid = Uuid();
 
-  AppServices._(this.db, this.client, this.server, this.responder, this._identity);
+  AppServices._(this.db, this.client, this.server, this.responder,
+      this.receivedDir, this._identity);
 
   /// Uruchamia kompletny stos. Parametry służą testom (baza w pamięci,
   /// port 0 = dowolny wolny, wyłączone discovery przy testach izolowanych).
@@ -38,8 +49,11 @@ class AppServices {
     int? portOverride,
     String? nameOverride,
     bool enableDiscovery = true,
+    String? receivedDirOverride,
   }) async {
     final db = ChattDb(executor ?? _defaultExecutor());
+    final receivedDir = receivedDirOverride ?? await _defaultReceivedDir();
+    Directory(receivedDir).createSync(recursive: true);
 
     final settings = await db.ensureSettings(
       guidFactory: _uuid.v4,
@@ -59,6 +73,8 @@ class AppServices {
     final server = ChattServer(
       identity: () => services.identity,
       onMessage: (message, fromHost) => services._handleIncoming(message, fromHost),
+      onFile: (meta, data, fromHost) =>
+          services._handleIncomingFile(meta, data, fromHost),
     );
     final preferred = portOverride ?? ChattEnv.tcpPort ?? settings.tcpPort;
     final actualPort = await server.start(preferredPort: preferred);
@@ -69,7 +85,8 @@ class AppServices {
       onPeerSeen: (peer) => services._rememberPeer(peer),
     );
 
-    services = AppServices._(db, PeerClient(), server, responder, identity);
+    services =
+        AppServices._(db, PeerClient(), server, responder, receivedDir, identity);
 
     if (enableDiscovery) {
       try {
@@ -90,6 +107,21 @@ class AppServices {
       return NativeDatabase.createInBackground(File(p.join(dir, 'chatt.db')));
     }
     return driftDatabase(name: 'chatt');
+  }
+
+  static Future<String> _defaultReceivedDir() async {
+    final envDir = ChattEnv.dataDir;
+    if (envDir != null) return p.join(envDir, 'received');
+    try {
+      // Katalog dokumentów aplikacji: działa bez dodatkowych uprawnień także
+      // na Androidzie. "Zapisz gdzie chcesz"/udostępnianie — w fazie 5.
+      final docs = await getApplicationDocumentsDirectory();
+      return p.join(docs.path, 'Chatt', 'received');
+    } catch (_) {
+      // path_provider wymaga kanału platformy; w testach bez bindingu rzuca
+      // Error (nie Exception) — tam wystarczy katalog tymczasowy.
+      return p.join(Directory.systemTemp.path, 'chatt', 'received');
+    }
   }
 
   // --- Discovery / rozmówcy -------------------------------------------------
@@ -152,6 +184,27 @@ class AppServices {
     await _deliver(messageId, peer);
   }
 
+  /// Wysyłka pliku: wiadomość-plik ląduje w bazie (pending), potem streaming
+  /// do odbiorcy z raportowaniem postępu przez [progressOf].
+  Future<void> sendFile(int conversationId, String sourcePath) async {
+    final file = File(sourcePath);
+    if (!await file.exists()) return;
+    final peer = await db.peerForConversation(conversationId);
+    if (peer == null) return;
+
+    final name = p.basename(sourcePath);
+    final messageId = await db.insertOutgoing(
+      conversationId: conversationId,
+      messageGuid: _uuid.v4(),
+      kind: MessageKind.file,
+      body: '📎 $name', // podgląd na liście konwersacji
+      fileName: name,
+      fileSize: await file.length(),
+      filePath: sourcePath,
+    );
+    await _deliverFile(messageId, peer);
+  }
+
   /// Ponowna próba dostarczenia wiadomości oznaczonej jako niedostarczona.
   Future<void> retryMessage(int messageId) async {
     final message = await db.messageById(messageId);
@@ -159,7 +212,11 @@ class AppServices {
     final peer = await db.peerForConversation(message.conversationId);
     if (peer == null) return;
     await db.setMessageStatus(messageId, MessageStatus.pending);
-    await _deliver(messageId, peer);
+    if (message.kind == MessageKind.file) {
+      await _deliverFile(messageId, peer);
+    } else {
+      await _deliver(messageId, peer);
+    }
   }
 
   Future<void> _deliver(int messageId, Peer peer) async {
@@ -179,6 +236,40 @@ class AppServices {
         messageId, delivered ? MessageStatus.delivered : MessageStatus.failed);
   }
 
+  Future<void> _deliverFile(int messageId, Peer peer) async {
+    final message = await db.messageById(messageId);
+    final path = message?.filePath;
+    if (message == null || path == null) return;
+    final file = File(path);
+    if (!await file.exists()) {
+      await db.setMessageStatus(messageId, MessageStatus.failed);
+      return;
+    }
+
+    final progress = _transferProgress[messageId] ??= ValueNotifier(0);
+    try {
+      final delivered = await client.sendFile(
+        host: peer.host,
+        port: peer.port,
+        headers: {
+          headerMessageGuid: message.messageGuid,
+          headerFrom: encodeIdentityHeader(identity),
+          headerFileName: Uri.encodeComponent(message.fileName ?? 'plik'),
+          headerFileSize: '${message.fileSize ?? 0}',
+          headerSentAt: message.createdAt.toUtc().toIso8601String(),
+        },
+        file: file,
+        onProgress: (sent, total) =>
+            progress.value = total == 0 ? 1 : sent / total,
+      );
+      await db.setMessageStatus(
+          messageId, delivered ? MessageStatus.delivered : MessageStatus.failed);
+    } finally {
+      _transferProgress.remove(messageId);
+      progress.dispose();
+    }
+  }
+
   /// Wiadomość przychodząca: nadawca zawsze najpierw ląduje w bazie (znamy
   /// jego IP z połączenia i port serwera z payloadu), potem sama wiadomość.
   Future<void> _handleIncoming(IncomingMessage message, String fromHost) async {
@@ -196,6 +287,62 @@ class AppServices {
       body: message.text,
       sentAt: message.sentAt,
     );
+  }
+
+  /// Plik przychodzący: streaming na dysk do pliku tymczasowego, rename po
+  /// komplecie (nigdy nie zostawiamy w [receivedDir] połowy pliku), na końcu
+  /// wpis w bazie. Duplikat (retry po zgubionym ACK-u) tylko osusza strumień.
+  Future<void> _handleIncomingFile(
+      IncomingFileMeta meta, Stream<List<int>> data, String fromHost) async {
+    final peer = await db.upsertPeer(
+      guid: meta.from.guid,
+      name: meta.from.name,
+      welcomeMessage: meta.from.welcomeMessage,
+      host: fromHost,
+      port: meta.from.tcpPort,
+    );
+    final conversationId = await db.ensureConversation(peer.id);
+
+    final safeName = p.basename(meta.fileName).replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final shortGuid = meta.messageGuid.length > 8
+        ? meta.messageGuid.substring(0, 8)
+        : meta.messageGuid;
+    final targetPath = p.join(receivedDir, '${shortGuid}_$safeName');
+    final tempPath = '$targetPath.part';
+
+    final sink = File(tempPath).openWrite();
+    var received = 0;
+    try {
+      await for (final chunk in data) {
+        sink.add(chunk);
+        received += chunk.length;
+      }
+      await sink.flush();
+    } finally {
+      await sink.close();
+    }
+
+    if (meta.fileSize != 0 && received != meta.fileSize) {
+      // Urwany transfer — nadawca nie dostanie 200 i oznaczy jako failed.
+      File(tempPath).deleteSync();
+      throw const FileSystemException('niekompletny transfer');
+    }
+
+    final inserted = await db.insertIncoming(
+      conversationId: conversationId,
+      messageGuid: meta.messageGuid,
+      kind: MessageKind.file,
+      body: '📎 ${meta.fileName}',
+      fileName: meta.fileName,
+      fileSize: received,
+      filePath: targetPath,
+      sentAt: meta.sentAt,
+    );
+    if (inserted) {
+      File(tempPath).renameSync(targetPath);
+    } else {
+      File(tempPath).deleteSync(); // duplikat — plik już mamy
+    }
   }
 
   // --- Ustawienia -----------------------------------------------------------

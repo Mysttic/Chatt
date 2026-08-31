@@ -45,6 +45,8 @@ enum MessageDirection { outgoing, incoming }
 
 enum MessageStatus { pending, delivered, failed }
 
+enum MessageKind { text, file }
+
 class Messages extends Table {
   IntColumn get id => integer().autoIncrement()();
 
@@ -54,7 +56,16 @@ class Messages extends Table {
   IntColumn get conversationId => integer().references(Conversations, #id)();
   IntColumn get direction => intEnum<MessageDirection>()();
   IntColumn get status => intEnum<MessageStatus>()();
+  IntColumn get kind =>
+      intEnum<MessageKind>().withDefault(Constant(MessageKind.text.index))();
   TextColumn get body => text()();
+
+  /// Pola pliku (kind == file). [filePath]: u nadawcy ścieżka źródłowa,
+  /// u odbiorcy miejsce zapisu.
+  TextColumn get fileName => text().nullable()();
+  IntColumn get fileSize => integer().nullable()();
+  TextColumn get filePath => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get deliveredAt => dateTime().nullable()();
   DateTimeColumn get readAt => dateTime().nullable()();
@@ -82,7 +93,20 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // v2: wiadomości-pliki
+            await m.addColumn(messages, messages.kind);
+            await m.addColumn(messages, messages.fileName);
+            await m.addColumn(messages, messages.fileSize);
+            await m.addColumn(messages, messages.filePath);
+          }
+        },
+      );
 
   // --- Ustawienia -----------------------------------------------------------
 
@@ -254,13 +278,21 @@ class ChattDb extends _$ChattDb {
     required int conversationId,
     required String messageGuid,
     required String body,
+    MessageKind kind = MessageKind.text,
+    String? fileName,
+    int? fileSize,
+    String? filePath,
   }) async {
     final id = await into(messages).insert(MessagesCompanion.insert(
       messageGuid: messageGuid,
       conversationId: conversationId,
       direction: MessageDirection.outgoing,
       status: MessageStatus.pending,
+      kind: Value(kind),
       body: body,
+      fileName: Value(fileName),
+      fileSize: Value(fileSize),
+      filePath: Value(filePath),
       createdAt: DateTime.now(),
     ));
     await touchConversation(conversationId);
@@ -274,6 +306,10 @@ class ChattDb extends _$ChattDb {
     required String messageGuid,
     required String body,
     required DateTime sentAt,
+    MessageKind kind = MessageKind.text,
+    String? fileName,
+    int? fileSize,
+    String? filePath,
   }) async {
     final duplicate = await (select(messages)
           ..where((m) => m.messageGuid.equals(messageGuid)))
@@ -285,7 +321,11 @@ class ChattDb extends _$ChattDb {
         conversationId: conversationId,
         direction: MessageDirection.incoming,
         status: MessageStatus.delivered,
+        kind: Value(kind),
         body: body,
+        fileName: Value(fileName),
+        fileSize: Value(fileSize),
+        filePath: Value(filePath),
         createdAt: sentAt.toLocal(),
         deliveredAt: Value(DateTime.now()),
       ),

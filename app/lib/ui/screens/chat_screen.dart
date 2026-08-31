@@ -1,7 +1,9 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
+import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../widgets/common.dart';
 
@@ -43,6 +45,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _input.text;
     _input.clear();
     await ref.read(appServicesProvider).sendText(widget.conversationId, text);
+  }
+
+  Future<void> _attachFile() async {
+    final file = await openFile();
+    if (file == null) return;
+    await ref.read(appServicesProvider).sendFile(widget.conversationId, file.path);
   }
 
   @override
@@ -103,6 +111,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   final message = items[items.length - 1 - index];
                   return _MessageBubble(
                     message: message,
+                    services: ref.read(appServicesProvider),
                     onRetry: () => ref
                         .read(appServicesProvider)
                         .retryMessage(message.id),
@@ -118,6 +127,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  IconButton(
+                    tooltip: 'Wyślij plik',
+                    icon: const Icon(Icons.attach_file),
+                    onPressed: _attachFile,
+                  ),
                   Expanded(
                     child: TextField(
                       controller: _input,
@@ -153,9 +167,69 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 class _MessageBubble extends StatelessWidget {
   final Message message;
+  final AppServices services;
   final VoidCallback onRetry;
 
-  const _MessageBubble({required this.message, required this.onRetry});
+  const _MessageBubble(
+      {required this.message, required this.services, required this.onRetry});
+
+  static String formatSize(int? bytes) {
+    if (bytes == null) return '';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+
+  /// Treść dymka: tekst albo kafelek pliku (nazwa, rozmiar, pasek postępu
+  /// podczas trwającej wysyłki).
+  Widget _content(BuildContext context, bool mine, ColorScheme scheme) {
+    final textColor = mine ? scheme.onPrimary : scheme.onSurface;
+    if (message.kind != MessageKind.file) {
+      return Text(message.body, style: TextStyle(color: textColor, fontSize: 15));
+    }
+    final progress = services.progressOf(message.id);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.insert_drive_file_outlined, color: textColor),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(message.fileName ?? 'plik',
+                  style: TextStyle(
+                      color: textColor, fontSize: 15, fontWeight: FontWeight.w500),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+              Text(formatSize(message.fileSize),
+                  style: TextStyle(
+                      color: textColor.withValues(alpha: 0.8), fontSize: 12)),
+              if (progress != null) ...[
+                const SizedBox(height: 6),
+                ValueListenableBuilder<double>(
+                  valueListenable: progress,
+                  builder: (_, value, _) => ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: value,
+                      minHeight: 5,
+                      backgroundColor: textColor.withValues(alpha: 0.25),
+                      color: mine ? scheme.onPrimary : scheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,11 +255,7 @@ class _MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            message.body,
-            style: TextStyle(
-                color: mine ? scheme.onPrimary : scheme.onSurface, fontSize: 15),
-          ),
+          _content(context, mine, scheme),
           const SizedBox(height: 2),
           Row(
             mainAxisSize: MainAxisSize.min,

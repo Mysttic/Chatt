@@ -1,8 +1,8 @@
 # Chatt
 
 Komunikator P2P dla urządzeń w jednej sieci Wi‑Fi (PC ⇄ telefon z Androidem):
-wiadomości — a docelowo też pliki — przesyłane **bezpośrednio między
-urządzeniami**, bez żadnego serwera pośredniczącego.
+wiadomości i pliki przesyłane **bezpośrednio między urządzeniami**, bez
+żadnego serwera pośredniczącego.
 
 Aplikacja jest napisana we **Flutterze** i mieszka w katalogu [`app/`](app/).
 Katalogi C#/.NET (`Chatt`, `Chatt.Entities`, `Chatt.grpc`, …) to poprzednie
@@ -15,16 +15,18 @@ funkcji, potem znikną. Plan prac i stan projektu: [ROADMAP.md](ROADMAP.md).
 - **Discovery**: broadcast UDP na porcie 47777 — jedno zapytanie, urządzenia
   odpowiadają tożsamością; jeden skan uczy obie strony nawzajem. Gdy broadcast
   nie przechodzi (izolacja AP, emulator), jest ręczne „Dodaj po adresie IP".
-- **Wiadomości**: każda instancja hostuje mały serwer HTTP (`GET /info`,
-  `POST /message`) na porcie 47780 (konfigurowalny; zajęty ⇒ próbowane są
-  kolejne). Wysyłka: zapis lokalny → dostarczenie → potwierdzenie; nieudane
-  można ponowić jednym dotknięciem.
+- **Wiadomości i pliki**: każda instancja hostuje mały serwer HTTP
+  (`GET /info`, `POST /message`, `POST /file`) na porcie 47780
+  (konfigurowalny; zajęty ⇒ próbowane są kolejne). Wysyłka: zapis lokalny →
+  dostarczenie → potwierdzenie; nieudane można ponowić jednym dotknięciem.
+  Pliki idą streamingiem (dowolny rozmiar), z paskiem postępu; odebrane
+  lądują w katalogu dokumentów aplikacji.
 - **Baza**: SQLite (drift) — rozmówcy, konwersacje, wiadomości ze statusami
   dostarczenia i licznikiem nieprzeczytanych.
 
-| Skan sieci | Rozmowa | Lista konwersacji |
+| Skan sieci | Rozmowa | Wysłany plik |
 |---|---|---|
-| ![Skan](docs/screenshots/b3_po_skanie.png) | ![Czat](docs/screenshots/b5_czat_pelna_rozmowa.png) | ![Lista](docs/screenshots/a1_lista_nieprzeczytane.png) |
+| ![Skan](docs/screenshots/b3_po_skanie.png) | ![Czat](docs/screenshots/b5_czat_pelna_rozmowa.png) | ![Plik](docs/screenshots/b6_plik_wyslany.png) |
 
 *Zrzuty z automatycznego testu E2E: dwie instancje aplikacji znajdują się
 przez UDP i rozmawiają ze sobą po HTTP.*

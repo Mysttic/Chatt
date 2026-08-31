@@ -92,3 +92,67 @@ Map<String, Object?> messagePacket({
       'text': text,
       'sentAt': sentAt.toUtc().toIso8601String(),
     };
+
+// --- Pliki: POST /file --------------------------------------------------
+// Treść zapytania to surowe bajty pliku (streaming w obie strony, żeby duże
+// pliki nie przechodziły przez pamięć). Metadane jadą w nagłówkach — muszą
+// być ASCII, stąd base64/percent-encoding.
+
+const String headerMessageGuid = 'x-chatt-message-guid';
+const String headerFrom = 'x-chatt-from';
+const String headerFileName = 'x-chatt-file-name';
+const String headerFileSize = 'x-chatt-file-size';
+const String headerSentAt = 'x-chatt-sent-at';
+
+String encodeIdentityHeader(DeviceIdentity identity) =>
+    base64Url.encode(utf8.encode(jsonEncode(identity.toJson())));
+
+DeviceIdentity? decodeIdentityHeader(String? value) {
+  if (value == null) return null;
+  try {
+    return DeviceIdentity.fromJson(jsonDecode(utf8.decode(base64Url.decode(value))));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Metadane pliku przychodzącego przez POST /file.
+class IncomingFileMeta {
+  final String messageGuid;
+  final DeviceIdentity from;
+  final String fileName;
+  final int fileSize;
+  final DateTime sentAt;
+
+  const IncomingFileMeta({
+    required this.messageGuid,
+    required this.from,
+    required this.fileName,
+    required this.fileSize,
+    required this.sentAt,
+  });
+
+  static IncomingFileMeta? fromHeaders(Map<String, String> headers) {
+    final guid = headers[headerMessageGuid];
+    final from = decodeIdentityHeader(headers[headerFrom]);
+    final rawName = headers[headerFileName];
+    final size = int.tryParse(headers[headerFileSize] ?? '');
+    if (guid == null || guid.isEmpty || from == null || rawName == null || size == null || size < 0) {
+      return null;
+    }
+    String name;
+    try {
+      name = Uri.decodeComponent(rawName);
+    } catch (_) {
+      return null;
+    }
+    final sentAt = DateTime.tryParse(headers[headerSentAt] ?? '');
+    return IncomingFileMeta(
+      messageGuid: guid,
+      from: from,
+      fileName: name,
+      fileSize: size,
+      sentAt: sentAt ?? DateTime.now(),
+    );
+  }
+}

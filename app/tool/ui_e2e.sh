@@ -70,6 +70,17 @@ shot :91 a3_czat_odpowiedz
 # --- Telefon (B): pełna rozmowa z potwierdzeniem dostarczenia
 shot :92 b5_czat_pelna_rozmowa
 
+# --- B wysyła plik: spinacz -> dialog GTK (Ctrl+L = wpisanie ścieżki)
+head -c 2500000 /dev/urandom > "$WORK/wakacje-zdjecie.jpg"
+click :92 32 770 2
+DISPLAY=:92 xdotool key --clearmodifiers ctrl+l
+sleep 0.5
+type_text :92 "$WORK/wakacje-zdjecie.jpg"
+DISPLAY=:92 xdotool key Return
+sleep 4
+shot :92 b6_plik_wyslany
+shot :91 a5_plik_odebrany
+
 # --- Ustawienia na A
 click :91 28 28 1
 click :91 444 28 2

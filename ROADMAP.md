@@ -62,10 +62,11 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [x] Screenshoty z żywej aplikacji (`docs/screenshots/`, generowane przez `app/tool/ui_e2e.sh` — dwie instancje pod Xvfb sterowane xdotool)
 - [x] **Kamień milowy: kompletna aplikacja działa na Linux desktop** (usunięcie kodu C# — po potwierdzeniu działania na Windows/Androidzie przez właściciela)
 
-### Faza 4 — Pliki
-- [ ] Protokół: oferta pliku → akceptacja → streaming HTTP z postępem → suma kontrolna
-- [ ] UI: wybór pliku, wiadomość-plik z paskiem postępu, katalog docelowy
-- [ ] Test E2E na dużym pliku między dwiema instancjami
+### Faza 4 — Pliki ✅ rdzeń (31.08.2026)
+- [x] Protokół: `POST /file` — streaming w obie strony (bez ładowania do pamięci), metadane w nagłówkach, weryfikacja rozmiaru, plik tymczasowy + rename (nigdy pół pliku), dedupe po GUID
+- [x] UI: spinacz → systemowy wybór pliku (file_selector), dymek pliku z nazwą/rozmiarem, pasek postępu wysyłki, retry jak przy tekście; odbiór do katalogu dokumentów aplikacji
+- [x] Testy E2E: 3 MB bajt w bajt, offline→failed→retry, uszkodzone metadane→400; scenariusz na żywym UI (b6/a5 w `docs/screenshots/`)
+- [ ] Do fazy 5: akceptacja odbioru przed transferem, otwieranie/udostępnianie odebranego pliku z czatu, suma kontrolna i wznawianie dużych transferów
 
 ### Faza 5 — Sprzęt właściciela (Windows + Android)
 - [ ] Instalacja Flutter SDK na Windows + Android Studio (instrukcja w README)
@@ -89,5 +90,5 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 Fazy 0–3 są zrobione i zweryfikowane w chmurze (testy + żywe E2E dwóch instancji ze zrzutami ekranu). Teraz:
 
 1. **Właściciel**: uruchomienie na Windows (`cd app && flutter run -d windows`; instrukcje w README.md) i na telefonie — pierwszy test w fizycznej sieci Wi‑Fi. Zgłoszenie, co nie działa/przeszkadza.
-2. **Równolegle (sesje chmurowe)**: Faza 4 — przesyłanie plików.
+2. **Równolegle (sesje chmurowe)**: resztki Fazy 4 (otwieranie odebranych plików, akceptacja odbioru) i Faza 6 (parowanie/szyfrowanie).
 3. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` niedostępny — tam mieszka Android SDK i artefakty Gradle). Jeśli chcesz, żeby sesje mogły budować APK do sideloadu: w ustawieniach środowiska Claude Code (claude.ai → Environments) dopuść domeny `dl.google.com` i `maven.google.com`.

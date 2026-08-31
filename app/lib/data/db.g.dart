@@ -1266,6 +1266,16 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         type: DriftSqlType.int,
         requiredDuringInsert: true,
       ).withConverter<MessageStatus>($MessagesTable.$converterstatus);
+  @override
+  late final GeneratedColumnWithTypeConverter<MessageKind, int> kind =
+      GeneratedColumn<int>(
+        'kind',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: Constant(MessageKind.text.index),
+      ).withConverter<MessageKind>($MessagesTable.$converterkind);
   static const VerificationMeta _bodyMeta = const VerificationMeta('body');
   @override
   late final GeneratedColumn<String> body = GeneratedColumn<String>(
@@ -1274,6 +1284,39 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fileSizeMeta = const VerificationMeta(
+    'fileSize',
+  );
+  @override
+  late final GeneratedColumn<int> fileSize = GeneratedColumn<int>(
+    'file_size',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -1313,7 +1356,11 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
     conversationId,
     direction,
     status,
+    kind,
     body,
+    fileName,
+    fileSize,
+    filePath,
     createdAt,
     deliveredAt,
     readAt,
@@ -1362,6 +1409,24 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
       );
     } else if (isInserting) {
       context.missing(_bodyMeta);
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    }
+    if (data.containsKey('file_size')) {
+      context.handle(
+        _fileSizeMeta,
+        fileSize.isAcceptableOrUnknown(data['file_size']!, _fileSizeMeta),
+      );
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
     }
     if (data.containsKey('created_at')) {
       context.handle(
@@ -1419,10 +1484,28 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
           data['${effectivePrefix}status'],
         )!,
       ),
+      kind: $MessagesTable.$converterkind.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}kind'],
+        )!,
+      ),
       body: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}body'],
       )!,
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      ),
+      fileSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_size'],
+      ),
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1447,6 +1530,8 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
       const EnumIndexConverter<MessageDirection>(MessageDirection.values);
   static JsonTypeConverter2<MessageStatus, int, int> $converterstatus =
       const EnumIndexConverter<MessageStatus>(MessageStatus.values);
+  static JsonTypeConverter2<MessageKind, int, int> $converterkind =
+      const EnumIndexConverter<MessageKind>(MessageKind.values);
 }
 
 class Message extends DataClass implements Insertable<Message> {
@@ -1458,7 +1543,14 @@ class Message extends DataClass implements Insertable<Message> {
   final int conversationId;
   final MessageDirection direction;
   final MessageStatus status;
+  final MessageKind kind;
   final String body;
+
+  /// Pola pliku (kind == file). [filePath]: u nadawcy ścieżka źródłowa,
+  /// u odbiorcy miejsce zapisu.
+  final String? fileName;
+  final int? fileSize;
+  final String? filePath;
   final DateTime createdAt;
   final DateTime? deliveredAt;
   final DateTime? readAt;
@@ -1468,7 +1560,11 @@ class Message extends DataClass implements Insertable<Message> {
     required this.conversationId,
     required this.direction,
     required this.status,
+    required this.kind,
     required this.body,
+    this.fileName,
+    this.fileSize,
+    this.filePath,
     required this.createdAt,
     this.deliveredAt,
     this.readAt,
@@ -1489,7 +1585,19 @@ class Message extends DataClass implements Insertable<Message> {
         $MessagesTable.$converterstatus.toSql(status),
       );
     }
+    {
+      map['kind'] = Variable<int>($MessagesTable.$converterkind.toSql(kind));
+    }
     map['body'] = Variable<String>(body);
+    if (!nullToAbsent || fileName != null) {
+      map['file_name'] = Variable<String>(fileName);
+    }
+    if (!nullToAbsent || fileSize != null) {
+      map['file_size'] = Variable<int>(fileSize);
+    }
+    if (!nullToAbsent || filePath != null) {
+      map['file_path'] = Variable<String>(filePath);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || deliveredAt != null) {
       map['delivered_at'] = Variable<DateTime>(deliveredAt);
@@ -1507,7 +1615,17 @@ class Message extends DataClass implements Insertable<Message> {
       conversationId: Value(conversationId),
       direction: Value(direction),
       status: Value(status),
+      kind: Value(kind),
       body: Value(body),
+      fileName: fileName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileName),
+      fileSize: fileSize == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileSize),
+      filePath: filePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filePath),
       createdAt: Value(createdAt),
       deliveredAt: deliveredAt == null && nullToAbsent
           ? const Value.absent()
@@ -1533,7 +1651,13 @@ class Message extends DataClass implements Insertable<Message> {
       status: $MessagesTable.$converterstatus.fromJson(
         serializer.fromJson<int>(json['status']),
       ),
+      kind: $MessagesTable.$converterkind.fromJson(
+        serializer.fromJson<int>(json['kind']),
+      ),
       body: serializer.fromJson<String>(json['body']),
+      fileName: serializer.fromJson<String?>(json['fileName']),
+      fileSize: serializer.fromJson<int?>(json['fileSize']),
+      filePath: serializer.fromJson<String?>(json['filePath']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       deliveredAt: serializer.fromJson<DateTime?>(json['deliveredAt']),
       readAt: serializer.fromJson<DateTime?>(json['readAt']),
@@ -1552,7 +1676,13 @@ class Message extends DataClass implements Insertable<Message> {
       'status': serializer.toJson<int>(
         $MessagesTable.$converterstatus.toJson(status),
       ),
+      'kind': serializer.toJson<int>(
+        $MessagesTable.$converterkind.toJson(kind),
+      ),
       'body': serializer.toJson<String>(body),
+      'fileName': serializer.toJson<String?>(fileName),
+      'fileSize': serializer.toJson<int?>(fileSize),
+      'filePath': serializer.toJson<String?>(filePath),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'deliveredAt': serializer.toJson<DateTime?>(deliveredAt),
       'readAt': serializer.toJson<DateTime?>(readAt),
@@ -1565,7 +1695,11 @@ class Message extends DataClass implements Insertable<Message> {
     int? conversationId,
     MessageDirection? direction,
     MessageStatus? status,
+    MessageKind? kind,
     String? body,
+    Value<String?> fileName = const Value.absent(),
+    Value<int?> fileSize = const Value.absent(),
+    Value<String?> filePath = const Value.absent(),
     DateTime? createdAt,
     Value<DateTime?> deliveredAt = const Value.absent(),
     Value<DateTime?> readAt = const Value.absent(),
@@ -1575,7 +1709,11 @@ class Message extends DataClass implements Insertable<Message> {
     conversationId: conversationId ?? this.conversationId,
     direction: direction ?? this.direction,
     status: status ?? this.status,
+    kind: kind ?? this.kind,
     body: body ?? this.body,
+    fileName: fileName.present ? fileName.value : this.fileName,
+    fileSize: fileSize.present ? fileSize.value : this.fileSize,
+    filePath: filePath.present ? filePath.value : this.filePath,
     createdAt: createdAt ?? this.createdAt,
     deliveredAt: deliveredAt.present ? deliveredAt.value : this.deliveredAt,
     readAt: readAt.present ? readAt.value : this.readAt,
@@ -1591,7 +1729,11 @@ class Message extends DataClass implements Insertable<Message> {
           : this.conversationId,
       direction: data.direction.present ? data.direction.value : this.direction,
       status: data.status.present ? data.status.value : this.status,
+      kind: data.kind.present ? data.kind.value : this.kind,
       body: data.body.present ? data.body.value : this.body,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      fileSize: data.fileSize.present ? data.fileSize.value : this.fileSize,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       deliveredAt: data.deliveredAt.present
           ? data.deliveredAt.value
@@ -1608,7 +1750,11 @@ class Message extends DataClass implements Insertable<Message> {
           ..write('conversationId: $conversationId, ')
           ..write('direction: $direction, ')
           ..write('status: $status, ')
+          ..write('kind: $kind, ')
           ..write('body: $body, ')
+          ..write('fileName: $fileName, ')
+          ..write('fileSize: $fileSize, ')
+          ..write('filePath: $filePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('deliveredAt: $deliveredAt, ')
           ..write('readAt: $readAt')
@@ -1623,7 +1769,11 @@ class Message extends DataClass implements Insertable<Message> {
     conversationId,
     direction,
     status,
+    kind,
     body,
+    fileName,
+    fileSize,
+    filePath,
     createdAt,
     deliveredAt,
     readAt,
@@ -1637,7 +1787,11 @@ class Message extends DataClass implements Insertable<Message> {
           other.conversationId == this.conversationId &&
           other.direction == this.direction &&
           other.status == this.status &&
+          other.kind == this.kind &&
           other.body == this.body &&
+          other.fileName == this.fileName &&
+          other.fileSize == this.fileSize &&
+          other.filePath == this.filePath &&
           other.createdAt == this.createdAt &&
           other.deliveredAt == this.deliveredAt &&
           other.readAt == this.readAt);
@@ -1649,7 +1803,11 @@ class MessagesCompanion extends UpdateCompanion<Message> {
   final Value<int> conversationId;
   final Value<MessageDirection> direction;
   final Value<MessageStatus> status;
+  final Value<MessageKind> kind;
   final Value<String> body;
+  final Value<String?> fileName;
+  final Value<int?> fileSize;
+  final Value<String?> filePath;
   final Value<DateTime> createdAt;
   final Value<DateTime?> deliveredAt;
   final Value<DateTime?> readAt;
@@ -1659,7 +1817,11 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     this.conversationId = const Value.absent(),
     this.direction = const Value.absent(),
     this.status = const Value.absent(),
+    this.kind = const Value.absent(),
     this.body = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.fileSize = const Value.absent(),
+    this.filePath = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.deliveredAt = const Value.absent(),
     this.readAt = const Value.absent(),
@@ -1670,7 +1832,11 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     required int conversationId,
     required MessageDirection direction,
     required MessageStatus status,
+    this.kind = const Value.absent(),
     required String body,
+    this.fileName = const Value.absent(),
+    this.fileSize = const Value.absent(),
+    this.filePath = const Value.absent(),
     required DateTime createdAt,
     this.deliveredAt = const Value.absent(),
     this.readAt = const Value.absent(),
@@ -1686,7 +1852,11 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Expression<int>? conversationId,
     Expression<int>? direction,
     Expression<int>? status,
+    Expression<int>? kind,
     Expression<String>? body,
+    Expression<String>? fileName,
+    Expression<int>? fileSize,
+    Expression<String>? filePath,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? deliveredAt,
     Expression<DateTime>? readAt,
@@ -1697,7 +1867,11 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       if (conversationId != null) 'conversation_id': conversationId,
       if (direction != null) 'direction': direction,
       if (status != null) 'status': status,
+      if (kind != null) 'kind': kind,
       if (body != null) 'body': body,
+      if (fileName != null) 'file_name': fileName,
+      if (fileSize != null) 'file_size': fileSize,
+      if (filePath != null) 'file_path': filePath,
       if (createdAt != null) 'created_at': createdAt,
       if (deliveredAt != null) 'delivered_at': deliveredAt,
       if (readAt != null) 'read_at': readAt,
@@ -1710,7 +1884,11 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Value<int>? conversationId,
     Value<MessageDirection>? direction,
     Value<MessageStatus>? status,
+    Value<MessageKind>? kind,
     Value<String>? body,
+    Value<String?>? fileName,
+    Value<int?>? fileSize,
+    Value<String?>? filePath,
     Value<DateTime>? createdAt,
     Value<DateTime?>? deliveredAt,
     Value<DateTime?>? readAt,
@@ -1721,7 +1899,11 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       conversationId: conversationId ?? this.conversationId,
       direction: direction ?? this.direction,
       status: status ?? this.status,
+      kind: kind ?? this.kind,
       body: body ?? this.body,
+      fileName: fileName ?? this.fileName,
+      fileSize: fileSize ?? this.fileSize,
+      filePath: filePath ?? this.filePath,
       createdAt: createdAt ?? this.createdAt,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
@@ -1750,8 +1932,22 @@ class MessagesCompanion extends UpdateCompanion<Message> {
         $MessagesTable.$converterstatus.toSql(status.value),
       );
     }
+    if (kind.present) {
+      map['kind'] = Variable<int>(
+        $MessagesTable.$converterkind.toSql(kind.value),
+      );
+    }
     if (body.present) {
       map['body'] = Variable<String>(body.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (fileSize.present) {
+      map['file_size'] = Variable<int>(fileSize.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -1773,7 +1969,11 @@ class MessagesCompanion extends UpdateCompanion<Message> {
           ..write('conversationId: $conversationId, ')
           ..write('direction: $direction, ')
           ..write('status: $status, ')
+          ..write('kind: $kind, ')
           ..write('body: $body, ')
+          ..write('fileName: $fileName, ')
+          ..write('fileSize: $fileSize, ')
+          ..write('filePath: $filePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('deliveredAt: $deliveredAt, ')
           ..write('readAt: $readAt')
@@ -2745,7 +2945,11 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   required int conversationId,
   required MessageDirection direction,
   required MessageStatus status,
+  Value<MessageKind> kind,
   required String body,
+  Value<String?> fileName,
+  Value<int?> fileSize,
+  Value<String?> filePath,
   required DateTime createdAt,
   Value<DateTime?> deliveredAt,
   Value<DateTime?> readAt,
@@ -2756,7 +2960,11 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<int> conversationId,
   Value<MessageDirection> direction,
   Value<MessageStatus> status,
+  Value<MessageKind> kind,
   Value<String> body,
+  Value<String?> fileName,
+  Value<int?> fileSize,
+  Value<String?> filePath,
   Value<DateTime> createdAt,
   Value<DateTime?> deliveredAt,
   Value<DateTime?> readAt,
@@ -2816,8 +3024,29 @@ class $$MessagesTableFilterComposer
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
+  ColumnWithTypeConverterFilters<MessageKind, MessageKind, int> get kind =>
+      $composableBuilder(
+        column: $table.kind,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
   ColumnFilters<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fileSize => $composableBuilder(
+    column: $table.fileSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2889,8 +3118,28 @@ class $$MessagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get body => $composableBuilder(
     column: $table.body,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fileSize => $composableBuilder(
+    column: $table.fileSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2956,8 +3205,20 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumnWithTypeConverter<MessageStatus, int> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<MessageKind, int> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
   GeneratedColumn<String> get body =>
       $composableBuilder(column: $table.body, builder: (column) => column);
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<int> get fileSize =>
+      $composableBuilder(column: $table.fileSize, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3027,7 +3288,11 @@ class $$MessagesTableTableManager
                 Value<int> conversationId = const Value.absent(),
                 Value<MessageDirection> direction = const Value.absent(),
                 Value<MessageStatus> status = const Value.absent(),
+                Value<MessageKind> kind = const Value.absent(),
                 Value<String> body = const Value.absent(),
+                Value<String?> fileName = const Value.absent(),
+                Value<int?> fileSize = const Value.absent(),
+                Value<String?> filePath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> deliveredAt = const Value.absent(),
                 Value<DateTime?> readAt = const Value.absent(),
@@ -3037,7 +3302,11 @@ class $$MessagesTableTableManager
                 conversationId: conversationId,
                 direction: direction,
                 status: status,
+                kind: kind,
                 body: body,
+                fileName: fileName,
+                fileSize: fileSize,
+                filePath: filePath,
                 createdAt: createdAt,
                 deliveredAt: deliveredAt,
                 readAt: readAt,
@@ -3049,7 +3318,11 @@ class $$MessagesTableTableManager
                 required int conversationId,
                 required MessageDirection direction,
                 required MessageStatus status,
+                Value<MessageKind> kind = const Value.absent(),
                 required String body,
+                Value<String?> fileName = const Value.absent(),
+                Value<int?> fileSize = const Value.absent(),
+                Value<String?> filePath = const Value.absent(),
                 required DateTime createdAt,
                 Value<DateTime?> deliveredAt = const Value.absent(),
                 Value<DateTime?> readAt = const Value.absent(),
@@ -3059,7 +3332,11 @@ class $$MessagesTableTableManager
                 conversationId: conversationId,
                 direction: direction,
                 status: status,
+                kind: kind,
                 body: body,
+                fileName: fileName,
+                fileSize: fileSize,
+                filePath: filePath,
                 createdAt: createdAt,
                 deliveredAt: deliveredAt,
                 readAt: readAt,

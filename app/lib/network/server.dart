@@ -19,9 +19,14 @@ class ChattServer {
   /// nie musi znać swojego IP w naszej sieci).
   final Future<void> Function(IncomingMessage message, String fromHost) onMessage;
 
+  /// Wołane dla POST /file: odbiorca decyduje, gdzie strumień [data] zapisać.
+  /// Wyjątek w środku = 500 dla nadawcy (potraktuje wysyłkę jako nieudaną).
+  final Future<void> Function(
+      IncomingFileMeta meta, Stream<List<int>> data, String fromHost)? onFile;
+
   HttpServer? _server;
 
-  ChattServer({required this.identity, required this.onMessage});
+  ChattServer({required this.identity, required this.onMessage, this.onFile});
 
   /// Faktyczny port nasłuchu (ustalony w [start]).
   int? get port => _server?.port;
@@ -32,7 +37,8 @@ class ChattServer {
   Future<int> start({required int preferredPort, int attempts = tcpPortAttempts}) async {
     final router = Router()
       ..get('/info', _handleInfo)
-      ..post('/message', _handleMessage);
+      ..post('/message', _handleMessage)
+      ..post('/file', _handleFile);
     final handler =
         const Pipeline().addMiddleware(_guardErrors).addHandler(router.call);
 
@@ -86,6 +92,21 @@ class ChattServer {
     final fromHost = connection?.remoteAddress.address ?? '';
 
     await onMessage(message, fromHost);
+    return _json({'ok': true, 'receivedAt': DateTime.now().toUtc().toIso8601String()});
+  }
+
+  Future<Response> _handleFile(Request request) async {
+    final handler = onFile;
+    if (handler == null) {
+      return _json({'ok': false, 'error': 'files_not_supported'}, status: 404);
+    }
+    final meta = IncomingFileMeta.fromHeaders(request.headers);
+    if (meta == null) {
+      return _json({'ok': false, 'error': 'bad_request'}, status: 400);
+    }
+    final connection =
+        request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
+    await handler(meta, request.read(), connection?.remoteAddress.address ?? '');
     return _json({'ok': true, 'receivedAt': DateTime.now().toUtc().toIso8601String()});
   }
 
