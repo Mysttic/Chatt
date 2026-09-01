@@ -86,7 +86,8 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [ ] **Kamień milowy: pierwsza prawdziwa rozmowa i transfer pliku PC ⇄ telefon w fizycznej sieci Wi‑Fi**
 
 ### Faza 6 — Szlif
-- [ ] Parowanie/weryfikacja PIN, potem szyfrowanie transmisji
+- [x] Parowanie kodem PIN: `POST /pair`, sześciocyfrowy kod losowany i pokazywany na jednym urządzeniu, przepisywany na drugim, ważny 2 minuty i jednorazowy. Zgodny kod ustawia `verified` po obu stronach; w czacie jest tarcza (zielona = sparowane), a prośba o plik od niesparowanego urządzenia ostrzega, że nazwę można sobie ustawić dowolną. Sprawdzone Windows ⇄ Android (`docs/screenshots/android/and8_kod_parowania.png`, `and9_sparowane.png`)
+- [ ] Szyfrowanie transmisji — dopóki go nie ma, kod parowania i cała reszta ruchu lecą po sieci jawnym tekstem
 - [x] Obsługa zmiany IP rozmówcy: nieudana wysyłka uruchamia skan i szuka tego samego GUID-a pod nowym adresem, zapisuje go i ponawia (dotyczy wiadomości i plików)
 - [ ] Tryb ciemny bierze się z systemu, brakuje ręcznego przełącznika
 - [ ] Ikona aplikacji (wciąż domyślna flutterowa) i i18n PL/EN

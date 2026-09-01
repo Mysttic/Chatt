@@ -283,6 +283,51 @@ class FileOfferReply {
   }
 }
 
+// --- Parowanie: POST /pair -----------------------------------------------
+// Urządzenie A zaczyna parowanie i pokazuje na swoim ekranie sześciocyfrowy
+// kod. Urządzenie B dostaje prośbę ([pairStart]), użytkownik przepisuje kod
+// i B odsyła go w [pairConfirm]. Zgodny kod oznacza obie strony jako
+// zweryfikowane — od tej pory wiadomo, że rozmówca o danym GUID to ten sam
+// sprzęt, który stoi obok, a nie ktokolwiek, kto podał się za niego nazwą.
+//
+// Uwaga: kod leci po sieci jawnym tekstem, tak jak reszta ruchu w tej wersji.
+// Chroni przed pomyłką i podszyciem się nazwą, nie przed kimś, kto podsłuchuje
+// sieć. To zmieni dopiero szyfrowanie transmisji.
+
+const String pairStart = 'start';
+const String pairConfirm = 'confirm';
+const String pairCancel = 'cancel';
+
+class PairMessage {
+  final String action;
+  final DeviceIdentity from;
+  final String? pin;
+
+  const PairMessage({required this.action, required this.from, this.pin});
+
+  Map<String, Object?> toJson() => {
+        'action': action,
+        'from': from.toJson(),
+        'pin': pin,
+      };
+
+  static PairMessage? fromJson(Map<String, Object?> json) {
+    final action = json['action'];
+    final from = DeviceIdentity.fromJson(json['from']);
+    if (from == null ||
+        action is! String ||
+        (action != pairStart && action != pairConfirm && action != pairCancel)) {
+      return null;
+    }
+    final pin = json['pin'];
+    return PairMessage(
+      action: action,
+      from: from,
+      pin: pin is String && pin.isNotEmpty ? pin : null,
+    );
+  }
+}
+
 /// Wynik zapisu pliku po stronie odbiorcy — mapowany na kod HTTP w server.dart.
 enum FileReceiveResult {
   /// Komplet zapisany i zweryfikowany (200).

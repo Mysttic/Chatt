@@ -28,6 +28,12 @@ funkcji, potem znikną. Plan prac i stan projektu: [ROADMAP.md](ROADMAP.md).
   sprawdzana jest suma kontrolna. Odebrane pliki lądują w katalogu dokumentów
   aplikacji i otwierają się kliknięciem w dymek (przytrzymanie: pokaż folder,
   kopiuj ścieżkę).
+- **Parowanie**: w rozmowie jest tarcza. Kliknięcie losuje sześciocyfrowy kod
+  i pokazuje go na ekranie; przepisujesz go na drugim urządzeniu i od tej pory
+  obie strony mają siebie jako sparowane (zielona tarcza). Kod jest
+  jednorazowy i ważny 2 minuty. Nazwa urządzenia to tylko napis, który każdy
+  może sobie ustawić — dopiero parowanie wiąże ją z konkretnym sprzętem,
+  dlatego prośba o plik od niesparowanego urządzenia ostrzega o tym wprost.
 - **Baza**: SQLite (drift) — rozmówcy, konwersacje, wiadomości ze statusami
   dostarczenia i licznikiem nieprzeczytanych.
 

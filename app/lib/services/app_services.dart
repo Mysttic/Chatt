@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' show Random;
 
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:drift/drift.dart';
@@ -31,6 +32,10 @@ class PendingFileOffer {
   final int resumeFrom;
   final int conversationId;
 
+  /// Czy nadawca jest sparowany kodem. Nazwa urządzenia to tylko napis,
+  /// który każdy może sobie ustawić — przy niesparowanym warto ostrzec.
+  final bool fromVerifiedPeer;
+
   const PendingFileOffer({
     required this.messageGuid,
     required this.peerName,
@@ -38,6 +43,7 @@ class PendingFileOffer {
     required this.fileSize,
     required this.resumeFrom,
     required this.conversationId,
+    this.fromVerifiedPeer = false,
   });
 }
 
@@ -55,6 +61,24 @@ Future<bool> acceptAllFileOffers(PendingFileOffer offer) async => true;
 
 /// Odmowa dla wszystkiego — dla testów.
 Future<bool> rejectAllFileOffers(PendingFileOffer offer) async => false;
+
+/// Prośba o sparowanie czekająca na przepisanie kodu z drugiego urządzenia.
+class PendingPairing {
+  final String peerGuid;
+  final String peerName;
+
+  const PendingPairing({required this.peerGuid, required this.peerName});
+}
+
+/// Kod parowania pokazany na ekranie tego urządzenia i moment jego wygaśnięcia.
+class _PairingCode {
+  final String pin;
+  final DateTime expiresAt;
+
+  const _PairingCode(this.pin, this.expiresAt);
+
+  bool get expired => DateTime.now().isAfter(expiresAt);
+}
 
 /// Trwający odbiór pliku (po akceptacji) — do paska postępu w czacie.
 class IncomingTransfer {
@@ -130,6 +154,13 @@ class AppServices {
   /// Pliki właśnie odbierane — po jednym transferze na guid.
   final Set<String> _receivingFiles = {};
 
+  /// Prośby o sparowanie, na które czeka użytkownik tego urządzenia.
+  final ValueNotifier<List<PendingPairing>> pendingPairings =
+      ValueNotifier(const []);
+
+  /// Kody parowania, które sami pokazujemy na ekranie: guid rozmówcy -> kod.
+  final Map<String, _PairingCode> _pairingCodes = {};
+
   /// sha256 wysyłanych plików — liczone raz na sesję, żeby ponowienie
   /// dużego transferu nie czytało pliku drugi raz tylko po to.
   final Map<String, String> _sentFileHashes = {};
@@ -173,6 +204,7 @@ class AppServices {
     final server = ChattServer(
       identity: () => services.identity,
       onMessage: (message, fromHost) => services._handleIncoming(message, fromHost),
+      onPair: (message, fromHost) => services._handlePair(message, fromHost),
       onFileOffer: (offer, fromHost) => services._handleFileOffer(offer, fromHost),
       onFile: (meta, data, fromHost) =>
           services._handleIncomingFile(meta, data, fromHost),
@@ -285,6 +317,100 @@ class AppServices {
         host: peer.host,
         port: peer.tcpPort,
       );
+
+  // --- Parowanie kodem PIN --------------------------------------------------
+
+  /// Zaczyna parowanie: losuje kod, wysyła rozmówcy prośbę i zwraca kod do
+  /// pokazania na ekranie. Użytkownik przepisuje go na drugim urządzeniu.
+  /// null = rozmówca nie odpowiedział (albo odmówił).
+  Future<String?> startPairing(Peer peer) async {
+    final pin = _randomPin();
+    _pairingCodes[peer.guid] =
+        _PairingCode(pin, DateTime.now().add(const Duration(minutes: 2)));
+
+    final accepted = await client.pair(
+      host: peer.host,
+      port: peer.port,
+      payload: PairMessage(action: pairStart, from: identity).toJson(),
+    );
+    if (!accepted) {
+      _pairingCodes.remove(peer.guid);
+      return null;
+    }
+    return pin;
+  }
+
+  /// Odpowiedź na prośbę z [pendingPairings]: przepisany kod wraca do
+  /// inicjatora. true = kod się zgadzał i obie strony są już zweryfikowane.
+  Future<bool> confirmPairing(String peerGuid, String pin) async {
+    final peer = await db.peerByGuid(peerGuid);
+    if (peer == null) return false;
+
+    final accepted = await client.pair(
+      host: peer.host,
+      port: peer.port,
+      payload:
+          PairMessage(action: pairConfirm, from: identity, pin: pin.trim())
+              .toJson(),
+    );
+    if (accepted) {
+      await db.setPeerVerified(peer.id, true);
+      _removePendingPairing(peerGuid);
+    }
+    return accepted;
+  }
+
+  /// Rezygnacja z parowania po tej stronie, która została poproszona.
+  void cancelPairing(String peerGuid) => _removePendingPairing(peerGuid);
+
+  Future<bool> _handlePair(PairMessage message, String fromHost) async {
+    final peer = await db.upsertPeer(
+      guid: message.from.guid,
+      name: message.from.name,
+      welcomeMessage: message.from.welcomeMessage,
+      host: fromHost,
+      port: message.from.tcpPort,
+    );
+
+    switch (message.action) {
+      case pairStart:
+        // Druga strona pokazuje u siebie kod; my prosimy użytkownika,
+        // żeby go przepisał.
+        pendingPairings.value = [
+          ...pendingPairings.value.where((p) => p.peerGuid != peer.guid),
+          PendingPairing(peerGuid: peer.guid, peerName: peer.name),
+        ];
+        return true;
+
+      case pairConfirm:
+        final code = _pairingCodes[peer.guid];
+        if (code == null || code.expired || message.pin != code.pin) {
+          // Zły albo przeterminowany kod nie kasuje próby: użytkownik może
+          // się pomylić przy przepisywaniu.
+          if (code != null && code.expired) _pairingCodes.remove(peer.guid);
+          return false;
+        }
+        _pairingCodes.remove(peer.guid);
+        await db.setPeerVerified(peer.id, true);
+        return true;
+
+      default: // pairCancel
+        _pairingCodes.remove(peer.guid);
+        _removePendingPairing(peer.guid);
+        return true;
+    }
+  }
+
+  void _removePendingPairing(String peerGuid) {
+    pendingPairings.value = pendingPairings.value
+        .where((pairing) => pairing.peerGuid != peerGuid)
+        .toList(growable: false);
+  }
+
+  static String _randomPin() {
+    final random = Random.secure();
+    return List.generate(6, (_) => random.nextInt(10)).join();
+  }
 
   // --- Konwersacje i wiadomości --------------------------------------------
 
@@ -572,6 +698,7 @@ class AppServices {
       fileSize: offer.fileSize,
       resumeFrom: resumeFrom,
       conversationId: conversationId,
+      fromVerifiedPeer: peer.verified,
     ));
     if (!accepted) {
       _discardPart(offer.messageGuid);
@@ -649,6 +776,7 @@ class AppServices {
         fileSize: meta.fileSize,
         resumeFrom: alreadyOnDisk,
         conversationId: conversationId,
+        fromVerifiedPeer: peer.verified,
       ));
       if (!ok) return FileReceiveResult.rejected;
       accepted = _AcceptedOffer(offer, conversationId);

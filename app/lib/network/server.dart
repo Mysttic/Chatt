@@ -19,6 +19,9 @@ class ChattServer {
   /// nie musi znać swojego IP w naszej sieci).
   final Future<void> Function(IncomingMessage message, String fromHost) onMessage;
 
+  /// Wołane dla POST /pair. true = prośba przyjęta (albo kod się zgadza).
+  final Future<bool> Function(PairMessage message, String fromHost)? onPair;
+
   /// Wołane dla POST /file-offer: odbiorca decyduje, czy chce ten plik
   /// i od którego bajtu ma go dostać.
   final Future<FileOfferReply> Function(FileOffer offer, String fromHost)?
@@ -35,6 +38,7 @@ class ChattServer {
   ChattServer({
     required this.identity,
     required this.onMessage,
+    this.onPair,
     this.onFileOffer,
     this.onFile,
   });
@@ -49,6 +53,7 @@ class ChattServer {
     final router = Router()
       ..get('/info', _handleInfo)
       ..post('/message', _handleMessage)
+      ..post('/pair', _handlePair)
       ..post('/file-offer', _handleFileOffer)
       ..post('/file', _handleFile);
     final handler =
@@ -109,6 +114,28 @@ class ChattServer {
 
     await onMessage(message, fromHost);
     return _json({'ok': true, 'receivedAt': DateTime.now().toUtc().toIso8601String()});
+  }
+
+  /// Parowanie: prośba o kod albo przysłany kod do sprawdzenia.
+  Future<Response> _handlePair(Request request) async {
+    final handler = onPair;
+    if (handler == null) {
+      return _json({'ok': false, 'error': 'pairing_not_supported'}, status: 404);
+    }
+    final body = await request.read().expand((chunk) => chunk).toList();
+    final json = tryDecodeJsonMap(body);
+    final message = json == null ? null : PairMessage.fromJson(json);
+    if (message == null) {
+      return _json({'ok': false, 'error': 'bad_request'}, status: 400);
+    }
+    if (message.from.guid == identity().guid) {
+      return _json({'ok': false, 'error': 'self'}, status: 400);
+    }
+    final connection =
+        request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
+    final accepted =
+        await handler(message, connection?.remoteAddress.address ?? '');
+    return _json({'ok': accepted}, status: accepted ? 200 : 403);
   }
 
   /// Zapowiedź pliku — pytamy użytkownika, zanim przyjmiemy choć bajt.

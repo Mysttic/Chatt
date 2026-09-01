@@ -51,6 +51,50 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await ref.read(appServicesProvider).sendText(widget.conversationId, text);
   }
 
+  /// Parowanie: kod losuje i pokazuje ta strona, druga go przepisuje.
+  Future<void> _startPairing() async {
+    final services = ref.read(appServicesProvider);
+    final peer = await services.db.peerByGuid(widget.peer.guid) ?? widget.peer;
+    final pin = await services.startPairing(peer);
+    if (!mounted) return;
+
+    if (pin == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Nie udało się zacząć parowania — urządzenie nie odpowiada.'),
+      ));
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Kod parowania'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              pin,
+              style: const TextStyle(
+                  fontSize: 40, letterSpacing: 8, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Przepisz ten kod na urządzeniu ${widget.peer.name}. '
+              'Ważny przez 2 minuty.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Zamknij'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _attachFile() async {
     final file = await openFile();
     if (file == null) return;
@@ -61,6 +105,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final services = ref.read(appServicesProvider);
     final messages = ref.watch(messagesProvider(widget.conversationId));
+    // Stan sparowania czytamy na żywo: może się zmienić w trakcie rozmowy.
+    final peer = ref.watch(knownPeersProvider).value?.firstWhere(
+              (p) => p.guid == widget.peer.guid,
+              orElse: () => widget.peer,
+            ) ??
+        widget.peer;
 
     // Nowa wiadomość przychodząca przy otwartym ekranie = od razu przeczytana.
     ref.listen(messagesProvider(widget.conversationId), (_, _) {
@@ -99,6 +149,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: peer.verified
+                ? 'Urządzenie sparowane kodem'
+                : 'Sparuj kodem PIN',
+            icon: Icon(
+              peer.verified ? Icons.verified_user : Icons.shield_outlined,
+              color: peer.verified ? Colors.green : null,
+            ),
+            onPressed: peer.verified ? null : _startPairing,
+          ),
+        ],
       ),
       body: Column(
         children: [

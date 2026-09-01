@@ -155,6 +155,12 @@ class ChattDb extends _$ChattDb {
   Future<Peer?> peerById(int id) =>
       (select(peers)..where((p) => p.id.equals(id))).getSingleOrNull();
 
+  /// Efekt parowania kodem PIN: od teraz wiadomo, że pod tym GUID-em siedzi
+  /// urządzenie, które użytkownik świadomie potwierdził.
+  Future<void> setPeerVerified(int id, bool verified) =>
+      (update(peers)..where((p) => p.id.equals(id)))
+          .write(PeersCompanion(verified: Value(verified)));
+
   Stream<List<Peer>> watchPeers() => (select(peers)
         ..orderBy([(p) => OrderingTerm.desc(p.lastSeen)]))
       .watch();

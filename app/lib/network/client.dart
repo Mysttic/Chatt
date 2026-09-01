@@ -57,6 +57,28 @@ class PeerClient {
     }
   }
 
+  /// Wysyła krok parowania (prośbę albo kod). true = druga strona przyjęła.
+  Future<bool> pair({
+    required String host,
+    required int port,
+    required Map<String, Object?> payload,
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    try {
+      final response = await _http
+          .post(
+            Uri.http('$host:$port', '/pair'),
+            headers: {'content-type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(timeout);
+      if (response.statusCode != 200) return false;
+      return tryDecodeJsonMap(utf8.encode(response.body))?['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Zapowiada plik i czeka na decyzję odbiorcy. Zwraca null, gdy odbiorca
   /// nie odpowiada albo nie zna `/file-offer` (protokół 1) — wtedy nadawca
   /// wysyła plik po staremu, bez pytania o zgodę.
