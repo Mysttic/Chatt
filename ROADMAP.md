@@ -87,8 +87,9 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 
 ### Faza 6 — Szlif
 - [ ] Parowanie/weryfikacja PIN, potem szyfrowanie transmisji
-- [ ] Obsługa zmiany IP rozmówcy (ponowne odnalezienie po GUID)
-- [ ] Tryb ciemny, ikona aplikacji, i18n PL/EN
+- [x] Obsługa zmiany IP rozmówcy: nieudana wysyłka uruchamia skan i szuka tego samego GUID-a pod nowym adresem, zapisuje go i ponawia (dotyczy wiadomości i plików)
+- [ ] Tryb ciemny bierze się z systemu, brakuje ręcznego przełącznika
+- [ ] Ikona aplikacji (wciąż domyślna flutterowa) i i18n PL/EN
 
 ## 4. Podział pracy
 

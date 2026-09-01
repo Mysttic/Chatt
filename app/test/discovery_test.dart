@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:chatt/data/db.dart';
 import 'package:chatt/services/app_services.dart';
 
 Future<void> eventually(
@@ -68,5 +69,43 @@ void main() {
       final messages = await bob.db.watchMessages(conv).first;
       return messages.any((m) => m.body == 'Znalazłam Cię!');
     }, reason: 'wiadomość po discovery powinna dojść');
+  });
+
+  test('rozmówca ze zmienionym adresem jest odnajdywany po GUID', () async {
+    final alice = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Alicja',
+    );
+    final bob = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Bartek',
+    );
+    addTearDown(() async {
+      await alice.dispose();
+      await bob.dispose();
+    });
+
+    // Alicja ma zapisany nieaktualny adres Bartka — tak wygląda sytuacja po
+    // restarcie routera, gdy DHCP rozda adresy na nowo. GUID się nie zmienia.
+    await alice.db.upsertPeer(
+      guid: bob.identity.guid,
+      name: 'Bartek',
+      welcomeMessage: '',
+      host: '127.0.0.1',
+      port: 9, // port, na którym na pewno nikt nie słucha
+    );
+    final stale = (await alice.db.peerByGuid(bob.identity.guid))!;
+    final conversation = await alice.openConversationWith(stale);
+
+    await alice.sendText(conversation, 'Zmieniłeś adres?');
+
+    final message = (await alice.db.watchMessages(conversation).first).single;
+    expect(message.status, MessageStatus.delivered,
+        reason: 'po nieudanej próbie skan po GUID powinien znaleźć nowy adres');
+
+    final updated = (await alice.db.peerByGuid(bob.identity.guid))!;
+    expect(updated.port, bob.server.port, reason: 'adres zaktualizowany w bazie');
   });
 }

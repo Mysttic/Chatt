@@ -345,18 +345,54 @@ class AppServices {
   Future<void> _deliver(int messageId, Peer peer) async {
     final message = await db.messageById(messageId);
     if (message == null) return;
-    final delivered = await client.sendMessage(
-      host: peer.host,
-      port: peer.port,
-      payload: messagePacket(
-        messageGuid: message.messageGuid,
-        from: identity,
-        text: message.body,
-        sentAt: message.createdAt,
-      ),
+    final payload = messagePacket(
+      messageGuid: message.messageGuid,
+      from: identity,
+      text: message.body,
+      sentAt: message.createdAt,
     );
+
+    var delivered = await client.sendMessage(
+        host: peer.host, port: peer.port, payload: payload);
+
+    if (!delivered) {
+      // Rozmówca mógł dostać nowy adres z DHCP — szukamy go po GUID.
+      final moved = await _relocate(peer);
+      if (moved != null) {
+        delivered = await client.sendMessage(
+            host: moved.host, port: moved.port, payload: payload);
+      }
+    }
+
     await db.setMessageStatus(
         messageId, delivered ? MessageStatus.delivered : MessageStatus.failed);
+  }
+
+  /// Rozmówca pod zapisanym adresem nie odpowiada. Adres IP w sieci domowej
+  /// zmienia się po restarcie routera, GUID nie — więc skanujemy sieć i jeśli
+  /// znajdziemy to samo urządzenie gdzie indziej, zapisujemy nowy adres.
+  /// Zwraca rozmówcę z aktualnym adresem albo null, gdy naprawdę go nie ma.
+  Future<Peer?> _relocate(Peer peer) async {
+    final List<DiscoveredPeer> found;
+    try {
+      found = await DiscoveryScanner.scan(identity);
+    } catch (_) {
+      return null; // brak sieci, zablokowany broadcast
+    }
+    for (final device in found) {
+      if (device.guid != peer.guid) continue;
+      if (device.host == peer.host && device.tcpPort == peer.port) {
+        return null; // ten sam adres, czyli problem jest gdzie indziej
+      }
+      return db.upsertPeer(
+        guid: device.guid,
+        name: device.name,
+        welcomeMessage: device.welcomeMessage,
+        host: device.host,
+        port: device.tcpPort,
+      );
+    }
+    return null;
   }
 
   /// Wysyłka pliku: najpierw zapowiedź (odbiorca decyduje, czy chce go
@@ -388,8 +424,20 @@ class AppServices {
         sentAt: message.createdAt,
       ).toJson();
 
+      var target = peer;
       var reply = await client.offerFile(
-          host: peer.host, port: peer.port, payload: offerPayload);
+          host: target.host, port: target.port, payload: offerPayload);
+
+      if (reply == null) {
+        // Cisza pod znanym adresem: może rozmówca dostał nowy z DHCP.
+        final moved = await _relocate(target);
+        if (moved != null) {
+          target = moved;
+          reply = await client.offerFile(
+              host: target.host, port: target.port, payload: offerPayload);
+        }
+      }
+
       if (reply != null && !reply.accepted) {
         await db.setMessageStatus(messageId, MessageStatus.failed);
         return;
@@ -405,7 +453,7 @@ class AppServices {
       progress.value = total == 0 ? 1 : resumeFrom / total;
 
       var delivered = await _streamFile(
-          message, file, peer, name, total, hash, resumeFrom, progress);
+          message, file, target, name, total, hash, resumeFrom, progress);
 
       if (!delivered && resumeFrom > 0) {
         // Wznowienie nie weszło (odbiorca ma inną część, niż sądziliśmy).
@@ -413,14 +461,14 @@ class AppServices {
         // też jego zgodę. Ślepe wysłanie całości od zera skończyłoby się
         // drugim monitem u odbiorcy i skasowaniem tego, co już dostał.
         reply = await client.offerFile(
-            host: peer.host, port: peer.port, payload: offerPayload);
+            host: target.host, port: target.port, payload: offerPayload);
         if (reply != null && reply.alreadyHave) {
           delivered = true;
         } else if (reply == null || reply.accepted) {
           resumeFrom =
               (reply == null || reply.resumeFrom >= total) ? 0 : reply.resumeFrom;
           delivered = await _streamFile(
-              message, file, peer, name, total, hash, resumeFrom, progress);
+              message, file, target, name, total, hash, resumeFrom, progress);
         }
       }
       await db.setMessageStatus(
