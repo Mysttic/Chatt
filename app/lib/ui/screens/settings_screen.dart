@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/languages.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
@@ -166,26 +167,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Text(context.l10n.language,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          SegmentedButton<AppLanguage>(
-            segments: [
-              ButtonSegment(
-                value: AppLanguage.system,
-                label: Text(context.l10n.languageSystem),
-              ),
-              ButtonSegment(
-                value: AppLanguage.polish,
-                label: Text(context.l10n.languagePolish),
-              ),
-              ButtonSegment(
-                value: AppLanguage.english,
-                label: Text(context.l10n.languageEnglish),
-              ),
+          // Lista, a nie rzędek przycisków: kolejny język to jedna pozycja
+          // więcej, bez przebudowy układu (patrz core/languages.dart).
+          DropdownButtonFormField<AppLanguage>(
+            initialValue:
+                ref.watch(settingsProvider).value?.language ?? AppLanguage.system,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.translate_outlined),
+            ),
+            items: [
+              for (final jezyk in AppLanguage.values)
+                DropdownMenuItem(
+                  value: jezyk,
+                  child: Text(jezyk.label(context.l10n)),
+                ),
             ],
-            selected: {
-              ref.watch(settingsProvider).value?.language ?? AppLanguage.system,
+            onChanged: (wybor) {
+              if (wybor != null) services.db.saveLanguage(wybor);
             },
-            onSelectionChanged: (wybor) =>
-                services.db.saveLanguage(wybor.first),
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(

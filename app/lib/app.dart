@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/languages.dart';
 import 'data/db.dart';
 import 'l10n/app_localizations.dart';
 import 'services/providers.dart';
@@ -24,11 +25,7 @@ class ChattApp extends ConsumerWidget {
       _ => ThemeMode.system,
     };
     // null = idziemy za językiem systemu (Flutter wybierze z obsługiwanych).
-    final locale = switch (settings?.language) {
-      AppLanguage.polish => const Locale('pl'),
-      AppLanguage.english => const Locale('en'),
-      _ => null,
-    };
+    final locale = settings?.language.locale;
     ThemeData theme(Brightness brightness) => ThemeData(
           colorScheme:
               ColorScheme.fromSeed(seedColor: chattSeedColor, brightness: brightness),

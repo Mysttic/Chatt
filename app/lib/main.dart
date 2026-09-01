@@ -1,10 +1,9 @@
-import 'dart:ui' show PlatformDispatcher;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/background_service.dart';
+import 'core/languages.dart';
 import 'data/db.dart';
 import 'l10n/app_localizations.dart';
 import 'services/app_services.dart';
@@ -38,7 +37,7 @@ Future<void> main() async {
     if (ustawienia.language == ostatniJezyk) return;
     ostatniJezyk = ustawienia.language;
     final teksty = await AppLocalizations.delegate.load(
-      _jezykInterfejsu(ustawienia.language),
+      ustawienia.language.effectiveLocale,
     );
     await BackgroundService.start(
       title: teksty.backgroundServiceTitle,
@@ -54,19 +53,3 @@ Future<void> main() async {
   );
 }
 
-/// Język do tekstów spoza drzewa widgetów (powiadomienie usługi). `system`
-/// bierzemy z systemu, ale tylko jeśli mamy dla niego tłumaczenie.
-Locale _jezykInterfejsu(AppLanguage wybor) {
-  switch (wybor) {
-    case AppLanguage.polish:
-      return const Locale('pl');
-    case AppLanguage.english:
-      return const Locale('en');
-    case AppLanguage.system:
-      final systemowy = PlatformDispatcher.instance.locale.languageCode;
-      return AppLocalizations.supportedLocales
-              .any((l) => l.languageCode == systemowy)
-          ? Locale(systemowy)
-          : const Locale('en');
-  }
-}
