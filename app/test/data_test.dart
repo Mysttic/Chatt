@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/drift.dart' show driftRuntimeOptions, Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -96,5 +96,52 @@ void main() {
     final delivered = await db.messageById(id);
     expect(delivered!.status, MessageStatus.delivered);
     expect(delivered.deliveredAt, isNotNull);
+  });
+
+  test('usunięcie rozmówcy zabiera rozmowę i wiadomości', () async {
+    final peer = await db.upsertPeer(
+        guid: 'do-usuniecia', name: 'D', welcomeMessage: '', host: 'x', port: 1);
+    final conv = await db.ensureConversation(peer.id);
+    await db.insertOutgoing(
+        conversationId: conv, messageGuid: 'm-del', body: 'cześć');
+
+    await db.deletePeer(peer.id);
+
+    expect(await db.peerByGuid('do-usuniecia'), isNull);
+    expect(await db.watchConversationSummaries().first, isEmpty);
+    expect(await db.messageByGuid('m-del'), isNull);
+  });
+
+  test('sprzątanie zabiera tylko martwe wpisy bez historii', () async {
+    final dawno = DateTime.now().subtract(const Duration(days: 30));
+
+    // 1. Przewinął się przez sieć dawno temu i nic nie napisał -> do kosza.
+    final zapomniany = await db.upsertPeer(
+        guid: 'stary', name: 'Stary', welcomeMessage: '', host: 'x', port: 1);
+    // 2. Dawno widziany, ale jest z nim rozmowa -> zostaje.
+    final zHistoria = await db.upsertPeer(
+        guid: 'z-historia', name: 'Znajomy', welcomeMessage: '', host: 'x', port: 2);
+    final conv = await db.ensureConversation(zHistoria.id);
+    await db.insertOutgoing(
+        conversationId: conv, messageGuid: 'm-hist', body: 'było minęło');
+    // 3. Dawno widziany, ale sparowany -> zostaje.
+    final sparowany = await db.upsertPeer(
+        guid: 'sparowany', name: 'Sparowany', welcomeMessage: '', host: 'x', port: 3);
+    await db.setPeerVerified(sparowany.id, true);
+    // 4. Widziany przed chwilą -> zostaje.
+    await db.upsertPeer(
+        guid: 'swiezy', name: 'Świeży', welcomeMessage: '', host: 'x', port: 4);
+
+    // Cofamy czas ostatniego kontaktu wszystkim poza świeżym.
+    for (final id in [zapomniany.id, zHistoria.id, sparowany.id]) {
+      await (db.update(db.peers)..where((p) => p.id.equals(id)))
+          .write(PeersCompanion(lastSeen: Value(dawno)));
+    }
+
+    expect(await db.sweepStalePeers(), 1);
+
+    final guids = (await db.watchPeers().first).map((p) => p.guid);
+    expect(guids, isNot(contains('stary')));
+    expect(guids, containsAll(['z-historia', 'sparowany', 'swiezy']));
   });
 }

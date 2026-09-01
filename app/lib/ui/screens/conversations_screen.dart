@@ -1,11 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/db.dart';
 import '../../services/providers.dart';
 import '../widgets/common.dart';
 import 'chat_screen.dart';
 import 'nearby_screen.dart';
 import 'settings_screen.dart';
+
+/// Usunięcie rozmowy kasuje też urządzenie z listy znanych — jedno bez
+/// drugiego nie ma sensu, bo rozmowa i tak odtworzyłaby się przy pierwszym
+/// kontakcie. Pytamy, bo idą z tym wiadomości.
+Future<void> _confirmDelete(
+    BuildContext context, WidgetRef ref, Peer peer) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog(
+      title: Text('Usunąć rozmowę z ${peer.name}?'),
+      content: const Text(
+        'Znikną wiadomości i samo urządzenie z listy znanych. '
+        'Odebrane pliki zostają na dysku.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialog, false),
+          child: const Text('Anuluj'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialog, true),
+          child: const Text('Usuń'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+
+  await ref.read(appServicesProvider).forgetPeer(peer);
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text('Usunięto rozmowę z ${peer.name}')));
+}
 
 /// Ekran główny: lista konwersacji (odpowiednik ListOfConversation.PNG).
 class ConversationsScreen extends ConsumerWidget {
@@ -76,6 +110,7 @@ class ConversationsScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                onLongPress: () => _confirmDelete(context, ref, item.peer),
               );
             },
           );

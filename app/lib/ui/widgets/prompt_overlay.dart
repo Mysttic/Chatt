@@ -35,7 +35,9 @@ class PromptOverlay extends ConsumerWidget {
                     builder: (context, pairings, _) => pairings.isEmpty
                         ? const SizedBox.shrink()
                         : _PairingCard(
-                            pairing: pairings.first, services: services),
+                            pairing: pairings.first,
+                            services: services,
+                          ),
                   ),
                   ValueListenableBuilder<List<PendingFileOffer>>(
                     valueListenable: services.pendingOffers,
@@ -97,17 +99,19 @@ class _PairingCardState extends State<_PairingCard> {
       _checking = true;
       _wrong = false;
     });
-    final ok = await widget.services
-        .confirmPairing(widget.pairing.peerGuid, _code.text);
+    final ok = await widget.services.confirmPairing(
+      widget.pairing.peerGuid,
+      _code.text,
+    );
     if (!mounted) return;
     setState(() {
       _checking = false;
       _wrong = !ok;
     });
     if (ok) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Sparowano z ${widget.pairing.peerName}'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sparowano z ${widget.pairing.peerName}')),
+      );
     }
   }
 
@@ -128,8 +132,10 @@ class _PairingCardState extends State<_PairingCard> {
                 Icon(Icons.shield_outlined, color: scheme.primary),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('${widget.pairing.peerName} chce się sparować',
-                      style: Theme.of(context).textTheme.titleSmall),
+                  child: Text(
+                    '${widget.pairing.peerName} chce się sparować',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                 ),
               ],
             ),
@@ -153,8 +159,9 @@ class _PairingCardState extends State<_PairingCard> {
                 TextButton(
                   onPressed: _checking
                       ? null
-                      : () => widget.services
-                          .cancelPairing(widget.pairing.peerGuid),
+                      : () => widget.services.cancelPairing(
+                          widget.pairing.peerGuid,
+                        ),
                   child: const Text('Anuluj'),
                 ),
                 const SizedBox(width: 8),
@@ -226,33 +233,45 @@ class _OfferCardState extends State<_OfferCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('${offer.peerName} chce wysłać plik',
-                          style: Theme.of(context).textTheme.titleSmall),
+                      Text(
+                        '${offer.peerName} chce wysłać plik',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
                       const SizedBox(height: 2),
-                      Text(offer.fileName,
-                          maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(
+                        offer.fileName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       Text(
                         resumed
                             ? '${formatFileSize(offer.fileSize)} — wznowienie, '
-                                'masz już ${formatFileSize(offer.resumeFrom)}'
+                                  'masz już ${formatFileSize(offer.resumeFrom)}'
                             : formatFileSize(offer.fileSize),
                         style: TextStyle(
-                            color: scheme.onSurfaceVariant, fontSize: 12),
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                       if (!offer.fromVerifiedPeer)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Row(
                             children: [
-                              Icon(Icons.report_outlined,
-                                  size: 14, color: scheme.error),
+                              Icon(
+                                Icons.report_outlined,
+                                size: 14,
+                                color: scheme.error,
+                              ),
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
                                   'Urządzenie niesparowane — nazwę można sobie '
                                   'ustawić dowolną',
                                   style: TextStyle(
-                                      color: scheme.error, fontSize: 11),
+                                    color: scheme.error,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ),
                             ],
@@ -268,8 +287,8 @@ class _OfferCardState extends State<_OfferCard> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: () => services.respondToOffer(offer.messageGuid,
-                      accept: false),
+                  onPressed: () =>
+                      services.respondToOffer(offer.messageGuid, accept: false),
                   child: const Text('Odrzuć'),
                 ),
                 const SizedBox(width: 8),

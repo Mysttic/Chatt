@@ -25,20 +25,24 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
       _scanning = true;
       _foundInLastScan = 0;
     });
-    final found = await ref.read(appServicesProvider).scan(
-          onFound: (_) => setState(() => _foundInLastScan++),
-        );
+    final found = await ref
+        .read(appServicesProvider)
+        .scan(onFound: (_) => setState(() => _foundInLastScan++));
     if (!mounted) return;
     setState(() {
       _scanning = false;
       _foundInLastScan = found.length;
     });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(found.isEmpty
-          ? 'Nie znaleziono urządzeń. Sprawdź, czy Chatt działa na drugim '
-              'urządzeniu w tej samej sieci, albo dodaj je ręcznie po adresie.'
-          : 'Znaleziono: ${found.length}'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          found.isEmpty
+              ? 'Nie znaleziono urządzeń. Sprawdź, czy Chatt działa na drugim '
+                    'urządzeniu w tej samej sieci, albo dodaj je ręcznie po adresie.'
+              : 'Znaleziono: ${found.length}',
+        ),
+      ),
+    );
   }
 
   Future<void> _openChat(Peer peer) async {
@@ -52,6 +56,38 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     );
   }
 
+  /// Ręczne usunięcie wpisu. Urządzenia, które przewinęły się przez sieć
+  /// i nic nie napisały, znikają same po tygodniu — ale rozmowy trzeba
+  /// kasować świadomie, bo idą z nimi wiadomości.
+  Future<void> _forget(Peer peer) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('Usunąć ${peer.name}?'),
+        content: const Text(
+          'Urządzenie zniknie z listy razem z rozmową i jej wiadomościami. '
+          'Odebrane pliki zostają na dysku.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Anuluj'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Usuń'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    await ref.read(appServicesProvider).forgetPeer(peer);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Usunięto ${peer.name}')));
+  }
+
   Future<void> _addManually() async {
     final result = await showDialog<(String, int)>(
       context: context,
@@ -59,13 +95,14 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     );
     if (result == null || !mounted) return;
     final (host, port) = result;
-    final peer =
-        await ref.read(appServicesProvider).addPeerByAddress(host, port);
+    final peer = await ref
+        .read(appServicesProvider)
+        .addPeerByAddress(host, port);
     if (!mounted) return;
     if (peer == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Pod $host:$port nie odpowiada żaden Chatt.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pod $host:$port nie odpowiada żaden Chatt.')),
+      );
     } else {
       await _openChat(peer);
     }
@@ -95,11 +132,14 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.wifi_tethering),
-              label: Text(_scanning
-                  ? 'Szukam… (znaleziono $_foundInLastScan)'
-                  : 'Szukaj urządzeń w sieci'),
+              label: Text(
+                _scanning
+                    ? 'Szukam… (znaleziono $_foundInLastScan)'
+                    : 'Szukaj urządzeń w sieci',
+              ),
               onPressed: _scanning ? null : _scan,
             ),
           ),
@@ -113,33 +153,68 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                     child: Text(
                       'Nie znasz jeszcze żadnych urządzeń.',
                       style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   );
                 }
-                return ListView.separated(
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) =>
-                      const Divider(height: 1, indent: 72),
-                  itemBuilder: (context, index) {
-                    final peer = items[index];
-                    return ListTile(
-                      leading: InitialsAvatar(name: peer.name),
-                      title: Text(peer.name),
-                      subtitle: Text(
-                        peer.welcomeMessage.isEmpty
-                            ? '${peer.host}:${peer.port}'
-                            : peer.welcomeMessage,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Przytrzymaj urządzenie, żeby je usunąć',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                      trailing: Text(
-                        'widziano ${formatWhen(peer.lastSeen)}',
-                        style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: items.length,
+                        separatorBuilder: (_, _) =>
+                            const Divider(height: 1, indent: 72),
+                        itemBuilder: (context, index) {
+                          final peer = items[index];
+                          return ListTile(
+                            leading: InitialsAvatar(name: peer.name),
+                            title: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    peer.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (peer.verified) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(
+                                    Icons.verified_user,
+                                    size: 16,
+                                    color: Colors.green,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            subtitle: Text(
+                              peer.welcomeMessage.isEmpty
+                                  ? '${peer.host}:${peer.port}'
+                                  : peer.welcomeMessage,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Text(
+                              'widziano ${formatWhen(peer.lastSeen)}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            onTap: () => _openChat(peer),
+                            onLongPress: () => _forget(peer),
+                          );
+                        },
                       ),
-                      onTap: () => _openChat(peer),
-                    );
-                  },
+                    ),
+                  ],
                 );
               },
             ),

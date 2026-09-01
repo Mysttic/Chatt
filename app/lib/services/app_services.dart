@@ -223,6 +223,9 @@ class AppServices {
     services._offerPolicy = fileOfferPolicy ?? services._askUserAboutOffer;
     services._onIncoming = onIncomingMessage;
     services._sweepStaleParts();
+    // Urządzenia, które przewinęły się przez sieć i nigdy nic nie napisały,
+    // nie mają po co zaśmiecać listy w nieskończoność.
+    await db.sweepStalePeers();
 
     if (enableDiscovery) {
       try {
@@ -304,6 +307,9 @@ class AppServices {
       port: port,
     );
   }
+
+  /// Ręczne usunięcie urządzenia z listy (razem z rozmową).
+  Future<void> forgetPeer(Peer peer) => db.deletePeer(peer.id);
 
   /// Sprawdzenie obecności: czy rozmówca wciąż odpowiada pod znanym adresem.
   Future<bool> isPeerOnline(Peer peer) async =>

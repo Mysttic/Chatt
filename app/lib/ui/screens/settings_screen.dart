@@ -59,6 +59,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ));
   }
 
+  /// Ręczne sprzątanie listy. Automatyczne, przy starcie aplikacji, czeka
+  /// tydzień — tutaj użytkownik mówi wprost, że chce to teraz.
+  Future<void> _cleanUpPeers() async {
+    final removed = await ref
+        .read(appServicesProvider)
+        .db
+        .sweepStalePeers(keepFor: const Duration(hours: 1));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(removed == 0
+          ? 'Nie było czego usuwać.'
+          : 'Usunięto z listy: $removed'),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final services = ref.read(appServicesProvider);
@@ -115,6 +130,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: _cleanUpPeers,
+            icon: const Icon(Icons.cleaning_services_outlined),
+            label: const Text('Wyczyść nieużywane urządzenia'),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Usuwa z listy urządzenia, z którymi nie ma żadnej wiadomości '
+            'i których nie widać od godziny. Sparowanych i rozmów nie rusza.',
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
           const SizedBox(height: 32),
           Text('To urządzenie', style: Theme.of(context).textTheme.titleMedium),

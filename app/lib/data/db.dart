@@ -13,7 +13,8 @@ class Settings extends Table {
 
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest
   /// zajęty — patrz DeviceIdentity.tcpPort.
-  IntColumn get tcpPort => integer().withDefault(const Constant(defaultTcpPort))();
+  IntColumn get tcpPort =>
+      integer().withDefault(const Constant(defaultTcpPort))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -97,16 +98,16 @@ class ChattDb extends _$ChattDb {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            // v2: wiadomości-pliki
-            await m.addColumn(messages, messages.kind);
-            await m.addColumn(messages, messages.fileName);
-            await m.addColumn(messages, messages.fileSize);
-            await m.addColumn(messages, messages.filePath);
-          }
-        },
-      );
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // v2: wiadomości-pliki
+        await m.addColumn(messages, messages.kind);
+        await m.addColumn(messages, messages.fileName);
+        await m.addColumn(messages, messages.fileSize);
+        await m.addColumn(messages, messages.filePath);
+      }
+    },
+  );
 
   // --- Ustawienia -----------------------------------------------------------
 
@@ -140,12 +141,13 @@ class ChattDb extends _$ChattDb {
     required String nickname,
     required String welcomeMessage,
     required int tcpPort,
-  }) =>
-      (update(settings)..where((s) => s.id.equals(1))).write(SettingsCompanion(
-        nickname: Value(nickname),
-        welcomeMessage: Value(welcomeMessage),
-        tcpPort: Value(tcpPort),
-      ));
+  }) => (update(settings)..where((s) => s.id.equals(1))).write(
+    SettingsCompanion(
+      nickname: Value(nickname),
+      welcomeMessage: Value(welcomeMessage),
+      tcpPort: Value(tcpPort),
+    ),
+  );
 
   // --- Rozmówcy -------------------------------------------------------------
 
@@ -155,15 +157,59 @@ class ChattDb extends _$ChattDb {
   Future<Peer?> peerById(int id) =>
       (select(peers)..where((p) => p.id.equals(id))).getSingleOrNull();
 
+  /// Usuwa rozmówcę razem z rozmową i jej wiadomościami. Odebrane pliki
+  /// zostają na dysku — kasujemy własne wpisy, nie cudzą zawartość.
+  Future<void> deletePeer(int peerId) => transaction(() async {
+    final conversation = await (select(
+      conversations,
+    )..where((c) => c.peerId.equals(peerId))).getSingleOrNull();
+    if (conversation != null) {
+      await (delete(
+        messages,
+      )..where((m) => m.conversationId.equals(conversation.id))).go();
+      await (delete(
+        conversations,
+      )..where((c) => c.id.equals(conversation.id))).go();
+    }
+    await (delete(peers)..where((p) => p.id.equals(peerId))).go();
+  });
+
+  /// Sprząta po urządzeniach, które przewinęły się przez sieć i zniknęły:
+  /// takich, z którymi nie ma ani jednej wiadomości i których dawno nie
+  /// widać. Sparowanych nie ruszamy — te użytkownik potwierdził świadomie.
+  /// Zwraca liczbę usuniętych wpisów.
+  Future<int> sweepStalePeers({
+    Duration keepFor = const Duration(days: 7),
+  }) async {
+    final stale = await customSelect(
+      '''
+      SELECT p.id AS id FROM peers p
+      WHERE p.last_seen < ?
+        AND p.verified = 0
+        AND NOT EXISTS (
+          SELECT 1 FROM conversations c
+          JOIN messages m ON m.conversation_id = c.id
+          WHERE c.peer_id = p.id)
+      ''',
+      variables: [Variable.withDateTime(DateTime.now().subtract(keepFor))],
+      readsFrom: {peers, conversations, messages},
+    ).get();
+
+    for (final row in stale) {
+      await deletePeer(row.read<int>('id'));
+    }
+    return stale.length;
+  }
+
   /// Efekt parowania kodem PIN: od teraz wiadomo, że pod tym GUID-em siedzi
   /// urządzenie, które użytkownik świadomie potwierdził.
   Future<void> setPeerVerified(int id, bool verified) =>
-      (update(peers)..where((p) => p.id.equals(id)))
-          .write(PeersCompanion(verified: Value(verified)));
+      (update(peers)..where((p) => p.id.equals(id))).write(
+        PeersCompanion(verified: Value(verified)),
+      );
 
-  Stream<List<Peer>> watchPeers() => (select(peers)
-        ..orderBy([(p) => OrderingTerm.desc(p.lastSeen)]))
-      .watch();
+  Stream<List<Peer>> watchPeers() =>
+      (select(peers)..orderBy([(p) => OrderingTerm.desc(p.lastSeen)])).watch();
 
   /// Wstawia lub aktualizuje rozmówcę po [guid], zawsze odświeżając ostatni
   /// znany adres i czas kontaktu. Pojedynczy atomowy UPSERT — discovery
@@ -205,26 +251,32 @@ class ChattDb extends _$ChattDb {
   // --- Konwersacje ----------------------------------------------------------
 
   Future<int> ensureConversation(int peerId) async {
-    final existing = await (select(conversations)
-          ..where((c) => c.peerId.equals(peerId)))
-        .getSingleOrNull();
+    final existing = await (select(
+      conversations,
+    )..where((c) => c.peerId.equals(peerId))).getSingleOrNull();
     if (existing != null) return existing.id;
     final now = DateTime.now();
     return into(conversations).insert(
-        ConversationsCompanion.insert(peerId: peerId, createdAt: now, updatedAt: now));
+      ConversationsCompanion.insert(
+        peerId: peerId,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 
   Future<Peer?> peerForConversation(int conversationId) async {
-    final conv = await (select(conversations)
-          ..where((c) => c.id.equals(conversationId)))
-        .getSingleOrNull();
+    final conv = await (select(
+      conversations,
+    )..where((c) => c.id.equals(conversationId))).getSingleOrNull();
     if (conv == null) return null;
     return peerById(conv.peerId);
   }
 
   Future<void> touchConversation(int conversationId) =>
-      (update(conversations)..where((c) => c.id.equals(conversationId)))
-          .write(ConversationsCompanion(updatedAt: Value(DateTime.now())));
+      (update(conversations)..where((c) => c.id.equals(conversationId))).write(
+        ConversationsCompanion(updatedAt: Value(DateTime.now())),
+      );
 
   /// Lista konwersacji do ekranu głównego, na żywo. Podzapytania liczą
   /// ostatnią wiadomość i nieprzeczytane; `readsFrom` mówi driftowi, po
@@ -253,15 +305,17 @@ class ChattDb extends _$ChattDb {
         final peer = await peerById(row.read<int>('p_id'));
         if (peer == null) continue;
         final lastAtMillis = row.readNullable<int>('last_at');
-        result.add(ConversationSummary(
-          conversationId: row.read<int>('conversation_id'),
-          peer: peer,
-          lastBody: row.readNullable<String>('last_body'),
-          lastAt: lastAtMillis == null
-              ? null
-              : DateTime.fromMillisecondsSinceEpoch(lastAtMillis * 1000),
-          unreadCount: row.read<int>('unread'),
-        ));
+        result.add(
+          ConversationSummary(
+            conversationId: row.read<int>('conversation_id'),
+            peer: peer,
+            lastBody: row.readNullable<String>('last_body'),
+            lastAt: lastAtMillis == null
+                ? null
+                : DateTime.fromMillisecondsSinceEpoch(lastAtMillis * 1000),
+            unreadCount: row.read<int>('unread'),
+          ),
+        );
       }
       return result;
     });
@@ -269,19 +323,21 @@ class ChattDb extends _$ChattDb {
 
   // --- Wiadomości -----------------------------------------------------------
 
-  Stream<List<Message>> watchMessages(int conversationId) => (select(messages)
-        ..where((m) => m.conversationId.equals(conversationId))
-        ..orderBy([
-          (m) => OrderingTerm.asc(m.createdAt),
-          (m) => OrderingTerm.asc(m.id),
-        ]))
-      .watch();
+  Stream<List<Message>> watchMessages(int conversationId) =>
+      (select(messages)
+            ..where((m) => m.conversationId.equals(conversationId))
+            ..orderBy([
+              (m) => OrderingTerm.asc(m.createdAt),
+              (m) => OrderingTerm.asc(m.id),
+            ]))
+          .watch();
 
   Future<Message?> messageById(int id) =>
       (select(messages)..where((m) => m.id.equals(id))).getSingleOrNull();
 
-  Future<Message?> messageByGuid(String guid) =>
-      (select(messages)..where((m) => m.messageGuid.equals(guid))).getSingleOrNull();
+  Future<Message?> messageByGuid(String guid) => (select(
+    messages,
+  )..where((m) => m.messageGuid.equals(guid))).getSingleOrNull();
 
   Future<int> insertOutgoing({
     required int conversationId,
@@ -292,18 +348,20 @@ class ChattDb extends _$ChattDb {
     int? fileSize,
     String? filePath,
   }) async {
-    final id = await into(messages).insert(MessagesCompanion.insert(
-      messageGuid: messageGuid,
-      conversationId: conversationId,
-      direction: MessageDirection.outgoing,
-      status: MessageStatus.pending,
-      kind: Value(kind),
-      body: body,
-      fileName: Value(fileName),
-      fileSize: Value(fileSize),
-      filePath: Value(filePath),
-      createdAt: DateTime.now(),
-    ));
+    final id = await into(messages).insert(
+      MessagesCompanion.insert(
+        messageGuid: messageGuid,
+        conversationId: conversationId,
+        direction: MessageDirection.outgoing,
+        status: MessageStatus.pending,
+        kind: Value(kind),
+        body: body,
+        fileName: Value(fileName),
+        fileSize: Value(fileSize),
+        filePath: Value(filePath),
+        createdAt: DateTime.now(),
+      ),
+    );
     await touchConversation(conversationId);
     return id;
   }
@@ -320,9 +378,9 @@ class ChattDb extends _$ChattDb {
     int? fileSize,
     String? filePath,
   }) async {
-    final duplicate = await (select(messages)
-          ..where((m) => m.messageGuid.equals(messageGuid)))
-        .getSingleOrNull();
+    final duplicate = await (select(
+      messages,
+    )..where((m) => m.messageGuid.equals(messageGuid))).getSingleOrNull();
     if (duplicate != null) return false;
     await into(messages).insert(
       MessagesCompanion.insert(
@@ -347,17 +405,21 @@ class ChattDb extends _$ChattDb {
   }
 
   Future<void> setMessageStatus(int id, MessageStatus status) =>
-      (update(messages)..where((m) => m.id.equals(id))).write(MessagesCompanion(
-        status: Value(status),
-        deliveredAt: status == MessageStatus.delivered
-            ? Value(DateTime.now())
-            : const Value.absent(),
-      ));
+      (update(messages)..where((m) => m.id.equals(id))).write(
+        MessagesCompanion(
+          status: Value(status),
+          deliveredAt: status == MessageStatus.delivered
+              ? Value(DateTime.now())
+              : const Value.absent(),
+        ),
+      );
 
-  Future<void> markConversationRead(int conversationId) => (update(messages)
-        ..where((m) =>
-            m.conversationId.equals(conversationId) &
-            m.direction.equalsValue(MessageDirection.incoming) &
-            m.readAt.isNull()))
-      .write(MessagesCompanion(readAt: Value(DateTime.now())));
+  Future<void> markConversationRead(int conversationId) =>
+      (update(messages)..where(
+            (m) =>
+                m.conversationId.equals(conversationId) &
+                m.direction.equalsValue(MessageDirection.incoming) &
+                m.readAt.isNull(),
+          ))
+          .write(MessagesCompanion(readAt: Value(DateTime.now())));
 }
