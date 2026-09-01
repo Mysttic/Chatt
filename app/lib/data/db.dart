@@ -4,12 +4,18 @@ import '../network/protocol.dart';
 
 part 'db.g.dart';
 
+/// Wybór motywu. `system` idzie za ustawieniem systemu.
+enum AppTheme { system, light, dark }
+
 /// Ustawienia lokalnej instancji — zawsze dokładnie jeden wiersz (id = 1).
 class Settings extends Table {
   IntColumn get id => integer()();
   TextColumn get deviceGuid => text()();
   TextColumn get nickname => text()();
   TextColumn get welcomeMessage => text().withDefault(const Constant(''))();
+
+  IntColumn get theme =>
+      intEnum<AppTheme>().withDefault(Constant(AppTheme.system.index))();
 
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest
   /// zajęty — patrz DeviceIdentity.tcpPort.
@@ -99,7 +105,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -117,6 +123,10 @@ class ChattDb extends _$ChattDb {
         // ma — kasujemy je i prosimy o sparowanie jeszcze raz.
         await m.addColumn(peers, peers.sessionKey);
         await m.database.customStatement('UPDATE peers SET verified = 0');
+      }
+      if (from < 4) {
+        // v4: wybór motywu
+        await m.addColumn(settings, settings.theme);
       }
     },
   );
@@ -160,6 +170,11 @@ class ChattDb extends _$ChattDb {
       tcpPort: Value(tcpPort),
     ),
   );
+
+  /// Motyw zapisujemy osobno: zmienia się jednym kliknięciem, bez formularza.
+  Future<void> saveTheme(AppTheme theme) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(theme: Value(theme)));
 
   // --- Rozmówcy -------------------------------------------------------------
 

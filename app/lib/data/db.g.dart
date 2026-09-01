@@ -51,6 +51,16 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<AppTheme, int> theme =
+      GeneratedColumn<int>(
+        'theme',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: Constant(AppTheme.system.index),
+      ).withConverter<AppTheme>($SettingsTable.$convertertheme);
   static const VerificationMeta _tcpPortMeta = const VerificationMeta(
     'tcpPort',
   );
@@ -69,6 +79,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     deviceGuid,
     nickname,
     welcomeMessage,
+    theme,
     tcpPort,
   ];
   @override
@@ -142,6 +153,12 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.string,
         data['${effectivePrefix}welcome_message'],
       )!,
+      theme: $SettingsTable.$convertertheme.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}theme'],
+        )!,
+      ),
       tcpPort: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}tcp_port'],
@@ -153,6 +170,9 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
   $SettingsTable createAlias(String alias) {
     return $SettingsTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<AppTheme, int, int> $convertertheme =
+      const EnumIndexConverter<AppTheme>(AppTheme.values);
 }
 
 class Setting extends DataClass implements Insertable<Setting> {
@@ -160,6 +180,7 @@ class Setting extends DataClass implements Insertable<Setting> {
   final String deviceGuid;
   final String nickname;
   final String welcomeMessage;
+  final AppTheme theme;
 
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest
   /// zajęty — patrz DeviceIdentity.tcpPort.
@@ -169,6 +190,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.deviceGuid,
     required this.nickname,
     required this.welcomeMessage,
+    required this.theme,
     required this.tcpPort,
   });
   @override
@@ -178,6 +200,9 @@ class Setting extends DataClass implements Insertable<Setting> {
     map['device_guid'] = Variable<String>(deviceGuid);
     map['nickname'] = Variable<String>(nickname);
     map['welcome_message'] = Variable<String>(welcomeMessage);
+    {
+      map['theme'] = Variable<int>($SettingsTable.$convertertheme.toSql(theme));
+    }
     map['tcp_port'] = Variable<int>(tcpPort);
     return map;
   }
@@ -188,6 +213,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       deviceGuid: Value(deviceGuid),
       nickname: Value(nickname),
       welcomeMessage: Value(welcomeMessage),
+      theme: Value(theme),
       tcpPort: Value(tcpPort),
     );
   }
@@ -202,6 +228,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       deviceGuid: serializer.fromJson<String>(json['deviceGuid']),
       nickname: serializer.fromJson<String>(json['nickname']),
       welcomeMessage: serializer.fromJson<String>(json['welcomeMessage']),
+      theme: $SettingsTable.$convertertheme.fromJson(
+        serializer.fromJson<int>(json['theme']),
+      ),
       tcpPort: serializer.fromJson<int>(json['tcpPort']),
     );
   }
@@ -213,6 +242,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       'deviceGuid': serializer.toJson<String>(deviceGuid),
       'nickname': serializer.toJson<String>(nickname),
       'welcomeMessage': serializer.toJson<String>(welcomeMessage),
+      'theme': serializer.toJson<int>(
+        $SettingsTable.$convertertheme.toJson(theme),
+      ),
       'tcpPort': serializer.toJson<int>(tcpPort),
     };
   }
@@ -222,12 +254,14 @@ class Setting extends DataClass implements Insertable<Setting> {
     String? deviceGuid,
     String? nickname,
     String? welcomeMessage,
+    AppTheme? theme,
     int? tcpPort,
   }) => Setting(
     id: id ?? this.id,
     deviceGuid: deviceGuid ?? this.deviceGuid,
     nickname: nickname ?? this.nickname,
     welcomeMessage: welcomeMessage ?? this.welcomeMessage,
+    theme: theme ?? this.theme,
     tcpPort: tcpPort ?? this.tcpPort,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
@@ -240,6 +274,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       welcomeMessage: data.welcomeMessage.present
           ? data.welcomeMessage.value
           : this.welcomeMessage,
+      theme: data.theme.present ? data.theme.value : this.theme,
       tcpPort: data.tcpPort.present ? data.tcpPort.value : this.tcpPort,
     );
   }
@@ -251,6 +286,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('deviceGuid: $deviceGuid, ')
           ..write('nickname: $nickname, ')
           ..write('welcomeMessage: $welcomeMessage, ')
+          ..write('theme: $theme, ')
           ..write('tcpPort: $tcpPort')
           ..write(')'))
         .toString();
@@ -258,7 +294,7 @@ class Setting extends DataClass implements Insertable<Setting> {
 
   @override
   int get hashCode =>
-      Object.hash(id, deviceGuid, nickname, welcomeMessage, tcpPort);
+      Object.hash(id, deviceGuid, nickname, welcomeMessage, theme, tcpPort);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -267,6 +303,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.deviceGuid == this.deviceGuid &&
           other.nickname == this.nickname &&
           other.welcomeMessage == this.welcomeMessage &&
+          other.theme == this.theme &&
           other.tcpPort == this.tcpPort);
 }
 
@@ -275,12 +312,14 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<String> deviceGuid;
   final Value<String> nickname;
   final Value<String> welcomeMessage;
+  final Value<AppTheme> theme;
   final Value<int> tcpPort;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.deviceGuid = const Value.absent(),
     this.nickname = const Value.absent(),
     this.welcomeMessage = const Value.absent(),
+    this.theme = const Value.absent(),
     this.tcpPort = const Value.absent(),
   });
   SettingsCompanion.insert({
@@ -288,6 +327,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     required String deviceGuid,
     required String nickname,
     this.welcomeMessage = const Value.absent(),
+    this.theme = const Value.absent(),
     this.tcpPort = const Value.absent(),
   }) : deviceGuid = Value(deviceGuid),
        nickname = Value(nickname);
@@ -296,6 +336,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<String>? deviceGuid,
     Expression<String>? nickname,
     Expression<String>? welcomeMessage,
+    Expression<int>? theme,
     Expression<int>? tcpPort,
   }) {
     return RawValuesInsertable({
@@ -303,6 +344,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (deviceGuid != null) 'device_guid': deviceGuid,
       if (nickname != null) 'nickname': nickname,
       if (welcomeMessage != null) 'welcome_message': welcomeMessage,
+      if (theme != null) 'theme': theme,
       if (tcpPort != null) 'tcp_port': tcpPort,
     });
   }
@@ -312,6 +354,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<String>? deviceGuid,
     Value<String>? nickname,
     Value<String>? welcomeMessage,
+    Value<AppTheme>? theme,
     Value<int>? tcpPort,
   }) {
     return SettingsCompanion(
@@ -319,6 +362,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       deviceGuid: deviceGuid ?? this.deviceGuid,
       nickname: nickname ?? this.nickname,
       welcomeMessage: welcomeMessage ?? this.welcomeMessage,
+      theme: theme ?? this.theme,
       tcpPort: tcpPort ?? this.tcpPort,
     );
   }
@@ -338,6 +382,11 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (welcomeMessage.present) {
       map['welcome_message'] = Variable<String>(welcomeMessage.value);
     }
+    if (theme.present) {
+      map['theme'] = Variable<int>(
+        $SettingsTable.$convertertheme.toSql(theme.value),
+      );
+    }
     if (tcpPort.present) {
       map['tcp_port'] = Variable<int>(tcpPort.value);
     }
@@ -351,6 +400,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('deviceGuid: $deviceGuid, ')
           ..write('nickname: $nickname, ')
           ..write('welcomeMessage: $welcomeMessage, ')
+          ..write('theme: $theme, ')
           ..write('tcpPort: $tcpPort')
           ..write(')'))
         .toString();
@@ -2060,6 +2110,7 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   required String deviceGuid,
   required String nickname,
   Value<String> welcomeMessage,
+  Value<AppTheme> theme,
   Value<int> tcpPort,
 });
 typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
@@ -2067,6 +2118,7 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<String> deviceGuid,
   Value<String> nickname,
   Value<String> welcomeMessage,
+  Value<AppTheme> theme,
   Value<int> tcpPort,
 });
 
@@ -2098,6 +2150,12 @@ class $$SettingsTableFilterComposer
     column: $table.welcomeMessage,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<AppTheme, AppTheme, int> get theme =>
+      $composableBuilder(
+        column: $table.theme,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<int> get tcpPort => $composableBuilder(
     column: $table.tcpPort,
@@ -2134,6 +2192,11 @@ class $$SettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get theme => $composableBuilder(
+    column: $table.theme,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get tcpPort => $composableBuilder(
     column: $table.tcpPort,
     builder: (column) => ColumnOrderings(column),
@@ -2164,6 +2227,9 @@ class $$SettingsTableAnnotationComposer
     column: $table.welcomeMessage,
     builder: (column) => column,
   );
+
+  GeneratedColumnWithTypeConverter<AppTheme, int> get theme =>
+      $composableBuilder(column: $table.theme, builder: (column) => column);
 
   GeneratedColumn<int> get tcpPort =>
       $composableBuilder(column: $table.tcpPort, builder: (column) => column);
@@ -2201,12 +2267,14 @@ class $$SettingsTableTableManager
                 Value<String> deviceGuid = const Value.absent(),
                 Value<String> nickname = const Value.absent(),
                 Value<String> welcomeMessage = const Value.absent(),
+                Value<AppTheme> theme = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 deviceGuid: deviceGuid,
                 nickname: nickname,
                 welcomeMessage: welcomeMessage,
+                theme: theme,
                 tcpPort: tcpPort,
               ),
           createCompanionCallback:
@@ -2215,12 +2283,14 @@ class $$SettingsTableTableManager
                 required String deviceGuid,
                 required String nickname,
                 Value<String> welcomeMessage = const Value.absent(),
+                Value<AppTheme> theme = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 deviceGuid: deviceGuid,
                 nickname: nickname,
                 welcomeMessage: welcomeMessage,
+                theme: theme,
                 tcpPort: tcpPort,
               ),
           withReferenceMapper: (p0) => p0

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/db.dart';
 import '../../services/providers.dart';
 
 /// Ustawienia instancji (odpowiednik EditConfiguration.PNG) + informacje
@@ -130,6 +131,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 24),
+          Text('Wygląd', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          SegmentedButton<AppTheme>(
+            segments: const [
+              ButtonSegment(
+                value: AppTheme.system,
+                icon: Icon(Icons.brightness_auto_outlined),
+                label: Text('Systemowy'),
+              ),
+              ButtonSegment(
+                value: AppTheme.light,
+                icon: Icon(Icons.light_mode_outlined),
+                label: Text('Jasny'),
+              ),
+              ButtonSegment(
+                value: AppTheme.dark,
+                icon: Icon(Icons.dark_mode_outlined),
+                label: Text('Ciemny'),
+              ),
+            ],
+            selected: {
+              ref.watch(settingsProvider).value?.theme ?? AppTheme.system,
+            },
+            onSelectionChanged: (wybor) =>
+                services.db.saveTheme(wybor.first),
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
