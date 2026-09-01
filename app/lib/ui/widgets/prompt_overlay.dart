@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../network/protocol.dart' show PairOutcome;
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
+import '../l10n_context.dart';
 import 'common.dart';
 
 /// Prośby wymagające decyzji „tu i teraz": zgoda na odbiór pliku i kod
@@ -54,8 +55,8 @@ class PromptOverlay extends ConsumerWidget {
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                'Czeka jeszcze ${offers.length - 1} '
-                                '${offers.length == 2 ? "plik" : "plików"}',
+                                context.l10n
+                                    .moreFilesWaiting(offers.length - 1),
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
@@ -111,7 +112,8 @@ class _PairingCardState extends State<_PairingCard> {
     });
     if (outcome == PairOutcome.accepted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sparowano z ${widget.pairing.peerName}')),
+        SnackBar(
+            content: Text(context.l10n.pairedWith(widget.pairing.peerName))),
       );
     }
   }
@@ -134,7 +136,7 @@ class _PairingCardState extends State<_PairingCard> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '${widget.pairing.peerName} chce się sparować',
+                    context.l10n.pairRequest(widget.pairing.peerName),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
@@ -147,14 +149,12 @@ class _PairingCardState extends State<_PairingCard> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               decoration: InputDecoration(
-                labelText: 'Kod z drugiego urządzenia',
+                labelText: context.l10n.pairCodeLabel,
                 errorText: switch (_outcome) {
                   null || PairOutcome.accepted => null,
-                  PairOutcome.wrongCode => 'Kod się nie zgadza',
-                  PairOutcome.expired =>
-                    'Kod stracił ważność — poproś o nowy na drugim urządzeniu',
-                  PairOutcome.unreachable =>
-                    'Drugie urządzenie nie odpowiada',
+                  PairOutcome.wrongCode => context.l10n.pairWrongCode,
+                  PairOutcome.expired => context.l10n.pairCodeExpired,
+                  PairOutcome.unreachable => context.l10n.pairPeerUnreachable,
                 },
                 border: const OutlineInputBorder(),
                 counterText: '',
@@ -170,12 +170,14 @@ class _PairingCardState extends State<_PairingCard> {
                       : () => widget.services.cancelPairing(
                           widget.pairing.peerGuid,
                         ),
-                  child: const Text('Anuluj'),
+                  child: Text(context.l10n.cancel),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
                   onPressed: _checking ? null : _confirm,
-                  child: Text(_checking ? 'Sprawdzam…' : 'Potwierdź'),
+                  child: Text(_checking
+                      ? context.l10n.pairChecking
+                      : context.l10n.confirm),
                 ),
               ],
             ),
@@ -242,7 +244,7 @@ class _OfferCardState extends State<_OfferCard> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '${offer.peerName} chce wysłać plik',
+                        context.l10n.fileOfferTitle(offer.peerName),
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 2),
@@ -253,8 +255,10 @@ class _OfferCardState extends State<_OfferCard> {
                       ),
                       Text(
                         resumed
-                            ? '${formatFileSize(offer.fileSize)} — wznowienie, '
-                                  'masz już ${formatFileSize(offer.resumeFrom)}'
+                            ? context.l10n.fileOfferResume(
+                                formatFileSize(offer.fileSize),
+                                formatFileSize(offer.resumeFrom),
+                              )
                             : formatFileSize(offer.fileSize),
                         style: TextStyle(
                           color: scheme.onSurfaceVariant,
@@ -274,8 +278,7 @@ class _OfferCardState extends State<_OfferCard> {
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
-                                  'Urządzenie niesparowane — nazwę można sobie '
-                                  'ustawić dowolną',
+                                  context.l10n.unpairedWarning,
                                   style: TextStyle(
                                     color: scheme.error,
                                     fontSize: 11,
@@ -297,14 +300,14 @@ class _OfferCardState extends State<_OfferCard> {
                 TextButton(
                   onPressed: () =>
                       services.respondToOffer(offer.messageGuid, accept: false),
-                  child: const Text('Odrzuć'),
+                  child: Text(context.l10n.reject),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
                   focusNode: _acceptFocus,
                   onPressed: () =>
                       services.respondToOffer(offer.messageGuid, accept: true),
-                  child: const Text('Akceptuj'),
+                  child: Text(context.l10n.accept),
                 ),
               ],
             ),

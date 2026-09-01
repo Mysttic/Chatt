@@ -7,6 +7,9 @@ part 'db.g.dart';
 /// Wybór motywu. `system` idzie za ustawieniem systemu.
 enum AppTheme { system, light, dark }
 
+/// Język interfejsu. `system` idzie za ustawieniem systemu.
+enum AppLanguage { system, polish, english }
+
 /// Ustawienia lokalnej instancji — zawsze dokładnie jeden wiersz (id = 1).
 class Settings extends Table {
   IntColumn get id => integer()();
@@ -16,6 +19,9 @@ class Settings extends Table {
 
   IntColumn get theme =>
       intEnum<AppTheme>().withDefault(Constant(AppTheme.system.index))();
+
+  IntColumn get language =>
+      intEnum<AppLanguage>().withDefault(Constant(AppLanguage.system.index))();
 
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest
   /// zajęty — patrz DeviceIdentity.tcpPort.
@@ -105,7 +111,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -127,6 +133,10 @@ class ChattDb extends _$ChattDb {
       if (from < 4) {
         // v4: wybór motywu
         await m.addColumn(settings, settings.theme);
+      }
+      if (from < 5) {
+        // v5: wybór języka
+        await m.addColumn(settings, settings.language);
       }
     },
   );
@@ -171,10 +181,15 @@ class ChattDb extends _$ChattDb {
     ),
   );
 
-  /// Motyw zapisujemy osobno: zmienia się jednym kliknięciem, bez formularza.
+  /// Motyw i język zapisujemy osobno: zmieniają się jednym kliknięciem,
+  /// bez formularza i bez przycisku „zapisz".
   Future<void> saveTheme(AppTheme theme) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(theme: Value(theme)));
+
+  Future<void> saveLanguage(AppLanguage language) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(language: Value(language)));
 
   // --- Rozmówcy -------------------------------------------------------------
 

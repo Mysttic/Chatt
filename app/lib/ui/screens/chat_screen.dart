@@ -10,6 +10,7 @@ import '../../data/db.dart';
 import '../../network/protocol.dart' show pairingCodeLifetime;
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
+import '../l10n_context.dart';
 import '../widgets/common.dart';
 
 /// Ekran rozmowy (odpowiednik Conversation.PNG): dymki, statusy dostarczenia,
@@ -60,16 +61,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!mounted) return;
 
     if (pin == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Nie udało się zacząć parowania — urządzenie nie odpowiada.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.pairStartFailed)),
+      );
       return;
     }
 
     showDialog<void>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: const Text('Kod parowania'),
+        title: Text(context.l10n.pairCodeTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -80,8 +81,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Przepisz ten kod na urządzeniu ${widget.peer.name}. '
-              'Ważny przez ${pairingCodeLifetime.inMinutes} minut.',
+              context.l10n.pairCodeBody(
+                  widget.peer.name, pairingCodeLifetime.inMinutes),
               textAlign: TextAlign.center,
             ),
           ],
@@ -89,7 +90,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialog),
-            child: const Text('Zamknij'),
+            child: Text(context.l10n.close),
           ),
         ],
       ),
@@ -134,8 +135,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   Text(
                     switch (_online) {
                       null => '${widget.peer.host}:${widget.peer.port}',
-                      true => 'dostępny',
-                      false => 'niedostępny',
+                      true => context.l10n.peerOnline,
+                      false => context.l10n.peerOffline,
                     },
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: switch (_online) {
@@ -153,8 +154,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           IconButton(
             tooltip: peer.verified
-                ? 'Urządzenie sparowane kodem'
-                : 'Sparuj kodem PIN',
+                ? context.l10n.pairTooltipPaired
+                : context.l10n.pairTooltip,
             icon: Icon(
               peer.verified ? Icons.verified_user : Icons.shield_outlined,
               color: peer.verified ? Colors.green : null,
@@ -173,7 +174,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               valueListenable: services.transfersRevision,
               builder: (context, _, _) => messages.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(child: Text('Błąd: $error')),
+              error: (error, _) =>
+                  Center(child: Text(context.l10n.errorWithDetails('$error'))),
               data: (items) => ListView.builder(
                 controller: _scroll,
                 reverse: true,
@@ -216,7 +218,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   IconButton(
-                    tooltip: 'Wyślij plik',
+                    tooltip: context.l10n.sendFileTooltip,
                     icon: const Icon(Icons.attach_file),
                     onPressed: _attachFile,
                   ),
@@ -228,7 +230,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
                       decoration: InputDecoration(
-                        hintText: 'Napisz wiadomość…',
+                        hintText: context.l10n.messageHint,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                         ),
@@ -239,7 +241,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
-                    tooltip: 'Wyślij',
+                    tooltip: context.l10n.sendTooltip,
                     icon: const Icon(Icons.send),
                     onPressed: _send,
                   ),
@@ -280,17 +282,17 @@ class _MessageBubble extends StatelessWidget {
     final snack = switch (result) {
       FileActionResult.ok => null,
       FileActionResult.missing =>
-        const SnackBar(content: Text('Tego pliku już nie ma na dysku.')),
+        SnackBar(content: Text(context.l10n.fileGone)),
       // Android/iOS: bez wtyczki platformowej zostaje ścieżka do skopiowania.
       FileActionResult.unsupported => SnackBar(
           content: Text(path),
           action: SnackBarAction(
-            label: 'Kopiuj',
+            label: context.l10n.copy,
             onPressed: () => Clipboard.setData(ClipboardData(text: path)),
           ),
         ),
       FileActionResult.failed =>
-        const SnackBar(content: Text('Nie udało się otworzyć pliku.')),
+        SnackBar(content: Text(context.l10n.fileOpenFailed)),
     };
     if (snack != null) ScaffoldMessenger.of(context).showSnackBar(snack);
   }
@@ -304,7 +306,7 @@ class _MessageBubble extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.open_in_new),
-              title: const Text('Otwórz'),
+              title: Text(context.l10n.openFile),
               onTap: () {
                 Navigator.pop(sheet);
                 _openFile(context);
@@ -314,7 +316,9 @@ class _MessageBubble extends StatelessWidget {
               // Android nie ma menedżera plików do pokazania — tam ta sama
               // akcja udostępnia plik dalej.
               leading: Icon(Platform.isAndroid ? Icons.share : Icons.folder_open),
-              title: Text(Platform.isAndroid ? 'Udostępnij' : 'Pokaż folder'),
+              title: Text(Platform.isAndroid
+                  ? context.l10n.shareFile
+                  : context.l10n.showFolder),
               onTap: () {
                 Navigator.pop(sheet);
                 _revealFile(context);
@@ -322,7 +326,7 @@ class _MessageBubble extends StatelessWidget {
             ),
             ListTile(
               leading: const Icon(Icons.copy_all_outlined),
-              title: const Text('Kopiuj ścieżkę'),
+              title: Text(context.l10n.copyPath),
               subtitle: Text(path, maxLines: 2, overflow: TextOverflow.ellipsis),
               onTap: () {
                 Navigator.pop(sheet);
@@ -357,7 +361,7 @@ class _MessageBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(message.fileName ?? 'plik',
+                Text(message.fileName ?? context.l10n.fileFallbackName,
                     style: TextStyle(
                         color: textColor, fontSize: 15, fontWeight: FontWeight.w500),
                     maxLines: 2,
@@ -456,7 +460,7 @@ class _MessageBubble extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Nie dostarczono — ponów'),
+                  label: Text(context.l10n.notDeliveredRetry),
                   style: TextButton.styleFrom(
                     foregroundColor: scheme.error,
                     visualDensity: VisualDensity.compact,
@@ -497,7 +501,7 @@ class _IncomingTransferTile extends StatelessWidget {
                   Icon(Icons.download_outlined, size: 16, color: scheme.primary),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text('Odbieram: ${transfer.fileName}',
+                    child: Text(context.l10n.receivingFile(transfer.fileName),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: labelStyle),

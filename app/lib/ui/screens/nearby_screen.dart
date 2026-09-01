@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
 import '../../services/providers.dart';
+import '../l10n_context.dart';
 import '../widgets/common.dart';
 import 'chat_screen.dart';
 
@@ -37,9 +38,8 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
       SnackBar(
         content: Text(
           found.isEmpty
-              ? 'Nie znaleziono urządzeń. Sprawdź, czy Chatt działa na drugim '
-                    'urządzeniu w tej samej sieci, albo dodaj je ręcznie po adresie.'
-              : 'Znaleziono: ${found.length}',
+              ? context.l10n.scanNothingFound
+              : context.l10n.scanFound(found.length),
         ),
       ),
     );
@@ -63,19 +63,16 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: Text('Usunąć ${peer.name}?'),
-        content: const Text(
-          'Urządzenie zniknie z listy razem z rozmową i jej wiadomościami. '
-          'Odebrane pliki zostają na dysku.',
-        ),
+        title: Text(context.l10n.deleteDeviceTitle(peer.name)),
+        content: Text(context.l10n.deleteDeviceBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('Anuluj'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('Usuń'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -84,8 +81,8 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
 
     await ref.read(appServicesProvider).forgetPeer(peer);
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Usunięto ${peer.name}')));
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.deviceDeleted(peer.name))));
   }
 
   Future<void> _addManually() async {
@@ -101,7 +98,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     if (!mounted) return;
     if (peer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pod $host:$port nie odpowiada żaden Chatt.')),
+        SnackBar(content: Text(context.l10n.noChattAtAddress(host, port))),
       );
     } else {
       await _openChat(peer);
@@ -114,10 +111,10 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Urządzenia w pobliżu'),
+        title: Text(context.l10n.nearbyTitle),
         actions: [
           IconButton(
-            tooltip: 'Dodaj po adresie IP',
+            tooltip: context.l10n.addByAddress,
             icon: const Icon(Icons.add_link),
             onPressed: _addManually,
           ),
@@ -137,8 +134,8 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                   : const Icon(Icons.wifi_tethering),
               label: Text(
                 _scanning
-                    ? 'Szukam… (znaleziono $_foundInLastScan)'
-                    : 'Szukaj urządzeń w sieci',
+                    ? context.l10n.scanRunning(_foundInLastScan)
+                    : context.l10n.scanStart,
               ),
               onPressed: _scanning ? null : _scan,
             ),
@@ -146,12 +143,13 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
           Expanded(
             child: peers.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, _) => Center(child: Text('Błąd: $error')),
+              error: (error, _) =>
+                  Center(child: Text(context.l10n.errorWithDetails('$error'))),
               data: (items) {
                 if (items.isEmpty) {
                   return Center(
                     child: Text(
-                      'Nie znasz jeszcze żadnych urządzeń.',
+                      context.l10n.noKnownDevices,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -163,7 +161,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
-                        'Przytrzymaj urządzenie, żeby je usunąć',
+                        context.l10n.longPressToDelete,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -205,7 +203,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             trailing: Text(
-                              'widziano ${formatWhen(peer.lastSeen)}',
+                              context.l10n.lastSeen(formatWhen(peer.lastSeen)),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                             onTap: () => _openChat(peer),
@@ -253,23 +251,23 @@ class _ManualAddDialogState extends State<_ManualAddDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Dodaj urządzenie po adresie'),
+      title: Text(context.l10n.manualAddTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
             controller: _host,
             autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'Adres IP',
-              hintText: 'np. 192.168.1.20',
+            decoration: InputDecoration(
+              labelText: context.l10n.ipLabel,
+              hintText: context.l10n.ipHint,
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _port,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Port'),
+            decoration: InputDecoration(labelText: context.l10n.portLabel),
             onSubmitted: (_) => _submit(),
           ),
         ],
@@ -277,9 +275,9 @@ class _ManualAddDialogState extends State<_ManualAddDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Anuluj'),
+          child: Text(context.l10n.cancel),
         ),
-        FilledButton(onPressed: _submit, child: const Text('Połącz')),
+        FilledButton(onPressed: _submit, child: Text(context.l10n.connect)),
       ],
     );
   }

@@ -49,6 +49,10 @@ funkcji, potem znikną. Plan prac i stan projektu: [ROADMAP.md](ROADMAP.md).
 *Zrzuty z automatycznego testu E2E: dwie instancje aplikacji znajdują się
 przez UDP i rozmawiają ze sobą po HTTP.*
 
+Interfejs jest po polsku i po angielsku (`app/lib/l10n/*.arb`); domyślnie idzie
+za językiem systemu, ale w ustawieniach można go wymusić — tak samo jak motyw
+jasny/ciemny. Oba wybory siedzą w bazie, więc przeżywają restart.
+
 ## Uruchomienie u siebie (Windows)
 
 1. Zainstaluj [Flutter SDK](https://docs.flutter.dev/get-started/install/windows)

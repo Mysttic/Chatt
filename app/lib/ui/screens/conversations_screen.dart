@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
 import '../../services/providers.dart';
+import '../l10n_context.dart';
 import '../widgets/common.dart';
 import 'chat_screen.dart';
 import 'nearby_screen.dart';
@@ -16,19 +17,16 @@ Future<void> _confirmDelete(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialog) => AlertDialog(
-      title: Text('Usunąć rozmowę z ${peer.name}?'),
-      content: const Text(
-        'Znikną wiadomości i samo urządzenie z listy znanych. '
-        'Odebrane pliki zostają na dysku.',
-      ),
+      title: Text(context.l10n.deleteConversationTitle(peer.name)),
+      content: Text(context.l10n.deleteConversationBody),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(dialog, false),
-          child: const Text('Anuluj'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(dialog, true),
-          child: const Text('Usuń'),
+          child: Text(context.l10n.delete),
         ),
       ],
     ),
@@ -37,8 +35,8 @@ Future<void> _confirmDelete(
 
   await ref.read(appServicesProvider).forgetPeer(peer);
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text('Usunięto rozmowę z ${peer.name}')));
+  ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.conversationDeleted(peer.name))));
 }
 
 /// Ekran główny: lista konwersacji (odpowiednik ListOfConversation.PNG).
@@ -51,10 +49,10 @@ class ConversationsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chatt'),
+        title: Text(context.l10n.appTitle),
         actions: [
           IconButton(
-            tooltip: 'Ustawienia',
+            tooltip: context.l10n.settingsTitle,
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -64,14 +62,15 @@ class ConversationsScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.person_search),
-        label: const Text('W pobliżu'),
+        label: Text(context.l10n.nearbyButton),
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const NearbyScreen()),
         ),
       ),
       body: summaries.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Błąd: $error')),
+        error: (error, _) =>
+            Center(child: Text(context.l10n.errorWithDetails('$error'))),
         data: (items) {
           if (items.isEmpty) {
             return const _EmptyState();
@@ -134,12 +133,11 @@ class _EmptyState extends StatelessWidget {
           children: [
             Icon(Icons.forum_outlined, size: 72, color: scheme.outline),
             const SizedBox(height: 16),
-            Text('Brak rozmów',
+            Text(context.l10n.noConversationsTitle,
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              'Znajdź urządzenia w tej samej sieci Wi-Fi przyciskiem „W pobliżu” '
-              'i napisz pierwszą wiadomość.',
+              context.l10n.noConversationsBody,
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.onSurfaceVariant),
             ),

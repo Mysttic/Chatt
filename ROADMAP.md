@@ -93,7 +93,7 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [x] Sprzątanie listy urządzeń: przy starcie znikają wpisy bez ani jednej wiadomości, niewidziane od tygodnia (sparowanych i rozmów nie rusza); w ustawieniach jest przycisk „wyczyść nieużywane" (próg godziny), a przytrzymanie wpisu na liście urządzeń albo rozmów usuwa go ręcznie razem z historią
 - [x] Tryb ciemny: wybór systemowy/jasny/ciemny w ustawieniach, zapisany w bazie (schemat v4), więc przeżywa restart
 - [x] Ikona aplikacji: dwa dymki na fiolecie z motywu, generowane `app/tool/make_icons.py` (launcher Androida, ikona adaptacyjna dla Androida 8+, `.ico` dla Windows)
-- [ ] i18n PL/EN — całe UI ma polskie teksty na sztywno
+- [x] i18n PL/EN: teksty w `app/lib/l10n/*.arb`, wybór języka w ustawieniach (systemowy/polski/angielski, zapisany w bazie, schemat v5). Teksty powiadomienia usługi w tle idą z Darta do Kotlina, więc też są w języku aplikacji, a nie systemu
 - [ ] Ikona powiadomień na Androidzie to wciąż systemowa `stat_notify_chat`
 
 ## 4. Podział pracy

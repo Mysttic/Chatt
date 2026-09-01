@@ -14,6 +14,8 @@ dependencies:
   file_selector: ^1.1.0
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   flutter_riverpod: ^2.6.1
   http: ^1.6.0
   path: ^1.9.1
@@ -31,6 +33,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Tłumaczenia generują się z lib/l10n/*.arb przy każdym buildzie.
+  generate: true
 
   # Czcionki dołączone do aplikacji: identyczny rendering na każdej platformie
   # (desktop Linux w kontenerze testowym nie ma czcionek systemowych) oraz

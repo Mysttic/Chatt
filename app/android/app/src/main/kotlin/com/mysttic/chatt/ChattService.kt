@@ -20,9 +20,16 @@ import androidx.core.app.NotificationCompat
  */
 class ChattService : Service() {
 
+    private var title = "Chatt"
+    private var body = ""
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Teksty przychodzą z Darta, żeby szły za językiem wybranym
+        // w aplikacji, a nie za językiem systemu.
+        intent?.getStringExtra(EXTRA_TITLE)?.let { title = it }
+        intent?.getStringExtra(EXTRA_BODY)?.let { body = it }
         startForeground(NOTIFICATION_ID, buildNotification())
         // Gdyby system nas jednak ubił (skrajny brak pamięci), niech wróci.
         return START_STICKY
@@ -49,8 +56,8 @@ class ChattService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Chatt nasłuchuje")
-            .setContentText("Odbiera wiadomości i pliki z tej sieci Wi-Fi")
+            .setContentTitle(title)
+            .setContentText(body)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -62,8 +69,13 @@ class ChattService : Service() {
         private const val CHANNEL_ID = "chatt_nasluch"
         private const val NOTIFICATION_ID = 1
 
-        fun start(context: Context): Boolean = try {
+        const val EXTRA_TITLE = "title"
+        const val EXTRA_BODY = "body"
+
+        fun start(context: Context, title: String?, body: String?): Boolean = try {
             val intent = Intent(context, ChattService::class.java)
+                .putExtra(EXTRA_TITLE, title)
+                .putExtra(EXTRA_BODY, body)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {

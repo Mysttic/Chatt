@@ -10,11 +10,19 @@ import 'package:flutter/services.dart' show MethodChannel;
 class BackgroundService {
   static const MethodChannel _channel = MethodChannel('chatt/background');
 
-  /// Zwraca true, gdy nasłuch w tle faktycznie ruszył.
-  static Future<bool> start() async {
+  /// Zwraca true, gdy nasłuch w tle faktycznie ruszył. Teksty stałego
+  /// powiadomienia przychodzą z aplikacji, żeby były w jej języku.
+  static Future<bool> start({
+    required String title,
+    required String body,
+  }) async {
     if (!Platform.isAndroid) return false;
     try {
-      return await _channel.invokeMethod<bool>('start') ?? false;
+      return await _channel.invokeMethod<bool>('start', {
+            'title': title,
+            'body': body,
+          }) ??
+          false;
     } catch (_) {
       return false;
     }

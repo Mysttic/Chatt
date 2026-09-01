@@ -36,7 +36,13 @@ object ChattChannels {
 
         MethodChannel(messenger, backgroundChannel).setMethodCallHandler { call, result ->
             when (call.method) {
-                "start" -> result.success(ChattService.start(context))
+                "start" -> result.success(
+                    ChattService.start(
+                        context,
+                        call.argument<String>("title"),
+                        call.argument<String>("body"),
+                    )
+                )
                 "stop" -> {
                     ChattService.stop(context)
                     result.success(true)

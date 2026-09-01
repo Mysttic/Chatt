@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
 import '../../services/providers.dart';
+import '../l10n_context.dart';
 
 /// Ustawienia instancji (odpowiednik EditConfiguration.PNG) + informacje
 /// potrzebne do ręcznego parowania (adresy IP i faktyczny port nasłuchu).
@@ -55,8 +56,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(needsRestart
-          ? 'Zapisano. Nowy port zacznie działać po ponownym uruchomieniu aplikacji.'
-          : 'Zapisano.'),
+          ? context.l10n.savedRestartNeeded
+          : context.l10n.saved),
     ));
   }
 
@@ -70,8 +71,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(removed == 0
-          ? 'Nie było czego usuwać.'
-          : 'Usunięto z listy: $removed'),
+          ? context.l10n.nothingToCleanUp
+          : context.l10n.cleanedUp(removed)),
     ));
   }
 
@@ -81,7 +82,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ustawienia')),
+      appBar: AppBar(title: Text(context.l10n.settingsTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -92,34 +93,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 TextFormField(
                   controller: _nickname,
-                  decoration: const InputDecoration(
-                    labelText: 'Twój nick',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.nicknameLabel,
+                    border: const OutlineInputBorder(),
                   ),
-                  validator: (value) =>
-                      (value == null || value.trim().isEmpty) ? 'Podaj nick' : null,
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? context.l10n.nicknameRequired
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _welcome,
-                  decoration: const InputDecoration(
-                    labelText: 'Wiadomość powitalna',
-                    helperText: 'Widoczna dla innych przy wyszukiwaniu',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.welcomeLabel,
+                    helperText: context.l10n.welcomeHelper,
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _port,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Preferowany port nasłuchu',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.portFieldLabel,
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) {
                     final port = int.tryParse((value ?? '').trim());
                     return (port == null || port < 1024 || port > 65535)
-                        ? 'Port z zakresu 1024–65535'
+                        ? context.l10n.portRange
                         : null;
                   },
                 ),
@@ -127,30 +129,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 FilledButton.icon(
                   onPressed: _save,
                   icon: const Icon(Icons.save_outlined),
-                  label: const Text('Zapisz'),
+                  label: Text(context.l10n.save),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 24),
-          Text('Wygląd', style: Theme.of(context).textTheme.titleMedium),
+          Text(context.l10n.appearance,
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           SegmentedButton<AppTheme>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: AppTheme.system,
-                icon: Icon(Icons.brightness_auto_outlined),
-                label: Text('Systemowy'),
+                icon: const Icon(Icons.brightness_auto_outlined),
+                label: Text(context.l10n.themeSystem),
               ),
               ButtonSegment(
                 value: AppTheme.light,
-                icon: Icon(Icons.light_mode_outlined),
-                label: Text('Jasny'),
+                icon: const Icon(Icons.light_mode_outlined),
+                label: Text(context.l10n.themeLight),
               ),
               ButtonSegment(
                 value: AppTheme.dark,
-                icon: Icon(Icons.dark_mode_outlined),
-                label: Text('Ciemny'),
+                icon: const Icon(Icons.dark_mode_outlined),
+                label: Text(context.l10n.themeDark),
               ),
             ],
             selected: {
@@ -159,20 +162,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onSelectionChanged: (wybor) =>
                 services.db.saveTheme(wybor.first),
           ),
+          const SizedBox(height: 16),
+          Text(context.l10n.language,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          SegmentedButton<AppLanguage>(
+            segments: [
+              ButtonSegment(
+                value: AppLanguage.system,
+                label: Text(context.l10n.languageSystem),
+              ),
+              ButtonSegment(
+                value: AppLanguage.polish,
+                label: Text(context.l10n.languagePolish),
+              ),
+              ButtonSegment(
+                value: AppLanguage.english,
+                label: Text(context.l10n.languageEnglish),
+              ),
+            ],
+            selected: {
+              ref.watch(settingsProvider).value?.language ?? AppLanguage.system,
+            },
+            onSelectionChanged: (wybor) =>
+                services.db.saveLanguage(wybor.first),
+          ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: _cleanUpPeers,
             icon: const Icon(Icons.cleaning_services_outlined),
-            label: const Text('Wyczyść nieużywane urządzenia'),
+            label: Text(context.l10n.cleanUpDevices),
           ),
           const SizedBox(height: 4),
           Text(
-            'Usuwa z listy urządzenia, z którymi nie ma żadnej wiadomości '
-            'i których nie widać od godziny. Sparowanych i rozmów nie rusza.',
+            context.l10n.cleanUpHelp,
             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
           const SizedBox(height: 32),
-          Text('To urządzenie', style: Theme.of(context).textTheme.titleMedium),
+          Text(context.l10n.thisDevice,
+              style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Card(
             child: Padding(
@@ -181,19 +209,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _InfoRow(
-                    label: 'Nasłuch',
+                    label: context.l10n.listeningOn,
                     value: _addresses.isEmpty
-                        ? 'port ${services.identity.tcpPort}'
+                        ? context.l10n.listeningPort(services.identity.tcpPort)
                         : _addresses
                             .map((a) => '$a:${services.identity.tcpPort}')
                             .join('\n'),
                   ),
                   const SizedBox(height: 8),
-                  _InfoRow(label: 'Identyfikator', value: services.identity.guid),
+                  _InfoRow(
+                      label: context.l10n.deviceIdentifier,
+                      value: services.identity.guid),
                   const SizedBox(height: 8),
                   Text(
-                    'Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, '
-                    'gdy automatyczne wykrywanie nie działa.',
+                    context.l10n.manualPairingHint,
                     style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
                   ),
                 ],
