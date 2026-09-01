@@ -45,6 +45,11 @@ class PendingFileOffer {
 /// [AppServices.pendingOffers]); testy i skrypty podstawiają własną.
 typedef FileOfferPolicy = Future<bool> Function(PendingFileOffer offer);
 
+/// Wołane po zapisaniu wiadomości od rozmówcy (bez duplikatów). Warstwa UI
+/// decyduje, co z tym zrobić — np. powiadomienie, gdy okno jest zamknięte.
+typedef IncomingMessageHook = void Function(
+    Peer peer, String preview, int conversationId);
+
 /// Zgoda przyjmuje wszystko bez pytania — dla testów i trybu bezobsługowego.
 Future<bool> acceptAllFileOffers(PendingFileOffer offer) async => true;
 
@@ -116,6 +121,9 @@ class AppServices {
   /// Jak odpowiadamy na zapowiedzi plików. Ustawiane raz, w [start].
   late final FileOfferPolicy _offerPolicy;
 
+  /// Powiadomienie o nowej wiadomości (opcjonalne, ustawiane w [start]).
+  IncomingMessageHook? _onIncoming;
+
   final Map<String, Completer<bool>> _offerDecisions = {};
   final Map<String, _AcceptedOffer> _acceptedOffers = {};
 
@@ -140,6 +148,7 @@ class AppServices {
     bool enableDiscovery = true,
     String? receivedDirOverride,
     FileOfferPolicy? fileOfferPolicy,
+    IncomingMessageHook? onIncomingMessage,
   }) async {
     final db = ChattDb(executor ?? _defaultExecutor());
     final receivedDir = receivedDirOverride ?? await _defaultReceivedDir();
@@ -180,6 +189,7 @@ class AppServices {
     services =
         AppServices._(db, PeerClient(), server, responder, receivedDir, identity);
     services._offerPolicy = fileOfferPolicy ?? services._askUserAboutOffer;
+    services._onIncoming = onIncomingMessage;
     services._sweepStaleParts();
 
     if (enableDiscovery) {
@@ -475,12 +485,15 @@ class AppServices {
       port: message.from.tcpPort,
     );
     final conversationId = await db.ensureConversation(peer.id);
-    await db.insertIncoming(
+    final inserted = await db.insertIncoming(
       conversationId: conversationId,
       messageGuid: message.messageGuid,
       body: message.text,
       sentAt: message.sentAt,
     );
+    // Duplikat (ponowienie po zgubionym ACK-u) nie ma prawa zawołać
+    // powiadomienia drugi raz.
+    if (inserted) _onIncoming?.call(peer, message.text, conversationId);
   }
 
   // --- Odbiór plików --------------------------------------------------------
@@ -649,7 +662,7 @@ class AppServices {
     }
     // Duplikat (ten sam guid) trafia w tę samą ścieżkę, więc rename tylko
     // podmienia identyczny plik — wtedy zostaje sam wpis z bazy.
-    await db.insertIncoming(
+    final inserted = await db.insertIncoming(
       conversationId: conversationId,
       messageGuid: meta.messageGuid,
       kind: MessageKind.file,
@@ -660,6 +673,9 @@ class AppServices {
       sentAt: meta.sentAt,
     );
     _deletePartMeta(meta.messageGuid);
+    if (inserted) {
+      _onIncoming?.call(peer, '📎 ${meta.fileName}', conversationId);
+    }
     return FileReceiveResult.ok;
   }
 

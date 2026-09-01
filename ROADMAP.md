@@ -80,8 +80,9 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [x] Poprawki znalezione dopiero na urządzeniu: ręczne dodanie po adresie zapisuje port osiągalny (a nie rozgłaszany), odrzucanie pętli na samego siebie, sensowny domyślny nick na Androidzie (`localHostname` zwraca tam „localhost")
 - [x] Build Windows: workload „Desktop development with C++" + tryb dewelopera, `flutter build windows` przechodzi, aplikacja startuje (motyw ciemny bierze z systemu)
 - [x] **Rozmowa PC ⇄ Android na dwóch prawdziwych aplikacjach**: wiadomości w obie strony (z ACK i ponowieniem) oraz plik 6,8 MB z akceptacją na telefonie, sha256 zgodne co do bajtu. Przez tunele adb, bo emulator jest za NAT-em
+- [x] Nasłuch w tle na Androidzie: silnik Fluttera w cache'u aplikacji + usługa pierwszoplanowa (`ChattService`, typ `connectedDevice`) i powiadomienia o wiadomościach przy zamkniętym oknie. Zmierzone przed i po: zwykły proces po zmieceniu z listy zadań nie odbierał nic, teraz przyjmuje wiadomości i pokazuje powiadomienie (`docs/screenshots/android/and7_powiadomienie.png`)
 - [ ] To samo w fizycznej sieci Wi‑Fi z prawdziwym telefonem (dopiero to sprawdzi discovery UDP; możliwy MulticastLock)
-- [ ] Nasłuch w tle na Androidzie (foreground service) + powiadomienia lokalne
+- [ ] Zachowanie w trybie Doze (głęboki sen urządzenia) — nie sprawdzone
 - [ ] **Kamień milowy: pierwsza prawdziwa rozmowa i transfer pliku PC ⇄ telefon w fizycznej sieci Wi‑Fi**
 
 ### Faza 6 — Szlif

@@ -6,9 +6,15 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
+    <!-- Nasłuch w tle: bez usługi pierwszoplanowej Android ubija proces zaraz
+         po zamknięciu okna i wiadomości przestają dochodzić. Typ
+         connectedDevice, bo rozmawiamy z urządzeniem w tej samej sieci. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Chatt"
-        android:name="${applicationName}"
+        android:name=".ChattApplication"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
@@ -32,6 +38,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <service
+            android:name=".ChattService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
         <!-- Odebrane pliki wychodzą do innych aplikacji jako content://,
              bo zwykła ścieżka od API 24 kończy się FileUriExposedException. -->
         <provider
