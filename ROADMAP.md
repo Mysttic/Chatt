@@ -87,7 +87,8 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 
 ### Faza 6 — Szlif
 - [x] Parowanie kodem PIN: `POST /pair`, sześciocyfrowy kod losowany i pokazywany na jednym urządzeniu, przepisywany na drugim, ważny 2 minuty i jednorazowy. Zgodny kod ustawia `verified` po obu stronach; w czacie jest tarcza (zielona = sparowane), a prośba o plik od niesparowanego urządzenia ostrzega, że nazwę można sobie ustawić dowolną. Sprawdzone Windows ⇄ Android (`docs/screenshots/android/and8_kod_parowania.png`, `and9_sparowane.png`)
-- [ ] Szyfrowanie transmisji — dopóki go nie ma, kod parowania i cała reszta ruchu lecą po sieci jawnym tekstem
+- [x] Szyfrowanie ruchu między sparowanymi: klucz z parowania (X25519 + HKDF z kodem jako solą, kod nie idzie przez sieć), wiadomości i zapowiedzi plików w kopercie AES-GCM, treść plików strumieniem AES-CTR (żeby wznawianie dalej działało), suma kontrolna z zaszyfrowanej zapowiedzi. Od sparowanego urządzenia przyjmujemy **wyłącznie** ruch zaszyfrowany — inaczej dałoby się podszyć jawnym pakietem pod zieloną tarczę (`app/test/downgrade_test.dart`)
+- [ ] Do rozważenia: pełny PAKE zamiast obecnego schematu (aktywny napastnik w oknie parowania może po fakcie łamać sześciocyfrowy kod offline), rotacja kluczy, szyfrowanie discovery
 - [x] Obsługa zmiany IP rozmówcy: nieudana wysyłka uruchamia skan i szuka tego samego GUID-a pod nowym adresem, zapisuje go i ponawia (dotyczy wiadomości i plików)
 - [x] Sprzątanie listy urządzeń: przy starcie znikają wpisy bez ani jednej wiadomości, niewidziane od tygodnia (sparowanych i rozmów nie rusza); w ustawieniach jest przycisk „wyczyść nieużywane" (próg godziny), a przytrzymanie wpisu na liście urządzeń albo rozmów usuwa go ręcznie razem z historią
 - [ ] Tryb ciemny bierze się z systemu, brakuje ręcznego przełącznika

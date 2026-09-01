@@ -28,12 +28,17 @@ funkcji, potem znikną. Plan prac i stan projektu: [ROADMAP.md](ROADMAP.md).
   sprawdzana jest suma kontrolna. Odebrane pliki lądują w katalogu dokumentów
   aplikacji i otwierają się kliknięciem w dymek (przytrzymanie: pokaż folder,
   kopiuj ścieżkę).
-- **Parowanie**: w rozmowie jest tarcza. Kliknięcie losuje sześciocyfrowy kod
-  i pokazuje go na ekranie; przepisujesz go na drugim urządzeniu i od tej pory
-  obie strony mają siebie jako sparowane (zielona tarcza). Kod jest
-  jednorazowy i ważny 2 minuty. Nazwa urządzenia to tylko napis, który każdy
-  może sobie ustawić — dopiero parowanie wiąże ją z konkretnym sprzętem,
-  dlatego prośba o plik od niesparowanego urządzenia ostrzega o tym wprost.
+- **Parowanie i szyfrowanie**: w rozmowie jest tarcza. Kliknięcie losuje
+  sześciocyfrowy kod i pokazuje go na ekranie; przepisujesz go na drugim
+  urządzeniu. Sam kod nie idzie przez sieć — obie strony uzgadniają klucz
+  (X25519 + HKDF z kodem jako solą), a przez sieć leci tylko skrót
+  potwierdzający jego znajomość. Od tej pory wiadomości i zapowiedzi plików
+  jadą w kopercie AES-GCM, a treść plików strumieniem AES-CTR (żeby wznawianie
+  dalej działało); integralności pilnuje suma sha256 z zaszyfrowanej
+  zapowiedzi. Od sparowanego urządzenia przyjmowany jest **wyłącznie** ruch
+  zaszyfrowany, więc zielona tarcza nie obiecuje niczego na wyrost.
+  Z niesparowanymi rozmawiamy dalej jawnym tekstem — dlatego prośba o plik od
+  takiego urządzenia ostrzega, że jego nazwę każdy może sobie ustawić dowolnie.
 - **Baza**: SQLite (drift) — rozmówcy, konwersacje, wiadomości ze statusami
   dostarczenia i licznikiem nieprzeczytanych.
 
