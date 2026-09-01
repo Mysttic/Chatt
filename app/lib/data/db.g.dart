@@ -439,6 +439,17 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _sessionKeyMeta = const VerificationMeta(
+    'sessionKey',
+  );
+  @override
+  late final GeneratedColumn<String> sessionKey = GeneratedColumn<String>(
+    'session_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _firstSeenMeta = const VerificationMeta(
     'firstSeen',
   );
@@ -470,6 +481,7 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
     host,
     port,
     verified,
+    sessionKey,
     firstSeen,
     lastSeen,
   ];
@@ -535,6 +547,12 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
         verified.isAcceptableOrUnknown(data['verified']!, _verifiedMeta),
       );
     }
+    if (data.containsKey('session_key')) {
+      context.handle(
+        _sessionKeyMeta,
+        sessionKey.isAcceptableOrUnknown(data['session_key']!, _sessionKeyMeta),
+      );
+    }
     if (data.containsKey('first_seen')) {
       context.handle(
         _firstSeenMeta,
@@ -588,6 +606,10 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
         DriftSqlType.bool,
         data['${effectivePrefix}verified'],
       )!,
+      sessionKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_key'],
+      ),
       firstSeen: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}first_seen'],
@@ -613,6 +635,10 @@ class Peer extends DataClass implements Insertable<Peer> {
   final String host;
   final int port;
   final bool verified;
+
+  /// Klucz sesji uzgodniony przy parowaniu (base64, 32 bajty). Dopóki go nie
+  /// ma, ruch z tym urządzeniem leci jawnym tekstem.
+  final String? sessionKey;
   final DateTime firstSeen;
   final DateTime lastSeen;
   const Peer({
@@ -623,6 +649,7 @@ class Peer extends DataClass implements Insertable<Peer> {
     required this.host,
     required this.port,
     required this.verified,
+    this.sessionKey,
     required this.firstSeen,
     required this.lastSeen,
   });
@@ -636,6 +663,9 @@ class Peer extends DataClass implements Insertable<Peer> {
     map['host'] = Variable<String>(host);
     map['port'] = Variable<int>(port);
     map['verified'] = Variable<bool>(verified);
+    if (!nullToAbsent || sessionKey != null) {
+      map['session_key'] = Variable<String>(sessionKey);
+    }
     map['first_seen'] = Variable<DateTime>(firstSeen);
     map['last_seen'] = Variable<DateTime>(lastSeen);
     return map;
@@ -650,6 +680,9 @@ class Peer extends DataClass implements Insertable<Peer> {
       host: Value(host),
       port: Value(port),
       verified: Value(verified),
+      sessionKey: sessionKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sessionKey),
       firstSeen: Value(firstSeen),
       lastSeen: Value(lastSeen),
     );
@@ -668,6 +701,7 @@ class Peer extends DataClass implements Insertable<Peer> {
       host: serializer.fromJson<String>(json['host']),
       port: serializer.fromJson<int>(json['port']),
       verified: serializer.fromJson<bool>(json['verified']),
+      sessionKey: serializer.fromJson<String?>(json['sessionKey']),
       firstSeen: serializer.fromJson<DateTime>(json['firstSeen']),
       lastSeen: serializer.fromJson<DateTime>(json['lastSeen']),
     );
@@ -683,6 +717,7 @@ class Peer extends DataClass implements Insertable<Peer> {
       'host': serializer.toJson<String>(host),
       'port': serializer.toJson<int>(port),
       'verified': serializer.toJson<bool>(verified),
+      'sessionKey': serializer.toJson<String?>(sessionKey),
       'firstSeen': serializer.toJson<DateTime>(firstSeen),
       'lastSeen': serializer.toJson<DateTime>(lastSeen),
     };
@@ -696,6 +731,7 @@ class Peer extends DataClass implements Insertable<Peer> {
     String? host,
     int? port,
     bool? verified,
+    Value<String?> sessionKey = const Value.absent(),
     DateTime? firstSeen,
     DateTime? lastSeen,
   }) => Peer(
@@ -706,6 +742,7 @@ class Peer extends DataClass implements Insertable<Peer> {
     host: host ?? this.host,
     port: port ?? this.port,
     verified: verified ?? this.verified,
+    sessionKey: sessionKey.present ? sessionKey.value : this.sessionKey,
     firstSeen: firstSeen ?? this.firstSeen,
     lastSeen: lastSeen ?? this.lastSeen,
   );
@@ -720,6 +757,9 @@ class Peer extends DataClass implements Insertable<Peer> {
       host: data.host.present ? data.host.value : this.host,
       port: data.port.present ? data.port.value : this.port,
       verified: data.verified.present ? data.verified.value : this.verified,
+      sessionKey: data.sessionKey.present
+          ? data.sessionKey.value
+          : this.sessionKey,
       firstSeen: data.firstSeen.present ? data.firstSeen.value : this.firstSeen,
       lastSeen: data.lastSeen.present ? data.lastSeen.value : this.lastSeen,
     );
@@ -735,6 +775,7 @@ class Peer extends DataClass implements Insertable<Peer> {
           ..write('host: $host, ')
           ..write('port: $port, ')
           ..write('verified: $verified, ')
+          ..write('sessionKey: $sessionKey, ')
           ..write('firstSeen: $firstSeen, ')
           ..write('lastSeen: $lastSeen')
           ..write(')'))
@@ -750,6 +791,7 @@ class Peer extends DataClass implements Insertable<Peer> {
     host,
     port,
     verified,
+    sessionKey,
     firstSeen,
     lastSeen,
   );
@@ -764,6 +806,7 @@ class Peer extends DataClass implements Insertable<Peer> {
           other.host == this.host &&
           other.port == this.port &&
           other.verified == this.verified &&
+          other.sessionKey == this.sessionKey &&
           other.firstSeen == this.firstSeen &&
           other.lastSeen == this.lastSeen);
 }
@@ -776,6 +819,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
   final Value<String> host;
   final Value<int> port;
   final Value<bool> verified;
+  final Value<String?> sessionKey;
   final Value<DateTime> firstSeen;
   final Value<DateTime> lastSeen;
   const PeersCompanion({
@@ -786,6 +830,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     this.host = const Value.absent(),
     this.port = const Value.absent(),
     this.verified = const Value.absent(),
+    this.sessionKey = const Value.absent(),
     this.firstSeen = const Value.absent(),
     this.lastSeen = const Value.absent(),
   });
@@ -797,6 +842,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     required String host,
     required int port,
     this.verified = const Value.absent(),
+    this.sessionKey = const Value.absent(),
     required DateTime firstSeen,
     required DateTime lastSeen,
   }) : guid = Value(guid),
@@ -813,6 +859,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     Expression<String>? host,
     Expression<int>? port,
     Expression<bool>? verified,
+    Expression<String>? sessionKey,
     Expression<DateTime>? firstSeen,
     Expression<DateTime>? lastSeen,
   }) {
@@ -824,6 +871,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
       if (host != null) 'host': host,
       if (port != null) 'port': port,
       if (verified != null) 'verified': verified,
+      if (sessionKey != null) 'session_key': sessionKey,
       if (firstSeen != null) 'first_seen': firstSeen,
       if (lastSeen != null) 'last_seen': lastSeen,
     });
@@ -837,6 +885,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     Value<String>? host,
     Value<int>? port,
     Value<bool>? verified,
+    Value<String?>? sessionKey,
     Value<DateTime>? firstSeen,
     Value<DateTime>? lastSeen,
   }) {
@@ -848,6 +897,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
       host: host ?? this.host,
       port: port ?? this.port,
       verified: verified ?? this.verified,
+      sessionKey: sessionKey ?? this.sessionKey,
       firstSeen: firstSeen ?? this.firstSeen,
       lastSeen: lastSeen ?? this.lastSeen,
     );
@@ -877,6 +927,9 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     if (verified.present) {
       map['verified'] = Variable<bool>(verified.value);
     }
+    if (sessionKey.present) {
+      map['session_key'] = Variable<String>(sessionKey.value);
+    }
     if (firstSeen.present) {
       map['first_seen'] = Variable<DateTime>(firstSeen.value);
     }
@@ -896,6 +949,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
           ..write('host: $host, ')
           ..write('port: $port, ')
           ..write('verified: $verified, ')
+          ..write('sessionKey: $sessionKey, ')
           ..write('firstSeen: $firstSeen, ')
           ..write('lastSeen: $lastSeen')
           ..write(')'))
@@ -2199,6 +2253,7 @@ typedef $$PeersTableCreateCompanionBuilder = PeersCompanion Function({
   required String host,
   required int port,
   Value<bool> verified,
+  Value<String?> sessionKey,
   required DateTime firstSeen,
   required DateTime lastSeen,
 });
@@ -2210,6 +2265,7 @@ typedef $$PeersTableUpdateCompanionBuilder = PeersCompanion Function({
   Value<String> host,
   Value<int> port,
   Value<bool> verified,
+  Value<String?> sessionKey,
   Value<DateTime> firstSeen,
   Value<DateTime> lastSeen,
 });
@@ -2277,6 +2333,11 @@ class $$PeersTableFilterComposer extends Composer<_$ChattDb, $PeersTable> {
 
   ColumnFilters<bool> get verified => $composableBuilder(
     column: $table.verified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sessionKey => $composableBuilder(
+    column: $table.sessionKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2359,6 +2420,11 @@ class $$PeersTableOrderingComposer extends Composer<_$ChattDb, $PeersTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sessionKey => $composableBuilder(
+    column: $table.sessionKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get firstSeen => $composableBuilder(
     column: $table.firstSeen,
     builder: (column) => ColumnOrderings(column),
@@ -2400,6 +2466,11 @@ class $$PeersTableAnnotationComposer extends Composer<_$ChattDb, $PeersTable> {
 
   GeneratedColumn<bool> get verified =>
       $composableBuilder(column: $table.verified, builder: (column) => column);
+
+  GeneratedColumn<String> get sessionKey => $composableBuilder(
+    column: $table.sessionKey,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get firstSeen =>
       $composableBuilder(column: $table.firstSeen, builder: (column) => column);
@@ -2468,6 +2539,7 @@ class $$PeersTableTableManager
                 Value<String> host = const Value.absent(),
                 Value<int> port = const Value.absent(),
                 Value<bool> verified = const Value.absent(),
+                Value<String?> sessionKey = const Value.absent(),
                 Value<DateTime> firstSeen = const Value.absent(),
                 Value<DateTime> lastSeen = const Value.absent(),
               }) => PeersCompanion(
@@ -2478,6 +2550,7 @@ class $$PeersTableTableManager
                 host: host,
                 port: port,
                 verified: verified,
+                sessionKey: sessionKey,
                 firstSeen: firstSeen,
                 lastSeen: lastSeen,
               ),
@@ -2490,6 +2563,7 @@ class $$PeersTableTableManager
                 required String host,
                 required int port,
                 Value<bool> verified = const Value.absent(),
+                Value<String?> sessionKey = const Value.absent(),
                 required DateTime firstSeen,
                 required DateTime lastSeen,
               }) => PeersCompanion.insert(
@@ -2500,6 +2574,7 @@ class $$PeersTableTableManager
                 host: host,
                 port: port,
                 verified: verified,
+                sessionKey: sessionKey,
                 firstSeen: firstSeen,
                 lastSeen: lastSeen,
               ),

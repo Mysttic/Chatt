@@ -16,16 +16,26 @@ class ChattServer {
 
   /// Wołane po zdekodowaniu poprawnej wiadomości; [fromHost] to adres IP,
   /// z którego przyszło połączenie (bo nadawca zna swój port serwera, ale
-  /// nie musi znać swojego IP w naszej sieci).
-  final Future<void> Function(IncomingMessage message, String fromHost) onMessage;
+  /// nie musi znać swojego IP w naszej sieci). [sealed] mówi, czy treść
+  /// przyszła w zaszyfrowanej kopercie — czyli czy jest uwierzytelniona.
+  /// false = odrzucamy (400).
+  final Future<bool> Function(
+      IncomingMessage message, String fromHost, bool sealed) onMessage;
 
-  /// Wołane dla POST /pair. true = prośba przyjęta (albo kod się zgadza).
-  final Future<bool> Function(PairMessage message, String fromHost)? onPair;
+  /// Wołane dla POST /pair. Wynik trafia do odpowiedzi, żeby druga strona
+  /// wiedziała, czy kod był zły, czy po prostu minął czas.
+  final Future<PairOutcome> Function(PairMessage message, String fromHost)?
+      onPair;
+
+  /// Rozpakowanie koperty od sparowanego urządzenia. null = nie mamy klucza
+  /// albo treść jest podmieniona; wtedy zapytanie leci do kosza.
+  final Future<Map<String, Object?>?> Function(Map<String, Object?> envelope)?
+      onEnvelope;
 
   /// Wołane dla POST /file-offer: odbiorca decyduje, czy chce ten plik
-  /// i od którego bajtu ma go dostać.
-  final Future<FileOfferReply> Function(FileOffer offer, String fromHost)?
-      onFileOffer;
+  /// i od którego bajtu ma go dostać. [sealed] jak przy [onMessage].
+  final Future<FileOfferReply> Function(
+      FileOffer offer, String fromHost, bool sealed)? onFileOffer;
 
   /// Wołane dla POST /file: odbiorca decyduje, gdzie strumień [data] zapisać.
   /// Zwrócony [FileReceiveResult] ląduje w kodzie odpowiedzi dla nadawcy.
@@ -39,9 +49,22 @@ class ChattServer {
     required this.identity,
     required this.onMessage,
     this.onPair,
+    this.onEnvelope,
     this.onFileOffer,
     this.onFile,
   });
+
+  /// Zamienia kopertę na jej zawartość i mówi, czy treść była zaszyfrowana.
+  /// Jawny JSON przepuszczamy (niesparowane urządzenia dalej mają działać),
+  /// ale wyżej sprawdzamy, czy akurat od tego nadawcy wolno go przyjąć.
+  Future<({Map<String, Object?>? json, bool sealed})> _unseal(
+      Map<String, Object?>? json) async {
+    if (json == null) return (json: null, sealed: false);
+    if (!isEncryptedEnvelope(json)) return (json: json, sealed: false);
+    final handler = onEnvelope;
+    if (handler == null) return (json: null, sealed: true);
+    return (json: await handler(json), sealed: true);
+  }
 
   /// Faktyczny port nasłuchu (ustalony w [start]).
   int? get port => _server?.port;
@@ -98,7 +121,8 @@ class ChattServer {
 
   Future<Response> _handleMessage(Request request) async {
     final body = await request.read().expand((chunk) => chunk).toList();
-    final json = tryDecodeJsonMap(body);
+    final opened = await _unseal(tryDecodeJsonMap(body));
+    final json = opened.json;
     final message = json == null ? null : IncomingMessage.fromJson(json);
     if (message == null) {
       return _json({'ok': false, 'error': 'bad_request'}, status: 400);
@@ -112,7 +136,9 @@ class ChattServer {
         request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
     final fromHost = connection?.remoteAddress.address ?? '';
 
-    await onMessage(message, fromHost);
+    if (!await onMessage(message, fromHost, opened.sealed)) {
+      return _json({'ok': false, 'error': 'unauthenticated'}, status: 400);
+    }
     return _json({'ok': true, 'receivedAt': DateTime.now().toUtc().toIso8601String()});
   }
 
@@ -133,9 +159,13 @@ class ChattServer {
     }
     final connection =
         request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
-    final accepted =
+    final outcome =
         await handler(message, connection?.remoteAddress.address ?? '');
-    return _json({'ok': accepted}, status: accepted ? 200 : 403);
+    final accepted = outcome == PairOutcome.accepted;
+    return _json(
+      {'ok': accepted, 'error': accepted ? null : outcome.name},
+      status: accepted ? 200 : 403,
+    );
   }
 
   /// Zapowiedź pliku — pytamy użytkownika, zanim przyjmiemy choć bajt.
@@ -145,7 +175,8 @@ class ChattServer {
       return _json({'ok': false, 'error': 'files_not_supported'}, status: 404);
     }
     final body = await request.read().expand((chunk) => chunk).toList();
-    final json = tryDecodeJsonMap(body);
+    final opened = await _unseal(tryDecodeJsonMap(body));
+    final json = opened.json;
     final offer = json == null ? null : FileOffer.fromJson(json);
     if (offer == null) {
       return _json({'ok': false, 'error': 'bad_request'}, status: 400);
@@ -155,8 +186,8 @@ class ChattServer {
     }
     final connection =
         request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
-    final reply =
-        await handler(offer, connection?.remoteAddress.address ?? '');
+    final reply = await handler(
+        offer, connection?.remoteAddress.address ?? '', opened.sealed);
     return _json(
       {'ok': true, ...reply.toJson()},
       // 403 = świadoma odmowa użytkownika; nadawca nie ponawia jej sam z siebie.

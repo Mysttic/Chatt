@@ -30,6 +30,11 @@ class Peers extends Table {
   TextColumn get host => text()();
   IntColumn get port => integer()();
   BoolColumn get verified => boolean().withDefault(const Constant(false))();
+
+  /// Klucz sesji uzgodniony przy parowaniu (base64, 32 bajty). Dopóki go nie
+  /// ma, ruch z tym urządzeniem leci jawnym tekstem.
+  TextColumn get sessionKey => text().nullable()();
+
   DateTimeColumn get firstSeen => dateTime()();
   DateTimeColumn get lastSeen => dateTime()();
 }
@@ -94,7 +99,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -105,6 +110,13 @@ class ChattDb extends _$ChattDb {
         await m.addColumn(messages, messages.fileName);
         await m.addColumn(messages, messages.fileSize);
         await m.addColumn(messages, messages.filePath);
+      }
+      if (from < 3) {
+        // v3: klucz sesji z parowania. Wcześniejsze parowania nie miały
+        // klucza, więc zielona tarcza obiecywałaby szyfrowanie, którego nie
+        // ma — kasujemy je i prosimy o sparowanie jeszcze raz.
+        await m.addColumn(peers, peers.sessionKey);
+        await m.database.customStatement('UPDATE peers SET verified = 0');
       }
     },
   );
@@ -206,6 +218,16 @@ class ChattDb extends _$ChattDb {
   Future<void> setPeerVerified(int id, bool verified) =>
       (update(peers)..where((p) => p.id.equals(id))).write(
         PeersCompanion(verified: Value(verified)),
+      );
+
+  /// Sparowanie zakończone: zapisujemy klucz sesji i oznaczamy urządzenie
+  /// jako zweryfikowane. Od tej pory ruch z nim jest szyfrowany.
+  Future<void> setPeerPaired(int id, String sessionKey) =>
+      (update(peers)..where((p) => p.id.equals(id))).write(
+        PeersCompanion(
+          verified: const Value(true),
+          sessionKey: Value(sessionKey),
+        ),
       );
 
   Stream<List<Peer>> watchPeers() =>

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// Parowanie kodem PIN: Alicja pokazuje kod u siebie, Bartek go przepisuje.
@@ -47,14 +48,16 @@ void main() {
 
     // Pomyłka przy przepisywaniu niczego nie psuje i nie weryfikuje.
     final wrongPin = pin == '000000' ? '111111' : '000000';
-    expect(await bob.confirmPairing(alice.identity.guid, wrongPin), isFalse);
+    expect(await bob.confirmPairing(alice.identity.guid, wrongPin),
+        PairOutcome.wrongCode);
     expect((await bob.db.peerByGuid(alice.identity.guid))!.verified, isFalse);
     expect((await alice.db.peerByGuid(bob.identity.guid))!.verified, isFalse);
     expect(bob.pendingPairings.value, hasLength(1),
         reason: 'prośba zostaje, można spróbować jeszcze raz');
 
     // Dobry kod: obie strony wiedzą, z kim rozmawiają.
-    expect(await bob.confirmPairing(alice.identity.guid, pin), isTrue);
+    expect(await bob.confirmPairing(alice.identity.guid, pin),
+        PairOutcome.accepted);
     expect((await bob.db.peerByGuid(alice.identity.guid))!.verified, isTrue);
     expect((await alice.db.peerByGuid(bob.identity.guid))!.verified, isTrue,
         reason: 'inicjator też oznacza rozmówcę jako zweryfikowanego');
@@ -64,12 +67,14 @@ void main() {
   test('kod działa tylko raz', () async {
     final bobAtAlice = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
     final pin = (await alice.startPairing(bobAtAlice!))!;
-    expect(await bob.confirmPairing(alice.identity.guid, pin), isTrue);
+    expect(await bob.confirmPairing(alice.identity.guid, pin),
+        PairOutcome.accepted);
 
     // Powtórka tego samego kodu (np. podsłuchanego) już nie przechodzi.
     await bob.db.setPeerVerified(
         (await bob.db.peerByGuid(alice.identity.guid))!.id, false);
-    expect(await bob.confirmPairing(alice.identity.guid, pin), isFalse);
+    expect(await bob.confirmPairing(alice.identity.guid, pin),
+        isNot(PairOutcome.accepted));
   });
 
   test('parowanie z niedostępnym urządzeniem zwraca null', () async {

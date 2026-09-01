@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/file_actions.dart';
 import '../../data/db.dart';
+import '../../network/protocol.dart' show pairingCodeLifetime;
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../widgets/common.dart';
@@ -80,7 +81,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             const SizedBox(height: 12),
             Text(
               'Przepisz ten kod na urządzeniu ${widget.peer.name}. '
-              'Ważny przez 2 minuty.',
+              'Ważny przez ${pairingCodeLifetime.inMinutes} minut.',
               textAlign: TextAlign.center,
             ),
           ],

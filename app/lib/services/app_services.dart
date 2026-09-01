@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' show Random;
 
 import 'package:crypto/crypto.dart' show sha256;
+import 'package:cryptography/cryptography.dart' show SimpleKeyPair;
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:drift/native.dart';
@@ -12,6 +13,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/crypto.dart';
 import '../core/env.dart';
 import '../core/file_actions.dart';
 import '../core/identity.dart';
@@ -70,14 +72,27 @@ class PendingPairing {
   const PendingPairing({required this.peerGuid, required this.peerName});
 }
 
-/// Kod parowania pokazany na ekranie tego urządzenia i moment jego wygaśnięcia.
+/// Kod parowania pokazany na ekranie tego urządzenia: sam kod, para kluczy
+/// do uzgodnienia sekretu i moment wygaśnięcia.
 class _PairingCode {
   final String pin;
+  final SimpleKeyPair keyPair;
   final DateTime expiresAt;
 
-  const _PairingCode(this.pin, this.expiresAt);
+  /// Nieudane próby przepisania. Bez limitu sześciocyfrowy kod byłby przez
+  /// całe okno ważności wyrocznią do odpytywania po sieci.
+  int failedAttempts = 0;
+
+  /// Skrót, który już raz przeszedł. Powtórka tego samego (bo odpowiedź
+  /// zginęła po drodze) ma dostać znowu "przyjęte", a nie "zły kod".
+  String? acceptedTag;
+
+  _PairingCode(this.pin, this.keyPair, this.expiresAt);
 
   bool get expired => DateTime.now().isAfter(expiresAt);
+  bool get burned => failedAttempts >= maxAttempts;
+
+  static const int maxAttempts = 5;
 }
 
 /// Trwający odbiór pliku (po akceptacji) — do paska postępu w czacie.
@@ -104,7 +119,10 @@ class _AcceptedOffer {
   final FileOffer offer;
   final int conversationId;
 
-  const _AcceptedOffer(this.offer, this.conversationId);
+  /// Czy zapowiedź przyszła zaszyfrowana — treść musi przyjść tak samo.
+  final bool sealed;
+
+  const _AcceptedOffer(this.offer, this.conversationId, this.sealed);
 }
 
 /// Korzeń aplikacji: łączy bazę, tożsamość, serwer wiadomości i discovery.
@@ -151,6 +169,10 @@ class AppServices {
   final Map<String, Completer<bool>> _offerDecisions = {};
   final Map<String, _AcceptedOffer> _acceptedOffers = {};
 
+  /// Klucz zgody na plik: nadawca + guid wiadomości.
+  static String _offerKey(String senderGuid, String messageGuid) =>
+      '$senderGuid|$messageGuid';
+
   /// Pliki właśnie odbierane — po jednym transferze na guid.
   final Set<String> _receivingFiles = {};
 
@@ -160,6 +182,9 @@ class AppServices {
 
   /// Kody parowania, które sami pokazujemy na ekranie: guid rozmówcy -> kod.
   final Map<String, _PairingCode> _pairingCodes = {};
+
+  /// Klucze publiczne inicjatorów, którzy właśnie proszą nas o sparowanie.
+  final Map<String, List<int>> _pairingOffers = {};
 
   /// sha256 wysyłanych plików — liczone raz na sesję, żeby ponowienie
   /// dużego transferu nie czytało pliku drugi raz tylko po to.
@@ -203,9 +228,12 @@ class AppServices {
     late final AppServices services;
     final server = ChattServer(
       identity: () => services.identity,
-      onMessage: (message, fromHost) => services._handleIncoming(message, fromHost),
+      onMessage: (message, fromHost, sealed) =>
+          services._handleIncoming(message, fromHost, sealed),
       onPair: (message, fromHost) => services._handlePair(message, fromHost),
-      onFileOffer: (offer, fromHost) => services._handleFileOffer(offer, fromHost),
+      onEnvelope: (envelope) => services._openEnvelope(envelope),
+      onFileOffer: (offer, fromHost, sealed) =>
+          services._handleFileOffer(offer, fromHost, sealed),
       onFile: (meta, data, fromHost) =>
           services._handleIncomingFile(meta, data, fromHost),
     );
@@ -331,15 +359,20 @@ class AppServices {
   /// null = rozmówca nie odpowiedział (albo odmówił).
   Future<String?> startPairing(Peer peer) async {
     final pin = _randomPin();
-    _pairingCodes[peer.guid] =
-        _PairingCode(pin, DateTime.now().add(const Duration(minutes: 2)));
+    final keyPair = await ChattCrypto.newKeyPair();
+    _pairingCodes[peer.guid] = _PairingCode(
+        pin, keyPair, DateTime.now().add(pairingCodeLifetime));
 
-    final accepted = await client.pair(
+    final outcome = await client.pair(
       host: peer.host,
       port: peer.port,
-      payload: PairMessage(action: pairStart, from: identity).toJson(),
+      payload: PairMessage(
+        action: pairStart,
+        from: identity,
+        publicKey: base64.encode(await ChattCrypto.publicKeyOf(keyPair)),
+      ).toJson(),
     );
-    if (!accepted) {
+    if (outcome != PairOutcome.accepted) {
       _pairingCodes.remove(peer.guid);
       return null;
     }
@@ -348,28 +381,48 @@ class AppServices {
 
   /// Odpowiedź na prośbę z [pendingPairings]: przepisany kod wraca do
   /// inicjatora. true = kod się zgadzał i obie strony są już zweryfikowane.
-  Future<bool> confirmPairing(String peerGuid, String pin) async {
+  Future<PairOutcome> confirmPairing(String peerGuid, String pin) async {
     final peer = await db.peerByGuid(peerGuid);
-    if (peer == null) return false;
+    final theirPublicKey = _pairingOffers[peerGuid];
+    if (peer == null || theirPublicKey == null) return PairOutcome.unreachable;
 
-    final accepted = await client.pair(
+    // Wspólny klucz liczymy z przepisanego kodu: jak się pomylimy, drugiej
+    // stronie nie zgodzi się skrót i parowanie po prostu nie przejdzie.
+    final keyPair = await ChattCrypto.newKeyPair();
+    final myPublicKey = await ChattCrypto.publicKeyOf(keyPair);
+    final sessionKey = await ChattCrypto.sessionKey(
+      mine: keyPair,
+      theirPublicKey: theirPublicKey,
+      pin: pin.trim(),
+    );
+    final tag = await ChattCrypto.pairingTag(
+      sessionKey: sessionKey,
+      initiatorPublicKey: theirPublicKey,
+      responderPublicKey: myPublicKey,
+    );
+
+    final outcome = await client.pair(
       host: peer.host,
       port: peer.port,
-      payload:
-          PairMessage(action: pairConfirm, from: identity, pin: pin.trim())
-              .toJson(),
+      payload: PairMessage(
+        action: pairConfirm,
+        from: identity,
+        publicKey: base64.encode(myPublicKey),
+        tag: tag,
+      ).toJson(),
     );
-    if (accepted) {
-      await db.setPeerVerified(peer.id, true);
+    if (outcome == PairOutcome.accepted) {
+      await db.setPeerPaired(peer.id, base64.encode(sessionKey));
+      _pairingOffers.remove(peerGuid);
       _removePendingPairing(peerGuid);
     }
-    return accepted;
+    return outcome;
   }
 
   /// Rezygnacja z parowania po tej stronie, która została poproszona.
   void cancelPairing(String peerGuid) => _removePendingPairing(peerGuid);
 
-  Future<bool> _handlePair(PairMessage message, String fromHost) async {
+  Future<PairOutcome> _handlePair(PairMessage message, String fromHost) async {
     final peer = await db.upsertPeer(
       guid: message.from.guid,
       name: message.from.name,
@@ -380,30 +433,124 @@ class AppServices {
 
     switch (message.action) {
       case pairStart:
-        // Druga strona pokazuje u siebie kod; my prosimy użytkownika,
-        // żeby go przepisał.
+        // Druga strona pokazuje u siebie kod i przysyła swój klucz publiczny;
+        // my prosimy użytkownika, żeby przepisał kod.
+        final theirKey = _decodeKey(message.publicKey);
+        if (theirKey == null) return PairOutcome.wrongCode;
+        _pairingOffers[peer.guid] = theirKey;
         pendingPairings.value = [
           ...pendingPairings.value.where((p) => p.peerGuid != peer.guid),
           PendingPairing(peerGuid: peer.guid, peerName: peer.name),
         ];
-        return true;
+        return PairOutcome.accepted;
 
       case pairConfirm:
         final code = _pairingCodes[peer.guid];
-        if (code == null || code.expired || message.pin != code.pin) {
-          // Zły albo przeterminowany kod nie kasuje próby: użytkownik może
-          // się pomylić przy przepisywaniu.
-          if (code != null && code.expired) _pairingCodes.remove(peer.guid);
-          return false;
+        final theirKey = _decodeKey(message.publicKey);
+        if (theirKey == null || message.tag == null) {
+          return PairOutcome.wrongCode;
         }
-        _pairingCodes.remove(peer.guid);
-        await db.setPeerVerified(peer.id, true);
-        return true;
+        // Brak kodu po naszej stronie = albo już wygasł i został sprzątnięty,
+        // albo nikt tu niczego nie zaczynał.
+        if (code == null) return PairOutcome.expired;
+        if (code.expired || code.burned) {
+          _pairingCodes.remove(peer.guid);
+          return PairOutcome.expired;
+        }
+
+        // Powtórka udanego potwierdzenia (zgubiona odpowiedź): odpowiadamy
+        // tak samo, zamiast zostawiać strony w różnych stanach.
+        final already = code.acceptedTag;
+        if (already != null && ChattCrypto.sameTag(already, message.tag!)) {
+          return PairOutcome.accepted;
+        }
+
+        // Skrót policzony z NASZEGO kodu zgadza się tylko wtedy, gdy druga
+        // strona faktycznie go przepisała.
+        final sessionKey = await ChattCrypto.sessionKey(
+          mine: code.keyPair,
+          theirPublicKey: theirKey,
+          pin: code.pin,
+        );
+        final expected = await ChattCrypto.pairingTag(
+          sessionKey: sessionKey,
+          initiatorPublicKey: await ChattCrypto.publicKeyOf(code.keyPair),
+          responderPublicKey: theirKey,
+        );
+        if (!ChattCrypto.sameTag(expected, message.tag!)) {
+          // Pomyłka przy przepisywaniu nie kasuje próby, ale kilka z rzędu
+          // owszem — inaczej kod dałoby się odgadnąć zdalnie.
+          code.failedAttempts++;
+          if (code.burned) _pairingCodes.remove(peer.guid);
+          return PairOutcome.wrongCode;
+        }
+
+        await db.setPeerPaired(peer.id, base64.encode(sessionKey));
+        // Kod zostaje do wygaśnięcia wyłącznie po to, żeby umieć powtórzyć
+        // tę samą odpowiedź; kolejne próby z innym skrótem i tak odpadną.
+        code.acceptedTag = message.tag;
+        return PairOutcome.accepted;
 
       default: // pairCancel
         _pairingCodes.remove(peer.guid);
+        _pairingOffers.remove(peer.guid);
         _removePendingPairing(peer.guid);
-        return true;
+        return PairOutcome.accepted;
+    }
+  }
+
+  // --- Szyfrowanie ruchu ----------------------------------------------------
+
+  /// Klucz sesji do rozmowy z tym urządzeniem (null = niesparowane, ruch
+  /// leci jawnym tekstem).
+  Future<List<int>?> _keyForPeer(Peer peer) async {
+    final key = peer.sessionKey;
+    if (key == null) return null;
+    try {
+      return base64.decode(key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Koperta od sparowanego urządzenia: szukamy klucza po jawnym guid-zie
+  /// nadawcy i odszyfrowujemy. Nie nasza albo podmieniona = null i 400.
+  Future<Map<String, Object?>?> _openEnvelope(
+      Map<String, Object?> envelope) async {
+    final senderGuid = ChattCrypto.senderOf(envelope);
+    if (senderGuid == null) return null;
+    final peer = await db.peerByGuid(senderGuid);
+    if (peer == null) return null;
+    final key = await _keyForPeer(peer);
+    if (key == null) return null;
+
+    final opened = await ChattCrypto.open(envelope: envelope, key: key);
+    if (opened == null) return null;
+
+    // Kluczem wybieramy po jawnym "from", ale treść musi mówić to samo —
+    // inaczej sparowany rozmówca mógłby pisać w cudzym imieniu.
+    final inner = DeviceIdentity.fromJson(opened['from']);
+    if (inner == null || inner.guid != senderGuid) return null;
+    return opened;
+  }
+
+  /// Pakuje treść dla sparowanego rozmówcy; dla pozostałych zwraca ją bez
+  /// zmian (zgodność ze starszymi wersjami i niesparowanymi urządzeniami).
+  Future<Map<String, Object?>> _sealFor(
+      Peer peer, Map<String, Object?> payload) async {
+    final key = await _keyForPeer(peer);
+    if (key == null) return payload;
+    return ChattCrypto.seal(
+        payload: payload, key: key, senderGuid: identity.guid);
+  }
+
+  static List<int>? _decodeKey(String? base64Key) {
+    if (base64Key == null) return null;
+    try {
+      final bytes = base64.decode(base64Key);
+      return bytes.length == 32 ? bytes : null;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -477,11 +624,14 @@ class AppServices {
   Future<void> _deliver(int messageId, Peer peer) async {
     final message = await db.messageById(messageId);
     if (message == null) return;
-    final payload = messagePacket(
-      messageGuid: message.messageGuid,
-      from: identity,
-      text: message.body,
-      sentAt: message.createdAt,
+    final payload = await _sealFor(
+      peer,
+      messagePacket(
+        messageGuid: message.messageGuid,
+        from: identity,
+        text: message.body,
+        sentAt: message.createdAt,
+      ),
     );
 
     var delivered = await client.sendMessage(
@@ -547,14 +697,18 @@ class AppServices {
     transfersRevision.value++;
     try {
       final hash = await _hashOfSentFile(message.messageGuid, file);
-      final offerPayload = FileOffer(
-        messageGuid: message.messageGuid,
-        from: identity,
-        fileName: name,
-        fileSize: total,
-        sha256: hash,
-        sentAt: message.createdAt,
-      ).toJson();
+      final sessionKey = await _keyForPeer(peer);
+      final offerPayload = await _sealFor(
+        peer,
+        FileOffer(
+          messageGuid: message.messageGuid,
+          from: identity,
+          fileName: name,
+          fileSize: total,
+          sha256: hash,
+          sentAt: message.createdAt,
+        ).toJson(),
+      );
 
       var target = peer;
       var reply = await client.offerFile(
@@ -584,8 +738,8 @@ class AppServices {
           (reply == null || reply.resumeFrom >= total) ? 0 : reply.resumeFrom;
       progress.value = total == 0 ? 1 : resumeFrom / total;
 
-      var delivered = await _streamFile(
-          message, file, target, name, total, hash, resumeFrom, progress);
+      var delivered = await _streamFile(message, file, target, name, total,
+          hash, resumeFrom, progress, sessionKey);
 
       if (!delivered && resumeFrom > 0) {
         // Wznowienie nie weszło (odbiorca ma inną część, niż sądziliśmy).
@@ -600,7 +754,8 @@ class AppServices {
           resumeFrom =
               (reply == null || reply.resumeFrom >= total) ? 0 : reply.resumeFrom;
           delivered = await _streamFile(
-              message, file, target, name, total, hash, resumeFrom, progress);
+              message, file, target, name, total, hash, resumeFrom, progress,
+              sessionKey);
         }
       }
       await db.setMessageStatus(
@@ -621,6 +776,7 @@ class AppServices {
     String hash,
     int offset,
     ValueNotifier<double> progress,
+    List<int>? sessionKey,
   ) =>
       client.sendFile(
         host: peer.host,
@@ -628,14 +784,26 @@ class AppServices {
         headers: {
           headerMessageGuid: message.messageGuid,
           headerFrom: encodeIdentityHeader(identity),
-          headerFileName: Uri.encodeComponent(name),
+          // Przy szyfrowaniu nazwa i suma kontrolna nie idą w nagłówkach —
+          // odbiorca ma je z zaszyfrowanej zapowiedzi.
+          headerFileName: Uri.encodeComponent(
+              sessionKey == null ? name : encryptedFilePlaceholder),
           headerFileSize: '$total',
           headerSentAt: message.createdAt.toUtc().toIso8601String(),
-          headerFileSha256: hash,
+          if (sessionKey == null) headerFileSha256: hash,
           headerFileOffset: '$offset',
+          if (sessionKey != null) headerEncrypted: '1',
         },
         file: file,
         offset: offset,
+        transform: sessionKey == null
+            ? null
+            : (data, start) => ChattCrypto.crypt(
+                  data,
+                  key: sessionKey,
+                  nonce: ChattCrypto.fileNonce(message.messageGuid, hash),
+                  startOffset: start,
+                ),
         onProgress: (sent, bytes) =>
             progress.value = bytes == 0 ? 1 : sent / bytes,
       );
@@ -656,7 +824,10 @@ class AppServices {
 
   /// Wiadomość przychodząca: nadawca zawsze najpierw ląduje w bazie (znamy
   /// jego IP z połączenia i port serwera z payloadu), potem sama wiadomość.
-  Future<void> _handleIncoming(IncomingMessage message, String fromHost) async {
+  Future<bool> _handleIncoming(
+      IncomingMessage message, String fromHost, bool sealed) async {
+    if (!await _authenticated(message.from.guid, sealed)) return false;
+
     final peer = await db.upsertPeer(
       guid: message.from.guid,
       name: message.from.name,
@@ -674,6 +845,17 @@ class AppServices {
     // Duplikat (ponowienie po zgubionym ACK-u) nie ma prawa zawołać
     // powiadomienia drugi raz.
     if (inserted) _onIncoming?.call(peer, message.text, conversationId);
+    return true;
+  }
+
+  /// Ruch "od" sparowanego urządzenia musi przyjść zaszyfrowany. Inaczej
+  /// ktokolwiek w sieci, znając publiczny GUID (leci w discovery), mógłby
+  /// wstrzykiwać wiadomości do rozmowy oznaczonej zieloną tarczą — i przy
+  /// okazji podmienić zapisany adres rozmówcy na swój.
+  Future<bool> _authenticated(String senderGuid, bool sealed) async {
+    if (sealed) return true;
+    final peer = await db.peerByGuid(senderGuid);
+    return peer?.sessionKey == null;
   }
 
   // --- Odbiór plików --------------------------------------------------------
@@ -681,7 +863,12 @@ class AppServices {
   /// Zapowiedź pliku: zapamiętujemy nadawcę, sprawdzamy czy tego pliku
   /// przypadkiem już nie mamy (albo nie mamy jego części), pytamy użytkownika
   /// i dopiero wtedy pozwalamy przysłać bajty.
-  Future<FileOfferReply> _handleFileOffer(FileOffer offer, String fromHost) async {
+  Future<FileOfferReply> _handleFileOffer(
+      FileOffer offer, String fromHost, bool sealed) async {
+    if (!await _authenticated(offer.from.guid, sealed)) {
+      return const FileOfferReply(accepted: false, reason: 'unauthenticated');
+    }
+
     final peer = await db.upsertPeer(
       guid: offer.from.guid,
       name: offer.from.name,
@@ -711,7 +898,8 @@ class AppServices {
       return const FileOfferReply(accepted: false, reason: 'rejected');
     }
 
-    _acceptedOffers[offer.messageGuid] = _AcceptedOffer(offer, conversationId);
+    _acceptedOffers[_offerKey(offer.from.guid, offer.messageGuid)] =
+        _AcceptedOffer(offer, conversationId, sealed);
     _writePartMeta(offer);
     return FileOfferReply(accepted: true, resumeFrom: resumeFrom);
   }
@@ -723,6 +911,13 @@ class AppServices {
   /// do dokończenia; duplikat (retry po zgubionym ACK-u) kwitujemy bez zapisu.
   Future<FileReceiveResult> _handleIncomingFile(
       IncomingFileMeta meta, Stream<List<int>> data, String fromHost) async {
+    // Ten sam wymóg co przy wiadomościach: od sparowanego rozmówcy przyjmujemy
+    // wyłącznie zaszyfrowaną treść. Bez tego wystarczyło pominąć nagłówek
+    // x-chatt-encrypted, żeby podszyć się pod niego jawnym transferem.
+    if (!await _authenticated(meta.from.guid, meta.encrypted)) {
+      return FileReceiveResult.rejected;
+    }
+
     final peer = await db.upsertPeer(
       guid: meta.from.guid,
       name: meta.from.name,
@@ -763,7 +958,10 @@ class AppServices {
       alreadyOnDisk = 0;
     }
 
-    var accepted = _acceptedOffers.remove(meta.messageGuid);
+    // Zgoda jest związana z nadawcą, nie z samym guid-em wiadomości.
+    var accepted =
+        _acceptedOffers.remove(_offerKey(meta.from.guid, meta.messageGuid));
+    final hadOffer = accepted != null;
     if (accepted == null) {
       // Nadawca bez zapowiedzi (protokół 1) albo zgoda wygasła — pytamy
       // teraz, zanim cokolwiek zapiszemy. Odmowa = 403 bez czytania treści.
@@ -785,27 +983,62 @@ class AppServices {
         fromVerifiedPeer: peer.verified,
       ));
       if (!ok) return FileReceiveResult.rejected;
-      accepted = _AcceptedOffer(offer, conversationId);
+      accepted = _AcceptedOffer(offer, conversationId, false);
     }
+
+    // Zaszyfrowany transfer wymaga zapowiedzi: to z niej bierzemy prawdziwą
+    // nazwę i sumę kontrolną (w nagłówkach ich nie ma) oraz klucz.
+    // Tryb transferu musi się zgadzać z tym, na co użytkownik wyraził zgodę:
+    // jawny POST /file nie może skonsumować zgody wydanej na zaszyfrowaną
+    // zapowiedź (ani odwrotnie).
+    if (hadOffer && accepted.sealed != meta.encrypted) {
+      return FileReceiveResult.rejected;
+    }
+
+    List<int>? sessionKey;
+    if (meta.encrypted) {
+      sessionKey = await _keyForPeer(peer);
+      if (sessionKey == null || !hadOffer) return FileReceiveResult.rejected;
+    }
+    final fileName = meta.encrypted ? accepted.offer.fileName : meta.fileName;
 
     final transfer = IncomingTransfer(
       messageGuid: meta.messageGuid,
       conversationId: conversationId,
       peerName: peer.name,
-      fileName: meta.fileName,
+      fileName: fileName,
       fileSize: meta.fileSize,
       received: alreadyOnDisk,
     );
     incomingTransfers.value = {...incomingTransfers.value, meta.messageGuid: transfer};
 
+    // Odszyfrowanie leci strumieniowo, od bajtu, na którym stanęliśmy.
+    final content = sessionKey == null
+        ? data
+        : ChattCrypto.crypt(
+            data,
+            key: sessionKey,
+            nonce: ChattCrypto.fileNonce(
+                meta.messageGuid, accepted.offer.sha256 ?? ''),
+            startOffset: alreadyOnDisk,
+          );
+
     final sink = part.openWrite(
         mode: meta.offset == 0 ? FileMode.write : FileMode.writeOnlyAppend);
     var received = alreadyOnDisk;
+    var sinceFlush = 0;
     try {
-      await for (final chunk in data) {
+      await for (final chunk in content) {
         sink.add(chunk);
         received += chunk.length;
+        sinceFlush += chunk.length;
         transfer.receivedBytes.value = received;
+        // Bez tego cała treść potrafiła się zebrać w buforze IOSink-a, bo
+        // pętla nie czekała ani chwili na dysk.
+        if (sinceFlush >= 4 * 1024 * 1024) {
+          await sink.flush();
+          sinceFlush = 0;
+        }
       }
       await sink.flush();
     } catch (_) {
@@ -827,7 +1060,10 @@ class AppServices {
       return FileReceiveResult.incomplete;
     }
 
-    final expectedHash = meta.sha256 ?? accepted.offer.sha256;
+    // Przy zaszyfrowanym transferze nagłówki są nieuwierzytelnione, więc suma
+    // kontrolna liczy się tylko ta z zapowiedzi (ta przyszła pod GCM).
+    final expectedHash =
+        meta.encrypted ? accepted.offer.sha256 : (meta.sha256 ?? accepted.offer.sha256);
     if (expectedHash != null && await _sha256OfFile(part) != expectedHash) {
       _discardPart(meta.messageGuid);
       return FileReceiveResult.checksumMismatch;
@@ -836,7 +1072,7 @@ class AppServices {
     // Najpierw plik na swoim miejscu, dopiero potem wpis w bazie: gdyby
     // rename padł (brak miejsca, blokada AV), zostalibyśmy z dymkiem
     // wskazującym na nieistniejący plik.
-    final targetPath = _receivedPathFor(meta.messageGuid, meta.fileName);
+    final targetPath = _receivedPathFor(meta.messageGuid, fileName);
     try {
       part.renameSync(targetPath);
     } catch (_) {
@@ -848,15 +1084,15 @@ class AppServices {
       conversationId: conversationId,
       messageGuid: meta.messageGuid,
       kind: MessageKind.file,
-      body: '📎 ${meta.fileName}',
-      fileName: meta.fileName,
+      body: '📎 $fileName',
+      fileName: fileName,
       fileSize: received,
       filePath: targetPath,
       sentAt: meta.sentAt,
     );
     _deletePartMeta(meta.messageGuid);
     if (inserted) {
-      _onIncoming?.call(peer, '📎 ${meta.fileName}', conversationId);
+      _onIncoming?.call(peer, '📎 $fileName', conversationId);
     }
     return FileReceiveResult.ok;
   }

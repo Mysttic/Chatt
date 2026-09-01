@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../network/protocol.dart' show PairOutcome;
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import 'common.dart';
@@ -86,7 +87,7 @@ class _PairingCard extends StatefulWidget {
 class _PairingCardState extends State<_PairingCard> {
   final _code = TextEditingController();
   bool _checking = false;
-  bool _wrong = false;
+  PairOutcome? _outcome;
 
   @override
   void dispose() {
@@ -97,18 +98,18 @@ class _PairingCardState extends State<_PairingCard> {
   Future<void> _confirm() async {
     setState(() {
       _checking = true;
-      _wrong = false;
+      _outcome = null;
     });
-    final ok = await widget.services.confirmPairing(
+    final outcome = await widget.services.confirmPairing(
       widget.pairing.peerGuid,
       _code.text,
     );
     if (!mounted) return;
     setState(() {
       _checking = false;
-      _wrong = !ok;
+      _outcome = outcome;
     });
-    if (ok) {
+    if (outcome == PairOutcome.accepted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sparowano z ${widget.pairing.peerName}')),
       );
@@ -147,7 +148,14 @@ class _PairingCardState extends State<_PairingCard> {
               maxLength: 6,
               decoration: InputDecoration(
                 labelText: 'Kod z drugiego urządzenia',
-                errorText: _wrong ? 'Kod się nie zgadza' : null,
+                errorText: switch (_outcome) {
+                  null || PairOutcome.accepted => null,
+                  PairOutcome.wrongCode => 'Kod się nie zgadza',
+                  PairOutcome.expired =>
+                    'Kod stracił ważność — poproś o nowy na drugim urządzeniu',
+                  PairOutcome.unreachable =>
+                    'Drugie urządzenie nie odpowiada',
+                },
                 border: const OutlineInputBorder(),
                 counterText: '',
               ),

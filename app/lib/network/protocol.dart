@@ -26,7 +26,9 @@ const String typeHere = 'chatt_here';
 /// Wersja protokołu — podbijamy przy niekompatybilnych zmianach.
 /// 2: pliki wysyłane po akceptacji odbiorcy (POST /file-offer), ze wznawianiem
 ///    i sumą kontrolną.
-const int protocolVersion = 2;
+/// 3: parowanie z uzgodnieniem klucza (POST /pair) i szyfrowanie ruchu między
+///    sparowanymi urządzeniami.
+const int protocolVersion = 3;
 
 Map<String, Object?> discoverPacket(DeviceIdentity me) => {
       'type': typeDiscover,
@@ -39,6 +41,14 @@ Map<String, Object?> herePacket(DeviceIdentity me) => {
       'proto': protocolVersion,
       ...me.toJson(),
     };
+
+/// Znacznik koperty z zaszyfrowaną treścią (szczegóły w core/crypto.dart).
+/// Jawne zostaje tylko tyle, ile trzeba, żeby odbiorca wiedział, czyim
+/// kluczem odszyfrować.
+const String envelopeMarker = 'enc';
+
+bool isEncryptedEnvelope(Map<String, Object?> json) =>
+    json[envelopeMarker] == 1;
 
 /// Bezpieczne dekodowanie datagramu/body: śmieci z sieci nie mogą wywalić
 /// aplikacji, więc każdy błąd parsowania oznacza po prostu "to nie nasze".
@@ -118,6 +128,14 @@ const String headerFileSha256 = 'x-chatt-file-sha256';
 /// Od którego bajtu nadawca wysyła treść (0 = całość, >0 = wznowienie).
 const String headerFileOffset = 'x-chatt-file-offset';
 
+/// "1" = treść jest zaszyfrowana kluczem sesji (AES-CTR). Nazwa pliku i suma
+/// kontrolna są wtedy w zaszyfrowanej zapowiedzi, nie w nagłówkach.
+const String headerEncrypted = 'x-chatt-encrypted';
+
+/// Nazwa zastępcza w nagłówku zaszyfrowanego transferu — prawdziwa jest
+/// w zapowiedzi, żeby nie wyciekała jawnym tekstem.
+const String encryptedFilePlaceholder = 'zaszyfrowany-plik';
+
 String encodeIdentityHeader(DeviceIdentity identity) =>
     base64Url.encode(utf8.encode(jsonEncode(identity.toJson())));
 
@@ -144,6 +162,10 @@ class IncomingFileMeta {
   /// Bajt, od którego zaczyna się treść tego zapytania.
   final int offset;
 
+  /// Treść jest zaszyfrowana kluczem sesji (wtedy nazwa i suma pochodzą
+  /// z wcześniejszej, zaszyfrowanej zapowiedzi).
+  final bool encrypted;
+
   const IncomingFileMeta({
     required this.messageGuid,
     required this.from,
@@ -152,6 +174,7 @@ class IncomingFileMeta {
     required this.sentAt,
     this.sha256,
     this.offset = 0,
+    this.encrypted = false,
   });
 
   static IncomingFileMeta? fromHeaders(Map<String, String> headers) {
@@ -180,6 +203,7 @@ class IncomingFileMeta {
       sentAt: sentAt ?? DateTime.now(),
       sha256: (sha == null || sha.isEmpty) ? null : sha,
       offset: offset,
+      encrypted: headers[headerEncrypted] == '1',
     );
   }
 }
@@ -284,31 +308,64 @@ class FileOfferReply {
 }
 
 // --- Parowanie: POST /pair -----------------------------------------------
-// Urządzenie A zaczyna parowanie i pokazuje na swoim ekranie sześciocyfrowy
-// kod. Urządzenie B dostaje prośbę ([pairStart]), użytkownik przepisuje kod
-// i B odsyła go w [pairConfirm]. Zgodny kod oznacza obie strony jako
-// zweryfikowane — od tej pory wiadomo, że rozmówca o danym GUID to ten sam
-// sprzęt, który stoi obok, a nie ktokolwiek, kto podał się za niego nazwą.
+// Urządzenie A zaczyna parowanie: losuje sześciocyfrowy kod, pokazuje go na
+// swoim ekranie i wysyła [pairStart] ze swoim kluczem publicznym X25519.
+// Urządzenie B liczy wspólny klucz sesji (X25519 + HKDF z kodem jako solą),
+// a w [pairConfirm] odsyła swój klucz publiczny i skrót potwierdzający.
+// Zgodny skrót dowodzi, że po drugiej stronie ktoś przepisał kod z ekranu —
+// obie strony zapisują wtedy klucz sesji i oznaczają się jako zweryfikowane.
 //
-// Uwaga: kod leci po sieci jawnym tekstem, tak jak reszta ruchu w tej wersji.
-// Chroni przed pomyłką i podszyciem się nazwą, nie przed kimś, kto podsłuchuje
-// sieć. To zmieni dopiero szyfrowanie transmisji.
+// Sam kod nigdy nie idzie przez sieć. Od tej pory wiadomości, zapowiedzi
+// plików i treść plików lecą zaszyfrowane tym kluczem.
 
 const String pairStart = 'start';
 const String pairConfirm = 'confirm';
 const String pairCancel = 'cancel';
 
+/// Jak długo ważny jest kod parowania. Dwie minuty okazały się za krótkie:
+/// trzeba jeszcze dojść do drugiego urządzenia i go przepisać.
+const Duration pairingCodeLifetime = Duration(minutes: 10);
+
+/// Jak skończyło się parowanie. Rozróżnienie jest po to, żeby aplikacja nie
+/// mówiła "kod się nie zgadza", gdy naprawdę minął czas.
+enum PairOutcome {
+  accepted,
+  wrongCode,
+  expired,
+
+  /// Druga strona nie odpowiedziała (albo nie zna parowania).
+  unreachable;
+
+  static PairOutcome fromName(String? name) => switch (name) {
+        'accepted' => PairOutcome.accepted,
+        'expired' => PairOutcome.expired,
+        'wrongCode' => PairOutcome.wrongCode,
+        _ => PairOutcome.unreachable,
+      };
+}
+
 class PairMessage {
   final String action;
   final DeviceIdentity from;
-  final String? pin;
 
-  const PairMessage({required this.action, required this.from, this.pin});
+  /// Klucz publiczny X25519 (base64) — przy [pairStart] i [pairConfirm].
+  final String? publicKey;
+
+  /// Skrót potwierdzający znajomość kodu (base64) — przy [pairConfirm].
+  final String? tag;
+
+  const PairMessage({
+    required this.action,
+    required this.from,
+    this.publicKey,
+    this.tag,
+  });
 
   Map<String, Object?> toJson() => {
         'action': action,
         'from': from.toJson(),
-        'pin': pin,
+        'publicKey': publicKey,
+        'tag': tag,
       };
 
   static PairMessage? fromJson(Map<String, Object?> json) {
@@ -319,11 +376,13 @@ class PairMessage {
         (action != pairStart && action != pairConfirm && action != pairCancel)) {
       return null;
     }
-    final pin = json['pin'];
+    final publicKey = json['publicKey'];
+    final tag = json['tag'];
     return PairMessage(
       action: action,
       from: from,
-      pin: pin is String && pin.isNotEmpty ? pin : null,
+      publicKey: publicKey is String && publicKey.isNotEmpty ? publicKey : null,
+      tag: tag is String && tag.isNotEmpty ? tag : null,
     );
   }
 }

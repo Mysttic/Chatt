@@ -57,8 +57,8 @@ class PeerClient {
     }
   }
 
-  /// Wysyła krok parowania (prośbę albo kod). true = druga strona przyjęła.
-  Future<bool> pair({
+  /// Wysyła krok parowania (prośbę albo potwierdzenie kodem).
+  Future<PairOutcome> pair({
     required String host,
     required int port,
     required Map<String, Object?> payload,
@@ -72,10 +72,13 @@ class PeerClient {
             body: jsonEncode(payload),
           )
           .timeout(timeout);
-      if (response.statusCode != 200) return false;
-      return tryDecodeJsonMap(utf8.encode(response.body))?['ok'] == true;
+      final json = tryDecodeJsonMap(utf8.encode(response.body));
+      if (json == null) return PairOutcome.unreachable;
+      if (json['ok'] == true) return PairOutcome.accepted;
+      final error = json['error'];
+      return PairOutcome.fromName(error is String ? error : null);
     } catch (_) {
-      return false;
+      return PairOutcome.unreachable;
     }
   }
 
@@ -115,14 +118,18 @@ class PeerClient {
     required File file,
     int offset = 0,
     void Function(int sentBytes, int totalBytes)? onProgress,
+    /// Przepuszczenie treści przez szyfrowanie. Dostaje strumień z pliku
+    /// i bajt, od którego się zaczyna (żeby wznowienie trafiło w to samo
+    /// miejsce strumienia klucza). Musi zachować długość.
+    Stream<List<int>> Function(Stream<List<int>> data, int startOffset)?
+        transform,
   }) async {
     // Czytanie pliku żyje własnym życiem obok zapytania. Gdy odbiorca zerwie
     // połączenie w połowie, `send` wraca od razu — a reader leciałby dalej
     // i wołał [onProgress] po tym, jak wołający posprzątał swój stan.
     // Stąd subskrypcja: w `finally` ją kasujemy i wyciszamy postęp.
-    StreamSubscription<List<int>>? reader;
     http.StreamedRequest? request;
-    var stopped = false;
+    StreamSubscription<List<int>>? reader;
     void closeBody() {
       try {
         request?.sink.close();
@@ -136,25 +143,35 @@ class PeerClient {
         ..contentLength = total - start
         ..headers.addAll({...headers, 'content-type': 'application/octet-stream'});
 
+      final source = transform == null
+          ? file.openRead(start)
+          : transform(file.openRead(start), start);
+
       var sent = start;
-      reader = file.openRead(start).listen(
+      // Treść idzie przez addStream, bo tylko on hamuje czytanie pliku, gdy
+      // sieć nie nadąża (ręczne `sink.add` w pętli buforowało cały plik
+      // w pamięci). Pośredni kontroler jest po to, żeby dało się to czytanie
+      // anulować, gdy odbiorca zerwie połączenie — inaczej zostaje otwarty
+      // uchwyt do pliku i strumień pompujący w próżnię.
+      final pump = StreamController<List<int>>();
+      reader = source.listen(
         (chunk) {
-          if (stopped) return;
-          try {
-            request!.sink.add(chunk);
-          } catch (_) {
-            stopped = true; // body zamknięte/zerwane — dalsze bajty donikąd
-            return;
-          }
           sent += chunk.length;
           onProgress?.call(sent, total);
+          pump.add(chunk);
         },
-        // Koniec pliku albo błąd czytania: zamykamy body. Urwane body =
-        // niekompletny transfer, odbiorca nie potwierdzi odbioru.
-        onDone: closeBody,
-        onError: (Object _) => closeBody(),
+        onDone: pump.close,
+        onError: (Object _) => pump.close(),
         cancelOnError: true,
       );
+      pump.onPause = reader.pause;
+      pump.onResume = reader.resume;
+      pump.onCancel = reader.cancel;
+
+      unawaited(request.sink
+          .addStream(pump.stream)
+          .whenComplete(closeBody)
+          .catchError((Object _) {}));
 
       final timeout = Duration(seconds: 30 + (total - start) ~/ (512 * 1024));
       final response = await _http.send(request).timeout(timeout);
@@ -164,8 +181,11 @@ class PeerClient {
     } catch (_) {
       return false;
     } finally {
-      stopped = true;
+      // Zerwane połączenie: przestajemy czytać plik (zwalniamy uchwyt)
+      // i zamykamy body, żeby nic już nie wołało [onProgress] po tym, jak
+      // wołający posprzątał swój stan.
       await reader?.cancel();
+      closeBody();
     }
   }
 
