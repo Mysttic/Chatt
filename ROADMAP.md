@@ -94,7 +94,7 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [x] Tryb ciemny: wybór systemowy/jasny/ciemny w ustawieniach, zapisany w bazie (schemat v4), więc przeżywa restart
 - [x] Ikona aplikacji: dwa dymki na fiolecie z motywu, generowane `app/tool/make_icons.py` (launcher Androida, ikona adaptacyjna dla Androida 8+, `.ico` dla Windows)
 - [x] i18n PL/EN: teksty w `app/lib/l10n/*.arb`, wybór języka w ustawieniach (systemowy/polski/angielski, zapisany w bazie, schemat v5). Teksty powiadomienia usługi w tle idą z Darta do Kotlina, więc też są w języku aplikacji, a nie systemu
-- [ ] Ikona powiadomień na Androidzie to wciąż systemowa `stat_notify_chat`
+- [x] Ikona powiadomień na Androidzie: własna biała sylwetka dwóch dymków (`res/drawable-*/ic_notification.png`, generowana tym samym skryptem co reszta ikon)
 
 ## 4. Podział pracy
 

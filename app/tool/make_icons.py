@@ -42,6 +42,16 @@ ANDROID_FOREGROUND = {
 
 WINDOWS_SIZES = [16, 24, 32, 48, 64, 128, 256]
 
+# Ikona powiadomień: 24 dp, biała sylwetka na przezroczystym tle (system i tak
+# maluje ją swoim kolorem, kolory z niej wyrzuca).
+ANDROID_NOTIFICATION = {
+    "drawable-mdpi": 24,
+    "drawable-hdpi": 36,
+    "drawable-xhdpi": 48,
+    "drawable-xxhdpi": 72,
+    "drawable-xxxhdpi": 96,
+}
+
 
 def gradient(size):
     """Pionowy gradient w kolorach motywu."""
@@ -109,6 +119,42 @@ def ikona_foreground(size):
     return warstwa.resize((size, size), Image.LANCZOS)
 
 
+def ikona_powiadomienia(size):
+    """Biała sylwetka dwóch dymków na przezroczystym tle.
+
+    Kolorów tu nie ma: pasek stanu i tak pokazuje taką ikonę jednym kolorem,
+    więc dymki muszą się rozdzielać kształtem. Tylny dymek jest podcięty
+    przezroczystą szczeliną wokół przedniego.
+    """
+    duzy = size * SUPERSAMPLING
+    warstwa = Image.new("RGBA", (duzy, duzy), (0, 0, 0, 0))
+    rysuj = ImageDraw.Draw(warstwa)
+
+    # Wewnątrz kwadratu 24 dp ikona ma zostawić ~2 dp marginesu.
+    m = duzy * 0.08
+
+    def punkt(x, y):
+        return (m + (duzy - 2 * m) * x, m + (duzy - 2 * m) * y)
+
+    promien = (duzy - 2 * m) * 0.14
+    rysuj.rounded_rectangle(
+        [punkt(0.0, 0.05), punkt(0.62, 0.52)], radius=promien, fill=BIALY
+    )
+    # Szczelina: kasujemy fragment tylnego dymka pod przednim.
+    rysuj.rounded_rectangle(
+        [punkt(0.30, 0.36), punkt(1.06, 0.92)],
+        radius=promien * 1.2,
+        fill=(0, 0, 0, 0),
+    )
+    rysuj.rounded_rectangle(
+        [punkt(0.38, 0.44), punkt(1.0, 0.86)], radius=promien, fill=BIALY
+    )
+    rysuj.polygon(
+        [punkt(0.46, 0.84), punkt(0.46, 1.0), punkt(0.62, 0.85)], fill=BIALY
+    )
+    return warstwa.resize((size, size), Image.LANCZOS)
+
+
 def zapisz(sciezka, obraz):
     os.makedirs(os.path.dirname(sciezka), exist_ok=True)
     obraz.save(sciezka)
@@ -125,6 +171,12 @@ def main():
         zapisz(
             os.path.join(res, katalog, "ic_launcher_foreground.png"),
             ikona_foreground(rozmiar),
+        )
+
+    for katalog, rozmiar in ANDROID_NOTIFICATION.items():
+        zapisz(
+            os.path.join(res, katalog, "ic_notification.png"),
+            ikona_powiadomienia(rozmiar),
         )
 
     najwieksza = ikona_launchera(256)
