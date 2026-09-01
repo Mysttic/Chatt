@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:chatt/data/db.dart';
+import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// E2E logiki: dwie pełne instancje aplikacji (bez UI) w jednym procesie,
@@ -101,6 +104,50 @@ void main() {
     await alice.retryMessage(messages.single.id);
     messages = await alice.db.watchMessages(conversation).first;
     expect(messages.single.status, MessageStatus.delivered);
+  });
+
+  test('ręczne dodanie zapisuje adres, pod którym urządzenie odpowiedziało',
+      () async {
+    // Tunel (emulator za NAT-em, przekierowanie portu na routerze): Bartek
+    // jest osiągalny pod innym portem, niż sam rozgłasza. Zapisać trzeba ten
+    // osiągalny — inaczej wiadomości polecą w próżnię (albo do nas samych).
+    final tunnel = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    tunnel.listen((incoming) async {
+      final target = await Socket.connect('127.0.0.1', bob.server.port!);
+      target.addStream(incoming).then((_) => target.close()).ignore();
+      incoming.addStream(target).then((_) => incoming.close()).ignore();
+    });
+    addTearDown(() => tunnel.close());
+
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', tunnel.port);
+    expect(bobAsPeer, isNotNull);
+    expect(bobAsPeer!.port, tunnel.port,
+        reason: 'liczy się adres, pod którym faktycznie odpowiedział');
+    expect(bobAsPeer.port, isNot(bob.server.port));
+
+    final conversation = await alice.openConversationWith(bobAsPeer);
+    await alice.sendText(conversation, 'Idzie przez tunel?');
+    final sent = (await alice.db.watchMessages(conversation).first).single;
+    expect(sent.status, MessageStatus.delivered);
+  });
+
+  test('nie rozmawiamy sami ze sobą (pętla na własny adres)', () async {
+    // Dodanie własnego adresu nie tworzy rozmówcy...
+    expect(await alice.addPeerByAddress('127.0.0.1', alice.server.port!), isNull);
+
+    // ...a wiadomość z własną tożsamością jest odrzucana przez serwer.
+    final accepted = await alice.client.sendMessage(
+      host: '127.0.0.1',
+      port: alice.server.port!,
+      payload: messagePacket(
+        messageGuid: 'petla',
+        from: alice.identity,
+        text: 'sam do siebie',
+        sentAt: DateTime.now(),
+      ),
+    );
+    expect(accepted, isFalse);
+    expect(await alice.db.watchPeers().first, isEmpty);
   });
 
   test('serwer odrzuca śmieci bez wywracania się', () async {

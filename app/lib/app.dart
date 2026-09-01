@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'ui/screens/conversations_screen.dart';
+import 'ui/widgets/file_offer_overlay.dart';
 
 /// Fiolet odziedziczony po pierwotnej wersji projektu (ikona MAUI #512BD4).
 const chattSeedColor = Color(0xFF512BD4);
@@ -23,6 +24,9 @@ class ChattApp extends StatelessWidget {
       theme: theme(Brightness.light),
       darkTheme: theme(Brightness.dark),
       home: const ConversationsScreen(),
+      // Prośby o zgodę na odbiór pliku muszą być widoczne na każdym ekranie.
+      builder: (context, child) =>
+          FileOfferOverlay(child: child ?? const SizedBox.shrink()),
     );
   }
 }

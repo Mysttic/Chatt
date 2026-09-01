@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:drift/native.dart';
@@ -10,12 +12,71 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/env.dart';
+import '../core/file_actions.dart';
 import '../core/identity.dart';
 import '../data/db.dart';
 import '../network/client.dart';
 import '../network/discovery.dart';
 import '../network/protocol.dart';
 import '../network/server.dart';
+
+/// Prośba o zgodę na odbiór pliku — czeka na decyzję użytkownika.
+class PendingFileOffer {
+  final String messageGuid;
+  final String peerName;
+  final String fileName;
+  final int fileSize;
+
+  /// Ile bajtów mamy już z przerwanego wcześniej transferu (0 = od zera).
+  final int resumeFrom;
+  final int conversationId;
+
+  const PendingFileOffer({
+    required this.messageGuid,
+    required this.peerName,
+    required this.fileName,
+    required this.fileSize,
+    required this.resumeFrom,
+    required this.conversationId,
+  });
+}
+
+/// Decyzja o odbiorze pliku. Domyślnie pyta użytkownika (patrz
+/// [AppServices.pendingOffers]); testy i skrypty podstawiają własną.
+typedef FileOfferPolicy = Future<bool> Function(PendingFileOffer offer);
+
+/// Zgoda przyjmuje wszystko bez pytania — dla testów i trybu bezobsługowego.
+Future<bool> acceptAllFileOffers(PendingFileOffer offer) async => true;
+
+/// Odmowa dla wszystkiego — dla testów.
+Future<bool> rejectAllFileOffers(PendingFileOffer offer) async => false;
+
+/// Trwający odbiór pliku (po akceptacji) — do paska postępu w czacie.
+class IncomingTransfer {
+  final String messageGuid;
+  final int conversationId;
+  final String peerName;
+  final String fileName;
+  final int fileSize;
+  final ValueNotifier<int> receivedBytes;
+
+  IncomingTransfer({
+    required this.messageGuid,
+    required this.conversationId,
+    required this.peerName,
+    required this.fileName,
+    required this.fileSize,
+    required int received,
+  }) : receivedBytes = ValueNotifier(received);
+}
+
+/// Zaakceptowana zapowiedź czekająca na bajty (POST /file zaraz po zgodzie).
+class _AcceptedOffer {
+  final FileOffer offer;
+  final int conversationId;
+
+  const _AcceptedOffer(this.offer, this.conversationId);
+}
 
 /// Korzeń aplikacji: łączy bazę, tożsamość, serwer wiadomości i discovery.
 /// Testy E2E tworzą dwie instancje AppServices w jednym procesie i każą im
@@ -37,6 +98,34 @@ class AppServices {
   final Map<int, ValueNotifier<double>> _transferProgress = {};
   ValueListenable<double>? progressOf(int messageId) => _transferProgress[messageId];
 
+  /// Zmienia się przy każdym starcie i końcu wysyłki. UI czatu się tym
+  /// odświeża — bez tego pasek postępu potrafił się nie pojawić, bo dymek
+  /// zbudował się chwilę przed rejestracją transferu.
+  final ValueNotifier<int> transfersRevision = ValueNotifier(0);
+
+  /// Prośby o zgodę na odbiór pliku czekające na decyzję użytkownika.
+  /// UI (overlay w app.dart) słucha i odpowiada przez [respondToOffer].
+  final ValueNotifier<List<PendingFileOffer>> pendingOffers =
+      ValueNotifier(const []);
+
+  /// Trwające odbiory plików: guid wiadomości -> postęp. Wpis znika po
+  /// zakończeniu (wtedy plik jest już zwykłą wiadomością w bazie).
+  final ValueNotifier<Map<String, IncomingTransfer>> incomingTransfers =
+      ValueNotifier(const {});
+
+  /// Jak odpowiadamy na zapowiedzi plików. Ustawiane raz, w [start].
+  late final FileOfferPolicy _offerPolicy;
+
+  final Map<String, Completer<bool>> _offerDecisions = {};
+  final Map<String, _AcceptedOffer> _acceptedOffers = {};
+
+  /// Pliki właśnie odbierane — po jednym transferze na guid.
+  final Set<String> _receivingFiles = {};
+
+  /// sha256 wysyłanych plików — liczone raz na sesję, żeby ponowienie
+  /// dużego transferu nie czytało pliku drugi raz tylko po to.
+  final Map<String, String> _sentFileHashes = {};
+
   static const _uuid = Uuid();
 
   AppServices._(this.db, this.client, this.server, this.responder,
@@ -50,15 +139,17 @@ class AppServices {
     String? nameOverride,
     bool enableDiscovery = true,
     String? receivedDirOverride,
+    FileOfferPolicy? fileOfferPolicy,
   }) async {
     final db = ChattDb(executor ?? _defaultExecutor());
     final receivedDir = receivedDirOverride ?? await _defaultReceivedDir();
     Directory(receivedDir).createSync(recursive: true);
+    Directory(p.join(receivedDir, _incompleteSubdir)).createSync(recursive: true);
 
     final settings = await db.ensureSettings(
       guidFactory: _uuid.v4,
       defaultNickname:
-          nameOverride ?? ChattEnv.instanceName ?? Platform.localHostname,
+          nameOverride ?? ChattEnv.instanceName ?? _defaultDeviceName(),
       defaultPort: portOverride ?? ChattEnv.tcpPort ?? defaultTcpPort,
     );
 
@@ -73,6 +164,7 @@ class AppServices {
     final server = ChattServer(
       identity: () => services.identity,
       onMessage: (message, fromHost) => services._handleIncoming(message, fromHost),
+      onFileOffer: (offer, fromHost) => services._handleFileOffer(offer, fromHost),
       onFile: (meta, data, fromHost) =>
           services._handleIncomingFile(meta, data, fromHost),
     );
@@ -87,6 +179,8 @@ class AppServices {
 
     services =
         AppServices._(db, PeerClient(), server, responder, receivedDir, identity);
+    services._offerPolicy = fileOfferPolicy ?? services._askUserAboutOffer;
+    services._sweepStaleParts();
 
     if (enableDiscovery) {
       try {
@@ -98,6 +192,15 @@ class AppServices {
       }
     }
     return services;
+  }
+
+  /// Nick przy pierwszym starcie. Android zwraca z `localHostname` po prostu
+  /// "localhost", co na liście urządzeń wygląda jak błąd — tam lepszy jest
+  /// czytelny domyślny nick (użytkownik i tak zmieni go w ustawieniach).
+  static String _defaultDeviceName() {
+    if (Platform.isAndroid || Platform.isIOS) return 'Telefon';
+    final host = Platform.localHostname;
+    return (host.isEmpty || host == 'localhost') ? 'Moje urządzenie' : host;
   }
 
   static QueryExecutor _defaultExecutor() {
@@ -113,10 +216,15 @@ class AppServices {
     final envDir = ChattEnv.dataDir;
     if (envDir != null) return p.join(envDir, 'received');
     try {
-      // Katalog dokumentów aplikacji: działa bez dodatkowych uprawnień także
-      // na Androidzie. "Zapisz gdzie chcesz"/udostępnianie — w fazie 5.
-      final docs = await getApplicationDocumentsDirectory();
-      return p.join(docs.path, 'Chatt', 'received');
+      // Android: katalog `files/` aplikacji — to jedyne miejsce, które
+      // FileProvider potrafi wypuścić na zewnątrz jako content:// (patrz
+      // android/app/src/main/res/xml/file_paths.xml), więc odebrany plik da
+      // się otworzyć w innej aplikacji. Desktop: katalog dokumentów, bo tam
+      // użytkownik sam go znajdzie.
+      final base = (Platform.isAndroid || Platform.isIOS)
+          ? await getApplicationSupportDirectory()
+          : await getApplicationDocumentsDirectory();
+      return p.join(base.path, 'Chatt', 'received');
     } catch (_) {
       // path_provider wymaga kanału platformy; w testach bez bindingu rzuca
       // Error (nie Exception) — tam wystarczy katalog tymczasowy.
@@ -138,6 +246,11 @@ class AppServices {
 
   /// Ręczne dodanie urządzenia po adresie — fallback, gdy broadcast nie
   /// przechodzi (izolacja AP, emulator Androida za NAT-em).
+  ///
+  /// Zapisujemy adres, pod którym urządzenie FAKTYCZNIE odpowiedziało, a nie
+  /// port, którym się przedstawia. Przy tunelu (emulator za NAT-em, adb
+  /// forward, przekierowanie portu na routerze) to są dwie różne rzeczy
+  /// i tylko ten pierwszy da się połączyć.
   Future<Peer?> addPeerByAddress(String host, int port) async {
     final info = await client.fetchInfo(host, port);
     if (info == null || info.guid == identity.guid) return null;
@@ -146,7 +259,7 @@ class AppServices {
       name: info.name,
       welcomeMessage: info.welcomeMessage,
       host: host,
-      port: info.tcpPort,
+      port: port,
     );
   }
 
@@ -236,6 +349,10 @@ class AppServices {
         messageId, delivered ? MessageStatus.delivered : MessageStatus.failed);
   }
 
+  /// Wysyłka pliku: najpierw zapowiedź (odbiorca decyduje, czy chce go
+  /// przyjąć i od którego bajtu), potem dopiero bajty. Odmowa i zerwany
+  /// transfer kończą się statusem "niedostarczone" z możliwością ponowienia
+  /// — wznowienie dokłada tylko brakującą część.
   Future<void> _deliverFile(int messageId, Peer peer) async {
     final message = await db.messageById(messageId);
     final path = message?.filePath;
@@ -246,29 +363,106 @@ class AppServices {
       return;
     }
 
+    final total = await file.length();
+    final name = message.fileName ?? p.basename(path);
     final progress = _transferProgress[messageId] ??= ValueNotifier(0);
+    transfersRevision.value++;
     try {
-      final delivered = await client.sendFile(
+      final hash = await _hashOfSentFile(message.messageGuid, file);
+      final offerPayload = FileOffer(
+        messageGuid: message.messageGuid,
+        from: identity,
+        fileName: name,
+        fileSize: total,
+        sha256: hash,
+        sentAt: message.createdAt,
+      ).toJson();
+
+      var reply = await client.offerFile(
+          host: peer.host, port: peer.port, payload: offerPayload);
+      if (reply != null && !reply.accepted) {
+        await db.setMessageStatus(messageId, MessageStatus.failed);
+        return;
+      }
+      if (reply != null && reply.alreadyHave) {
+        // Odbiorca ma już ten plik (zgubiony ACK) — nic nie wysyłamy.
+        await db.setMessageStatus(messageId, MessageStatus.delivered);
+        return;
+      }
+
+      var resumeFrom =
+          (reply == null || reply.resumeFrom >= total) ? 0 : reply.resumeFrom;
+      progress.value = total == 0 ? 1 : resumeFrom / total;
+
+      var delivered = await _streamFile(
+          message, file, peer, name, total, hash, resumeFrom, progress);
+
+      if (!delivered && resumeFrom > 0) {
+        // Wznowienie nie weszło (odbiorca ma inną część, niż sądziliśmy).
+        // Pytamy go jeszcze raz, ile faktycznie ma — sama zapowiedź odtwarza
+        // też jego zgodę. Ślepe wysłanie całości od zera skończyłoby się
+        // drugim monitem u odbiorcy i skasowaniem tego, co już dostał.
+        reply = await client.offerFile(
+            host: peer.host, port: peer.port, payload: offerPayload);
+        if (reply != null && reply.alreadyHave) {
+          delivered = true;
+        } else if (reply == null || reply.accepted) {
+          resumeFrom =
+              (reply == null || reply.resumeFrom >= total) ? 0 : reply.resumeFrom;
+          delivered = await _streamFile(
+              message, file, peer, name, total, hash, resumeFrom, progress);
+        }
+      }
+      await db.setMessageStatus(
+          messageId, delivered ? MessageStatus.delivered : MessageStatus.failed);
+    } finally {
+      _transferProgress.remove(messageId);
+      transfersRevision.value++;
+      progress.dispose();
+    }
+  }
+
+  Future<bool> _streamFile(
+    Message message,
+    File file,
+    Peer peer,
+    String name,
+    int total,
+    String hash,
+    int offset,
+    ValueNotifier<double> progress,
+  ) =>
+      client.sendFile(
         host: peer.host,
         port: peer.port,
         headers: {
           headerMessageGuid: message.messageGuid,
           headerFrom: encodeIdentityHeader(identity),
-          headerFileName: Uri.encodeComponent(message.fileName ?? 'plik'),
-          headerFileSize: '${message.fileSize ?? 0}',
+          headerFileName: Uri.encodeComponent(name),
+          headerFileSize: '$total',
           headerSentAt: message.createdAt.toUtc().toIso8601String(),
+          headerFileSha256: hash,
+          headerFileOffset: '$offset',
         },
         file: file,
-        onProgress: (sent, total) =>
-            progress.value = total == 0 ? 1 : sent / total,
+        offset: offset,
+        onProgress: (sent, bytes) =>
+            progress.value = bytes == 0 ? 1 : sent / bytes,
       );
-      await db.setMessageStatus(
-          messageId, delivered ? MessageStatus.delivered : MessageStatus.failed);
-    } finally {
-      _transferProgress.remove(messageId);
-      progress.dispose();
-    }
+
+  /// Cache po (guid, rozmiar, czas modyfikacji): podmiana pliku pod tą samą
+  /// ścieżką między ponowieniami musi dać nową sumę, inaczej odbiorca do
+  /// końca świata odrzucałby transfer jako uszkodzony.
+  Future<String> _hashOfSentFile(String messageGuid, File file) async {
+    final stat = await file.stat();
+    final key = '$messageGuid:${stat.size}:'
+        '${stat.modified.millisecondsSinceEpoch}';
+    return _sentFileHashes[key] ??= await _sha256OfFile(file);
   }
+
+  /// sha256 liczone strumieniowo — plik nigdy nie ląduje w pamięci w całości.
+  static Future<String> _sha256OfFile(File file) async =>
+      (await sha256.bind(file.openRead()).first).toString();
 
   /// Wiadomość przychodząca: nadawca zawsze najpierw ląduje w bazie (znamy
   /// jego IP z połączenia i port serwera z payloadu), potem sama wiadomość.
@@ -289,10 +483,51 @@ class AppServices {
     );
   }
 
-  /// Plik przychodzący: streaming na dysk do pliku tymczasowego, rename po
-  /// komplecie (nigdy nie zostawiamy w [receivedDir] połowy pliku), na końcu
-  /// wpis w bazie. Duplikat (retry po zgubionym ACK-u) tylko osusza strumień.
-  Future<void> _handleIncomingFile(
+  // --- Odbiór plików --------------------------------------------------------
+
+  /// Zapowiedź pliku: zapamiętujemy nadawcę, sprawdzamy czy tego pliku
+  /// przypadkiem już nie mamy (albo nie mamy jego części), pytamy użytkownika
+  /// i dopiero wtedy pozwalamy przysłać bajty.
+  Future<FileOfferReply> _handleFileOffer(FileOffer offer, String fromHost) async {
+    final peer = await db.upsertPeer(
+      guid: offer.from.guid,
+      name: offer.from.name,
+      welcomeMessage: offer.from.welcomeMessage,
+      host: fromHost,
+      port: offer.from.tcpPort,
+    );
+    final conversationId = await db.ensureConversation(peer.id);
+
+    if (await db.messageByGuid(offer.messageGuid) != null) {
+      // Ten plik już mamy — nadawca nie musi przesyłać ani bajtu.
+      return const FileOfferReply(accepted: true, alreadyHave: true);
+    }
+
+    final resumeFrom = _resumableBytes(offer);
+    final accepted = await _offerPolicy(PendingFileOffer(
+      messageGuid: offer.messageGuid,
+      peerName: peer.name,
+      fileName: offer.fileName,
+      fileSize: offer.fileSize,
+      resumeFrom: resumeFrom,
+      conversationId: conversationId,
+    ));
+    if (!accepted) {
+      _discardPart(offer.messageGuid);
+      return const FileOfferReply(accepted: false, reason: 'rejected');
+    }
+
+    _acceptedOffers[offer.messageGuid] = _AcceptedOffer(offer, conversationId);
+    _writePartMeta(offer);
+    return FileOfferReply(accepted: true, resumeFrom: resumeFrom);
+  }
+
+  /// Plik przychodzący: streaming na dysk do pliku częściowego (dopisywanie
+  /// przy wznowieniu), po komplecie weryfikacja rozmiaru i sumy kontrolnej,
+  /// dopiero potem rename do [receivedDir] i wpis w bazie — w katalogu
+  /// odebranych nigdy nie leży połowa pliku. Zerwany transfer zostawia część
+  /// do dokończenia; duplikat (retry po zgubionym ACK-u) kwitujemy bez zapisu.
+  Future<FileReceiveResult> _handleIncomingFile(
       IncomingFileMeta meta, Stream<List<int>> data, String fromHost) async {
     final peer = await db.upsertPeer(
       guid: meta.from.guid,
@@ -303,32 +538,118 @@ class AppServices {
     );
     final conversationId = await db.ensureConversation(peer.id);
 
-    final safeName = p.basename(meta.fileName).replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-    final shortGuid = meta.messageGuid.length > 8
-        ? meta.messageGuid.substring(0, 8)
-        : meta.messageGuid;
-    final targetPath = p.join(receivedDir, '${shortGuid}_$safeName');
-    final tempPath = '$targetPath.part';
+    if (await db.messageByGuid(meta.messageGuid) != null) {
+      return FileReceiveResult.ok;
+    }
 
-    final sink = File(tempPath).openWrite();
-    var received = 0;
+    // Dwa równoległe transfery tego samego pliku pisałyby do jednego pliku
+    // częściowego naraz — drugi odsyłamy z 409, nadawca ponowi.
+    if (!_receivingFiles.add(meta.messageGuid)) {
+      return FileReceiveResult.offsetMismatch;
+    }
+    try {
+      return await _receiveFile(meta, data, peer, conversationId);
+    } finally {
+      _receivingFiles.remove(meta.messageGuid);
+    }
+  }
+
+  Future<FileReceiveResult> _receiveFile(IncomingFileMeta meta,
+      Stream<List<int>> data, Peer peer, int conversationId) async {
+    final part = _partFile(meta.messageGuid);
+    var alreadyOnDisk = part.existsSync() ? part.lengthSync() : 0;
+
+    // Stan uzgadniamy PRZED pytaniem użytkownika — inaczej pytalibyśmy
+    // o plik, którego i tak nie przyjmiemy w tym zapytaniu.
+    if (meta.offset != alreadyOnDisk) {
+      // Nadawca chce dopisać od innego miejsca, niż mamy: część zostaje na
+      // dysku (kolejna zapowiedź powie mu, ile jej jest).
+      if (meta.offset != 0) return FileReceiveResult.offsetMismatch;
+      // Nadawca leci od zera — nadpisujemy to, co było.
+      alreadyOnDisk = 0;
+    }
+
+    var accepted = _acceptedOffers.remove(meta.messageGuid);
+    if (accepted == null) {
+      // Nadawca bez zapowiedzi (protokół 1) albo zgoda wygasła — pytamy
+      // teraz, zanim cokolwiek zapiszemy. Odmowa = 403 bez czytania treści.
+      final offer = FileOffer(
+        messageGuid: meta.messageGuid,
+        from: meta.from,
+        fileName: meta.fileName,
+        fileSize: meta.fileSize,
+        sha256: meta.sha256,
+        sentAt: meta.sentAt,
+      );
+      final ok = await _offerPolicy(PendingFileOffer(
+        messageGuid: meta.messageGuid,
+        peerName: peer.name,
+        fileName: meta.fileName,
+        fileSize: meta.fileSize,
+        resumeFrom: alreadyOnDisk,
+        conversationId: conversationId,
+      ));
+      if (!ok) return FileReceiveResult.rejected;
+      accepted = _AcceptedOffer(offer, conversationId);
+    }
+
+    final transfer = IncomingTransfer(
+      messageGuid: meta.messageGuid,
+      conversationId: conversationId,
+      peerName: peer.name,
+      fileName: meta.fileName,
+      fileSize: meta.fileSize,
+      received: alreadyOnDisk,
+    );
+    incomingTransfers.value = {...incomingTransfers.value, meta.messageGuid: transfer};
+
+    final sink = part.openWrite(
+        mode: meta.offset == 0 ? FileMode.write : FileMode.writeOnlyAppend);
+    var received = alreadyOnDisk;
     try {
       await for (final chunk in data) {
         sink.add(chunk);
         received += chunk.length;
+        transfer.receivedBytes.value = received;
       }
       await sink.flush();
+    } catch (_) {
+      // Zerwane połączenie — to, co doszło, zostaje na dysku do wznowienia.
+      return FileReceiveResult.incomplete;
     } finally {
-      await sink.close();
+      try {
+        await sink.close();
+      } catch (_) {}
+      // Notifikatora postępu świadomie nie zwalniamy: UI może go jeszcze
+      // trzymać w budowanej właśnie klatce, a zwolniony rzuciłby wyjątkiem.
+      incomingTransfers.value = {...incomingTransfers.value}
+        ..remove(meta.messageGuid);
     }
 
-    if (meta.fileSize != 0 && received != meta.fileSize) {
-      // Urwany transfer — nadawca nie dostanie 200 i oznaczy jako failed.
-      File(tempPath).deleteSync();
-      throw const FileSystemException('niekompletny transfer');
+    if (received != meta.fileSize) {
+      // Więcej, niż zapowiedziano = plik do wyrzucenia; mniej = do dokończenia.
+      if (received > meta.fileSize) _discardPart(meta.messageGuid);
+      return FileReceiveResult.incomplete;
     }
 
-    final inserted = await db.insertIncoming(
+    final expectedHash = meta.sha256 ?? accepted.offer.sha256;
+    if (expectedHash != null && await _sha256OfFile(part) != expectedHash) {
+      _discardPart(meta.messageGuid);
+      return FileReceiveResult.checksumMismatch;
+    }
+
+    // Najpierw plik na swoim miejscu, dopiero potem wpis w bazie: gdyby
+    // rename padł (brak miejsca, blokada AV), zostalibyśmy z dymkiem
+    // wskazującym na nieistniejący plik.
+    final targetPath = _receivedPathFor(meta.messageGuid, meta.fileName);
+    try {
+      part.renameSync(targetPath);
+    } catch (_) {
+      return FileReceiveResult.incomplete;
+    }
+    // Duplikat (ten sam guid) trafia w tę samą ścieżkę, więc rename tylko
+    // podmienia identyczny plik — wtedy zostaje sam wpis z bazy.
+    await db.insertIncoming(
       conversationId: conversationId,
       messageGuid: meta.messageGuid,
       kind: MessageKind.file,
@@ -338,11 +659,142 @@ class AppServices {
       filePath: targetPath,
       sentAt: meta.sentAt,
     );
-    if (inserted) {
-      File(tempPath).renameSync(targetPath);
-    } else {
-      File(tempPath).deleteSync(); // duplikat — plik już mamy
+    _deletePartMeta(meta.messageGuid);
+    return FileReceiveResult.ok;
+  }
+
+  /// Decyzja użytkownika: prośba ląduje w [pendingOffers], a my czekamy na
+  /// [respondToOffer]. Bez odpowiedzi w 2 minuty traktujemy to jak odmowę
+  /// (nadawca zobaczy "nie dostarczono" i będzie mógł ponowić).
+  Future<bool> _askUserAboutOffer(PendingFileOffer offer) {
+    final decision = Completer<bool>();
+    _offerDecisions[offer.messageGuid] = decision;
+    pendingOffers.value = [...pendingOffers.value, offer];
+    return decision.future.timeout(
+      const Duration(minutes: 2),
+      onTimeout: () {
+        _resolveOffer(offer.messageGuid, false);
+        return false;
+      },
+    );
+  }
+
+  /// Odpowiedź UI na prośbę z [pendingOffers].
+  void respondToOffer(String messageGuid, {required bool accept}) =>
+      _resolveOffer(messageGuid, accept);
+
+  void _resolveOffer(String messageGuid, bool accept) {
+    pendingOffers.value = pendingOffers.value
+        .where((offer) => offer.messageGuid != messageGuid)
+        .toList(growable: false);
+    final decision = _offerDecisions.remove(messageGuid);
+    if (decision != null && !decision.isCompleted) decision.complete(accept);
+  }
+
+  // --- Pliki częściowe (wznawianie) ----------------------------------------
+
+  /// Podkatalog na transfery w trakcie — dzięki temu w katalogu odebranych
+  /// leżą wyłącznie kompletne pliki.
+  static const String _incompleteSubdir = '.incomplete';
+
+  File _partFile(String messageGuid) =>
+      File(p.join(receivedDir, _incompleteSubdir, '$messageGuid.part'));
+
+  File _partMetaFile(String messageGuid) =>
+      File(p.join(receivedDir, _incompleteSubdir, '$messageGuid.json'));
+
+  String _receivedPathFor(String messageGuid, String fileName) {
+    final safeName =
+        p.basename(fileName).replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    final shortGuid =
+        messageGuid.length > 8 ? messageGuid.substring(0, 8) : messageGuid;
+    return p.join(receivedDir, '${shortGuid}_$safeName');
+  }
+
+  /// Ile bajtów tego pliku mamy już z poprzedniej próby. Część liczy się
+  /// tylko wtedy, gdy opis obok niej zgadza się co do nazwy, rozmiaru i sumy
+  /// kontrolnej — inaczej to inny plik pod tym samym guid-em i idzie do kosza.
+  int _resumableBytes(FileOffer offer) {
+    final part = _partFile(offer.messageGuid);
+    if (!part.existsSync()) return 0;
+    final meta = _readPartMeta(offer.messageGuid);
+    final length = part.lengthSync();
+    final matches = meta != null &&
+        meta['fileName'] == offer.fileName &&
+        meta['fileSize'] == offer.fileSize &&
+        meta['sha256'] == offer.sha256;
+    if (!matches || length > offer.fileSize) {
+      _discardPart(offer.messageGuid);
+      return 0;
     }
+    return length;
+  }
+
+  void _writePartMeta(FileOffer offer) {
+    try {
+      _partMetaFile(offer.messageGuid).writeAsStringSync(jsonEncode({
+        'fileName': offer.fileName,
+        'fileSize': offer.fileSize,
+        'sha256': offer.sha256,
+        'fromGuid': offer.from.guid,
+      }));
+    } catch (_) {
+      // Brak opisu tylko tyle, że nie wznowimy po restarcie aplikacji.
+    }
+  }
+
+  Map<String, Object?>? _readPartMeta(String messageGuid) {
+    try {
+      final file = _partMetaFile(messageGuid);
+      if (!file.existsSync()) return null;
+      final decoded = jsonDecode(file.readAsStringSync());
+      return decoded is Map<String, Object?> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _discardPart(String messageGuid) {
+    try {
+      final part = _partFile(messageGuid);
+      if (part.existsSync()) part.deleteSync();
+    } catch (_) {}
+    _deletePartMeta(messageGuid);
+  }
+
+  void _deletePartMeta(String messageGuid) {
+    try {
+      final meta = _partMetaFile(messageGuid);
+      if (meta.existsSync()) meta.deleteSync();
+    } catch (_) {}
+  }
+
+  /// Porzucone kawałki (nadawca już nie wróci) nie mogą puchnąć w nieskończoność.
+  void _sweepStaleParts({Duration keepFor = const Duration(days: 7)}) {
+    try {
+      final dir = Directory(p.join(receivedDir, _incompleteSubdir));
+      if (!dir.existsSync()) return;
+      final deadline = DateTime.now().subtract(keepFor);
+      for (final entry in dir.listSync().whereType<File>()) {
+        if (entry.statSync().modified.isBefore(deadline)) entry.deleteSync();
+      }
+    } catch (_) {}
+  }
+
+  // --- Odebrane pliki -------------------------------------------------------
+
+  /// Otwiera odebrany (albo wysłany) plik systemowym skojarzeniem.
+  Future<FileActionResult> openFileFromMessage(Message message) async {
+    final path = message.filePath;
+    if (path == null) return FileActionResult.missing;
+    return FileActions.open(path);
+  }
+
+  /// Pokazuje plik w menedżerze plików (katalog, w którym leży).
+  Future<FileActionResult> revealFileFromMessage(Message message) async {
+    final path = message.filePath;
+    if (path == null) return FileActionResult.missing;
+    return FileActions.revealInFolder(path);
   }
 
   // --- Ustawienia -----------------------------------------------------------
@@ -382,6 +834,11 @@ class AppServices {
   }
 
   Future<void> dispose() async {
+    // Nikt już nie odpowie na wiszące prośby o zgodę — odmawiamy, żeby
+    // nadawcy nie czekali do timeoutu.
+    for (final guid in _offerDecisions.keys.toList()) {
+      _resolveOffer(guid, false);
+    }
     responder.stop();
     await server.stop();
     client.dispose();

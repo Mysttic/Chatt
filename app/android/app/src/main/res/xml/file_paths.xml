@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Co wolno wypuścić przez FileProvider: wyłącznie odebrane pliki
+     (files/Chatt/received), nic więcej z katalogu aplikacji. -->
+<paths>
+    <files-path name="odebrane" path="Chatt/received/" />
+</paths>

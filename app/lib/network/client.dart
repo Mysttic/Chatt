@@ -57,39 +57,93 @@ class PeerClient {
     }
   }
 
-  /// Wysyła plik strumieniowo (bez ładowania do pamięci). [onProgress]
-  /// dostaje liczbę bajtów już wysłanych. Timeout skaluje się z rozmiarem
-  /// (wolne Wi-Fi nie może ubijać dużych transferów).
+  /// Zapowiada plik i czeka na decyzję odbiorcy. Zwraca null, gdy odbiorca
+  /// nie odpowiada albo nie zna `/file-offer` (protokół 1) — wtedy nadawca
+  /// wysyła plik po staremu, bez pytania o zgodę.
+  Future<FileOfferReply?> offerFile({
+    required String host,
+    required int port,
+    required Map<String, Object?> payload,
+    Duration timeout = const Duration(minutes: 3),
+  }) async {
+    try {
+      final response = await _http
+          .post(
+            Uri.http('$host:$port', '/file-offer'),
+            headers: {'content-type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(timeout);
+      final json = tryDecodeJsonMap(utf8.encode(response.body));
+      if (json == null) return null; // 404 z routera = starszy odbiorca
+      return FileOfferReply.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Wysyła plik strumieniowo (bez ładowania do pamięci), od bajtu [offset]
+  /// (wznowienie przerwanego transferu). [onProgress] dostaje liczbę bajtów
+  /// już zapisanych u odbiorcy, licząc te z poprzedniej próby. Timeout skaluje
+  /// się z rozmiarem (wolne Wi-Fi nie może ubijać dużych transferów).
   Future<bool> sendFile({
     required String host,
     required int port,
     required Map<String, String> headers,
     required File file,
+    int offset = 0,
     void Function(int sentBytes, int totalBytes)? onProgress,
   }) async {
+    // Czytanie pliku żyje własnym życiem obok zapytania. Gdy odbiorca zerwie
+    // połączenie w połowie, `send` wraca od razu — a reader leciałby dalej
+    // i wołał [onProgress] po tym, jak wołający posprzątał swój stan.
+    // Stąd subskrypcja: w `finally` ją kasujemy i wyciszamy postęp.
+    StreamSubscription<List<int>>? reader;
+    http.StreamedRequest? request;
+    var stopped = false;
+    void closeBody() {
+      try {
+        request?.sink.close();
+      } catch (_) {}
+    }
+
     try {
       final total = await file.length();
-      final request = http.StreamedRequest('POST', Uri.http('$host:$port', '/file'))
-        ..contentLength = total
+      final start = (offset < 0 || offset > total) ? 0 : offset;
+      request = http.StreamedRequest('POST', Uri.http('$host:$port', '/file'))
+        ..contentLength = total - start
         ..headers.addAll({...headers, 'content-type': 'application/octet-stream'});
 
-      var sent = 0;
-      unawaited(file.openRead().forEach((chunk) {
-        request.sink.add(chunk);
-        sent += chunk.length;
-        onProgress?.call(sent, total);
-      }).then((_) => request.sink.close(), onError: (Object e) {
-        // błąd czytania pliku -> zerwane body, serwer odrzuci transfer
-        request.sink.close();
-      }));
+      var sent = start;
+      reader = file.openRead(start).listen(
+        (chunk) {
+          if (stopped) return;
+          try {
+            request!.sink.add(chunk);
+          } catch (_) {
+            stopped = true; // body zamknięte/zerwane — dalsze bajty donikąd
+            return;
+          }
+          sent += chunk.length;
+          onProgress?.call(sent, total);
+        },
+        // Koniec pliku albo błąd czytania: zamykamy body. Urwane body =
+        // niekompletny transfer, odbiorca nie potwierdzi odbioru.
+        onDone: closeBody,
+        onError: (Object _) => closeBody(),
+        cancelOnError: true,
+      );
 
-      final timeout = Duration(seconds: 30 + total ~/ (512 * 1024));
+      final timeout = Duration(seconds: 30 + (total - start) ~/ (512 * 1024));
       final response = await _http.send(request).timeout(timeout);
       final body = await response.stream.bytesToString().timeout(timeout);
       if (response.statusCode != 200) return false;
       return tryDecodeJsonMap(utf8.encode(body))?['ok'] == true;
     } catch (_) {
       return false;
+    } finally {
+      stopped = true;
+      await reader?.cancel();
     }
   }
 

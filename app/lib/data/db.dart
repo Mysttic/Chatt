@@ -274,6 +274,9 @@ class ChattDb extends _$ChattDb {
   Future<Message?> messageById(int id) =>
       (select(messages)..where((m) => m.id.equals(id))).getSingleOrNull();
 
+  Future<Message?> messageByGuid(String guid) =>
+      (select(messages)..where((m) => m.messageGuid.equals(guid))).getSingleOrNull();
+
   Future<int> insertOutgoing({
     required int conversationId,
     required String messageGuid,

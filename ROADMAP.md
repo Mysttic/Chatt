@@ -62,15 +62,25 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [x] Screenshoty z żywej aplikacji (`docs/screenshots/`, generowane przez `app/tool/ui_e2e.sh` — dwie instancje pod Xvfb sterowane xdotool)
 - [x] **Kamień milowy: kompletna aplikacja działa na Linux desktop** (usunięcie kodu C# — po potwierdzeniu działania na Windows/Androidzie przez właściciela)
 
-### Faza 4 — Pliki ✅ rdzeń (31.08.2026)
+### Faza 4 — Pliki ✅ (31.08.2026, dokończona 01.09.2026)
 - [x] Protokół: `POST /file` — streaming w obie strony (bez ładowania do pamięci), metadane w nagłówkach, weryfikacja rozmiaru, plik tymczasowy + rename (nigdy pół pliku), dedupe po GUID
 - [x] UI: spinacz → systemowy wybór pliku (file_selector), dymek pliku z nazwą/rozmiarem, pasek postępu wysyłki, retry jak przy tekście; odbiór do katalogu dokumentów aplikacji
 - [x] Testy E2E: 3 MB bajt w bajt, offline→failed→retry, uszkodzone metadane→400; scenariusz na żywym UI (b6/a5 w `docs/screenshots/`)
-- [ ] Do fazy 5: akceptacja odbioru przed transferem, otwieranie/udostępnianie odebranego pliku z czatu, suma kontrolna i wznawianie dużych transferów
+- [x] Akceptacja odbioru przed transferem: `POST /file-offer` z nazwą/rozmiarem/sha256, prośba widoczna na każdym ekranie (overlay nad aplikacją), odmowa = 403 i zero przesłanych bajtów, brak odpowiedzi przez 2 min = odmowa
+- [x] Suma kontrolna (sha256 liczone strumieniowo) i wznawianie: część transferu leży w `received/.incomplete/<guid>.part` z opisem obok, kolejna próba dokłada tylko brakujący kawałek (`x-chatt-file-offset`), po złożeniu weryfikacja sumy; porzucone części sprzątane po 7 dniach
+- [x] Zapowiedź wykrywa też duplikat („już to mam") — ponowienie po zgubionym ACK-u nie przesyła ani bajtu i nie pyta użytkownika drugi raz
+- [x] Otwieranie odebranego pliku z czatu: klik w dymek otwiera plik systemowym skojarzeniem, przytrzymanie daje „pokaż folder"/„udostępnij" i „kopiuj ścieżkę"
+- [x] Android: własny kanał platformowy (`chatt/files` + FileProvider w `MainActivity.kt`) zamiast wtyczki z pub.dev — otwieranie i udostępnianie sprawdzone na emulatorze (`docs/screenshots/android/and5_otwieranie_pliku.png`)
+- [x] Testy: odmowa→failed→zgoda→retry, zła suma kontrolna→plik odrzucony, wznowienie po zerwaniu sieci składa plik bajt w bajt (obie strony), jedno ponowienie = jedno pytanie o zgodę
 
-### Faza 5 — Sprzęt właściciela (Windows + Android)
-- [ ] Instalacja Flutter SDK na Windows + Android Studio (instrukcja w README)
-- [ ] Build Windows `.exe` i Android `.apk`; poprawki platformowe (uprawnienia sieciowe/storage Androida, firewall Windows przy pierwszym uruchomieniu)
+### Faza 5 — Sprzęt właściciela (Windows + Android) — w toku (01.09.2026)
+- [x] Flutter SDK 3.47.2 na Windows (`C:\Users\mystt\dev\flutter`, poza PATH-em — patrz README)
+- [x] Build i instalacja `app-debug.apk`; aplikacja startuje na emulatorze (AVD `Pixel_9_Pro`, Android 17)
+- [x] **Automatyczny E2E na żywym Androidzie** (`app/tool/android_e2e_test.dart`): host ⇄ aplikacja na urządzeniu przez tunele adb — `/info`, wiadomość z ACK, plik z akceptacją i sumą kontrolną, odmowa. Zrzuty w `docs/screenshots/android/`
+- [x] Poprawki znalezione dopiero na urządzeniu: ręczne dodanie po adresie zapisuje port osiągalny (a nie rozgłaszany), odrzucanie pętli na samego siebie, sensowny domyślny nick na Androidzie (`localHostname` zwraca tam „localhost")
+- [x] Build Windows: workload „Desktop development with C++" + tryb dewelopera, `flutter build windows` przechodzi, aplikacja startuje (motyw ciemny bierze z systemu)
+- [x] **Rozmowa PC ⇄ Android na dwóch prawdziwych aplikacjach**: wiadomości w obie strony (z ACK i ponowieniem) oraz plik 6,8 MB z akceptacją na telefonie, sha256 zgodne co do bajtu. Przez tunele adb, bo emulator jest za NAT-em
+- [ ] To samo w fizycznej sieci Wi‑Fi z prawdziwym telefonem (dopiero to sprawdzi discovery UDP; możliwy MulticastLock)
 - [ ] Nasłuch w tle na Androidzie (foreground service) + powiadomienia lokalne
 - [ ] **Kamień milowy: pierwsza prawdziwa rozmowa i transfer pliku PC ⇄ telefon w fizycznej sieci Wi‑Fi**
 
@@ -87,8 +97,17 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 
 ## 5. Następny krok
 
-Fazy 0–3 są zrobione i zweryfikowane w chmurze (testy + żywe E2E dwóch instancji ze zrzutami ekranu). Teraz:
+Fazy 0–4 są zrobione i zweryfikowane: 17 testów `flutter test` (zielone), `flutter analyze` bez uwag, oraz 3 testy E2E na żywej aplikacji na Androidzie. Zostało:
 
-1. **Właściciel**: uruchomienie na Windows (`cd app && flutter run -d windows`; instrukcje w README.md) i na telefonie — pierwszy test w fizycznej sieci Wi‑Fi. Zgłoszenie, co nie działa/przeszkadza.
-2. **Równolegle (sesje chmurowe)**: resztki Fazy 4 (otwieranie odebranych plików, akceptacja odbioru) i Faza 6 (parowanie/szyfrowanie).
-3. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` niedostępny — tam mieszka Android SDK i artefakty Gradle). Jeśli chcesz, żeby sesje mogły budować APK do sideloadu: w ustawieniach środowiska Claude Code (claude.ai → Environments) dopuść domeny `dl.google.com` i `maven.google.com`.
+1. **Właściciel, żeby odblokować Windows**: w Visual Studio Installerze dołożyć workload „Desktop development with C++" i włączyć tryb dewelopera (`start ms-settings:developers`, potrzebne do symlinków wtyczek). Wtedy `cd app && flutter run -d windows` i pierwszy realny test PC ⇄ telefon w domowym Wi‑Fi.
+2. **Faza 5 do dokończenia**: nasłuch w tle na Androidzie (foreground service + powiadomienia), discovery na fizycznym Wi‑Fi, zachowanie przy zmianie IP.
+3. **Faza 6**: parowanie PIN (kolumna `verified` w bazie już czeka), szyfrowanie, tryb ciemny, ikona, i18n.
+4. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
+
+Uruchamianie testów lokalnie (Flutter nie jest w PATH):
+
+```
+cd app
+C:\Users\mystt\dev\flutter\bin\flutter.bat test
+C:\Users\mystt\dev\flutter\bin\flutter.bat test tool/android_e2e_test.dart   # wymaga uruchomionej aplikacji na emulatorze
+```

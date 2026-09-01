@@ -44,3 +44,14 @@ String formatClock(DateTime time) {
   String two(int v) => v.toString().padLeft(2, '0');
   return '${two(time.hour)}:${two(time.minute)}';
 }
+
+/// Rozmiar pliku po ludzku: 512 B, 12,3 KB, 3,4 MB, 1,20 GB.
+String formatFileSize(int? bytes) {
+  if (bytes == null) return '';
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  if (bytes < 1024 * 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+}

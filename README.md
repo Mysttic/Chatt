@@ -16,11 +16,18 @@ funkcji, potem znikną. Plan prac i stan projektu: [ROADMAP.md](ROADMAP.md).
   odpowiadają tożsamością; jeden skan uczy obie strony nawzajem. Gdy broadcast
   nie przechodzi (izolacja AP, emulator), jest ręczne „Dodaj po adresie IP".
 - **Wiadomości i pliki**: każda instancja hostuje mały serwer HTTP
-  (`GET /info`, `POST /message`, `POST /file`) na porcie 47780
-  (konfigurowalny; zajęty ⇒ próbowane są kolejne). Wysyłka: zapis lokalny →
-  dostarczenie → potwierdzenie; nieudane można ponowić jednym dotknięciem.
-  Pliki idą streamingiem (dowolny rozmiar), z paskiem postępu; odebrane
-  lądują w katalogu dokumentów aplikacji.
+  (`GET /info`, `POST /message`, `POST /file-offer`, `POST /file`) na porcie
+  47780 (konfigurowalny; zajęty ⇒ próbowane są kolejne). Wysyłka: zapis
+  lokalny → dostarczenie → potwierdzenie; nieudane można ponowić jednym
+  dotknięciem.
+- **Pliki**: nadawca najpierw wysyła zapowiedź (nazwa, rozmiar, sha256),
+  a odbiorca widzi ją na każdym ekranie i decyduje: „Akceptuj" albo „Odrzuć".
+  Dopiero potem lecą bajty — streamingiem, w dowolnym rozmiarze, z paskiem
+  postępu po obu stronach. Przerwany transfer zostaje na dysku jako część
+  i kolejna próba **dokłada tylko brakujący kawałek**; po złożeniu całości
+  sprawdzana jest suma kontrolna. Odebrane pliki lądują w katalogu dokumentów
+  aplikacji i otwierają się kliknięciem w dymek (przytrzymanie: pokaż folder,
+  kopiuj ścieżkę).
 - **Baza**: SQLite (drift) — rozmówcy, konwersacje, wiadomości ze statusami
   dostarczenia i licznikiem nieprzeczytanych.
 
@@ -56,6 +63,11 @@ $env:CHATT_INSTANCE_NAME = "Instancja B"
 Telefon z włączonym debugowaniem USB: `flutter run -d <urządzenie>` albo
 `flutter build apk --debug` i zainstaluj APK.
 
+Odebrane pliki lądują w `files/Chatt/received` w katalogu aplikacji i otwierają
+się kliknięciem w dymek — plik wychodzi do innych aplikacji przez FileProvider
+jako `content://` (własny kanał `chatt/files` w `MainActivity.kt`, bez wtyczek
+z pub.dev). Przytrzymanie dymka daje „Udostępnij" i „Kopiuj ścieżkę".
+
 **Emulator Androida**: nada się do pracy nad UI i — z ograniczeniami — do
 wiadomości, ale **automatyczne wykrywanie nie zadziała** (emulator siedzi za
 NAT-em, broadcast UDP nie przechodzi w żadną stronę). Obejście dla wiadomości:
@@ -64,6 +76,18 @@ NAT-em, broadcast UDP nie przechodzi w żadną stronę). Obejście dla wiadomoś
   (tak emulator widzi hosta);
 - żeby PC mógł wysyłać do emulatora: `adb forward tcp:47781 tcp:47780`
   i na PC dodaj ręcznie `127.0.0.1:47781`.
+
+Jest na to gotowy, automatyczny scenariusz — instancja hosta rozmawia
+z aplikacją na urządzeniu przez tunele adb (wiadomość, plik z akceptacją,
+odmowa, zrzuty ekranu do `docs/screenshots/android/`):
+
+```
+cd app
+flutter test tool/android_e2e_test.dart
+```
+
+Wymaga uruchomionej aplikacji na urządzeniu; instancja hosta stoi na porcie
+47790, bo `adb reverse` nie wstanie na 47780 zajętym przez aplikację.
 
 Pełny test discovery i realne warunki Wi‑Fi wymagają fizycznego telefonu
 w tej samej sieci co PC.

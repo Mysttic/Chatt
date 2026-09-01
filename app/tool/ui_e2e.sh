@@ -77,6 +77,14 @@ DISPLAY=:92 xdotool key --clearmodifiers ctrl+l
 sleep 0.5
 type_text :92 "$WORK/wakacje-zdjecie.jpg"
 DISPLAY=:92 xdotool key Return
+sleep 3
+
+# A pytany o zgodę na odbiór — bajty ruszą dopiero po akceptacji. Przycisk
+# „Akceptuj" ma fokus, więc wystarczy Enter (kursor musi być nad oknem A,
+# bo X11 bez menedżera okien kieruje klawiaturę tam, gdzie wskazuje mysz).
+DISPLAY=:91 xdotool mousemove 240 400
+shot :91 a6_prosba_o_plik
+DISPLAY=:91 xdotool key Return
 sleep 4
 shot :92 b6_plik_wyslany
 shot :91 a5_plik_odebrany

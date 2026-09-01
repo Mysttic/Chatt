@@ -1,16 +1,19 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart' show sha256;
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:chatt/data/db.dart';
+import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
-/// E2E transferu plików między dwiema pełnymi instancjami: streaming, postęp,
-/// weryfikacja bajt w bajt, dedupe, odbiorca offline i retry.
+/// E2E transferu plików między dwiema pełnymi instancjami: zgoda odbiorcy,
+/// streaming, postęp, weryfikacja bajt w bajt, suma kontrolna, wznawianie,
+/// dedupe, odbiorca offline i retry.
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -18,14 +21,21 @@ void main() {
   late AppServices alice;
   late AppServices bob;
 
+  /// Prośby o zgodę, które zobaczył Bartek, i jego odpowiedź na nie.
+  late List<PendingFileOffer> bobOffers;
+  late bool bobAccepts;
+
   setUp(() async {
     work = Directory.systemTemp.createTempSync('chatt_files');
+    bobOffers = [];
+    bobAccepts = true;
     alice = await AppServices.start(
       executor: NativeDatabase.memory(),
       portOverride: 0,
       nameOverride: 'Alicja',
       enableDiscovery: false,
       receivedDirOverride: p.join(work.path, 'alice_received'),
+      fileOfferPolicy: acceptAllFileOffers,
     );
     bob = await AppServices.start(
       executor: NativeDatabase.memory(),
@@ -33,6 +43,10 @@ void main() {
       nameOverride: 'Bartek',
       enableDiscovery: false,
       receivedDirOverride: p.join(work.path, 'bob_received'),
+      fileOfferPolicy: (offer) async {
+        bobOffers.add(offer);
+        return bobAccepts;
+      },
     );
   });
 
@@ -64,6 +78,12 @@ void main() {
 
     await alice.sendFile(conversation, source.path);
 
+    // Bartek dostał zapowiedź z nazwą i rozmiarem, zanim poszły bajty.
+    expect(bobOffers, hasLength(1));
+    expect(bobOffers.single.fileName, 'zdjecie.bin');
+    expect(bobOffers.single.fileSize, source.lengthSync());
+    expect(bobOffers.single.resumeFrom, 0);
+
     final atAlice = (await alice.db.watchMessages(conversation).first).single;
     expect(atAlice.kind, MessageKind.file);
     expect(atAlice.status, MessageStatus.delivered);
@@ -82,8 +102,12 @@ void main() {
     expect(saved.readAsBytesSync(), source.readAsBytesSync(),
         reason: 'zawartość musi być identyczna');
     expect(saved.path, startsWith(p.join(work.path, 'bob_received')));
-    expect(File('${atBob.filePath!}.part').existsSync(), isFalse,
-        reason: 'plik tymczasowy posprzątany');
+    expect(
+        Directory(p.join(work.path, 'bob_received', '.incomplete'))
+            .listSync()
+            .whereType<File>(),
+        isEmpty,
+        reason: 'po udanym transferze nie zostaje ani część, ani jej opis');
 
     // Retry mimo sukcesu (zgubiony ACK): u Bartka nie przybywa ani wiadomość,
     // ani plik.
@@ -95,6 +119,9 @@ void main() {
         .whereType<File>()
         .where((f) => !f.path.endsWith('.part'));
     expect(receivedFiles, hasLength(1));
+    expect(bobOffers, hasLength(1),
+        reason: 'ponowienie kończy się na zapowiedzi ("już to mam"), '
+            'użytkownik nie jest pytany drugi raz');
   });
 
   test('odbiorca offline: failed, retry po powrocie dostarcza', () async {
@@ -116,6 +143,187 @@ void main() {
     final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
     final atBob = (await bob.db.watchMessages(convAtBob).first).single;
     expect(File(atBob.filePath!).lengthSync(), source.lengthSync());
+  });
+
+  test('odmowa odbiorcy: żaden bajt nie leci, po zgodzie retry dostarcza',
+      () async {
+    final source = makeRandomFile('umowa.pdf', 128 * 1024);
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+
+    bobAccepts = false;
+    await alice.sendFile(conversation, source.path);
+
+    var message = (await alice.db.watchMessages(conversation).first).single;
+    expect(message.status, MessageStatus.failed);
+    expect(bobOffers, hasLength(1));
+
+    // U Bartka nie ma ani wiadomości, ani żadnego pliku na dysku.
+    final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
+    final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
+    expect(await bob.db.watchMessages(convAtBob).first, isEmpty);
+    expect(
+        Directory(p.join(work.path, 'bob_received')).listSync().whereType<File>(),
+        isEmpty);
+
+    // Zmiana zdania: ponowienie tej samej wiadomości dochodzi normalnie.
+    bobAccepts = true;
+    await alice.retryMessage(message.id);
+    message = (await alice.db.watchMessages(conversation).first).single;
+    expect(message.status, MessageStatus.delivered);
+    final atBob = (await bob.db.watchMessages(convAtBob).first).single;
+    expect(File(atBob.filePath!).lengthSync(), source.lengthSync());
+  });
+
+  test('zła suma kontrolna: plik odrzucony, nic nie ląduje w odebranych',
+      () async {
+    final source = makeRandomFile('podmieniony.bin', 64 * 1024);
+    final ok = await alice.client.sendFile(
+      host: '127.0.0.1',
+      port: bob.server.port!,
+      headers: {
+        headerMessageGuid: 'guid-zlej-sumy',
+        headerFrom: encodeIdentityHeader(alice.identity),
+        headerFileName: Uri.encodeComponent('podmieniony.bin'),
+        headerFileSize: '${source.lengthSync()}',
+        headerSentAt: DateTime.now().toUtc().toIso8601String(),
+        headerFileSha256: 'a' * 64, // suma "z sufitu"
+        headerFileOffset: '0',
+      },
+      file: source,
+    );
+
+    expect(ok, isFalse);
+    final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
+    final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
+    expect(await bob.db.watchMessages(convAtBob).first, isEmpty);
+    expect(
+        Directory(p.join(work.path, 'bob_received')).listSync().whereType<File>(),
+        isEmpty);
+    expect(File(p.join(work.path, 'bob_received', '.incomplete',
+            'guid-zlej-sumy.part'))
+        .existsSync(),
+        isFalse,
+        reason: 'część po złej sumie kontrolnej idzie do kosza');
+  });
+
+  test('wznowienie: druga próba dokłada tylko brakującą część', () async {
+    final source = makeRandomFile('film.bin', 512 * 1024);
+    final bytes = source.readAsBytesSync();
+    final digest = sha256.convert(bytes).toString();
+    const guid = 'guid-wznowienia';
+    const half = 200 * 1024;
+
+    Map<String, String> headers(int offset) => {
+          headerMessageGuid: guid,
+          headerFrom: encodeIdentityHeader(alice.identity),
+          headerFileName: Uri.encodeComponent('film.bin'),
+          headerFileSize: '${bytes.length}',
+          headerSentAt: DateTime.now().toUtc().toIso8601String(),
+          headerFileSha256: digest,
+          headerFileOffset: '$offset',
+        };
+
+    // Pierwsza próba urywa się w połowie: Bartek nie kwituje odbioru...
+    final firstChunk = File(p.join(work.path, 'film.czesc1'))
+      ..writeAsBytesSync(bytes.sublist(0, half));
+    final first = await alice.client.sendFile(
+      host: '127.0.0.1',
+      port: bob.server.port!,
+      headers: headers(0),
+      file: firstChunk,
+    );
+    expect(first, isFalse);
+
+    // ...ale to, co doszło, zostaje na dysku do dokończenia.
+    final part =
+        File(p.join(work.path, 'bob_received', '.incomplete', '$guid.part'));
+    expect(part.existsSync(), isTrue);
+    expect(part.lengthSync(), half);
+
+    // Druga próba wysyła wyłącznie resztę, od miejsca przerwania.
+    final restChunk = File(p.join(work.path, 'film.czesc2'))
+      ..writeAsBytesSync(bytes.sublist(half));
+    final second = await alice.client.sendFile(
+      host: '127.0.0.1',
+      port: bob.server.port!,
+      headers: headers(half),
+      file: restChunk,
+    );
+    expect(second, isTrue);
+
+    final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
+    final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
+    final atBob = (await bob.db.watchMessages(convAtBob).first).single;
+    expect(atBob.fileSize, bytes.length);
+    expect(File(atBob.filePath!).readAsBytesSync(), bytes,
+        reason: 'złożony plik musi być identyczny z oryginałem');
+    expect(part.existsSync(), isFalse, reason: 'część posprzątana');
+  });
+
+  test('nadawca wznawia po zerwaniu sieci: druga próba dosyła tylko resztę',
+      () async {
+    final source = makeRandomFile('film-duzy.bin', 2 * 1024 * 1024);
+
+    // Kabel, który zrywa się po [cutAfter] bajtach na połączenie.
+    var cutAfter = 300 * 1024;
+    final flakyLink = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    flakyLink.listen((client) async {
+      final target = await Socket.connect('127.0.0.1', bob.server.port!);
+      var forwarded = 0;
+      client.listen(
+        (chunk) {
+          forwarded += chunk.length;
+          if (cutAfter > 0 && forwarded > cutAfter) {
+            client.destroy();
+            target.destroy();
+            return;
+          }
+          target.add(chunk);
+        },
+        onDone: () => target.close(),
+        onError: (Object _) => target.destroy(),
+      );
+      target.listen(client.add,
+          onDone: () => client.close(), onError: (Object _) => client.destroy());
+    });
+    addTearDown(() => flakyLink.close());
+
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', flakyLink.port);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+
+    await alice.sendFile(conversation, source.path);
+    var message = (await alice.db.watchMessages(conversation).first).single;
+    expect(message.status, MessageStatus.failed, reason: 'transfer się urwał');
+
+    // U Bartka nie ma jeszcze wiadomości, ale jest kawałek pliku.
+    final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
+    final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
+    expect(await bob.db.watchMessages(convAtBob).first, isEmpty);
+    final parts = Directory(p.join(work.path, 'bob_received', '.incomplete'))
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.part'))
+        .toList();
+    expect(parts, hasLength(1));
+    final partial = parts.single.lengthSync();
+    expect(partial, greaterThan(0));
+    expect(partial, lessThan(source.lengthSync()));
+
+    // Sieć wraca, użytkownik ponawia.
+    cutAfter = 0;
+    await alice.retryMessage(message.id);
+
+    message = (await alice.db.watchMessages(conversation).first).single;
+    expect(message.status, MessageStatus.delivered);
+    expect(bobOffers, hasLength(2),
+        reason: 'jedno ponowienie = dokładnie jedno pytanie o zgodę');
+    expect(bobOffers.last.resumeFrom, partial,
+        reason: 'wznawiamy dokładnie od tego, co Bartek już ma');
+
+    final atBob = (await bob.db.watchMessages(convAtBob).first).single;
+    expect(File(atBob.filePath!).readAsBytesSync(), source.readAsBytesSync(),
+        reason: 'sklejony plik musi być identyczny z oryginałem');
   });
 
   test('uszkodzone metadane -> 400, serwer żyje dalej', () async {

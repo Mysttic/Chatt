@@ -1,7 +1,11 @@
+import 'dart:io' show Platform;
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/file_actions.dart';
 import '../../data/db.dart';
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
@@ -55,6 +59,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final services = ref.read(appServicesProvider);
     final messages = ref.watch(messagesProvider(widget.conversationId));
 
     // Nowa wiadomość przychodząca przy otwartym ekranie = od razu przeczytana.
@@ -98,7 +103,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: messages.when(
+            // Start i koniec wysyłki muszą przerysować dymki, żeby pasek
+            // postępu pojawił się także wtedy, gdy wiadomość trafiła na
+            // ekran ułamek sekundy przed rejestracją transferu.
+            child: ValueListenableBuilder<int>(
+              valueListenable: services.transfersRevision,
+              builder: (context, _, _) => messages.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(child: Text('Błąd: $error')),
               data: (items) => ListView.builder(
@@ -118,7 +128,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   );
                 },
               ),
+              ),
             ),
+          ),
+          // Pliki, które właśnie do nas płyną (po akceptacji) — z postępem.
+          ValueListenableBuilder<Map<String, IncomingTransfer>>(
+            valueListenable: services.incomingTransfers,
+            builder: (context, transfers, _) {
+              final here = transfers.values
+                  .where((t) => t.conversationId == widget.conversationId)
+                  .toList(growable: false);
+              if (here.isEmpty) return const SizedBox.shrink();
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [for (final t in here) _IncomingTransferTile(transfer: t)],
+              );
+            },
           ),
           SafeArea(
             top: false,
@@ -173,61 +198,130 @@ class _MessageBubble extends StatelessWidget {
   const _MessageBubble(
       {required this.message, required this.services, required this.onRetry});
 
-  static String formatSize(int? bytes) {
-    if (bytes == null) return '';
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  /// Otwarcie pliku systemowym skojarzeniem; komunikat tylko wtedy, gdy się
+  /// nie udało (na Androidzie pokazujemy ścieżkę do skopiowania).
+  Future<void> _openFile(BuildContext context) async {
+    final result = await services.openFileFromMessage(message);
+    if (!context.mounted) return;
+    _report(context, result);
+  }
+
+  Future<void> _revealFile(BuildContext context) async {
+    final result = await services.revealFileFromMessage(message);
+    if (!context.mounted) return;
+    _report(context, result);
+  }
+
+  void _report(BuildContext context, FileActionResult result) {
+    final path = message.filePath ?? '';
+    final snack = switch (result) {
+      FileActionResult.ok => null,
+      FileActionResult.missing =>
+        const SnackBar(content: Text('Tego pliku już nie ma na dysku.')),
+      // Android/iOS: bez wtyczki platformowej zostaje ścieżka do skopiowania.
+      FileActionResult.unsupported => SnackBar(
+          content: Text(path),
+          action: SnackBarAction(
+            label: 'Kopiuj',
+            onPressed: () => Clipboard.setData(ClipboardData(text: path)),
+          ),
+        ),
+      FileActionResult.failed =>
+        const SnackBar(content: Text('Nie udało się otworzyć pliku.')),
+    };
+    if (snack != null) ScaffoldMessenger.of(context).showSnackBar(snack);
+  }
+
+  void _fileMenu(BuildContext context) {
+    final path = message.filePath ?? '';
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Otwórz'),
+              onTap: () {
+                Navigator.pop(sheet);
+                _openFile(context);
+              },
+            ),
+            ListTile(
+              // Android nie ma menedżera plików do pokazania — tam ta sama
+              // akcja udostępnia plik dalej.
+              leading: Icon(Platform.isAndroid ? Icons.share : Icons.folder_open),
+              title: Text(Platform.isAndroid ? 'Udostępnij' : 'Pokaż folder'),
+              onTap: () {
+                Navigator.pop(sheet);
+                _revealFile(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_all_outlined),
+              title: const Text('Kopiuj ścieżkę'),
+              subtitle: Text(path, maxLines: 2, overflow: TextOverflow.ellipsis),
+              onTap: () {
+                Navigator.pop(sheet);
+                Clipboard.setData(ClipboardData(text: path));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Treść dymka: tekst albo kafelek pliku (nazwa, rozmiar, pasek postępu
-  /// podczas trwającej wysyłki).
+  /// podczas trwającej wysyłki). Kafelek pliku otwiera go po kliknięciu,
+  /// przytrzymanie daje menu (otwórz / pokaż folder / kopiuj ścieżkę).
   Widget _content(BuildContext context, bool mine, ColorScheme scheme) {
     final textColor = mine ? scheme.onPrimary : scheme.onSurface;
     if (message.kind != MessageKind.file) {
       return Text(message.body, style: TextStyle(color: textColor, fontSize: 15));
     }
     final progress = services.progressOf(message.id);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.insert_drive_file_outlined, color: textColor),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(message.fileName ?? 'plik',
-                  style: TextStyle(
-                      color: textColor, fontSize: 15, fontWeight: FontWeight.w500),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis),
-              Text(formatSize(message.fileSize),
-                  style: TextStyle(
-                      color: textColor.withValues(alpha: 0.8), fontSize: 12)),
-              if (progress != null) ...[
-                const SizedBox(height: 6),
-                ValueListenableBuilder<double>(
-                  valueListenable: progress,
-                  builder: (_, value, _) => ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: value,
-                      minHeight: 5,
-                      backgroundColor: textColor.withValues(alpha: 0.25),
-                      color: mine ? scheme.onPrimary : scheme.primary,
+    return InkWell(
+      onTap: () => _openFile(context),
+      onLongPress: () => _fileMenu(context),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.insert_drive_file_outlined, color: textColor),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(message.fileName ?? 'plik',
+                    style: TextStyle(
+                        color: textColor, fontSize: 15, fontWeight: FontWeight.w500),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                Text(formatFileSize(message.fileSize),
+                    style: TextStyle(
+                        color: textColor.withValues(alpha: 0.8), fontSize: 12)),
+                if (progress != null) ...[
+                  const SizedBox(height: 6),
+                  ValueListenableBuilder<double>(
+                    valueListenable: progress,
+                    builder: (_, value, _) => ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: value,
+                        minHeight: 5,
+                        backgroundColor: textColor.withValues(alpha: 0.25),
+                        color: mine ? scheme.onPrimary : scheme.primary,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -308,6 +402,58 @@ class _MessageBubble extends StatelessWidget {
               ],
             )
           : bubble,
+    );
+  }
+}
+
+/// Plik, który właśnie do nas płynie (zgoda już wydana) — pasek postępu nad
+/// polem tekstowym. Wpis znika, gdy plik jest kompletny i staje się dymkiem.
+class _IncomingTransferTile extends StatelessWidget {
+  final IncomingTransfer transfer;
+
+  const _IncomingTransferTile({required this.transfer});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final labelStyle = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      child: ValueListenableBuilder<int>(
+        valueListenable: transfer.receivedBytes,
+        builder: (context, received, _) {
+          final value = transfer.fileSize == 0
+              ? 1.0
+              : (received / transfer.fileSize).clamp(0.0, 1.0).toDouble();
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.download_outlined, size: 16, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text('Odbieram: ${transfer.fileName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: labelStyle),
+                  ),
+                  Text(
+                    '${formatFileSize(received)} / ${formatFileSize(transfer.fileSize)}',
+                    style: labelStyle,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(value: value, minHeight: 5),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

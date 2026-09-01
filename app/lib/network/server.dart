@@ -19,14 +19,25 @@ class ChattServer {
   /// nie musi znać swojego IP w naszej sieci).
   final Future<void> Function(IncomingMessage message, String fromHost) onMessage;
 
+  /// Wołane dla POST /file-offer: odbiorca decyduje, czy chce ten plik
+  /// i od którego bajtu ma go dostać.
+  final Future<FileOfferReply> Function(FileOffer offer, String fromHost)?
+      onFileOffer;
+
   /// Wołane dla POST /file: odbiorca decyduje, gdzie strumień [data] zapisać.
-  /// Wyjątek w środku = 500 dla nadawcy (potraktuje wysyłkę jako nieudaną).
-  final Future<void> Function(
+  /// Zwrócony [FileReceiveResult] ląduje w kodzie odpowiedzi dla nadawcy.
+  /// Wyjątek w środku = 500 (nadawca potraktuje wysyłkę jako nieudaną).
+  final Future<FileReceiveResult> Function(
       IncomingFileMeta meta, Stream<List<int>> data, String fromHost)? onFile;
 
   HttpServer? _server;
 
-  ChattServer({required this.identity, required this.onMessage, this.onFile});
+  ChattServer({
+    required this.identity,
+    required this.onMessage,
+    this.onFileOffer,
+    this.onFile,
+  });
 
   /// Faktyczny port nasłuchu (ustalony w [start]).
   int? get port => _server?.port;
@@ -38,6 +49,7 @@ class ChattServer {
     final router = Router()
       ..get('/info', _handleInfo)
       ..post('/message', _handleMessage)
+      ..post('/file-offer', _handleFileOffer)
       ..post('/file', _handleFile);
     final handler =
         const Pipeline().addMiddleware(_guardErrors).addHandler(router.call);
@@ -87,12 +99,42 @@ class ChattServer {
       return _json({'ok': false, 'error': 'bad_request'}, status: 400);
     }
 
+    if (message.from.guid == identity().guid) {
+      return _json({'ok': false, 'error': 'self'}, status: 400);
+    }
+
     final connection =
         request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
     final fromHost = connection?.remoteAddress.address ?? '';
 
     await onMessage(message, fromHost);
     return _json({'ok': true, 'receivedAt': DateTime.now().toUtc().toIso8601String()});
+  }
+
+  /// Zapowiedź pliku — pytamy użytkownika, zanim przyjmiemy choć bajt.
+  Future<Response> _handleFileOffer(Request request) async {
+    final handler = onFileOffer;
+    if (handler == null) {
+      return _json({'ok': false, 'error': 'files_not_supported'}, status: 404);
+    }
+    final body = await request.read().expand((chunk) => chunk).toList();
+    final json = tryDecodeJsonMap(body);
+    final offer = json == null ? null : FileOffer.fromJson(json);
+    if (offer == null) {
+      return _json({'ok': false, 'error': 'bad_request'}, status: 400);
+    }
+    if (offer.from.guid == identity().guid) {
+      return _json({'ok': false, 'error': 'self'}, status: 400);
+    }
+    final connection =
+        request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
+    final reply =
+        await handler(offer, connection?.remoteAddress.address ?? '');
+    return _json(
+      {'ok': true, ...reply.toJson()},
+      // 403 = świadoma odmowa użytkownika; nadawca nie ponawia jej sam z siebie.
+      status: reply.accepted ? 200 : 403,
+    );
   }
 
   Future<Response> _handleFile(Request request) async {
@@ -104,10 +146,29 @@ class ChattServer {
     if (meta == null) {
       return _json({'ok': false, 'error': 'bad_request'}, status: 400);
     }
+    // Pętla na siebie samego (źle skonfigurowany tunel/przekierowanie portu)
+    // nie może skończyć się rozmową z samym sobą.
+    if (meta.from.guid == identity().guid) {
+      return _json({'ok': false, 'error': 'self'}, status: 400);
+    }
     final connection =
         request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
-    await handler(meta, request.read(), connection?.remoteAddress.address ?? '');
-    return _json({'ok': true, 'receivedAt': DateTime.now().toUtc().toIso8601String()});
+    final result =
+        await handler(meta, request.read(), connection?.remoteAddress.address ?? '');
+    if (result == FileReceiveResult.ok) {
+      return _json(
+          {'ok': true, 'receivedAt': DateTime.now().toUtc().toIso8601String()});
+    }
+    return _json(
+      {'ok': false, 'error': result.name},
+      status: switch (result) {
+        FileReceiveResult.ok => 200,
+        FileReceiveResult.rejected => 403,
+        FileReceiveResult.offsetMismatch => 409,
+        FileReceiveResult.incomplete => 409,
+        FileReceiveResult.checksumMismatch => 422,
+      },
+    );
   }
 
   static Response _json(Map<String, Object?> body, {int status = 200}) =>
