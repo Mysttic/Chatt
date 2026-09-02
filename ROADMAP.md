@@ -107,6 +107,7 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 - [x] `docs/architektura.md` — protokół, schemat bazy z migracjami, model zagrożeń i to, co w nim zostaje otwarte, nasłuch w tle na Androidzie
 - [x] README jako wizytówka: zrzuty, szybki start, tabela „który dokument do czego"
 - [x] Zrzuty produktu generowane skryptem (`app/tool/product_shots.dart`), żeby dało się je odświeżyć po zmianie UI zamiast klikać ręcznie
+- [x] CI/CD na GitHubie: `testy.yml` (analiza i cały zestaw testów przy pchnięciu na `develop`, na gałęzie robocze i przy każdym PR) oraz `wydanie.yml` (scalenie do `master` buduje Windows i podpisany APK, zakłada tag `v<wersja>` z `pubspec.yaml` i wystawia Release). Powtórne scalenie bez podbicia wersji nic nie wydaje, bo tag już istnieje. Brak sekretów z kluczem przerywa wydanie zamiast wypuścić APK podpisany kluczem debug
 - [x] Podpisywanie buildu release własnym kluczem (RSA 4096, alias `chatt`): keystore poza repozytorium, hasła w gitignorowanym `android/key.properties`, a przy ich braku build nadal przechodzi kluczem debug z ostrzeżeniem. Sprawdzone: `apksigner verify` pokazuje `CN=Chatt, O=Mysttic, C=PL` i „Verifies" (schemat v2, bo `minSdk` to 24), podpisany APK instaluje się i działa na emulatorze
 
 ## 4. Podział pracy

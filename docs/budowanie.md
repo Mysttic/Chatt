@@ -141,16 +141,106 @@ numer builda (`versionCode`), który przy każdym wydaniu na Androida musi
 rosnąć. Flutter przepisuje obie wartości do projektów natywnych, więc nie
 trzeba nic zmieniać w Gradle ani w plikach Windows.
 
+## Gałęzie i automatyzacja na GitHubie
+
+Repozytorium: [github.com/Mysttic/Chatt](https://github.com/Mysttic/Chatt).
+
+```
+feature/coś ──┐
+              ├─→ develop ──(pull request)──→ master ──→ wydanie
+claude/coś ───┘        ▲                          │
+                       └── testy przy każdym      └── build Windows + APK,
+                           pchnięciu i przy PR         tag i Release
+```
+
+- **`develop`** — tu trafia bieżąca praca. Każde pchnięcie uruchamia
+  [`.github/workflows/testy.yml`](../.github/workflows/testy.yml): `flutter
+  analyze` i cały zestaw testów. Wynik jest więc znany, zanim otworzysz PR.
+- **Pull request `develop` → `master`** — te same testy odpalają się jeszcze
+  raz na scalonym wyniku.
+- **Scalenie do `master`** uruchamia
+  [`.github/workflows/wydanie.yml`](../.github/workflows/wydanie.yml): build
+  Windows i podpisanego APK, tag i Release na GitHubie.
+
+### Skąd bierze się numer wydania
+
+Z `app/pubspec.yaml`. Workflow czyta linię `version:`, obcina część po `+`
+i szuka taga `v<wersja>`:
+
+- **taga nie ma** → buduje, tworzy tag i Release z dwoma plikami:
+  `chatt-<wersja>-android.apk` i `chatt-<wersja>-windows.zip`;
+- **tag już jest** → kończy bieg bez robienia niczego.
+
+W praktyce: żeby wydać wersję, podbijasz `version:` w `pubspec.yaml` na
+`develop` i scalasz PR do `master`. Scalenie bez podbicia wersji niczego nie
+wyda i nie jest błędem — tak wygląda zwykła poprawka do dokumentacji.
+
+### Sekrety do podpisania APK
+
+Workflow wydania **przerywa się z błędem**, jeśli ich nie ma — inaczej
+wypuściłby APK podpisany kluczem debug, bo taka jest awaryjna ścieżka
+w `build.gradle.kts`. Cztery sekrety w *Settings → Secrets and variables →
+Actions*:
+
+| Sekret | Wartość |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | keystore zakodowany base64 (polecenie niżej) |
+| `ANDROID_KEYSTORE_PASSWORD` | `storePassword` z `app/android/key.properties` |
+| `ANDROID_KEY_ALIAS` | `chatt` |
+| `ANDROID_KEY_PASSWORD` | `keyPassword` z `key.properties` (u nas to samo hasło) |
+
+Keystore do base64 (PowerShell, wynik ląduje w schowku):
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("$env:USERPROFILE\keys\chatt-release.jks")) | Set-Clipboard
+```
+
+Hasła są w `app/android/key.properties` — plik jest w `.gitignore`, więc nie
+ma go w repozytorium ani w historii.
+
+Po każdym buildzie workflow sprawdza `apksigner verify --print-certs`
+i kasuje klucz z maszyny, także gdy build się wywrócił.
+
+### Wymuszenie testów przed scaleniem
+
+Same workflow nie blokują scalenia — trzeba to włączyć w ustawieniach
+repozytorium: *Settings → Branches → Add branch ruleset* dla `master`,
+z **Require status checks to pass** i checkiem `analyze i flutter test`.
+Warto dołożyć to samo dla `develop`.
+
+### Pierwsze uruchomienie
+
+Gałęzi `develop` jeszcze nie ma. Z gałęzi, na której są zmiany:
+
+```
+git checkout -b develop
+git push -u origin develop
+```
+
+Potem PR `develop` → `master` przez GitHuba. Pierwsze scalenie wyda `v0.1.0`,
+bo taki numer stoi w `pubspec.yaml` i nie ma jeszcze takiego taga.
+
+### Wersja Fluttera w CI
+
+Oba workflow mają przypiętą wersję `3.47.2` — tę samą, na której stoi projekt
+lokalnie. Przypadkowa aktualizacja Fluttera nie ma prawa wywrócić buildu.
+Przy podbiciu SDK trzeba zmienić ją w obu plikach w `.github/workflows/`.
+
 ## Wydanie wersji: lista kroków
 
-1. Podbij `version:` w `app/pubspec.yaml`.
-2. `flutter analyze` — bez uwag.
-3. `flutter test` — wszystko zielone (patrz [testy.md](testy.md)).
-4. Zbuduj Windows i Androida (polecenia wyżej).
-5. Zainstaluj APK na telefonie i przejdź [krótką listę kontrolną](#lista-kontrolna-po-wydaniu).
-6. Odśwież zrzuty do dokumentacji, jeśli zmienił się UI:
+Buildem i tagiem zajmuje się CI, po twojej stronie zostaje reszta:
+
+1. Podbij `version:` w `app/pubspec.yaml` na gałęzi `develop`.
+2. Odśwież zrzuty do dokumentacji, jeśli zmienił się UI:
    `flutter test tool/product_shots.dart` (wymaga uruchomionego emulatora).
-7. Commit z podbitą wersją i tag `v0.1.0`.
+3. Otwórz PR `develop` → `master` i poczekaj, aż testy zaświecą się na zielono.
+4. Scal PR. Workflow wydania zbuduje Windows i podpisany APK, założy tag
+   `v<wersja>` i wystawi Release z oboma plikami.
+5. Pobierz APK z Release, zainstaluj na telefonie i przejdź
+   [krótką listę kontrolną](#lista-kontrolna-po-wydaniu).
+
+Polecenia buildu wyżej zostają do pracy lokalnej i do sprawdzenia czegoś przed
+wysłaniem na GitHuba.
 
 ### Lista kontrolna po wydaniu
 

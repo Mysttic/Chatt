@@ -49,7 +49,7 @@ Szczegóły: [instrukcja obsługi](docs/instrukcja.md) ·
 | Dokument | Dla kogo |
 |---|---|
 | [docs/instrukcja.md](docs/instrukcja.md) | użytkownik: parowanie, pliki, nasłuch w tle, rozwiązywanie problemów |
-| [docs/budowanie.md](docs/budowanie.md) | build Windows i Androida, numer wersji, lista kroków przy wydaniu |
+| [docs/budowanie.md](docs/budowanie.md) | build Windows i Androida, podpisywanie, gałęzie i wydania na GitHubie |
 | [docs/testy.md](docs/testy.md) | co jest testowane, jak to uruchomić, czego testy nie łapią |
 | [docs/architektura.md](docs/architektura.md) | protokół, baza, model zagrożeń, nasłuch w tle na Androidzie |
 | [ROADMAP.md](ROADMAP.md) | plan prac i stan projektu |
