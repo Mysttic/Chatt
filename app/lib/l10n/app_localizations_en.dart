@@ -235,6 +235,38 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get qrShowTitle => 'Show QR code';
+
+  @override
+  String get qrShowBody =>
+      'Scan this code with the other device. The code holds no secret — what counts is that the other device saw it on this screen.';
+
+  @override
+  String get qrOtherAddress => 'Another address';
+
+  @override
+  String get qrScanTitle => 'Scan QR code';
+
+  @override
+  String get qrScanHint => 'Point at the code shown on the other device';
+
+  @override
+  String get qrScanFailed =>
+      'No device with that key answers at the address from the code. It may be out of date — show it again.';
+
+  @override
+  String pairScannedTitle(Object name) {
+    return '$name scanned the code from this screen';
+  }
+
+  @override
+  String get pairScannedBody =>
+      'Confirm only if it was you scanning just now. Someone else could have seen the code on screen, and the app cannot tell the difference.';
+
+  @override
+  String get pairScannedConfirm => 'That was me';
+
+  @override
   String get pairCompareHint =>
       'Check that the other device shows the same code:';
 

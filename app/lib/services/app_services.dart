@@ -16,6 +16,7 @@ import '../core/crypto.dart';
 import '../core/env.dart';
 import '../core/file_actions.dart';
 import '../core/identity.dart';
+import '../core/pair_link.dart';
 import '../data/db.dart';
 import '../network/client.dart';
 import '../network/discovery.dart';
@@ -69,8 +70,14 @@ class PendingPairing {
   final String peerName;
 
   /// Kod do porównania. Ten sam po obu stronach, o ile nikt nie siedzi
-  /// w środku rozmowy.
+  /// w środku rozmowy. Przy [fromScan] jest to odcisk klucza tego, kto
+  /// zeskanował — do porównania z jego ekranem, gdyby ktoś chciał sprawdzić.
   final String code;
+
+  /// Druga strona zeskanowała nasz kod QR i prosi o potwierdzenie z tej
+  /// strony. Karta wygląda wtedy inaczej: nie ma czego porównywać, jest
+  /// pytanie „czy to ty właśnie skanowałeś".
+  final bool fromScan;
 
   /// To urządzenie jest już potwierdzone, więc zgoda **odnowi** to
   /// potwierdzenie.
@@ -85,6 +92,7 @@ class PendingPairing {
     required this.peerName,
     required this.code,
     this.alreadyPaired = false,
+    this.fromScan = false,
   });
 }
 
@@ -520,6 +528,16 @@ class AppServices {
   /// a druga nie i cały ruch by się odbijał.
   Future<PairOutcome> confirmPairing(String peerGuid) async {
     final peer = await db.peerByGuid(peerGuid);
+    final oczekujace =
+        pendingPairings.value.where((p) => p.peerGuid == peerGuid);
+    // Potwierdzenie po zeskanowaniu: druga strona jest już pewna swojego
+    // (widziała nasz ekran), więc tu wystarczy nasza zgoda.
+    if (peer != null && oczekujace.isNotEmpty && oczekujace.first.fromScan) {
+      await db.setPeerVerified(peer.id, true);
+      _removePendingPairing(peerGuid);
+      return PairOutcome.accepted;
+    }
+
     final pairing = _pairings[peerGuid];
     if (peer == null || pairing == null) return PairOutcome.unreachable;
     if (pairing.expired) {
@@ -564,6 +582,20 @@ class AppServices {
     );
 
     switch (message.action) {
+      case pairScanned:
+        // Ktoś twierdzi, że zeskanował nasz kod. Sam fakt niczego nie
+        // dowodzi (kod z ekranu jest jawny), więc pytamy użytkownika —
+        // to on wie, czy właśnie patrzył, jak jego telefon skanuje.
+        if (!_identityMatchesKey(message.from)) {
+          return const PairReply(PairOutcome.rejected);
+        }
+        _showPairing(
+          peer,
+          ChattCrypto.fingerprint(message.from.publicKey),
+          fromScan: true,
+        );
+        return const PairReply(PairOutcome.accepted);
+
       case pairCommit:
         // Zobowiązanie inicjatora. Losujemy własną parę kluczy i odsyłamy
         // klucz publiczny; swojego klucza inicjator jeszcze nie pokazał,
@@ -642,7 +674,7 @@ class AppServices {
     _dropPairing(peer.guid);
   }
 
-  void _showPairing(Peer peer, String code) {
+  void _showPairing(Peer peer, String code, {bool fromScan = false}) {
     pendingPairings.value = [
       ...pendingPairings.value.where((p) => p.peerGuid != peer.guid),
       PendingPairing(
@@ -650,8 +682,47 @@ class AppServices {
         peerName: peer.name,
         code: code,
         alreadyPaired: peer.verified,
+        fromScan: fromScan,
       ),
     ];
+  }
+
+  /// Zeskanowano kod QR drugiego urządzenia.
+  ///
+  /// Skanujący widział jego ekran, więc **z jego strony** sprawa jest
+  /// zamknięta: klucz na pewno pochodzi od tamtego urządzenia i tarcza robi
+  /// się zielona od razu. Drugiej stronie wysyłamy tylko powiadomienie —
+  /// tam potwierdza człowiek, bo kod z ekranu mógł zobaczyć ktoś jeszcze.
+  ///
+  /// Zwraca rozmówcę albo null, gdy pod adresem z kodu nikt nie odpowiada
+  /// albo odpowiada ktoś z innym kluczem.
+  Future<Peer?> pairByScan(PairLink link) async {
+    if (link.guid == identity.guid) return null; // własny kod
+
+    final info = await client.fetchInfo(link.host, link.port);
+    if (info == null || !_identityMatchesKey(info) || info.guid != link.guid) {
+      // Pod tym adresem nie ma urządzenia z tym kluczem — kod jest stary
+      // (zmienił się adres) albo ktoś podstawił swój ekran.
+      return null;
+    }
+
+    final peer = await db.upsertPeer(
+      guid: link.guid,
+      name: info.name,
+      welcomeMessage: info.welcomeMessage,
+      host: link.host,
+      port: link.port,
+    );
+    await db.setPeerKey(peer.id, base64.encode(link.publicKey));
+    await db.setPeerVerified(peer.id, true);
+    _dropPairing(peer.guid);
+
+    await client.pair(
+      host: link.host,
+      port: link.port,
+      payload: PairMessage(action: pairScanned, from: identity).toJson(),
+    );
+    return db.peerByGuid(link.guid);
   }
 
   void _dropPairing(String peerGuid) {

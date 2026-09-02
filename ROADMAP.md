@@ -176,17 +176,28 @@ wyprowadzanie klucza pliku z kluczy statycznych, ale wtedy kradzież tożsamośc
 odszyfrowuje wszystkie nagrane wcześniej pliki — czyli dokładnie to, przed czym
 to wydanie ma chronić.
 
-### Faza 9 — Weryfikacja bez przepisywania
-- [ ] Ekran **odcisku klucza**: własny i rozmówcy, do porównania w dowolnym
-      momencie, a nie tylko w oknie parowania
-- [ ] **Parowanie kodem QR**: komputer pokazuje kod z kluczem publicznym
-      i adresem, telefon skanuje. Mocniejsze od sześciu cyfr (napastnik nie ma
-      szansy jednej na milion, tylko zero) i szybsze. Nowe zależności:
-      renderowanie i skanowanie kodu, plus uprawnienie do aparatu
-- [ ] Porównanie kodu zostaje jako droga awaryjna tam, gdzie nie ma aparatu
-      (komputer z komputerem)
-- [ ] ~~Ostrzeżenie przy zmianie klucza~~ — niepotrzebne, patrz uwaga
+### Faza 9 — Weryfikacja bez przepisywania ✅ (02.09.2026)
+- [x] **Panel bezpieczeństwa** pod tarczą: stan szyfrowania opisany słowami
+      plus odciski obu kluczy, własnego i rozmówcy. Otwiera się także po
+      potwierdzeniu tożsamości, bo odcisk ma dać się sprawdzić w dowolnym
+      momencie, a nie tylko raz (`docs/screenshots/android/and17_panel_bezpieczenstwa.png`)
+- [x] Własny odcisk również w ustawieniach — to jego dyktuje się przez telefon
+- [x] **Potwierdzanie kodem QR**: urządzenie pokazuje kod z kluczem publicznym
+      i adresem (`chatt://pair?...`), drugie skanuje. Skanujący ma pewność od
+      razu, bo widział tamten ekran; skanowany dostaje pytanie „czy to Ty
+      właśnie skanowałeś", bo kod z ekranu mógł zobaczyć ktoś jeszcze
+      (`and18_kod_qr.png`, `and19_potwierdzenie_skanu.png`)
+- [x] Kod z cudzym kluczem pod czyimś adresem odpada: przed przypięciem
+      sprawdzamy w `GET /info`, czy pod tym adresem naprawdę stoi urządzenie
+      z tym kluczem
+- [x] Porównanie sześciu cyfr zostaje jako droga awaryjna tam, gdzie nie ma
+      aparatu (komputer z komputerem)
+- [x] ~~Ostrzeżenie przy zmianie klucza~~ — niepotrzebne, patrz uwaga
       w fazie 8
+
+Nowe zależności: `qr_flutter` (rysowanie kodu) i `mobile_scanner` (aparat,
+uprawnienie `CAMERA` dokłada sama wtyczka). Build Windows przechodzi bez
+zmian — przycisk skanowania pokazuje się tylko tam, gdzie jest aparat.
 
 ### Faza 10 — Dane w spoczynku
 - [ ] Baza szyfrowana (SQLCipher), klucz w Android Keystore i Windows DPAPI

@@ -452,6 +452,12 @@ class FileOfferReply {
 // czego łamać offline (poprzedni schemat, z kodem jako solą HKDF, na to
 // pozwalał).
 
+/// „Zeskanowałem twój kod QR". Nie daje sama z siebie zielonej tarczy —
+/// drugie urządzenie pyta jeszcze swojego użytkownika, bo kod z ekranu mógł
+/// zobaczyć ktoś jeszcze. Człowiek potwierdza to, czego maszyna nie wie:
+/// że skanowanie właśnie się odbyło i to on je zrobił.
+const String pairScanned = 'scanned';
+
 const String pairCommit = 'commit';
 const String pairReveal = 'reveal';
 const String pairConfirm = 'confirm';
@@ -538,7 +544,13 @@ class PairMessage {
         'publicKey': publicKey,
       };
 
-  static const _actions = {pairCommit, pairReveal, pairConfirm, pairCancel};
+  static const _actions = {
+    pairCommit,
+    pairReveal,
+    pairConfirm,
+    pairCancel,
+    pairScanned,
+  };
 
   static PairMessage? fromJson(Map<String, Object?> json) {
     final action = json['action'];

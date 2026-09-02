@@ -476,6 +476,60 @@ abstract class AppLocalizations {
   /// **'{name} chce się sparować'**
   String pairRequest(Object name);
 
+  /// No description provided for @qrShowTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż kod QR'**
+  String get qrShowTitle;
+
+  /// No description provided for @qrShowBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego — liczy się to, że drugie urządzenie widziało go na tym ekranie.'**
+  String get qrShowBody;
+
+  /// No description provided for @qrOtherAddress.
+  ///
+  /// In pl, this message translates to:
+  /// **'Inny adres'**
+  String get qrOtherAddress;
+
+  /// No description provided for @qrScanTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zeskanuj kod QR'**
+  String get qrScanTitle;
+
+  /// No description provided for @qrScanHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyceluj w kod pokazany na drugim urządzeniu'**
+  String get qrScanHint;
+
+  /// No description provided for @qrScanFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny — pokaż go jeszcze raz.'**
+  String get qrScanFailed;
+
+  /// No description provided for @pairScannedTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} zeskanował kod z tego ekranu'**
+  String pairScannedTitle(Object name);
+
+  /// No description provided for @pairScannedBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Potwierdź tylko wtedy, gdy to Ty właśnie skanowałeś. Kod z ekranu mógł zobaczyć ktoś jeszcze, a aplikacja nie ma jak tego rozstrzygnąć.'**
+  String get pairScannedBody;
+
+  /// No description provided for @pairScannedConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'To ja skanowałem'**
+  String get pairScannedConfirm;
+
   /// No description provided for @pairCompareHint.
   ///
   /// In pl, this message translates to:

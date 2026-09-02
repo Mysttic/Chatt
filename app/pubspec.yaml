@@ -18,8 +18,10 @@ dependencies:
     sdk: flutter
   flutter_riverpod: ^2.6.1
   http: ^1.6.0
+  mobile_scanner: ^7.4.0
   path: ^1.9.1
   path_provider: ^2.1.6
+  qr_flutter: ^4.1.0
   shelf: ^1.4.2
   shelf_router: ^1.1.4
   uuid: ^4.6.0

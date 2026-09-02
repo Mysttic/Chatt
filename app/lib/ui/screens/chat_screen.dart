@@ -12,6 +12,7 @@ import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
 import '../widgets/security_sheet.dart';
+import 'scan_screen.dart';
 
 /// Ekran rozmowy (odpowiednik Conversation.PNG): dymki, statusy dostarczenia,
 /// ponawianie nieudanych wysyłek.
@@ -65,6 +66,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+
+  /// Skanowanie kodu z drugiego urządzenia. Po udanym skanie tożsamość jest
+  /// potwierdzona po tej stronie od razu — widzieliśmy tamten ekran.
+  Future<void> _scanQr() async {
+    final peer = await Navigator.of(context).push<Peer>(
+      MaterialPageRoute(builder: (_) => const ScanScreen()),
+    );
+    if (!mounted || peer == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.pairedWith(peer.name))),
+    );
+  }
 
   Future<void> _attachFile() async {
     final file = await openFile();
@@ -156,6 +169,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 context,
                 peer: peer,
                 onPair: _startPairing,
+                onScan: _scanQr,
               ),
             );
           }),

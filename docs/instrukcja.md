@@ -74,27 +74,42 @@ dostaje pytanie**, czy chce ten plik przyjąć — dopiero po zgodzie lecą bajt
 Odebrane pliki lądują w katalogu aplikacji. Kliknięcie w dymek otwiera plik,
 a przytrzymanie daje „Pokaż folder", „Udostępnij" i „Kopiuj ścieżkę".
 
-## Parowanie i szyfrowanie
+## Szyfrowanie i potwierdzanie tożsamości
 
-Dopóki urządzenia nie są sparowane, rozmawiają jawnym tekstem, a nazwa
-urządzenia jest tylko napisem — każdy może sobie ustawić dowolny. Dlatego
-prośba o plik od niesparowanego urządzenia wyświetla ostrzeżenie.
+**Rozmowa jest szyfrowana od pierwszej wiadomości**, także z urządzeniem,
+którego jeszcze nie potwierdziłeś. Potwierdzenie odpowiada na inne pytanie:
+nie „czy ktoś to przeczyta" (nie przeczyta), tylko „czy po drugiej stronie
+jest ta osoba, o której myślę".
 
-Tarcza w nagłówku rozmowy zaczyna parowanie. **Oba urządzenia pokazują wtedy
-ten sam sześciocyfrowy kod.** Porównaj je wzrokiem i kliknij „Zgadza się" na
-obu.
+Tarcza w nagłówku rozmowy otwiera panel bezpieczeństwa: stan szyfrowania
+i odciski obu kluczy. Odcisk wynika z klucza urządzenia i nigdy się nie
+zmienia, więc możesz go odczytać na głos i sprawdzić na drugim ekranie
+w dowolnym momencie.
+
+Do potwierdzenia tożsamości są dwie drogi:
+
+- **Kod QR** (szybsza i pewniejsza). Jedno urządzenie pokazuje kod, drugie go
+  skanuje. Skanujący ma pewność od razu, bo widział tamten ekran. Urządzenie,
+  które kod pokazywało, zapyta jeszcze „czy to Ty właśnie skanowałeś" —
+  potwierdź tylko wtedy, gdy faktycznie Ty.
+- **Porównanie kodu** (gdy nie ma aparatu, np. komputer z komputerem). **Oba
+  urządzenia pokazują ten sam sześciocyfrowy kod.** Porównaj je wzrokiem
+  i kliknij „Zgadza się" na obu.
 
 ![Kod do porównania](screenshots/android/and16_kod_do_porownania.png)
 
 - Kod nie jest hasłem i nie idzie przez sieć: wychodzi z uzgodnienia kluczy,
-  które robią między sobą oba urządzenia.
+  które robią między sobą oba urządzenia. W kodzie QR też nie ma nic tajnego —
+  liczy się to, że drugie urządzenie zobaczyło go na Twoim ekranie.
 - Jeśli kody się **różnią**, ktoś siedzi w środku połączenia. Kliknij „Nie
   zgadza się" i sprawdź sieć.
-- Po sparowaniu tarcza robi się zielona, a cały ruch (wiadomości, zapowiedzi
-  plików i treść plików) jest szyfrowany. Od sparowanego urządzenia aplikacja
-  **nie przyjmie już ruchu jawnego**, więc zielona tarcza czegoś dowodzi.
-- Prośba o ponowne sparowanie znanego już urządzenia jest wyraźnie oznaczona
-  na czerwono, bo zgoda podmieniłaby klucz.
+- Po potwierdzeniu tarcza robi się zielona. Szyfrowanie działało już wcześniej
+  — zmienia się to, że od teraz wiadomo, do kogo należy klucz po drugiej
+  stronie.
+- Nazwa urządzenia to tylko napis, który każdy może sobie ustawić dowolnie.
+  Dlatego prośba o plik od urządzenia bez potwierdzonej tożsamości wyświetla
+  ostrzeżenie, a prośba o ponowne potwierdzenie znanego już urządzenia jest
+  oznaczona na czerwono.
 
 ## Nasłuch w tle na Androidzie
 

@@ -7,6 +7,7 @@ import '../../core/identity.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import 'pair_qr.dart';
 
 /// Panel „bezpieczeństwo rozmowy": w jakim stanie jest szyfrowanie i czyje
 /// klucze są po obu stronach.
@@ -18,20 +19,24 @@ Future<void> showSecuritySheet(
   BuildContext context, {
   required Peer peer,
   required VoidCallback onPair,
+  required VoidCallback onScan,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (sheet) => _SecuritySheet(peer: peer, onPair: onPair),
+    builder: (sheet) =>
+        _SecuritySheet(peer: peer, onPair: onPair, onScan: onScan),
   );
 }
 
 class _SecuritySheet extends ConsumerWidget {
   final Peer peer;
   final VoidCallback onPair;
+  final VoidCallback onScan;
 
-  const _SecuritySheet({required this.peer, required this.onPair});
+  const _SecuritySheet(
+      {required this.peer, required this.onPair, required this.onScan});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,7 +100,29 @@ class _SecuritySheet extends ConsumerWidget {
                 style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
             if (klucz.isNotEmpty && !peer.verified) ...[
               const SizedBox(height: 20),
-              FilledButton.icon(
+              // Kod QR jest pewniejszy od porównywania sześciu cyfr (napastnik
+              // nie ma szansy jednej na milion, tylko zero), więc idzie
+              // pierwszy. Porównanie kodu zostaje dla par bez aparatu.
+              if (canScanQr)
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    onScan();
+                  },
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: Text(context.l10n.qrScanTitle),
+                ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  showPairQr(context);
+                },
+                icon: const Icon(Icons.qr_code_2),
+                label: Text(context.l10n.qrShowTitle),
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
                   onPair();

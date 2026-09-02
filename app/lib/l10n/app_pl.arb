@@ -104,6 +104,18 @@
   "@pairRequest": {
     "placeholders": { "name": {} }
   },
+  "qrShowTitle": "Pokaż kod QR",
+  "qrShowBody": "Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego — liczy się to, że drugie urządzenie widziało go na tym ekranie.",
+  "qrOtherAddress": "Inny adres",
+  "qrScanTitle": "Zeskanuj kod QR",
+  "qrScanHint": "Wyceluj w kod pokazany na drugim urządzeniu",
+  "qrScanFailed": "Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny — pokaż go jeszcze raz.",
+  "pairScannedTitle": "{name} zeskanował kod z tego ekranu",
+  "@pairScannedTitle": {
+    "placeholders": { "name": {} }
+  },
+  "pairScannedBody": "Potwierdź tylko wtedy, gdy to Ty właśnie skanowałeś. Kod z ekranu mógł zobaczyć ktoś jeszcze, a aplikacja nie ma jak tego rozstrzygnąć.",
+  "pairScannedConfirm": "To ja skanowałem",
   "pairCompareHint": "Sprawdź, czy drugie urządzenie pokazuje ten sam kod:",
   "pairCodesMatch": "Zgadza się",
   "pairCodesDiffer": "Nie zgadza się",

@@ -1,6 +1,6 @@
 # Testy
 
-Podział jest prosty: **42 testy `flutter test`** sprawdzają wszystko, co da się
+Podział jest prosty: **47 testów `flutter test`** sprawdzają wszystko, co da się
 sprawdzić bez sprzętu, a osobne scenariusze w `app/tool/` sterują żywą
 aplikacją na urządzeniu. Rzeczy, których nie sprawdzi ani jedno, ani drugie,
 są wypisane na końcu.
@@ -75,13 +75,21 @@ transferu).
 - nadawca wznawia po zerwaniu sieci: druga próba dosyła tylko resztę
 - uszkodzone metadane → 400, serwer żyje dalej
 
-### Parowanie (`test/pairing_test.dart`, 6 testów)
+### Kod QR (`test/pair_link_test.dart`, 3 testy)
+- kod obchodzi całą drogę tam i z powrotem
+- śmieci i cudze kody odpadają (aparat widzi mnóstwo kodów nie naszych)
+- base64url bez wyrównania też się czyta
+
+### Parowanie (`test/pairing_test.dart`, 8 testów)
 - obie strony widzą **ten sam** kod, dopiero zgoda obu weryfikuje
 - „nie zgadza się" po jednej stronie zrywa parowanie po obu
 - klucz niezgodny ze zobowiązaniem jest odrzucany (tak wyglądałby napastnik
   dobierający klucze pod kod)
 - ponowne potwierdzanie znanego urządzenia jest wyraźnie oznaczone
 - pierwsze potwierdzenie nie straszy ostrzeżeniem
+- zeskanowanie kodu potwierdza od razu u skanującego, a drugiej stronie
+  stawia pytanie „czy to Ty skanowałeś"
+- kod z cudzym kluczem pod czyimś adresem jest odrzucany
 - parowanie z niedostępnym urządzeniem zwraca null
 
 ### Tożsamość i sesje (`test/identity_crypto_test.dart`, 8 testów)

@@ -172,6 +172,28 @@ Tarcza robi się zielona dopiero, gdy potwierdzą **oba** końce. Zgodny kod
 dowodzi przy okazji, że po drugiej stronie siedzi właściciel klucza prywatnego
 od tej tożsamości — klucze statyczne wchodzą do wyprowadzenia kodu.
 
+### Kod QR
+
+Szybsza i pewniejsza droga do tego samego. Urządzenie pokazuje
+`chatt://pair?k=<klucz>&h=<adres>&p=<port>&n=<nazwa>`, drugie skanuje.
+
+W kodzie nie ma nic tajnego. Wartość bierze się z **kanału**: kto go
+zeskanował, ten patrzył na tamten ekran, więc wie, że klucz pochodzi stąd,
+a nie od kogoś po drodze. Napastnik nie ma tu szansy jednej na milion, jak
+przy sześciu cyfrach — ma zero, bo nie ma jak podstawić swojego klucza.
+
+Asymetria jest tu nieunikniona i dlatego jest widoczna w UI:
+
+- **skanujący** ma pewność od razu i jego tarcza robi się zielona,
+- **skanowany** dostaje tylko powiadomienie (`pairScanned`) i pyta swojego
+  użytkownika „czy to Ty właśnie skanowałeś", bo kod z ekranu mógł zobaczyć
+  ktoś jeszcze. Człowiek potwierdza to, czego maszyna nie wie: że skanowanie
+  właśnie się odbyło i to on je zrobił.
+
+Przed przypięciem klucza z kodu sprawdzamy jeszcze w `GET /info`, czy pod
+adresem z kodu naprawdę stoi urządzenie z tym kluczem — inaczej dałoby się
+podsunąć kod ze swoim kluczem, a cudzym adresem.
+
 Po co zobowiązanie: bez niego napastnik w środku (osobne uzgodnienie z każdą
 stroną) mógłby losować własne klucze aż do zrównania obu kodów. Skrót wysłany
 przed poznaniem klucza drugiej strony to uniemożliwia — zostaje mu jedno
