@@ -29,16 +29,18 @@ w [`docs/makiety/`](docs/makiety/). Plan prac i stan projektu:
   sprawdzana jest suma kontrolna. Odebrane pliki lądują w katalogu dokumentów
   aplikacji i otwierają się kliknięciem w dymek (przytrzymanie: pokaż folder,
   kopiuj ścieżkę).
-- **Parowanie i szyfrowanie**: w rozmowie jest tarcza. Kliknięcie losuje
-  sześciocyfrowy kod i pokazuje go na ekranie; przepisujesz go na drugim
-  urządzeniu. Sam kod nie idzie przez sieć — obie strony uzgadniają klucz
-  (X25519 + HKDF z kodem jako solą), a przez sieć leci tylko skrót
-  potwierdzający jego znajomość. Od tej pory wiadomości i zapowiedzi plików
-  jadą w kopercie AES-GCM, a treść plików strumieniem AES-CTR (żeby wznawianie
+- **Parowanie i szyfrowanie**: w rozmowie jest tarcza. Po kliknięciu oba
+  urządzenia pokazują ten sam sześciocyfrowy kod — porównujesz je wzrokiem
+  i klikasz „Zgadza się" na obu. Kod nie jest hasłem i nie idzie przez sieć:
+  wychodzi z uzgodnienia X25519, a inicjator wysyła najpierw skrót swojego
+  klucza publicznego, więc nikt w środku nie dobierze kluczy tak, żeby oba
+  kody wyszły takie same. Od tej pory wiadomości i zapowiedzi plików jadą
+  w kopercie AES-GCM, a treść plików strumieniem AES-CTR (żeby wznawianie
   dalej działało); integralności pilnuje suma sha256 z zaszyfrowanej
   zapowiedzi. Od sparowanego urządzenia przyjmowany jest **wyłącznie** ruch
-  zaszyfrowany, więc zielona tarcza nie obiecuje niczego na wyrost.
-  Z niesparowanymi rozmawiamy dalej jawnym tekstem — dlatego prośba o plik od
+  zaszyfrowany, a jego odpowiedzi w skanie sieci muszą być podpisane kluczem
+  sesji — zielona tarcza nie obiecuje więc niczego na wyrost.
+  Z niesparowanymi rozmawiamy dalej jawnym tekstem, dlatego prośba o plik od
   takiego urządzenia ostrzega, że jego nazwę każdy może sobie ustawić dowolnie.
 - **Baza**: SQLite (drift) — rozmówcy, konwersacje, wiadomości ze statusami
   dostarczenia i licznikiem nieprzeczytanych.

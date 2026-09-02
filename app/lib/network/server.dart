@@ -24,7 +24,7 @@ class ChattServer {
 
   /// Wołane dla POST /pair. Wynik trafia do odpowiedzi, żeby druga strona
   /// wiedziała, czy kod był zły, czy po prostu minął czas.
-  final Future<PairOutcome> Function(PairMessage message, String fromHost)?
+  final Future<PairReply> Function(PairMessage message, String fromHost)?
       onPair;
 
   /// Rozpakowanie koperty od sparowanego urządzenia. null = nie mamy klucza
@@ -159,11 +159,11 @@ class ChattServer {
     }
     final connection =
         request.context['shelf.io.connection_info'] as HttpConnectionInfo?;
-    final outcome =
+    final reply =
         await handler(message, connection?.remoteAddress.address ?? '');
-    final accepted = outcome == PairOutcome.accepted;
+    final accepted = reply.accepted;
     return _json(
-      {'ok': accepted, 'error': accepted ? null : outcome.name},
+      reply.toJson(),
       status: accepted ? 200 : 403,
     );
   }

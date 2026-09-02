@@ -88,11 +88,13 @@ void main() {
   /// Parowanie po podsłuchiwanym łączu. Zwraca rozmówcę Alicji.
   Future<Peer> pair() async {
     final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', wire.port);
-    final pin = await alice.startPairing(bobAsPeer!);
-    expect(pin, isNotNull);
-    expect(podsluch().contains(pin!), isFalse,
-        reason: 'kod parowania nie ma prawa iść przez sieć');
-    expect(await bob.confirmPairing(alice.identity.guid, pin),
+    final code = await alice.startPairing(bobAsPeer!);
+    expect(code, isNotNull);
+    expect(podsluch().contains(code!), isFalse,
+        reason: 'kod do porównania liczy się z sekretu, nie idzie przez sieć');
+    expect(await alice.confirmPairing(bob.identity.guid),
+        PairOutcome.accepted);
+    expect(await bob.confirmPairing(alice.identity.guid),
         PairOutcome.accepted);
 
     // Bartek odpowiada wprost do Alicji, wiec ta zapisuje sobie jego

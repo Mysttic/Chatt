@@ -58,7 +58,7 @@ class PeerClient {
   }
 
   /// Wysyła krok parowania (prośbę albo potwierdzenie kodem).
-  Future<PairOutcome> pair({
+  Future<PairReply> pair({
     required String host,
     required int port,
     required Map<String, Object?> payload,
@@ -72,13 +72,9 @@ class PeerClient {
             body: jsonEncode(payload),
           )
           .timeout(timeout);
-      final json = tryDecodeJsonMap(utf8.encode(response.body));
-      if (json == null) return PairOutcome.unreachable;
-      if (json['ok'] == true) return PairOutcome.accepted;
-      final error = json['error'];
-      return PairOutcome.fromName(error is String ? error : null);
+      return PairReply.fromJson(tryDecodeJsonMap(utf8.encode(response.body)));
     } catch (_) {
-      return PairOutcome.unreachable;
+      return const PairReply(PairOutcome.unreachable);
     }
   }
 

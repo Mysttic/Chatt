@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' show Random;
 
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:cryptography/cryptography.dart' show SimpleKeyPair;
@@ -64,46 +63,58 @@ Future<bool> acceptAllFileOffers(PendingFileOffer offer) async => true;
 /// Odmowa dla wszystkiego — dla testów.
 Future<bool> rejectAllFileOffers(PendingFileOffer offer) async => false;
 
-/// Prośba o sparowanie czekająca na przepisanie kodu z drugiego urządzenia.
+/// Parowanie czekające na to, aż użytkownik porówna kod z drugim ekranem.
 class PendingPairing {
   final String peerGuid;
   final String peerName;
 
+  /// Kod do porównania. Ten sam po obu stronach, o ile nikt nie siedzi
+  /// w środku rozmowy.
+  final String code;
+
   /// To urządzenie jest już sparowane, więc zgoda **podmieni** klucz sesji.
   /// `POST /pair` nie jest niczym uwierzytelniony: prośbę z cudzym guid-em
   /// i cudzą nazwą może przysłać każdy z tej sieci. Kluczem to nie grozi
-  /// (trzeba jeszcze przepisać kod z ekranu tamtego urządzenia), ale
-  /// użytkownik musi zobaczyć, że nie jest to pierwsze parowanie.
+  /// (kody muszą się zgodzić na obu ekranach), ale użytkownik musi zobaczyć,
+  /// że nie jest to pierwsze parowanie.
   final bool alreadyPaired;
 
   const PendingPairing({
     required this.peerGuid,
     required this.peerName,
+    required this.code,
     this.alreadyPaired = false,
   });
 }
 
-/// Kod parowania pokazany na ekranie tego urządzenia: sam kod, para kluczy
-/// do uzgodnienia sekretu i moment wygaśnięcia.
-class _PairingCode {
-  final String pin;
-  final SimpleKeyPair keyPair;
+/// Parowanie w toku. Po stronie odpowiadającej wypełnia się etapami
+/// ([keyPair] i [theirCommitment] przy zobowiązaniu, reszta przy odsłonięciu
+/// klucza); po stronie inicjatora od razu w komplecie.
+class _Pairing {
+  final SimpleKeyPair? keyPair;
+  final List<int>? myPublicKey;
+  final String? theirCommitment;
   final DateTime expiresAt;
 
-  /// Nieudane próby przepisania. Bez limitu sześciocyfrowy kod byłby przez
-  /// całe okno ważności wyrocznią do odpytywania po sieci.
-  int failedAttempts = 0;
+  List<int>? sessionKey;
+  String? code;
 
-  /// Skrót, który już raz przeszedł. Powtórka tego samego (bo odpowiedź
-  /// zginęła po drodze) ma dostać znowu "przyjęte", a nie "zły kod".
-  String? acceptedTag;
+  /// Użytkownik tego urządzenia powiedział, że kody się zgadzają.
+  bool mineConfirmed = false;
 
-  _PairingCode(this.pin, this.keyPair, this.expiresAt);
+  /// To samo powiedziała druga strona (przyszedł [pairConfirm]).
+  bool theirsConfirmed = false;
+
+  _Pairing({
+    required this.expiresAt,
+    this.keyPair,
+    this.myPublicKey,
+    this.theirCommitment,
+    this.sessionKey,
+    this.code,
+  });
 
   bool get expired => DateTime.now().isAfter(expiresAt);
-  bool get burned => failedAttempts >= maxAttempts;
-
-  static const int maxAttempts = 5;
 }
 
 /// Trwający odbiór pliku (po akceptacji) — do paska postępu w czacie.
@@ -191,11 +202,8 @@ class AppServices {
   final ValueNotifier<List<PendingPairing>> pendingPairings =
       ValueNotifier(const []);
 
-  /// Kody parowania, które sami pokazujemy na ekranie: guid rozmówcy -> kod.
-  final Map<String, _PairingCode> _pairingCodes = {};
-
-  /// Klucze publiczne inicjatorów, którzy właśnie proszą nas o sparowanie.
-  final Map<String, List<int>> _pairingOffers = {};
+  /// Parowania w toku: guid rozmówcy -> stan uzgodnienia.
+  final Map<String, _Pairing> _pairings = {};
 
   /// sha256 wysyłanych plików — liczone raz na sesję, żeby ponowienie
   /// dużego transferu nie czytało pliku drugi raz tylko po to.
@@ -255,6 +263,7 @@ class AppServices {
     final responder = DiscoveryResponder(
       identity: () => services.identity,
       onPeerSeen: (peer) => services._rememberPeer(peer),
+      sign: (peerGuid, nonce) => services._signDiscovery(peerGuid, nonce),
     );
 
     services =
@@ -321,11 +330,49 @@ class AppServices {
   /// Skanuje sieć; znalezieni od razu trafiają do bazy (lista "w pobliżu"
   /// i lista konwersacji aktualizują się strumieniami z bazy).
   Future<List<DiscoveredPeer>> scan({void Function(DiscoveredPeer)? onFound}) async {
-    final found = await DiscoveryScanner.scan(identity, onFound: onFound);
+    final found = await DiscoveryScanner.scan(
+      identity,
+      onFound: onFound,
+      accept: _trustDiscovered,
+    );
     for (final peer in found) {
       await _rememberPeer(peer);
     }
     return found;
+  }
+
+  /// Podpis odpowiedzi discovery dla pytającego. null = nie jest z nami
+  /// sparowany, więc nie mamy czym podpisać (i nie ma czego udowadniać).
+  Future<String?> _signDiscovery(String peerGuid, String nonce) async {
+    final peer = await db.peerByGuid(peerGuid);
+    final key = peer == null ? null : await _keyForPeer(peer);
+    if (key == null) return null;
+    return ChattCrypto.discoveryTag(
+      sessionKey: key,
+      guid: identity.guid,
+      tcpPort: identity.tcpPort,
+      nonce: nonce,
+    );
+  }
+
+  /// Czy wierzymy w tę odpowiedź. Od sparowanego urządzenia wymagamy podpisu:
+  /// bez tego ktoś mógłby odpowiedzieć jego guid-em spod swojego adresu
+  /// i przejąć jego miejsce w naszej liście (a stamtąd bierzemy adres, gdy
+  /// rozmówcy zmieni się IP). Nieznajomych przyjmujemy jak dotąd — z nimi nie
+  /// mamy wspólnego sekretu i sama obecność na liście niczego nie obiecuje.
+  Future<bool> _trustDiscovered(
+      DiscoveredPeer found, String? tag, String nonce) async {
+    final peer = await db.peerByGuid(found.guid);
+    final key = peer == null ? null : await _keyForPeer(peer);
+    if (key == null) return true;
+    if (tag == null) return false;
+    final expected = await ChattCrypto.discoveryTag(
+      sessionKey: key,
+      guid: found.guid,
+      tcpPort: found.tcpPort,
+      nonce: nonce,
+    );
+    return ChattCrypto.sameTag(expected, tag);
   }
 
   /// Ręczne dodanie urządzenia po adresie — fallback, gdy broadcast nie
@@ -363,77 +410,96 @@ class AppServices {
         port: peer.tcpPort,
       );
 
-  // --- Parowanie kodem PIN --------------------------------------------------
+  // --- Parowanie przez porównanie kodu -------------------------------------
 
-  /// Zaczyna parowanie: losuje kod, wysyła rozmówcy prośbę i zwraca kod do
-  /// pokazania na ekranie. Użytkownik przepisuje go na drugim urządzeniu.
-  /// null = rozmówca nie odpowiedział (albo odmówił).
+  /// Zaczyna parowanie: wysyłamy zobowiązanie do własnego klucza publicznego,
+  /// dostajemy w odpowiedzi klucz drugiej strony, dopiero wtedy odsłaniamy
+  /// swój. Na koniec obie strony mają ten sam kod do porównania — nasz ląduje
+  /// w [pendingPairings], żeby pokazać go na ekranie.
+  /// Zwraca null, gdy druga strona nie odpowiada albo zerwała rozmowę.
   Future<String?> startPairing(Peer peer) async {
-    final pin = _randomPin();
     final keyPair = await ChattCrypto.newKeyPair();
-    _pairingCodes[peer.guid] = _PairingCode(
-        pin, keyPair, DateTime.now().add(pairingCodeLifetime));
+    final myKey = await ChattCrypto.publicKeyOf(keyPair);
 
-    final outcome = await client.pair(
+    final commit = await client.pair(
       host: peer.host,
       port: peer.port,
       payload: PairMessage(
-        action: pairStart,
+        action: pairCommit,
         from: identity,
-        publicKey: base64.encode(await ChattCrypto.publicKeyOf(keyPair)),
+        commit: ChattCrypto.commitment(myKey),
       ).toJson(),
     );
-    if (outcome != PairOutcome.accepted) {
-      _pairingCodes.remove(peer.guid);
-      return null;
-    }
-    return pin;
-  }
+    final theirKey = _decodeKey(commit.publicKey);
+    if (!commit.accepted || theirKey == null) return null;
 
-  /// Odpowiedź na prośbę z [pendingPairings]: przepisany kod wraca do
-  /// inicjatora. true = kod się zgadzał i obie strony są już zweryfikowane.
-  Future<PairOutcome> confirmPairing(String peerGuid, String pin) async {
-    final peer = await db.peerByGuid(peerGuid);
-    final theirPublicKey = _pairingOffers[peerGuid];
-    if (peer == null || theirPublicKey == null) return PairOutcome.unreachable;
-
-    // Wspólny klucz liczymy z przepisanego kodu: jak się pomylimy, drugiej
-    // stronie nie zgodzi się skrót i parowanie po prostu nie przejdzie.
-    final keyPair = await ChattCrypto.newKeyPair();
-    final myPublicKey = await ChattCrypto.publicKeyOf(keyPair);
-    final sessionKey = await ChattCrypto.sessionKey(
+    final agreed = await ChattCrypto.agree(
       mine: keyPair,
-      theirPublicKey: theirPublicKey,
-      pin: pin.trim(),
-    );
-    final tag = await ChattCrypto.pairingTag(
-      sessionKey: sessionKey,
-      initiatorPublicKey: theirPublicKey,
-      responderPublicKey: myPublicKey,
+      theirPublicKey: theirKey,
+      initiatorPublicKey: myKey,
+      responderPublicKey: theirKey,
     );
 
-    final outcome = await client.pair(
+    final reveal = await client.pair(
       host: peer.host,
       port: peer.port,
       payload: PairMessage(
-        action: pairConfirm,
+        action: pairReveal,
         from: identity,
-        publicKey: base64.encode(myPublicKey),
-        tag: tag,
+        publicKey: base64.encode(myKey),
       ).toJson(),
     );
-    if (outcome == PairOutcome.accepted) {
-      await db.setPeerPaired(peer.id, base64.encode(sessionKey));
-      _pairingOffers.remove(peerGuid);
-      _removePendingPairing(peerGuid);
-    }
-    return outcome;
+    if (!reveal.accepted) return null;
+
+    _pairings[peer.guid] = _Pairing(
+      sessionKey: agreed.sessionKey,
+      code: agreed.code,
+      expiresAt: DateTime.now().add(pairingCodeLifetime),
+    );
+    _showPairing(peer, agreed.code);
+    return agreed.code;
   }
 
-  /// Rezygnacja z parowania po tej stronie, która została poproszona.
-  void cancelPairing(String peerGuid) => _removePendingPairing(peerGuid);
+  /// „Kody się zgadzają" na tym urządzeniu. Klucz zapisujemy dopiero, gdy
+  /// potwierdzą oba końce — inaczej jedna strona uznałaby się za sparowaną,
+  /// a druga nie i cały ruch by się odbijał.
+  Future<PairOutcome> confirmPairing(String peerGuid) async {
+    final peer = await db.peerByGuid(peerGuid);
+    final pairing = _pairings[peerGuid];
+    if (peer == null || pairing == null) return PairOutcome.unreachable;
+    if (pairing.expired) {
+      _dropPairing(peerGuid);
+      return PairOutcome.expired;
+    }
 
-  Future<PairOutcome> _handlePair(PairMessage message, String fromHost) async {
+    pairing.mineConfirmed = true;
+    final reply = await client.pair(
+      host: peer.host,
+      port: peer.port,
+      payload: PairMessage(action: pairConfirm, from: identity).toJson(),
+    );
+    if (!reply.accepted) {
+      _dropPairing(peerGuid);
+      return reply.outcome;
+    }
+    await _finishIfBothConfirmed(peer);
+    return PairOutcome.accepted;
+  }
+
+  /// „Kody się nie zgadzają" albo zwykła rezygnacja. Mówimy o tym drugiej
+  /// stronie, żeby nie została z wiszącą kartą.
+  Future<void> cancelPairing(String peerGuid) async {
+    final peer = await db.peerByGuid(peerGuid);
+    _dropPairing(peerGuid);
+    if (peer == null) return;
+    await client.pair(
+      host: peer.host,
+      port: peer.port,
+      payload: PairMessage(action: pairCancel, from: identity).toJson(),
+    );
+  }
+
+  Future<PairReply> _handlePair(PairMessage message, String fromHost) async {
     final peer = await db.upsertPeer(
       guid: message.from.guid,
       name: message.from.name,
@@ -443,75 +509,96 @@ class AppServices {
     );
 
     switch (message.action) {
-      case pairStart:
-        // Druga strona pokazuje u siebie kod i przysyła swój klucz publiczny;
-        // my prosimy użytkownika, żeby przepisał kod.
+      case pairCommit:
+        // Zobowiązanie inicjatora. Losujemy własną parę kluczy i odsyłamy
+        // klucz publiczny; swojego klucza inicjator jeszcze nie pokazał,
+        // więc nie może go dobrać pod nasz.
+        if (message.commit == null) {
+          return const PairReply(PairOutcome.rejected);
+        }
+        final keyPair = await ChattCrypto.newKeyPair();
+        final myKey = await ChattCrypto.publicKeyOf(keyPair);
+        _pairings[peer.guid] = _Pairing(
+          keyPair: keyPair,
+          myPublicKey: myKey,
+          theirCommitment: message.commit,
+          expiresAt: DateTime.now().add(pairingCodeLifetime),
+        );
+        return PairReply(PairOutcome.accepted, publicKey: base64.encode(myKey));
+
+      case pairReveal:
+        final pairing = _pairings[peer.guid];
         final theirKey = _decodeKey(message.publicKey);
-        if (theirKey == null) return PairOutcome.wrongCode;
-        _pairingOffers[peer.guid] = theirKey;
-        pendingPairings.value = [
-          ...pendingPairings.value.where((p) => p.peerGuid != peer.guid),
-          PendingPairing(
-            peerGuid: peer.guid,
-            peerName: peer.name,
-            alreadyPaired: peer.sessionKey != null,
-          ),
-        ];
-        return PairOutcome.accepted;
+        if (pairing == null || pairing.keyPair == null) {
+          return const PairReply(PairOutcome.expired);
+        }
+        if (pairing.expired) {
+          _dropPairing(peer.guid);
+          return const PairReply(PairOutcome.expired);
+        }
+        // Klucz musi pasować do zobowiązania z pierwszego kroku.
+        if (theirKey == null ||
+            !ChattCrypto.sameTag(pairing.theirCommitment ?? '',
+                ChattCrypto.commitment(theirKey))) {
+          _dropPairing(peer.guid);
+          return const PairReply(PairOutcome.rejected);
+        }
+
+        final agreed = await ChattCrypto.agree(
+          mine: pairing.keyPair!,
+          theirPublicKey: theirKey,
+          initiatorPublicKey: theirKey,
+          responderPublicKey: pairing.myPublicKey!,
+        );
+        pairing.sessionKey = agreed.sessionKey;
+        pairing.code = agreed.code;
+        _showPairing(peer, agreed.code);
+        return const PairReply(PairOutcome.accepted);
 
       case pairConfirm:
-        final code = _pairingCodes[peer.guid];
-        final theirKey = _decodeKey(message.publicKey);
-        if (theirKey == null || message.tag == null) {
-          return PairOutcome.wrongCode;
+        final pairing = _pairings[peer.guid];
+        if (pairing == null || pairing.sessionKey == null) {
+          return const PairReply(PairOutcome.expired);
         }
-        // Brak kodu po naszej stronie = albo już wygasł i został sprzątnięty,
-        // albo nikt tu niczego nie zaczynał.
-        if (code == null) return PairOutcome.expired;
-        if (code.expired || code.burned) {
-          _pairingCodes.remove(peer.guid);
-          return PairOutcome.expired;
+        if (pairing.expired) {
+          _dropPairing(peer.guid);
+          return const PairReply(PairOutcome.expired);
         }
-
-        // Powtórka udanego potwierdzenia (zgubiona odpowiedź): odpowiadamy
-        // tak samo, zamiast zostawiać strony w różnych stanach.
-        final already = code.acceptedTag;
-        if (already != null && ChattCrypto.sameTag(already, message.tag!)) {
-          return PairOutcome.accepted;
-        }
-
-        // Skrót policzony z NASZEGO kodu zgadza się tylko wtedy, gdy druga
-        // strona faktycznie go przepisała.
-        final sessionKey = await ChattCrypto.sessionKey(
-          mine: code.keyPair,
-          theirPublicKey: theirKey,
-          pin: code.pin,
-        );
-        final expected = await ChattCrypto.pairingTag(
-          sessionKey: sessionKey,
-          initiatorPublicKey: await ChattCrypto.publicKeyOf(code.keyPair),
-          responderPublicKey: theirKey,
-        );
-        if (!ChattCrypto.sameTag(expected, message.tag!)) {
-          // Pomyłka przy przepisywaniu nie kasuje próby, ale kilka z rzędu
-          // owszem — inaczej kod dałoby się odgadnąć zdalnie.
-          code.failedAttempts++;
-          if (code.burned) _pairingCodes.remove(peer.guid);
-          return PairOutcome.wrongCode;
-        }
-
-        await db.setPeerPaired(peer.id, base64.encode(sessionKey));
-        // Kod zostaje do wygaśnięcia wyłącznie po to, żeby umieć powtórzyć
-        // tę samą odpowiedź; kolejne próby z innym skrótem i tak odpadną.
-        code.acceptedTag = message.tag;
-        return PairOutcome.accepted;
+        pairing.theirsConfirmed = true;
+        await _finishIfBothConfirmed(peer);
+        return const PairReply(PairOutcome.accepted);
 
       default: // pairCancel
-        _pairingCodes.remove(peer.guid);
-        _pairingOffers.remove(peer.guid);
-        _removePendingPairing(peer.guid);
-        return PairOutcome.accepted;
+        _dropPairing(peer.guid);
+        return const PairReply(PairOutcome.accepted);
     }
+  }
+
+  /// Klucz zapisujemy dopiero, gdy obie strony powiedziały „zgadza się".
+  Future<void> _finishIfBothConfirmed(Peer peer) async {
+    final pairing = _pairings[peer.guid];
+    final key = pairing?.sessionKey;
+    if (pairing == null || key == null) return;
+    if (!pairing.mineConfirmed || !pairing.theirsConfirmed) return;
+    await db.setPeerPaired(peer.id, base64.encode(key));
+    _dropPairing(peer.guid);
+  }
+
+  void _showPairing(Peer peer, String code) {
+    pendingPairings.value = [
+      ...pendingPairings.value.where((p) => p.peerGuid != peer.guid),
+      PendingPairing(
+        peerGuid: peer.guid,
+        peerName: peer.name,
+        code: code,
+        alreadyPaired: peer.sessionKey != null,
+      ),
+    ];
+  }
+
+  void _dropPairing(String peerGuid) {
+    _pairings.remove(peerGuid);
+    _removePendingPairing(peerGuid);
   }
 
   // --- Szyfrowanie ruchu ----------------------------------------------------
@@ -573,11 +660,6 @@ class AppServices {
     pendingPairings.value = pendingPairings.value
         .where((pairing) => pairing.peerGuid != peerGuid)
         .toList(growable: false);
-  }
-
-  static String _randomPin() {
-    final random = Random.secure();
-    return List.generate(6, (_) => random.nextInt(10)).join();
   }
 
   // --- Konwersacje i wiadomości --------------------------------------------
@@ -672,7 +754,9 @@ class AppServices {
   Future<Peer?> _relocate(Peer peer) async {
     final List<DiscoveredPeer> found;
     try {
-      found = await DiscoveryScanner.scan(identity);
+      // Z podpisem: to jest właśnie ta ścieżka, w której podszycie się pod
+      // sparowanego rozmówcę przekierowałoby do napastnika cały nasz ruch.
+      found = await DiscoveryScanner.scan(identity, accept: _trustDiscovered);
     } catch (_) {
       return null; // brak sieci, zablokowany broadcast
     }

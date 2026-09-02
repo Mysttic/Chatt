@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:chatt/data/db.dart';
+import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
 Future<void> eventually(
@@ -69,6 +72,43 @@ void main() {
       final messages = await bob.db.watchMessages(conv).first;
       return messages.any((m) => m.body == 'Znalazłam Cię!');
     }, reason: 'wiadomość po discovery powinna dojść');
+  });
+
+  test('od sparowanego przyjmujemy tylko podpisaną odpowiedź', () async {
+    final alice = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Alicja',
+    );
+    final bob = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Bartek',
+    );
+    addTearDown(() async {
+      await alice.dispose();
+      await bob.dispose();
+    });
+
+    final bobAtAlice = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    expect(await alice.startPairing(bobAtAlice!), isNotNull);
+    expect(await alice.confirmPairing(bob.identity.guid), PairOutcome.accepted);
+    expect(await bob.confirmPairing(alice.identity.guid), PairOutcome.accepted);
+
+    expect((await alice.scan()).map((p) => p.guid), contains(bob.identity.guid),
+        reason: 'sparowany podpisuje odpowiedź kluczem sesji');
+
+    // Podmieniamy u Alicji klucz sesji Bartka. Od tej chwili jego podpis
+    // przestaje pasować — dokładnie tak wygląda ktoś, kto zna sam GUID
+    // i odpowiada spod swojego adresu.
+    await alice.db.setPeerPaired(
+      (await alice.db.peerByGuid(bob.identity.guid))!.id,
+      base64Encode(List<int>.filled(32, 7)),
+    );
+
+    expect((await alice.scan()).map((p) => p.guid),
+        isNot(contains(bob.identity.guid)),
+        reason: 'odpowiedź bez pasującego podpisu wypada z wyniku skanu');
   });
 
   test('rozmówca ze zmienionym adresem jest odnajdywany po GUID', () async {

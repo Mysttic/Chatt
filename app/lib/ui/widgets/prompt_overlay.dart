@@ -86,25 +86,16 @@ class _PairingCard extends StatefulWidget {
 }
 
 class _PairingCardState extends State<_PairingCard> {
-  final _code = TextEditingController();
   bool _checking = false;
   PairOutcome? _outcome;
-
-  @override
-  void dispose() {
-    _code.dispose();
-    super.dispose();
-  }
 
   Future<void> _confirm() async {
     setState(() {
       _checking = true;
       _outcome = null;
     });
-    final outcome = await widget.services.confirmPairing(
-      widget.pairing.peerGuid,
-      _code.text,
-    );
+    final outcome =
+        await widget.services.confirmPairing(widget.pairing.peerGuid);
     if (!mounted) return;
     setState(() {
       _checking = false;
@@ -121,6 +112,12 @@ class _PairingCardState extends State<_PairingCard> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final blad = switch (_outcome) {
+      null || PairOutcome.accepted => null,
+      PairOutcome.rejected => context.l10n.pairRejected,
+      PairOutcome.expired => context.l10n.pairCodeExpired,
+      PairOutcome.unreachable => context.l10n.pairPeerUnreachable,
+    };
     return Card(
       elevation: 6,
       margin: const EdgeInsets.only(bottom: 8),
@@ -159,24 +156,29 @@ class _PairingCardState extends State<_PairingCard> {
               ),
             ],
             const SizedBox(height: 8),
-            TextField(
-              controller: _code,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              decoration: InputDecoration(
-                labelText: context.l10n.pairCodeLabel,
-                errorText: switch (_outcome) {
-                  null || PairOutcome.accepted => null,
-                  PairOutcome.wrongCode => context.l10n.pairWrongCode,
-                  PairOutcome.expired => context.l10n.pairCodeExpired,
-                  PairOutcome.unreachable => context.l10n.pairPeerUnreachable,
-                },
-                border: const OutlineInputBorder(),
-                counterText: '',
+            Text(context.l10n.pairCompareHint),
+            const SizedBox(height: 8),
+            // Kod rozstrzelony i wyśrodkowany: ma się dać porównać rzutem oka
+            // na dwa ekrany obok siebie.
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
               ),
-              onSubmitted: (_) => _confirm(),
+              child: Text(
+                widget.pairing.code.split('').join(' '),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      letterSpacing: 2,
+                    ),
+              ),
             ),
+            if (blad != null) ...[
+              const SizedBox(height: 8),
+              Text(blad, style: TextStyle(color: scheme.error, fontSize: 13)),
+            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -184,16 +186,16 @@ class _PairingCardState extends State<_PairingCard> {
                   onPressed: _checking
                       ? null
                       : () => widget.services.cancelPairing(
-                          widget.pairing.peerGuid,
-                        ),
-                  child: Text(context.l10n.cancel),
+                            widget.pairing.peerGuid,
+                          ),
+                  child: Text(context.l10n.pairCodesDiffer),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
                   onPressed: _checking ? null : _confirm,
                   child: Text(_checking
                       ? context.l10n.pairChecking
-                      : context.l10n.confirm),
+                      : context.l10n.pairCodesMatch),
                 ),
               ],
             ),

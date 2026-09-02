@@ -137,7 +137,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get pairTooltipPaired => 'Urządzenie sparowane kodem';
 
   @override
-  String get pairTooltip => 'Sparuj kodem PIN';
+  String get pairTooltip => 'Sparuj przez porównanie kodu';
 
   @override
   String get sendFileTooltip => 'Wyślij plik';
@@ -178,16 +178,8 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get pairCodeTitle => 'Kod parowania';
-
-  @override
-  String pairCodeBody(Object name, int minutes) {
-    return 'Przepisz ten kod na urządzeniu $name. Ważny przez $minutes minut.';
-  }
-
-  @override
   String get pairStartFailed =>
-      'Nie udało się zacząć parowania — urządzenie nie odpowiada.';
+      'Nie udało się zacząć parowania: urządzenie nie odpowiada.';
 
   @override
   String get pairAgainWarning =>
@@ -199,10 +191,17 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get pairCodeLabel => 'Kod z drugiego urządzenia';
+  String get pairCompareHint =>
+      'Sprawdź, czy drugie urządzenie pokazuje ten sam kod:';
 
   @override
-  String get pairChecking => 'Sprawdzam…';
+  String get pairCodesMatch => 'Zgadza się';
+
+  @override
+  String get pairCodesDiffer => 'Nie zgadza się';
+
+  @override
+  String get pairChecking => 'Czekam…';
 
   @override
   String pairedWith(Object name) {
@@ -210,11 +209,10 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get pairWrongCode => 'Kod się nie zgadza';
+  String get pairRejected => 'Drugie urządzenie przerwało parowanie';
 
   @override
-  String get pairCodeExpired =>
-      'Kod stracił ważność — poproś o nowy na drugim urządzeniu';
+  String get pairCodeExpired => 'Parowanie straciło ważność, zacznij od nowa';
 
   @override
   String get pairPeerUnreachable => 'Drugie urządzenie nie odpowiada';

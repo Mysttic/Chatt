@@ -87,10 +87,12 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 - [x] **Kamień milowy: pierwsza prawdziwa rozmowa i transfer pliku PC ⇄ telefon w fizycznej sieci Wi‑Fi** (02.09.2026). Bez tuneli i bez adb: telefon znalazł aplikację na Windows skanem, wysłał wiadomość (dostarczona, podwójny check), a plik 6,5 MB z komputera doszedł po akceptacji na telefonie z sumą `93e19974…cb1` zgodną co do bajtu po obu stronach
 
 ### Faza 6 — Szlif
-- [x] Parowanie kodem PIN: `POST /pair`, sześciocyfrowy kod losowany i pokazywany na jednym urządzeniu, przepisywany na drugim, ważny 2 minuty i jednorazowy. Zgodny kod ustawia `verified` po obu stronach; w czacie jest tarcza (zielona = sparowane), a prośba o plik od niesparowanego urządzenia ostrzega, że nazwę można sobie ustawić dowolną. Sprawdzone Windows ⇄ Android (`docs/screenshots/android/and8_kod_parowania.png`, `and9_sparowane.png`)
-- [x] Szyfrowanie ruchu między sparowanymi: klucz z parowania (X25519 + HKDF z kodem jako solą, kod nie idzie przez sieć), wiadomości i zapowiedzi plików w kopercie AES-GCM, treść plików strumieniem AES-CTR (żeby wznawianie dalej działało), suma kontrolna z zaszyfrowanej zapowiedzi. Od sparowanego urządzenia przyjmujemy **wyłącznie** ruch zaszyfrowany — inaczej dałoby się podszyć jawnym pakietem pod zieloną tarczę (`app/test/downgrade_test.dart`)
-- [x] Ostrzeżenie przy ponownym parowaniu: `POST /pair` nie jest niczym uwierzytelniony, więc prośbę z cudzym guid-em i cudzą nazwą może przysłać każdy z tej sieci. Klucza to nie podmieni (trzeba jeszcze przepisać kod z ekranu tamtego urządzenia), ale karta parowania od znanego już urządzenia wyglądała dokładnie jak pierwsza. Teraz ma czerwoną tarczę i mówi wprost, że zgoda zastąpi klucz (`docs/screenshots/android/and15_ponowne_parowanie.png`)
-- [ ] Do rozważenia: pełny PAKE zamiast obecnego schematu (aktywny napastnik w oknie parowania może po fakcie łamać sześciocyfrowy kod offline), rotacja kluczy, szyfrowanie discovery
+- [x] **Parowanie przez porównanie kodu** (protokół 4): inicjator wysyła najpierw skrót swojego klucza publicznego (zobowiązanie), dostaje klucz drugiej strony i dopiero wtedy odsłania własny. Obie strony liczą z uzgodnienia X25519 ten sam sześciocyfrowy kod i **pokazują go u siebie**; użytkownicy porównują wzrokiem i potwierdzają na obu urządzeniach, a klucz zapisujemy dopiero po obu potwierdzeniach. Sprawdzone na żywo, PC ⇄ telefon po Wi-Fi: kod na obu ekranach ten sam (`docs/screenshots/android/and16_kod_do_porownania.png`)
+- [x] Szyfrowanie ruchu między sparowanymi: klucz sesji z uzgodnienia X25519, wiadomości i zapowiedzi plików w kopercie AES-GCM, treść plików strumieniem AES-CTR (żeby wznawianie dalej działało), suma kontrolna z zaszyfrowanej zapowiedzi. Od sparowanego urządzenia przyjmujemy **wyłącznie** ruch zaszyfrowany — inaczej dałoby się podszyć jawnym pakietem pod zieloną tarczę (`app/test/downgrade_test.dart`)
+- [x] Ostrzeżenie przy ponownym parowaniu: `POST /pair` nie jest niczym uwierzytelniony, więc prośbę z cudzym guid-em i cudzą nazwą może przysłać każdy z tej sieci. Klucza to nie podmieni (kody muszą się zgodzić na obu ekranach), ale karta parowania od znanego już urządzenia wyglądała dokładnie jak pierwsza. Teraz ma czerwoną tarczę i mówi wprost, że zgoda zastąpi klucz (`docs/screenshots/android/and15_ponowne_parowanie.png`)
+- [x] **Podpisane odpowiedzi discovery**: skan niesie losowy nonce, a sparowane urządzenie dokłada do odpowiedzi HMAC kluczem sesji. Odpowiedź od sparowanego bez pasującego podpisu wypada z wyniku skanu — bez tego ktoś ze znanym GUID-em mógł zająć jego miejsce na liście i przejąć ruch przy zmianie IP (ta sama weryfikacja działa przy szukaniu rozmówcy pod nowym adresem)
+- [ ] Rotacja kluczy sesji — **świadomie odłożona**. Wznawianie transferu wymaga, żeby klucz był ten sam między sesjami (AES-CTR liczy strumień od offsetu), więc ratchet trzeba by omijać dla plików albo trzymać stare klucze, a to kasuje sens rotacji. Wróci, jeśli dojdzie osobny mechanizm wznawiania
+- [ ] Szyfrowanie samego discovery — **nie planowane**. Rozgłoszenia nie da się zaszyfrować do kogoś, kogo się jeszcze nie zna. Sensowną część tego problemu (podszywanie się pod znane urządzenie) zamykają podpisane odpowiedzi
 - [x] Obsługa zmiany IP rozmówcy: nieudana wysyłka uruchamia skan i szuka tego samego GUID-a pod nowym adresem, zapisuje go i ponawia (dotyczy wiadomości i plików)
 - [x] Sprzątanie listy urządzeń: przy starcie znikają wpisy bez ani jednej wiadomości, niewidziane od tygodnia (sparowanych i rozmów nie rusza); w ustawieniach jest przycisk „wyczyść nieużywane" (próg godziny), a przytrzymanie wpisu na liście urządzeń albo rozmów usuwa go ręcznie razem z historią
 - [x] Tryb ciemny: wybór systemowy/jasny/ciemny w ustawieniach, zapisany w bazie (schemat v4), więc przeżywa restart
@@ -106,11 +108,10 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 
 ## 5. Następny krok
 
-Fazy 0–5 są zrobione i zweryfikowane na sprzęcie: 32 testy `flutter test` (zielone), `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie oraz rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi. Zostało:
+Fazy 0–6 są zrobione i zweryfikowane na sprzęcie: 34 testy `flutter test` (zielone), `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie oraz rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi. Zostało:
 
-1. **Faza 6, punkty otwarte**: pełny PAKE zamiast obecnego parowania, rotacja kluczy, szyfrowanie discovery.
-2. **Dokumentacja**: instrukcje uruchomienia i wydawania wersji, zrzuty z produktu, opis testów jednostkowych i E2E.
-3. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
+1. **Dokumentacja**: instrukcje uruchomienia i wydawania wersji, zrzuty z produktu, opis testów jednostkowych i E2E.
+2. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
 
 Uruchamianie testów lokalnie (Flutter nie jest w PATH):
 

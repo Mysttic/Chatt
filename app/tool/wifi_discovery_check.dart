@@ -7,6 +7,8 @@
 //
 // Uruchomienie:
 //   flutter test tool/wifi_discovery_check.dart
+// Skrypt diagnostyczny — wynik czytamy z konsoli, stąd print.
+// ignore_for_file: avoid_print
 @Timeout(Duration(minutes: 3))
 library;
 

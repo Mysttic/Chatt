@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/file_actions.dart';
 import '../../data/db.dart';
-import '../../network/protocol.dart' show pairingCodeLifetime;
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
@@ -53,49 +52,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await ref.read(appServicesProvider).sendText(widget.conversationId, text);
   }
 
-  /// Parowanie: kod losuje i pokazuje ta strona, druga go przepisuje.
+  /// Parowanie: uzgodnienie leci pod spodem, a kod do porównania pokazuje
+  /// karta nad aplikacją (PromptOverlay) — po obu stronach ten sam.
   Future<void> _startPairing() async {
     final services = ref.read(appServicesProvider);
     final peer = await services.db.peerByGuid(widget.peer.guid) ?? widget.peer;
-    final pin = await services.startPairing(peer);
-    if (!mounted) return;
-
-    if (pin == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.pairStartFailed)),
-      );
-      return;
-    }
-
-    showDialog<void>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text(context.l10n.pairCodeTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              pin,
-              style: const TextStyle(
-                  fontSize: 40, letterSpacing: 8, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              context.l10n.pairCodeBody(
-                  widget.peer.name, pairingCodeLifetime.inMinutes),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog),
-            child: Text(context.l10n.close),
-          ),
-        ],
-      ),
+    final code = await services.startPairing(peer);
+    if (!mounted || code != null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.pairStartFailed)),
     );
   }
+
 
   Future<void> _attachFile() async {
     final file = await openFile();

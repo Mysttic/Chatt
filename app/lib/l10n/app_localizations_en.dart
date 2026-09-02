@@ -137,7 +137,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairTooltipPaired => 'Device paired with a code';
 
   @override
-  String get pairTooltip => 'Pair with a PIN code';
+  String get pairTooltip => 'Pair by comparing a code';
 
   @override
   String get sendFileTooltip => 'Send a file';
@@ -178,16 +178,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pairCodeTitle => 'Pairing code';
-
-  @override
-  String pairCodeBody(Object name, int minutes) {
-    return 'Type this code on $name. Valid for $minutes minutes.';
-  }
-
-  @override
   String get pairStartFailed =>
-      'Could not start pairing — the device is not answering.';
+      'Could not start pairing: the device is not answering.';
 
   @override
   String get pairAgainWarning =>
@@ -199,10 +191,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pairCodeLabel => 'Code from the other device';
+  String get pairCompareHint =>
+      'Check that the other device shows the same code:';
 
   @override
-  String get pairChecking => 'Checking…';
+  String get pairCodesMatch => 'They match';
+
+  @override
+  String get pairCodesDiffer => 'They differ';
+
+  @override
+  String get pairChecking => 'Waiting…';
 
   @override
   String pairedWith(Object name) {
@@ -210,11 +209,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get pairWrongCode => 'The code doesn\'t match';
+  String get pairRejected => 'The other device cancelled pairing';
 
   @override
-  String get pairCodeExpired =>
-      'The code expired — ask for a new one on the other device';
+  String get pairCodeExpired => 'Pairing expired, start again';
 
   @override
   String get pairPeerUnreachable => 'The other device is not answering';

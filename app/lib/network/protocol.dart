@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import '../core/identity.dart';
 
@@ -28,19 +29,36 @@ const String typeHere = 'chatt_here';
 ///    i sumą kontrolną.
 /// 3: parowanie z uzgodnieniem klucza (POST /pair) i szyfrowanie ruchu między
 ///    sparowanymi urządzeniami.
-const int protocolVersion = 3;
+/// 4: parowanie przez porównanie kodu na obu ekranach (zobowiązanie + kod
+///    z uzgodnienia zamiast kodu jako soli) oraz podpisane odpowiedzi
+///    discovery od sparowanych urządzeń.
+const int protocolVersion = 4;
 
-Map<String, Object?> discoverPacket(DeviceIdentity me) => {
+/// [nonce] jest losowy na każdy skan. Sparowane urządzenie wplata go
+/// w podpis odpowiedzi, więc podsłuchanej odpowiedzi nie da się odtworzyć
+/// przy następnym skanie.
+Map<String, Object?> discoverPacket(DeviceIdentity me, String nonce) => {
       'type': typeDiscover,
       'proto': protocolVersion,
+      'nonce': nonce,
       ...me.toJson(),
     };
 
-Map<String, Object?> herePacket(DeviceIdentity me) => {
+/// [tag] jest tylko dla sparowanych: skrót HMAC kluczem sesji, którym
+/// odpowiadający dowodzi, że to naprawdę on. Dla nieznajomych zostaje null —
+/// nie mamy z nimi żadnego wspólnego sekretu.
+Map<String, Object?> herePacket(DeviceIdentity me, {String? tag}) => {
       'type': typeHere,
       'proto': protocolVersion,
+      'tag': ?tag,
       ...me.toJson(),
     };
+
+/// Nonce skanu: 16 losowych bajtów w base64.
+String newDiscoveryNonce() {
+  final rng = Random.secure();
+  return base64.encode(List<int>.generate(16, (_) => rng.nextInt(256)));
+}
 
 /// Znacznik koperty z zaszyfrowaną treścią (szczegóły w core/crypto.dart).
 /// Jawne zostaje tylko tyle, ile trzeba, żeby odbiorca wiedział, czyim
@@ -308,29 +326,46 @@ class FileOfferReply {
 }
 
 // --- Parowanie: POST /pair -----------------------------------------------
-// Urządzenie A zaczyna parowanie: losuje sześciocyfrowy kod, pokazuje go na
-// swoim ekranie i wysyła [pairStart] ze swoim kluczem publicznym X25519.
-// Urządzenie B liczy wspólny klucz sesji (X25519 + HKDF z kodem jako solą),
-// a w [pairConfirm] odsyła swój klucz publiczny i skrót potwierdzający.
-// Zgodny skrót dowodzi, że po drugiej stronie ktoś przepisał kod z ekranu —
-// obie strony zapisują wtedy klucz sesji i oznaczają się jako zweryfikowane.
+// Trzy kroki, po nich porównanie kodu na obu ekranach:
 //
-// Sam kod nigdy nie idzie przez sieć. Od tej pory wiadomości, zapowiedzi
-// plików i treść plików lecą zaszyfrowane tym kluczem.
+//   1. [pairCommit]  A → B: skrót swojego klucza publicznego (zobowiązanie).
+//                    B losuje własną parę kluczy i odsyła klucz publiczny.
+//   2. [pairReveal]  A → B: właściwy klucz publiczny. B sprawdza, czy zgadza
+//                    się ze skrótem z kroku 1.
+//   3. Obie strony liczą z uzgodnienia X25519 klucz sesji i sześciocyfrowy
+//      kod, po czym **pokazują ten kod u siebie**. Użytkownicy porównują je
+//      wzrokowo i potwierdzają; potwierdzenie leci do drugiej strony jako
+//      [pairConfirm]. Klucz zapisujemy dopiero, gdy potwierdzą oba końce.
+//
+// Po co zobowiązanie: bez niego ktoś w środku mógłby dobierać swoje klucze
+// tak długo, aż kody po obu stronach wyjdą takie same. Skrót wysłany przed
+// poznaniem klucza drugiej strony to uniemożliwia — napastnikowi zostaje
+// jedno losowe trafienie na milion, w dodatku widoczne od razu, bo kody się
+// nie zgodzą. Kod nie jest sekretem i nie idzie przez sieć, więc nie ma tu
+// czego łamać offline (poprzedni schemat, z kodem jako solą HKDF, na to
+// pozwalał).
 
-const String pairStart = 'start';
+const String pairCommit = 'commit';
+const String pairReveal = 'reveal';
 const String pairConfirm = 'confirm';
 const String pairCancel = 'cancel';
 
-/// Jak długo ważny jest kod parowania. Dwie minuty okazały się za krótkie:
-/// trzeba jeszcze dojść do drugiego urządzenia i go przepisać.
+/// Ile cyfr ma kod do porównania. Sześć to kompromis: milion możliwości przy
+/// jednym strzale napastnika, a jeszcze da się to porównać wzrokiem.
+const int pairingCodeDigits = 6;
+
+/// Jak długo żyje zaczęte parowanie. Trzeba zdążyć dojść do drugiego
+/// urządzenia i porównać kod.
 const Duration pairingCodeLifetime = Duration(minutes: 10);
 
 /// Jak skończyło się parowanie. Rozróżnienie jest po to, żeby aplikacja nie
-/// mówiła "kod się nie zgadza", gdy naprawdę minął czas.
+/// mówiła "kody się nie zgadzają", gdy naprawdę minął czas.
 enum PairOutcome {
   accepted,
-  wrongCode,
+
+  /// Druga strona odrzuciła: użytkownik powiedział, że kody się różnią, albo
+  /// klucz nie pasuje do przysłanego wcześniej skrótu.
+  rejected,
   expired,
 
   /// Druga strona nie odpowiedziała (albo nie zna parowania).
@@ -339,50 +374,78 @@ enum PairOutcome {
   static PairOutcome fromName(String? name) => switch (name) {
         'accepted' => PairOutcome.accepted,
         'expired' => PairOutcome.expired,
-        'wrongCode' => PairOutcome.wrongCode,
+        'rejected' => PairOutcome.rejected,
         _ => PairOutcome.unreachable,
       };
+}
+
+/// Odpowiedź na `POST /pair`. Poza wynikiem niesie klucz publiczny, którym
+/// odpowiadający włącza się do uzgodnienia (tylko przy [pairCommit]).
+class PairReply {
+  final PairOutcome outcome;
+  final String? publicKey;
+
+  const PairReply(this.outcome, {this.publicKey});
+
+  bool get accepted => outcome == PairOutcome.accepted;
+
+  Map<String, Object?> toJson() => {
+        'ok': accepted,
+        'error': accepted ? null : outcome.name,
+        'publicKey': publicKey,
+      };
+
+  static PairReply fromJson(Map<String, Object?>? json) {
+    if (json == null) return const PairReply(PairOutcome.unreachable);
+    final key = json['publicKey'];
+    return PairReply(
+      json['ok'] == true
+          ? PairOutcome.accepted
+          : PairOutcome.fromName(json['error'] is String ? json['error'] as String : null),
+      publicKey: key is String && key.isNotEmpty ? key : null,
+    );
+  }
 }
 
 class PairMessage {
   final String action;
   final DeviceIdentity from;
 
-  /// Klucz publiczny X25519 (base64) — przy [pairStart] i [pairConfirm].
-  final String? publicKey;
+  /// Skrót klucza publicznego (base64) — przy [pairCommit].
+  final String? commit;
 
-  /// Skrót potwierdzający znajomość kodu (base64) — przy [pairConfirm].
-  final String? tag;
+  /// Klucz publiczny X25519 (base64) — przy [pairReveal].
+  final String? publicKey;
 
   const PairMessage({
     required this.action,
     required this.from,
+    this.commit,
     this.publicKey,
-    this.tag,
   });
 
   Map<String, Object?> toJson() => {
         'action': action,
         'from': from.toJson(),
+        'commit': commit,
         'publicKey': publicKey,
-        'tag': tag,
       };
+
+  static const _actions = {pairCommit, pairReveal, pairConfirm, pairCancel};
 
   static PairMessage? fromJson(Map<String, Object?> json) {
     final action = json['action'];
     final from = DeviceIdentity.fromJson(json['from']);
-    if (from == null ||
-        action is! String ||
-        (action != pairStart && action != pairConfirm && action != pairCancel)) {
+    if (from == null || action is! String || !_actions.contains(action)) {
       return null;
     }
+    final commit = json['commit'];
     final publicKey = json['publicKey'];
-    final tag = json['tag'];
     return PairMessage(
       action: action,
       from: from,
+      commit: commit is String && commit.isNotEmpty ? commit : null,
       publicKey: publicKey is String && publicKey.isNotEmpty ? publicKey : null,
-      tag: tag is String && tag.isNotEmpty ? tag : null,
     );
   }
 }

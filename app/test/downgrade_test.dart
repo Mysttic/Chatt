@@ -45,8 +45,10 @@ void main() {
 
     // Alicja i Bartek parują się kodem.
     final bobAtAlice = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
-    final pin = (await alice.startPairing(bobAtAlice!))!;
-    expect(await bob.confirmPairing(alice.identity.guid, pin),
+    expect(await alice.startPairing(bobAtAlice!), isNotNull);
+    expect(await alice.confirmPairing(bob.identity.guid),
+        PairOutcome.accepted);
+    expect(await bob.confirmPairing(alice.identity.guid),
         PairOutcome.accepted);
 
     napastnik = PeerClient();

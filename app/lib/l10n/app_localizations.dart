@@ -311,7 +311,7 @@ abstract class AppLocalizations {
   /// No description provided for @pairTooltip.
   ///
   /// In pl, this message translates to:
-  /// **'Sparuj kodem PIN'**
+  /// **'Sparuj przez porównanie kodu'**
   String get pairTooltip;
 
   /// No description provided for @sendFileTooltip.
@@ -386,22 +386,10 @@ abstract class AppLocalizations {
   /// **'Odbieram: {name}'**
   String receivingFile(Object name);
 
-  /// No description provided for @pairCodeTitle.
-  ///
-  /// In pl, this message translates to:
-  /// **'Kod parowania'**
-  String get pairCodeTitle;
-
-  /// No description provided for @pairCodeBody.
-  ///
-  /// In pl, this message translates to:
-  /// **'Przepisz ten kod na urządzeniu {name}. Ważny przez {minutes} minut.'**
-  String pairCodeBody(Object name, int minutes);
-
   /// No description provided for @pairStartFailed.
   ///
   /// In pl, this message translates to:
-  /// **'Nie udało się zacząć parowania — urządzenie nie odpowiada.'**
+  /// **'Nie udało się zacząć parowania: urządzenie nie odpowiada.'**
   String get pairStartFailed;
 
   /// No description provided for @pairAgainWarning.
@@ -416,16 +404,28 @@ abstract class AppLocalizations {
   /// **'{name} chce się sparować'**
   String pairRequest(Object name);
 
-  /// No description provided for @pairCodeLabel.
+  /// No description provided for @pairCompareHint.
   ///
   /// In pl, this message translates to:
-  /// **'Kod z drugiego urządzenia'**
-  String get pairCodeLabel;
+  /// **'Sprawdź, czy drugie urządzenie pokazuje ten sam kod:'**
+  String get pairCompareHint;
+
+  /// No description provided for @pairCodesMatch.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zgadza się'**
+  String get pairCodesMatch;
+
+  /// No description provided for @pairCodesDiffer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie zgadza się'**
+  String get pairCodesDiffer;
 
   /// No description provided for @pairChecking.
   ///
   /// In pl, this message translates to:
-  /// **'Sprawdzam…'**
+  /// **'Czekam…'**
   String get pairChecking;
 
   /// No description provided for @pairedWith.
@@ -434,16 +434,16 @@ abstract class AppLocalizations {
   /// **'Sparowano z {name}'**
   String pairedWith(Object name);
 
-  /// No description provided for @pairWrongCode.
+  /// No description provided for @pairRejected.
   ///
   /// In pl, this message translates to:
-  /// **'Kod się nie zgadza'**
-  String get pairWrongCode;
+  /// **'Drugie urządzenie przerwało parowanie'**
+  String get pairRejected;
 
   /// No description provided for @pairCodeExpired.
   ///
   /// In pl, this message translates to:
-  /// **'Kod stracił ważność — poproś o nowy na drugim urządzeniu'**
+  /// **'Parowanie straciło ważność, zacznij od nowa'**
   String get pairCodeExpired;
 
   /// No description provided for @pairPeerUnreachable.

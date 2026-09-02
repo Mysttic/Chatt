@@ -44,9 +44,13 @@ class DiscoveryResponder {
   final DeviceIdentity Function() identity;
   final void Function(DiscoveredPeer peer)? onPeerSeen;
 
+  /// Podpis odpowiedzi dla pytającego, jeśli jest z nami sparowany. null =
+  /// nieznajomy, odpowiadamy bez podpisu (nie ma wspólnego sekretu).
+  final Future<String?> Function(String peerGuid, String nonce)? sign;
+
   RawDatagramSocket? _socket;
 
-  DiscoveryResponder({required this.identity, this.onPeerSeen});
+  DiscoveryResponder({required this.identity, this.onPeerSeen, this.sign});
 
   bool get isRunning => _socket != null;
 
@@ -62,7 +66,7 @@ class DiscoveryResponder {
       reusePort: !Platform.isWindows,
     );
     socket.broadcastEnabled = true;
-    socket.listen((event) {
+    socket.listen((event) async {
       if (event != RawSocketEvent.read) return;
       final datagram = socket.receive();
       if (datagram == null) return;
@@ -75,9 +79,16 @@ class DiscoveryResponder {
       final sender = _peerFromPacket(packet, datagram.address.address);
       if (sender != null) onPeerSeen?.call(sender);
 
-      // Odpowiedź unicastem prosto do gniazda skanera.
+      final nonce = packet['nonce'];
+      final tag = (sender == null || nonce is! String || sign == null)
+          ? null
+          : await sign!(sender.guid, nonce);
+
+      // Odpowiedź unicastem prosto do gniazda skanera. Gniazdo mogło się
+      // w międzyczasie zamknąć (podpisywanie jest asynchroniczne).
+      if (_socket == null) return;
       socket.send(
-        utf8.encode(jsonEncode(herePacket(me))),
+        utf8.encode(jsonEncode(herePacket(me, tag: tag))),
         datagram.address,
         datagram.port,
       );
@@ -95,15 +106,23 @@ class DiscoveryResponder {
 class DiscoveryScanner {
   /// Wysyła zapytanie i przez [timeout] zbiera odpowiedzi. [onFound] jest
   /// wołane na żywo (do UI), wynik zawiera komplet bez duplikatów.
+  ///
+  /// [accept] dostaje znalezione urządzenie i podpis z jego odpowiedzi.
+  /// Zwrócenie false wyrzuca wpis z wyniku — tak odsiewamy podszywanie się
+  /// pod sparowane urządzenia (patrz `AppServices`).
   static Future<List<DiscoveredPeer>> scan(
     DeviceIdentity me, {
     Duration timeout = const Duration(seconds: 2),
     void Function(DiscoveredPeer peer)? onFound,
+    Future<bool> Function(DiscoveredPeer peer, String? tag, String nonce)?
+        accept,
   }) async {
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
     socket.broadcastEnabled = true;
 
+    final nonce = newDiscoveryNonce();
     final found = <String, DiscoveredPeer>{};
+    final pending = <Future<void>>[];
     final done = Completer<void>();
 
     socket.listen((event) {
@@ -114,13 +133,23 @@ class DiscoveryScanner {
       if (packet == null || packet['type'] != typeHere) return;
       final peer = _peerFromPacket(packet, datagram.address.address);
       if (peer == null || peer.guid == me.guid) return;
-      if (!found.containsKey(peer.guid)) {
-        found[peer.guid] = peer;
+      if (found.containsKey(peer.guid)) return;
+      // Wpis rezerwujemy od razu, żeby powtórzona odpowiedź (skan wysyła
+      // zapytanie dwa razy) nie weszła drugi raz w sprawdzanie podpisu.
+      found[peer.guid] = peer;
+      final tag = packet['tag'];
+      pending.add(() async {
+        final ok = accept == null ||
+            await accept(peer, tag is String ? tag : null, nonce);
+        if (!ok) {
+          found.remove(peer.guid);
+          return;
+        }
         onFound?.call(peer);
-      }
+      }());
     });
 
-    final payload = utf8.encode(jsonEncode(discoverPacket(me)));
+    final payload = utf8.encode(jsonEncode(discoverPacket(me, nonce)));
     for (final target in await _broadcastTargets()) {
       try {
         socket.send(payload, target, discoveryPort);
@@ -146,6 +175,9 @@ class DiscoveryScanner {
     });
     await done.future;
     socket.close();
+    // Sprawdzanie podpisów jest asynchroniczne — czekamy, aż wszystkie
+    // odpowiedzi przejdą przez sito, zanim oddamy listę.
+    await Future.wait(pending);
     return found.values.toList();
   }
 

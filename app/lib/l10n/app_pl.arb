@@ -66,7 +66,7 @@
   "peerOnline": "dostępny",
   "peerOffline": "niedostępny",
   "pairTooltipPaired": "Urządzenie sparowane kodem",
-  "pairTooltip": "Sparuj kodem PIN",
+  "pairTooltip": "Sparuj przez porównanie kodu",
   "sendFileTooltip": "Wyślij plik",
   "sendTooltip": "Wyślij",
   "messageHint": "Napisz wiadomość…",
@@ -82,26 +82,23 @@
   "@receivingFile": {
     "placeholders": { "name": {} }
   },
-  "pairCodeTitle": "Kod parowania",
-  "pairCodeBody": "Przepisz ten kod na urządzeniu {name}. Ważny przez {minutes} minut.",
-  "@pairCodeBody": {
-    "placeholders": { "name": {}, "minutes": { "type": "int" } }
-  },
-  "pairStartFailed": "Nie udało się zacząć parowania — urządzenie nie odpowiada.",
+  "pairStartFailed": "Nie udało się zacząć parowania: urządzenie nie odpowiada.",
 
   "pairAgainWarning": "To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.",
   "pairRequest": "{name} chce się sparować",
   "@pairRequest": {
     "placeholders": { "name": {} }
   },
-  "pairCodeLabel": "Kod z drugiego urządzenia",
-  "pairChecking": "Sprawdzam…",
+  "pairCompareHint": "Sprawdź, czy drugie urządzenie pokazuje ten sam kod:",
+  "pairCodesMatch": "Zgadza się",
+  "pairCodesDiffer": "Nie zgadza się",
+  "pairChecking": "Czekam…",
   "pairedWith": "Sparowano z {name}",
   "@pairedWith": {
     "placeholders": { "name": {} }
   },
-  "pairWrongCode": "Kod się nie zgadza",
-  "pairCodeExpired": "Kod stracił ważność — poproś o nowy na drugim urządzeniu",
+  "pairRejected": "Drugie urządzenie przerwało parowanie",
+  "pairCodeExpired": "Parowanie straciło ważność, zacznij od nowa",
   "pairPeerUnreachable": "Drugie urządzenie nie odpowiada",
 
   "fileOfferTitle": "{name} chce wysłać plik",

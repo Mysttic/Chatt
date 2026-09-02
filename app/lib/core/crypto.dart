@@ -1,24 +1,31 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as digest;
 import 'package:cryptography/cryptography.dart';
 
-import '../network/protocol.dart' show envelopeMarker, isEncryptedEnvelope;
+import '../network/protocol.dart'
+    show envelopeMarker, isEncryptedEnvelope, pairingCodeDigits;
 
 /// Szyfrowanie ruchu między sparowanymi urządzeniami.
 ///
-/// Klucz powstaje przy parowaniu: obie strony robią uzgodnienie X25519,
-/// a wynik przepuszczają przez HKDF z kodem PIN jako solą. Kod nie leci więc
-/// przez sieć — zamiast niego jedzie skrót potwierdzający, który da się
-/// policzyć tylko znając i wspólny sekret, i kod. Tym samym podszycie się pod
-/// urządzenie wymaga zgadnięcia sześciu cyfr w trakcie tych dwóch minut,
-/// a bierny podsłuchiwacz nie dowie się z podsłuchanej rozmowy niczego.
+/// Klucz powstaje przy parowaniu ze zwykłego uzgodnienia X25519, a z tego
+/// samego sekretu (osobną gałęzią HKDF) liczony jest sześciocyfrowy kod do
+/// porównania. Kod nie jest sekretem: obie strony pokazują go na ekranie,
+/// a użytkownicy sprawdzają wzrokiem, czy jest ten sam. Napastnik w środku
+/// prowadzi dwa osobne uzgodnienia, więc dostaje dwa różne kody i od razu to
+/// widać.
 ///
-/// Ograniczenie, o którym warto wiedzieć: to nie jest pełny PAKE. Ktoś, kto
-/// aktywnie wejdzie w środek parowania (osobne uzgodnienie z każdą ze stron),
-/// może potem offline sprawdzić wszystkie sześciocyfrowe kody. Chroni nas
-/// tylko to, że musiałby być w sieci dokładnie w tych dwóch minutach.
+/// Żeby nie mógł tych kodów naciągnąć, inicjator najpierw wysyła [commitment]
+/// swojego klucza publicznego, a sam klucz dopiero po poznaniu klucza drugiej
+/// strony. Bez tego napastnik mógłby losować własne klucze aż do zrównania
+/// obu kodów; ze zobowiązaniem zostaje mu jedno trafienie na milion.
+///
+/// Poprzednia wersja mieszała kod PIN do HKDF jako sól. Było w tym słabe
+/// miejsce: napastnik obecny przy parowaniu mógł potem sprawdzić offline
+/// wszystkie sześciocyfrowe kody. Tutaj nie ma czego zgadywać, bo kod nie
+/// bierze udziału w wyprowadzeniu klucza.
 ///
 /// Po sparowaniu:
 /// - wiadomości i zapowiedzi plików jadą jako koperta z AES-GCM (poufność
@@ -39,38 +46,70 @@ class ChattCrypto {
   static Future<List<int>> publicKeyOf(SimpleKeyPair keyPair) async =>
       (await keyPair.extractPublicKey()).bytes;
 
-  /// Wspólny klucz sesji: X25519 + HKDF z kodem PIN jako solą.
-  static Future<List<int>> sessionKey({
+  /// Zobowiązanie do klucza publicznego: inicjator wysyła je, zanim pozna
+  /// klucz drugiej strony, więc potem nie może już swojego podmienić.
+  static String commitment(List<int> publicKey) => base64.encode(
+        digest.sha256
+            .convert([...utf8.encode('chatt-commit'), ...publicKey])
+            .bytes,
+      );
+
+  /// Uzgodnienie: z jednego sekretu X25519 wychodzą dwie niezależne rzeczy —
+  /// klucz sesji do szyfrowania ruchu i kod do porównania na ekranach.
+  /// Do kodu wchodzą oba klucze publiczne w ustalonej kolejności, więc
+  /// napastnik nie przełoży kodu z jednej sesji na drugą.
+  static Future<({List<int> sessionKey, String code})> agree({
     required SimpleKeyPair mine,
     required List<int> theirPublicKey,
-    required String pin,
+    required List<int> initiatorPublicKey,
+    required List<int> responderPublicKey,
   }) async {
     final shared = await _x25519.sharedSecretKey(
       keyPair: mine,
       remotePublicKey:
           SimplePublicKey(theirPublicKey, type: KeyPairType.x25519),
     );
-    final derived = await _hkdf.deriveKey(
+    final sessionKey = await _hkdf.deriveKey(
       secretKey: shared,
-      nonce: utf8.encode(pin),
-      info: utf8.encode('chatt-pair-v1'),
+      nonce: const <int>[],
+      info: utf8.encode('chatt-session-v2'),
     );
-    return derived.extractBytes();
-  }
-
-  /// Skrót, którym strona przepisująca kod dowodzi, że go zna. Wchodzą do
-  /// niego oba klucze publiczne, więc nie da się go przełożyć na inną sesję.
-  static Future<String> pairingTag({
-    required List<int> sessionKey,
-    required List<int> initiatorPublicKey,
-    required List<int> responderPublicKey,
-  }) async {
-    final mac = await _hmac.calculateMac(
-      [
-        ...utf8.encode('chatt-confirm'),
+    final codeBytes = await _hkdf.deriveKey(
+      secretKey: shared,
+      nonce: const <int>[],
+      info: [
+        ...utf8.encode('chatt-code-v2'),
         ...initiatorPublicKey,
         ...responderPublicKey,
       ],
+    );
+    return (
+      sessionKey: await sessionKey.extractBytes(),
+      code: _digits(await codeBytes.extractBytes(), pairingCodeDigits),
+    );
+  }
+
+  /// Pierwsze bajty skrótu na [count] cyfr, z zerami wiodącymi.
+  static String _digits(List<int> bytes, int count) {
+    var value = 0;
+    for (var i = 0; i < 4; i++) {
+      value = (value << 8) | bytes[i];
+    }
+    final modulo = pow(10, count).toInt();
+    return (value % modulo).toString().padLeft(count, '0');
+  }
+
+  /// Podpis odpowiedzi discovery: dowód, że po drugiej stronie jest to samo
+  /// urządzenie, z którym mamy wspólny klucz. [nonce] pochodzi z zapytania,
+  /// więc podsłuchanej odpowiedzi nie da się użyć przy następnym skanie.
+  static Future<String> discoveryTag({
+    required List<int> sessionKey,
+    required String guid,
+    required int tcpPort,
+    required String nonce,
+  }) async {
+    final mac = await _hmac.calculateMac(
+      utf8.encode('chatt-here|$guid|$tcpPort|$nonce'),
       secretKey: SecretKey(sessionKey),
     );
     return base64.encode(mac.bytes);
