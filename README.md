@@ -5,9 +5,10 @@ wiadomości i pliki przesyłane **bezpośrednio między urządzeniami**, bez
 żadnego serwera pośredniczącego.
 
 Aplikacja jest napisana we **Flutterze** i mieszka w katalogu [`app/`](app/).
-Katalogi C#/.NET (`Chatt`, `Chatt.Entities`, `Chatt.grpc`, …) to poprzednie
-podejście w .NET MAUI — zostają jako referencja do czasu pełnego parytetu
-funkcji, potem znikną. Plan prac i stan projektu: [ROADMAP.md](ROADMAP.md).
+Wcześniejsze podejście w .NET MAUI zostało usunięte po osiągnięciu parytetu
+funkcji; jest w historii gita, a makiety i diagramy z tamtego etapu leżą
+w [`docs/makiety/`](docs/makiety/). Plan prac i stan projektu:
+[ROADMAP.md](ROADMAP.md).
 
 ## Jak to działa
 

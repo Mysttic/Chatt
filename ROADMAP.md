@@ -23,15 +23,15 @@ Hook `.claude/hooks/session-start.sh` instaluje to wszystko automatycznie na sta
 
 - **Jedna aplikacja Flutter** w katalogu `app/` (do utworzenia w Fazie 0). Platformy: **Windows + Android** (produkcyjnie, buduje właściciel), **Linux desktop + web** (do rozwoju i testów w sesjach Claude).
 - **Tożsamość urządzenia**: trwały GUID generowany przy pierwszym starcie + nick + wiadomość powitalna (IP może się zmieniać po DHCP, GUID nie).
-- **Discovery**: responder UDP na stałym porcie (np. 47777) odpowiadający na `CHATT_DISCOVER` pakietem z tożsamością i portem TCP; skan = 1 broadcast + ~2 s zbierania odpowiedzi. Fallback: ręczne dodanie po `IP:port` (makieta `ManuallyFindDevice.PNG`). Opcjonalne filtry IP/portów jak w prototypie C#.
+- **Discovery**: responder UDP na stałym porcie (np. 47777) odpowiadający na `CHATT_DISCOVER` pakietem z tożsamością i portem TCP; skan = 1 broadcast + ~2 s zbierania odpowiedzi. Fallback: ręczne dodanie po `IP:port` (makieta `docs/makiety/dodaj_po_adresie.png`). Opcjonalne filtry IP/portów jak w prototypie C#.
 - **Transport**: każdy egzemplarz aplikacji hostuje lekki serwer HTTP (`shelf`) — `GET /info`, `POST /message`, potem endpointy plików — oraz WebSocket do pchania zdarzeń na żywo. Format: JSON. (W `dart:io` serwer działa też na Androidzie — dokładnie tak robi LocalSend.)
 - **Baza**: `drift` (SQLite, typowane zapytania, działa na wszystkich platformach i w testach na Linuksie). Schemat przenosimy koncepcyjnie z modeli C#: users, conversations, messages (ze statusem dostarczenia: created/sent/delivered/failed), settings.
-- **Stan/UI**: Riverpod + ekrany wg istniejących makiet z `Prototype/` (lista konwersacji, konwersacja, urządzenia w pobliżu, ustawienia) i diagramu przepływów (ponawianie niedostarczonych, weryfikacja obecności rozmówców).
+- **Stan/UI**: Riverpod + ekrany wg istniejących makiet z `docs/makiety/` (lista konwersacji, konwersacja, urządzenia w pobliżu, ustawienia) i diagramu przepływów (ponawianie niedostarczonych, weryfikacja obecności rozmówców).
 - **Bezpieczeństwo**: MVP jawnym tekstem w LAN; w Fazie 6 parowanie kodem PIN (odpowiednik flagi `Verified`) i szyfrowanie.
 
 ### Los kodu C#/MAUI
 
-Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z `SettingsModel.cs`, diagramy i makiety w `Prototype/`) do czasu osiągnięcia parytetu funkcji (koniec Fazy 3), potem go usuniemy. Nie rozwijamy go i nie budujemy.
+Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzie. Był w repo jako referencja: modele danych, parsery filtrów IP/portów z `SettingsModel.cs`, projekty gRPC. Jest w historii gita, gdyby kiedyś czegoś stamtąd brakowało. Z prototypu zostały tylko makiety i diagramy, przeniesione do `docs/makiety/`.
 
 ## 3. Fazy
 
@@ -55,9 +55,9 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [x] **Test E2E w sesji chmurowej: dwie pełne instancje wymieniają wiadomości w obie strony, offline→failed→retry→delivered, dedupe** (`app/test/`)
 
 ### Faza 3 — Pełny UI ✅ (31.08.2026)
-- [x] Lista konwersacji z bazy (ostatnia wiadomość, inicjały, czas, badge nieprzeczytanych) — wg `ListOfConversation.PNG`
-- [x] Ekran konwersacji: dymki moje/cudze, pole tekstowe, statusy (zegarek/podwójny check/błąd), przycisk „ponów" — wg `Conversation.PNG`
-- [x] Urządzenia w pobliżu (skan na żywo + znane urządzenia) — wg `ListOfNearbyDevices.PNG`; ustawienia z adresami do ręcznego parowania — wg `EditConfiguration.PNG`
+- [x] Lista konwersacji z bazy (ostatnia wiadomość, inicjały, czas, badge nieprzeczytanych) — wg `docs/makiety/lista_rozmow.png`
+- [x] Ekran konwersacji: dymki moje/cudze, pole tekstowe, statusy (zegarek/podwójny check/błąd), przycisk „ponów" — wg `docs/makiety/rozmowa.png`
+- [x] Urządzenia w pobliżu (skan na żywo + znane urządzenia) — wg `docs/makiety/urzadzenia_w_poblizu.png`; ustawienia z adresami do ręcznego parowania — wg `docs/makiety/ustawienia.png`
 - [x] Weryfikacja obecności rozmówcy („dostępny/niedostępny") przy otwarciu rozmowy
 - [x] Screenshoty z żywej aplikacji (`docs/screenshots/`, generowane przez `app/tool/ui_e2e.sh` — dwie instancje pod Xvfb sterowane xdotool)
 - [x] **Kamień milowy: kompletna aplikacja działa na Linux desktop** (usunięcie kodu C# — po potwierdzeniu działania na Windows/Androidzie przez właściciela)
@@ -81,7 +81,7 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [x] Build Windows: workload „Desktop development with C++" + tryb dewelopera, `flutter build windows` przechodzi, aplikacja startuje (motyw ciemny bierze z systemu)
 - [x] **Rozmowa PC ⇄ Android na dwóch prawdziwych aplikacjach**: wiadomości w obie strony (z ACK i ponowieniem) oraz plik 6,8 MB z akceptacją na telefonie, sha256 zgodne co do bajtu. Przez tunele adb, bo emulator jest za NAT-em
 - [x] Nasłuch w tle na Androidzie: silnik Fluttera w cache'u aplikacji + usługa pierwszoplanowa (`ChattService`, typ `connectedDevice`) i powiadomienia o wiadomościach przy zamkniętym oknie. Zmierzone przed i po: zwykły proces po zmieceniu z listy zadań nie odbierał nic, teraz przyjmuje wiadomości i pokazuje powiadomienie (`docs/screenshots/android/and7_powiadomienie.png`)
-- [x] Utwardzenie nasłuchu w tle: usługa trzyma MulticastLock (bez niego układ Wi‑Fi odsiewa pakiety rozgłoszeniowe, zanim dojdą do aplikacji, czyli ginie discovery), a w ustawieniach jest prośba o wyjątek od optymalizacji baterii — w trybie Doze system odcina sieć aplikacjom bez wyjątku, a tu nie ma żadnego serwera push, który mógłby aplikację obudzić (`docs/screenshots/android/and10_nasluch_w_tle.png`). WifiLock bierzemy tylko do Androida 12 włącznie: od 13 system przyjmuje HIGH_PERF i go ignoruje (zmierzone w `dumpsys wifi`), a LOW_LATENCY działa wyłącznie dla aplikacji na wierzchu, więc do nasłuchu w tle jest bezużyteczny
+- [x] Utwardzenie nasłuchu w tle: usługa trzyma MulticastLock (bez niego układ Wi‑Fi odsiewa pakiety rozgłoszeniowe, zanim dojdą do aplikacji, czyli ginie discovery), a w ustawieniach jest prośba o wyjątek od optymalizacji baterii — w trybie Doze system odcina sieć aplikacjom bez wyjątku, a tu nie ma żadnego serwera push, który mógłby aplikację obudzić (`docs/screenshots/android/and14_nasluch_w_tle.png`). WifiLock bierzemy tylko do Androida 12 włącznie: od 13 system przyjmuje HIGH_PERF i go ignoruje (zmierzone w `dumpsys wifi`), a LOW_LATENCY działa wyłącznie dla aplikacji na wierzchu, więc do nasłuchu w tle jest bezużyteczny
 - [x] **Tryb Doze na prawdziwym telefonie** (moto g84 5G, Android 15; `dumpsys deviceidle force-idle`, ekran zgaszony, zasilanie odłączone, aplikacja zmieciona z wierzchu). Wiadomości z PC dochodzą po prawdziwym Wi‑Fi przez cały czas snu: pięć prób w ciągu ośmiu minut, każda HTTP 200 w ~0,2 s, z powiadomieniem. Mechanizm widać wprost w `dumpsys netpolicy`: `blocked=DOZE|APP_BACKGROUND, allowed=FOREGROUND, effective=NONE` — Doze chciałby odciąć sieć, ale procState `FGS` (usługa pierwszoplanowa) to znosi. Wyjątek od optymalizacji baterii **nie był** potrzebny; zostaje jako zabezpieczenie na producentów, którzy dokładają własne ubijanie aplikacji
 - [x] **Discovery UDP w fizycznej sieci Wi‑Fi** (PC po kablu 192.168.68.147/25, telefon po Wi‑Fi 192.168.68.140/25). Działa w obie strony: skan z PC znajduje telefon także przy **zgaszonym ekranie i aplikacji w tle** (MulticastLock trzymany przez usługę), a skan z telefonu znajduje aplikację na Windows. Na Windows trzeba mieć przepuszczony ruch przychodzący dla `chatt.exe` osobno dla TCP i UDP; ręczny sprawdzian: `app/tool/wifi_discovery_check.dart`
 - [x] **Kamień milowy: pierwsza prawdziwa rozmowa i transfer pliku PC ⇄ telefon w fizycznej sieci Wi‑Fi** (02.09.2026). Bez tuneli i bez adb: telefon znalazł aplikację na Windows skanem, wysłał wiadomość (dostarczona, podwójny check), a plik 6,5 MB z komputera doszedł po akceptacji na telefonie z sumą `93e19974…cb1` zgodną co do bajtu po obu stronach
@@ -89,7 +89,7 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 ### Faza 6 — Szlif
 - [x] Parowanie kodem PIN: `POST /pair`, sześciocyfrowy kod losowany i pokazywany na jednym urządzeniu, przepisywany na drugim, ważny 2 minuty i jednorazowy. Zgodny kod ustawia `verified` po obu stronach; w czacie jest tarcza (zielona = sparowane), a prośba o plik od niesparowanego urządzenia ostrzega, że nazwę można sobie ustawić dowolną. Sprawdzone Windows ⇄ Android (`docs/screenshots/android/and8_kod_parowania.png`, `and9_sparowane.png`)
 - [x] Szyfrowanie ruchu między sparowanymi: klucz z parowania (X25519 + HKDF z kodem jako solą, kod nie idzie przez sieć), wiadomości i zapowiedzi plików w kopercie AES-GCM, treść plików strumieniem AES-CTR (żeby wznawianie dalej działało), suma kontrolna z zaszyfrowanej zapowiedzi. Od sparowanego urządzenia przyjmujemy **wyłącznie** ruch zaszyfrowany — inaczej dałoby się podszyć jawnym pakietem pod zieloną tarczę (`app/test/downgrade_test.dart`)
-- [x] Ostrzeżenie przy ponownym parowaniu: `POST /pair` nie jest niczym uwierzytelniony, więc prośbę z cudzym guid-em i cudzą nazwą może przysłać każdy z tej sieci. Klucza to nie podmieni (trzeba jeszcze przepisać kod z ekranu tamtego urządzenia), ale karta parowania od znanego już urządzenia wyglądała dokładnie jak pierwsza. Teraz ma czerwoną tarczę i mówi wprost, że zgoda zastąpi klucz (`docs/screenshots/android/and11_ponowne_parowanie.png`)
+- [x] Ostrzeżenie przy ponownym parowaniu: `POST /pair` nie jest niczym uwierzytelniony, więc prośbę z cudzym guid-em i cudzą nazwą może przysłać każdy z tej sieci. Klucza to nie podmieni (trzeba jeszcze przepisać kod z ekranu tamtego urządzenia), ale karta parowania od znanego już urządzenia wyglądała dokładnie jak pierwsza. Teraz ma czerwoną tarczę i mówi wprost, że zgoda zastąpi klucz (`docs/screenshots/android/and15_ponowne_parowanie.png`)
 - [ ] Do rozważenia: pełny PAKE zamiast obecnego schematu (aktywny napastnik w oknie parowania może po fakcie łamać sześciocyfrowy kod offline), rotacja kluczy, szyfrowanie discovery
 - [x] Obsługa zmiany IP rozmówcy: nieudana wysyłka uruchamia skan i szuka tego samego GUID-a pod nowym adresem, zapisuje go i ponawia (dotyczy wiadomości i plików)
 - [x] Sprzątanie listy urządzeń: przy starcie znikają wpisy bez ani jednej wiadomości, niewidziane od tygodnia (sparowanych i rozmów nie rusza); w ustawieniach jest przycisk „wyczyść nieużywane" (próg godziny), a przytrzymanie wpisu na liście urządzeń albo rozmów usuwa go ręcznie razem z historią
@@ -109,7 +109,7 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 Fazy 0–5 są zrobione i zweryfikowane na sprzęcie: 32 testy `flutter test` (zielone), `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie oraz rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi. Zostało:
 
 1. **Faza 6, punkty otwarte**: pełny PAKE zamiast obecnego parowania, rotacja kluczy, szyfrowanie discovery.
-2. **Los kodu C#/MAUI**: parytet funkcji na Windows i Androidzie jest potwierdzony, więc katalogi `Chatt`, `Chatt.Entities`, `Chatt.grpc` i `Prototype/` można usunąć. Decyzja właściciela.
+2. **Dokumentacja**: instrukcje uruchomienia i wydawania wersji, zrzuty z produktu, opis testów jednostkowych i E2E.
 3. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
 
 Uruchamianie testów lokalnie (Flutter nie jest w PATH):
