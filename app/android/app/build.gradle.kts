@@ -1,8 +1,23 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Dane do podpisania buildu release. Plik z hasłami i sam keystore leżą poza
+// gitem (patrz android/.gitignore i docs/budowanie.md). Gdy ich nie ma —
+// na przykład w świeżym klonie albo w sesji chmurowej — build release nadal
+// przechodzi, tylko podpisany kluczem debug.
+val kluczeReleaseFile = rootProject.file("key.properties")
+val kluczeRelease = Properties().apply {
+    if (kluczeReleaseFile.exists()) {
+        FileInputStream(kluczeReleaseFile).use { load(it) }
+    }
+}
+val mamyKluczRelease = kluczeRelease.getProperty("storeFile")?.let { file(it).exists() } == true
 
 android {
     namespace = "com.mysttic.chatt"
@@ -29,11 +44,29 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (mamyKluczRelease) {
+            create("release") {
+                storeFile = file(kluczeRelease.getProperty("storeFile"))
+                storePassword = kluczeRelease.getProperty("storePassword")
+                keyAlias = kluczeRelease.getProperty("keyAlias")
+                keyPassword = kluczeRelease.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (mamyKluczRelease) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "Brak android/key.properties albo keystore'a spod storeFile — " +
+                        "build release zostanie podpisany kluczem debug i nie nadaje " +
+                        "się do rozdawania. Szczegóły w docs/budowanie.md."
+                )
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

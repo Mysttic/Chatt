@@ -107,6 +107,7 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 - [x] `docs/architektura.md` — protokół, schemat bazy z migracjami, model zagrożeń i to, co w nim zostaje otwarte, nasłuch w tle na Androidzie
 - [x] README jako wizytówka: zrzuty, szybki start, tabela „który dokument do czego"
 - [x] Zrzuty produktu generowane skryptem (`app/tool/product_shots.dart`), żeby dało się je odświeżyć po zmianie UI zamiast klikać ręcznie
+- [x] Podpisywanie buildu release własnym kluczem (RSA 4096, alias `chatt`): keystore poza repozytorium, hasła w gitignorowanym `android/key.properties`, a przy ich braku build nadal przechodzi kluczem debug z ostrzeżeniem. Sprawdzone: `apksigner verify` pokazuje `CN=Chatt, O=Mysttic, C=PL` i „Verifies" (schemat v2, bo `minSdk` to 24), podpisany APK instaluje się i działa na emulatorze
 
 ## 4. Podział pracy
 
@@ -120,8 +121,7 @@ Fazy 0–7 są zrobione i zweryfikowane na sprzęcie: 34 testy `flutter test` (z
 
 Zostało:
 
-1. **Podpisywanie APK własnym kluczem** — build release używa na razie klucza debug, co wystarcza na własne urządzenia, ale nie do dystrybucji.
-2. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
+1. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
 
 Uruchamianie testów lokalnie (Flutter nie jest w PATH):
 

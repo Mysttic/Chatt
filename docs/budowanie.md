@@ -84,11 +84,44 @@ Instalacja na podłączonym urządzeniu:
 adb install -r app\build\app\outputs\flutter-apk\app-release.apk
 ```
 
-**Podpisywanie**: build release używa na razie klucza debug
-(`android/app/build.gradle.kts`, `buildTypes.release`). Do dystrybucji poza
-własnymi urządzeniami trzeba wygenerować własny keystore i podmienić
-`signingConfig` — bez tego każda instalacja jest podpisana kluczem
-deweloperskim, który jest publiczny.
+### Podpisywanie
+
+Build release jest podpisywany własnym kluczem. Dwa pliki, oba **poza gitem**:
+
+| Plik | Gdzie | Co w środku |
+|---|---|---|
+| `chatt-release.jks` | `C:\Users\mystt\keys\` | klucz (RSA 4096, alias `chatt`, ważny do 2053) |
+| `key.properties` | `app/android/` | ścieżka do keystore, alias i hasła |
+
+`app/android/.gitignore` wyrzuca `key.properties`, `*.jks` i `*.keystore`, a sam
+keystore leży poza katalogiem projektu — tak radzi dokumentacja Fluttera, żeby
+nie dało się go przypadkiem dodać do repozytorium.
+
+**Kopia zapasowa obu plików jest obowiązkowa.** Android wiąże aktualizacje
+z podpisem: po zgubieniu klucza nie da się wydać nowej wersji dla nikogo, kto
+ma już zainstalowaną starą — zostaje odinstalowanie i instalacja od zera,
+z utratą rozmów i parowań.
+
+Sprawdzenie, czym naprawdę podpisany jest zbudowany APK:
+
+```
+set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr
+%LOCALAPPDATA%\Android\Sdk\build-tools\37.0.0\apksigner.bat verify --print-certs app\build\app\outputs\flutter-apk\app-release.apk
+```
+
+Powinno wypisać `CN=Chatt, O=Mysttic, C=PL` i „Verifies". Podpis jest
+w schemacie v2; v1 (JAR signing) jest wyłączony, bo `minSdk` wynosi 24, a v1
+dotyczy starszych systemów.
+
+Gdy `key.properties` albo keystore'a nie ma (świeży klon, sesja chmurowa),
+build release **nadal przechodzi**, tylko podpisany kluczem debug — Gradle
+wypisuje wtedy ostrzeżenie. Taki APK nadaje się do testów, ale nie do
+rozdawania.
+
+**Zmiana klucza w już zainstalowanej aplikacji**: pierwsza instalacja APK
+podpisanego nowym kluczem na urządzeniu, gdzie stoi wersja debugowa, kończy
+się błędem `INSTALL_FAILED_UPDATE_INCOMPATIBLE`. Trzeba raz odinstalować starą
+wersję (`adb uninstall com.mysttic.chatt`), co kasuje jej dane.
 
 Uprawnienia w manifeście i po co są:
 
