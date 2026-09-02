@@ -11,6 +11,7 @@ import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
+import '../widgets/security_sheet.dart';
 
 /// Ekran rozmowy (odpowiednik Conversation.PNG): dymki, statusy dostarczenia,
 /// ponawianie nieudanych wysyłek.
@@ -149,7 +150,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             return IconButton(
               tooltip: opis,
               icon: Icon(ikona, color: kolor),
-              onPressed: peer.verified || !maKlucz ? null : _startPairing,
+              // Zawsze otwiera panel, także po potwierdzeniu: odciski mają
+              // dać się porównać w dowolnym momencie, a nie tylko raz.
+              onPressed: () => showSecuritySheet(
+                context,
+                peer: peer,
+                onPair: _startPairing,
+              ),
             );
           }),
         ],

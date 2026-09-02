@@ -128,6 +128,42 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get copied => 'Copied';
+
+  @override
+  String get securityNoEncryptionTitle => 'No encryption';
+
+  @override
+  String get securityNoEncryptionBody =>
+      'The other side runs an older version of Chatt that cannot encrypt. This conversation will not work until you update it.';
+
+  @override
+  String get securityEncryptedTitle => 'Encrypted, identity unconfirmed';
+
+  @override
+  String get securityEncryptedBody =>
+      'Nobody on the network can read this conversation. You have no confirmation yet that the other side is who you think — anyone can pick a device name.';
+
+  @override
+  String get securityVerifiedTitle => 'Encrypted and confirmed';
+
+  @override
+  String get securityVerifiedBody =>
+      'You compared a code, so it is known who the key on the other side belongs to.';
+
+  @override
+  String get fingerprintMine => 'This device\'s fingerprint';
+
+  @override
+  String fingerprintOf(Object name) {
+    return '$name\'s fingerprint';
+  }
+
+  @override
+  String get fingerprintHelp =>
+      'The fingerprint comes from the device key and never changes. Read it out loud and check the other side sees the same — if it does, nobody is in the middle.';
+
+  @override
   String get peerOnline => 'available';
 
   @override

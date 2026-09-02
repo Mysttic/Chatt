@@ -290,6 +290,66 @@ abstract class AppLocalizations {
   /// **'Pod {host}:{port} nie odpowiada żaden Chatt.'**
   String noChattAtAddress(Object host, int port);
 
+  /// No description provided for @copied.
+  ///
+  /// In pl, this message translates to:
+  /// **'Skopiowano'**
+  String get copied;
+
+  /// No description provided for @securityNoEncryptionTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bez szyfrowania'**
+  String get securityNoEncryptionTitle;
+
+  /// No description provided for @securityNoEncryptionBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.'**
+  String get securityNoEncryptionBody;
+
+  /// No description provided for @securityEncryptedTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szyfrowane, tożsamość niepotwierdzona'**
+  String get securityEncryptedTitle;
+
+  /// No description provided for @securityEncryptedBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz — nazwę urządzenia każdy może sobie ustawić dowolnie.'**
+  String get securityEncryptedBody;
+
+  /// No description provided for @securityVerifiedTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szyfrowane i potwierdzone'**
+  String get securityVerifiedTitle;
+
+  /// No description provided for @securityVerifiedBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Porównaliście kod, więc wiadomo, do kogo należy klucz po drugiej stronie.'**
+  String get securityVerifiedBody;
+
+  /// No description provided for @fingerprintMine.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odcisk tego urządzenia'**
+  String get fingerprintMine;
+
+  /// No description provided for @fingerprintOf.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odcisk urządzenia {name}'**
+  String fingerprintOf(Object name);
+
+  /// No description provided for @fingerprintHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo — jeśli tak, nikt nie siedzi w środku rozmowy.'**
+  String get fingerprintHelp;
+
   /// No description provided for @peerOnline.
   ///
   /// In pl, this message translates to:

@@ -63,6 +63,19 @@
     "placeholders": { "host": {}, "port": { "type": "int" } }
   },
 
+  "copied": "Skopiowano",
+  "securityNoEncryptionTitle": "Bez szyfrowania",
+  "securityNoEncryptionBody": "Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.",
+  "securityEncryptedTitle": "Szyfrowane, tożsamość niepotwierdzona",
+  "securityEncryptedBody": "Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz — nazwę urządzenia każdy może sobie ustawić dowolnie.",
+  "securityVerifiedTitle": "Szyfrowane i potwierdzone",
+  "securityVerifiedBody": "Porównaliście kod, więc wiadomo, do kogo należy klucz po drugiej stronie.",
+  "fingerprintMine": "Odcisk tego urządzenia",
+  "fingerprintOf": "Odcisk urządzenia {name}",
+  "@fingerprintOf": {
+    "placeholders": { "name": {} }
+  },
+  "fingerprintHelp": "Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo — jeśli tak, nikt nie siedzi w środku rozmowy.",
   "peerOnline": "dostępny",
   "peerOffline": "niedostępny",
   "shieldNoEncryption": "Bez szyfrowania — druga strona ma starszą wersję",

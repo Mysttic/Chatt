@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/background_service.dart';
+import '../../core/crypto.dart';
 import '../../core/languages.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
@@ -294,6 +295,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   _InfoRow(
                       label: context.l10n.deviceIdentifier,
                       value: services.identity.guid),
+                  const SizedBox(height: 8),
+                  // Odcisk własnego klucza: to jego dyktujesz rozmówcy, gdy
+                  // chcecie sprawdzić, czy rozmawiacie ze sobą.
+                  _InfoRow(
+                    label: context.l10n.fingerprintMine,
+                    value: ChattCrypto.fingerprint(services.identity.publicKey),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     context.l10n.manualPairingHint,

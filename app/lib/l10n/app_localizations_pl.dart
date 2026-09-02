@@ -128,6 +128,42 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get copied => 'Skopiowano';
+
+  @override
+  String get securityNoEncryptionTitle => 'Bez szyfrowania';
+
+  @override
+  String get securityNoEncryptionBody =>
+      'Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.';
+
+  @override
+  String get securityEncryptedTitle => 'Szyfrowane, tożsamość niepotwierdzona';
+
+  @override
+  String get securityEncryptedBody =>
+      'Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz — nazwę urządzenia każdy może sobie ustawić dowolnie.';
+
+  @override
+  String get securityVerifiedTitle => 'Szyfrowane i potwierdzone';
+
+  @override
+  String get securityVerifiedBody =>
+      'Porównaliście kod, więc wiadomo, do kogo należy klucz po drugiej stronie.';
+
+  @override
+  String get fingerprintMine => 'Odcisk tego urządzenia';
+
+  @override
+  String fingerprintOf(Object name) {
+    return 'Odcisk urządzenia $name';
+  }
+
+  @override
+  String get fingerprintHelp =>
+      'Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo — jeśli tak, nikt nie siedzi w środku rozmowy.';
+
+  @override
   String get peerOnline => 'dostępny';
 
   @override
