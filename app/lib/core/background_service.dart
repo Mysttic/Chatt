@@ -37,6 +37,32 @@ class BackgroundService {
     }
   }
 
+  /// Czy Android nadal usypia aplikację. Usługa pierwszoplanowa chroni proces
+  /// przed ubiciem, ale w trybie Doze system potrafi mimo to odciąć jej sieć —
+  /// dopiero wyjątek od optymalizacji baterii to zdejmuje. Poza Androidem
+  /// nie ma czego usypiać, więc false.
+  static Future<bool> batteryOptimized() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('batteryOptimized') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Otwiera systemowe okienko z pytaniem o wyjątek. Zwraca tylko tyle, czy
+  /// okienko w ogóle się pokazało — odpowiedź użytkownika czytamy potem
+  /// przez [batteryOptimized].
+  static Future<bool> requestBatteryExemption() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('requestBatteryExemption') ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Powiadomienie o wiadomości, która przyszła przy zamkniętym oknie.
   /// [id] jest stałe dla rozmowy, więc kolejne wiadomości od tej samej osoby
   /// podmieniają powiadomienie zamiast mnożyć je w szufladzie.

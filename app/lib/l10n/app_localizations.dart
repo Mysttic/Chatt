@@ -584,6 +584,36 @@ abstract class AppLocalizations {
   /// **'Angielski'**
   String get languageEnglish;
 
+  /// No description provided for @backgroundListening.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nasłuch w tle'**
+  String get backgroundListening;
+
+  /// No description provided for @batteryExemptOk.
+  ///
+  /// In pl, this message translates to:
+  /// **'System nie usypia Chatta. Wiadomości i pliki dochodzą też przy zgaszonym ekranie.'**
+  String get batteryExemptOk;
+
+  /// No description provided for @batteryOptimizedWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android usypia Chatta przy zgaszonym ekranie i potrafi odciąć mu sieć. Bez wyjątku wiadomości mogą nie dochodzić, dopóki nie otworzysz aplikacji.'**
+  String get batteryOptimizedWarning;
+
+  /// No description provided for @batteryExemptButton.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyłącz optymalizację baterii'**
+  String get batteryExemptButton;
+
+  /// No description provided for @batteryExemptUnavailable.
+  ///
+  /// In pl, this message translates to:
+  /// **'To urządzenie nie ma ekranu z optymalizacją baterii. Poszukaj jej w ustawieniach systemu.'**
+  String get batteryExemptUnavailable;
+
   /// No description provided for @cleanUpDevices.
   ///
   /// In pl, this message translates to:

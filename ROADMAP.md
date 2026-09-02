@@ -76,13 +76,14 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 ### Faza 5 — Sprzęt właściciela (Windows + Android) — w toku (01.09.2026)
 - [x] Flutter SDK 3.47.2 na Windows (`C:\Users\mystt\dev\flutter`, poza PATH-em — patrz README)
 - [x] Build i instalacja `app-debug.apk`; aplikacja startuje na emulatorze (AVD `Pixel_9_Pro`, Android 17)
-- [x] **Automatyczny E2E na żywym Androidzie** (`app/tool/android_e2e_test.dart`): host ⇄ aplikacja na urządzeniu przez tunele adb — `/info`, wiadomość z ACK, plik z akceptacją i sumą kontrolną, odmowa. Zrzuty w `docs/screenshots/android/`
+- [x] **Automatyczny E2E na żywym Androidzie** (`app/tool/android_e2e_test.dart`): host ⇄ aplikacja na urządzeniu przez tunele adb — `/info`, wiadomość z ACK, plik z akceptacją i sumą kontrolną, odmowa. Zrzuty w `docs/screenshots/android/`. Test sam restartuje aplikację na starcie (inaczej kolejny przebieg zastawał kartę z poprzedniego, bo prośba o plik wisi dwie minuty), klika w przyciski znalezione po etykiecie zamiast po współrzędnych i czyta wyjście adb jako UTF‑8 — bez tego „Odrzuć" wracało jako „OdrzuÄ‡" i test odmowy nie trafiał w nic
 - [x] Poprawki znalezione dopiero na urządzeniu: ręczne dodanie po adresie zapisuje port osiągalny (a nie rozgłaszany), odrzucanie pętli na samego siebie, sensowny domyślny nick na Androidzie (`localHostname` zwraca tam „localhost")
 - [x] Build Windows: workload „Desktop development with C++" + tryb dewelopera, `flutter build windows` przechodzi, aplikacja startuje (motyw ciemny bierze z systemu)
 - [x] **Rozmowa PC ⇄ Android na dwóch prawdziwych aplikacjach**: wiadomości w obie strony (z ACK i ponowieniem) oraz plik 6,8 MB z akceptacją na telefonie, sha256 zgodne co do bajtu. Przez tunele adb, bo emulator jest za NAT-em
 - [x] Nasłuch w tle na Androidzie: silnik Fluttera w cache'u aplikacji + usługa pierwszoplanowa (`ChattService`, typ `connectedDevice`) i powiadomienia o wiadomościach przy zamkniętym oknie. Zmierzone przed i po: zwykły proces po zmieceniu z listy zadań nie odbierał nic, teraz przyjmuje wiadomości i pokazuje powiadomienie (`docs/screenshots/android/and7_powiadomienie.png`)
-- [ ] To samo w fizycznej sieci Wi‑Fi z prawdziwym telefonem (dopiero to sprawdzi discovery UDP; możliwy MulticastLock)
-- [ ] Zachowanie w trybie Doze (głęboki sen urządzenia) — nie sprawdzone
+- [x] Utwardzenie nasłuchu w tle: usługa trzyma MulticastLock (bez niego układ Wi‑Fi odsiewa pakiety rozgłoszeniowe, zanim dojdą do aplikacji, czyli ginie discovery), a w ustawieniach jest prośba o wyjątek od optymalizacji baterii — w trybie Doze system odcina sieć aplikacjom bez wyjątku, a tu nie ma żadnego serwera push, który mógłby aplikację obudzić (`docs/screenshots/android/and10_nasluch_w_tle.png`). WifiLock bierzemy tylko do Androida 12 włącznie: od 13 system przyjmuje HIGH_PERF i go ignoruje (zmierzone w `dumpsys wifi`), a LOW_LATENCY działa wyłącznie dla aplikacji na wierzchu, więc do nasłuchu w tle jest bezużyteczny
+- [ ] Tryb Doze na prawdziwym telefonie. Na emulatorze (Android 16, `dumpsys deviceidle force-idle` przy zgaszonym ekranie i odłączonym zasilaniu) sprawdzone tyle: proces usługi żyje, gniazdo nasłuchu przyjmuje połączenia, wiadomość ląduje w bazie i pokazuje się powiadomienie. Czego emulator **nie rozstrzyga**: czy zapora Doze przepuści ruch po prawdziwej sieci — próba kontrolna (ta sama sonda przy zatrzymanej aplikacji) też przeszła, więc emulator po prostu nie egzekwuje reguł per‑UID, a tunel adb i tak idzie po pętli zwrotnej
+- [ ] To samo w fizycznej sieci Wi‑Fi z prawdziwym telefonem (dopiero to sprawdzi discovery UDP)
 - [ ] **Kamień milowy: pierwsza prawdziwa rozmowa i transfer pliku PC ⇄ telefon w fizycznej sieci Wi‑Fi**
 
 ### Faza 6 — Szlif
@@ -116,5 +117,6 @@ Uruchamianie testów lokalnie (Flutter nie jest w PATH):
 ```
 cd app
 C:\Users\mystt\dev\flutter\bin\flutter.bat test
-C:\Users\mystt\dev\flutter\bin\flutter.bat test tool/android_e2e_test.dart   # wymaga uruchomionej aplikacji na emulatorze
+set ADB=C:\Users\mystt\AppData\Local\Android\Sdk\platform-tools\adb.exe
+C:\Users\mystt\dev\flutter\bin\flutter.bat test tool/android_e2e_test.dart   # wymaga zainstalowanej aplikacji na emulatorze
 ```

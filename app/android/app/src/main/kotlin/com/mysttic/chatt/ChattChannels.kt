@@ -1,7 +1,11 @@
 package com.mysttic.chatt
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import io.flutter.embedding.engine.FlutterEngine
@@ -56,9 +60,40 @@ object ChattChannels {
                     )
                     result.success(true)
                 }
+                "batteryOptimized" -> result.success(batteryOptimized(context))
+                "requestBatteryExemption" -> result.success(requestBatteryExemption(context))
                 else -> result.notImplemented()
             }
         }
+    }
+
+    /**
+     * Czy system nadal usypia aplikację. Usługa pierwszoplanowa broni proces
+     * przed ubiciem, ale w trybie Doze i tak potrafi zabrać mu sieć —
+     * dopiero wyjątek od optymalizacji baterii to wyłącza.
+     */
+    private fun batteryOptimized(context: Context): Boolean = try {
+        val power = context.getSystemService(PowerManager::class.java)
+        power?.isIgnoringBatteryOptimizations(context.packageName)?.not() ?: false
+    } catch (error: Exception) {
+        false
+    }
+
+    // BatteryLife: Google odradza to okienko w aplikacjach ze Sklepu Play,
+    // ale tu jest uzasadnione — aplikacja nasłuchuje w sieci lokalnej i nie
+    // ma żadnego serwera push, który mógłby ją obudzić.
+    @SuppressLint("BatteryLife")
+    private fun requestBatteryExemption(context: Context): Boolean = try {
+        context.startActivity(
+            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                .setData(Uri.parse("package:${context.packageName}"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+        true
+    } catch (error: Exception) {
+        // Producent wyciął ekran optymalizacji — użytkownikowi zostaje
+        // ustawienie systemowe znalezione ręcznie.
+        false
     }
 
     /**

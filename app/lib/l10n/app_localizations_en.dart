@@ -299,6 +299,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languageEnglish => 'English';
 
   @override
+  String get backgroundListening => 'Background listening';
+
+  @override
+  String get batteryExemptOk =>
+      'The system does not doze Chatt. Messages and files arrive with the screen off too.';
+
+  @override
+  String get batteryOptimizedWarning =>
+      'Android dozes Chatt with the screen off and can cut off its network. Without an exemption, messages may not arrive until you open the app.';
+
+  @override
+  String get batteryExemptButton => 'Turn off battery optimisation';
+
+  @override
+  String get batteryExemptUnavailable =>
+      'This device has no battery optimisation screen. Look for it in the system settings.';
+
+  @override
   String get cleanUpDevices => 'Clean up unused devices';
 
   @override

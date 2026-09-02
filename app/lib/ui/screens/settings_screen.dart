@@ -1,6 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/background_service.dart';
 import '../../core/languages.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
@@ -15,16 +18,20 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen>
+    with WidgetsBindingObserver {
   final _form = GlobalKey<FormState>();
   late final TextEditingController _nickname;
   late final TextEditingController _welcome;
   late final TextEditingController _port;
   List<String> _addresses = const [];
+  bool _batteryOptimized = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkBattery();
     final services = ref.read(appServicesProvider);
     _nickname = TextEditingController(text: services.identity.name);
     _welcome = TextEditingController(text: services.identity.welcomeMessage);
@@ -41,10 +48,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _nickname.dispose();
     _welcome.dispose();
     _port.dispose();
     super.dispose();
+  }
+
+  /// Odpowiedź na systemowe okienko przychodzi dopiero przy powrocie do
+  /// aplikacji — innego sygnału Android nie daje.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkBattery();
+  }
+
+  Future<void> _checkBattery() async {
+    final optimized = await BackgroundService.batteryOptimized();
+    if (mounted && optimized != _batteryOptimized) {
+      setState(() => _batteryOptimized = optimized);
+    }
   }
 
   Future<void> _save() async {
@@ -60,6 +82,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ? context.l10n.savedRestartNeeded
           : context.l10n.saved),
     ));
+  }
+
+  Future<void> _askBatteryExemption() async {
+    final pokazane = await BackgroundService.requestBatteryExemption();
+    if (!mounted || pokazane) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.batteryExemptUnavailable)),
+    );
   }
 
   /// Ręczne sprzątanie listy. Automatyczne, przy starcie aplikacji, czeka
@@ -187,6 +217,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (wybor != null) services.db.saveLanguage(wybor);
             },
           ),
+          // Tylko Android: na desktopie proces żyje tak długo, jak okno.
+          if (Platform.isAndroid) ...[
+            const SizedBox(height: 24),
+            Text(context.l10n.backgroundListening,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          _batteryOptimized
+                              ? Icons.battery_alert_outlined
+                              : Icons.check_circle_outline,
+                          color: _batteryOptimized
+                              ? scheme.error
+                              : scheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(_batteryOptimized
+                              ? context.l10n.batteryOptimizedWarning
+                              : context.l10n.batteryExemptOk),
+                        ),
+                      ],
+                    ),
+                    if (_batteryOptimized) ...[
+                      const SizedBox(height: 12),
+                      FilledButton.tonalIcon(
+                        onPressed: _askBatteryExemption,
+                        icon: const Icon(Icons.battery_saver_outlined),
+                        label: Text(context.l10n.batteryExemptButton),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           OutlinedButton.icon(
             onPressed: _cleanUpPeers,

@@ -300,6 +300,24 @@ class AppLocalizationsPl extends AppLocalizations {
   String get languageEnglish => 'Angielski';
 
   @override
+  String get backgroundListening => 'Nasłuch w tle';
+
+  @override
+  String get batteryExemptOk =>
+      'System nie usypia Chatta. Wiadomości i pliki dochodzą też przy zgaszonym ekranie.';
+
+  @override
+  String get batteryOptimizedWarning =>
+      'Android usypia Chatta przy zgaszonym ekranie i potrafi odciąć mu sieć. Bez wyjątku wiadomości mogą nie dochodzić, dopóki nie otworzysz aplikacji.';
+
+  @override
+  String get batteryExemptButton => 'Wyłącz optymalizację baterii';
+
+  @override
+  String get batteryExemptUnavailable =>
+      'To urządzenie nie ma ekranu z optymalizacją baterii. Poszukaj jej w ustawieniach systemu.';
+
+  @override
   String get cleanUpDevices => 'Wyczyść nieużywane urządzenia';
 
   @override

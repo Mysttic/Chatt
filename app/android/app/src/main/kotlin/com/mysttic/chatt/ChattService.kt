@@ -7,23 +7,42 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 
 /**
  * Usługa pierwszoplanowa: jedyny sposób, żeby Android nie ubił procesu po
- * zamknięciu okna. Sama nic nie robi — trzyma tylko przy życiu proces
- * z silnikiem Fluttera, w którym siedzi serwer wiadomości i responder
- * discovery. Stąd stałe powiadomienie: bez niego system nie zgodziłby się
- * na nasłuch w tle.
+ * zamknięciu okna. Trzyma przy życiu proces z silnikiem Fluttera, w którym
+ * siedzi serwer wiadomości i responder discovery. Stąd stałe powiadomienie:
+ * bez niego system nie zgodziłby się na nasłuch w tle.
+ *
+ * Poza procesem trzyma jeszcze blokady Wi-Fi, bo sam żywy proces nie
+ * wystarczy: bez MulticastLock układ Wi-Fi odsiewa pakiety rozgłoszeniowe
+ * zanim dojdą do aplikacji, czyli ginie discovery. WifiLock ma trzymać radio
+ * z dala od głębokiego oszczędzania przy zgaszonym ekranie, ale od Androida 13
+ * jest bezużyteczny (szczegóły przy [acquireWifiLocks]) — tam broni nas już
+ * tylko wyjątek od optymalizacji baterii, o który prosimy z ustawień.
  */
 class ChattService : Service() {
 
     private var title = "Chatt"
     private var body = ""
+    private var multicastLock: WifiManager.MulticastLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        acquireWifiLocks()
+    }
+
+    override fun onDestroy() {
+        releaseWifiLocks()
+        super.onDestroy()
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Teksty przychodzą z Darta, żeby szły za językiem wybranym
@@ -33,6 +52,50 @@ class ChattService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
         // Gdyby system nas jednak ubił (skrajny brak pamięci), niech wróci.
         return START_STICKY
+    }
+
+    /**
+     * Obie blokady biorą kontekst aplikacji, a nie usługi — usługa może
+     * zniknąć wcześniej niż blokada, a wtedy trzymanie referencji do niej
+     * byłoby wyciekiem. Bez zliczania referencji: bierzemy raz i oddajemy raz.
+     */
+    private fun acquireWifiLocks() {
+        val wifi = applicationContext.getSystemService(WifiManager::class.java) ?: return
+        try {
+            multicastLock = wifi.createMulticastLock("chatt-discovery").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+            // WifiLock bierzemy tylko do Androida 12 włącznie. Jedyny tryb
+            // działający przy zgaszonym ekranie to HIGH_PERF, a od Androida 13
+            // system przyjmuje go i ignoruje (sprawdzone: `dumpsys wifi`
+            // pokazuje wtedy „0 full high perf"). LOW_LATENCY nie zastępuje go
+            // wcale — jest aktywny wyłącznie dla aplikacji na wierzchu.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                @Suppress("DEPRECATION")
+                wifiLock = wifi.createWifiLock(
+                    WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                    "chatt-nasluch",
+                ).apply {
+                    setReferenceCounted(false)
+                    acquire()
+                }
+            }
+        } catch (error: Exception) {
+            // Brak Wi-Fi (np. tylko sieć komórkowa) albo producent zabrał
+            // blokady — aplikacja ma działać dalej, tylko gorzej w tle.
+        }
+    }
+
+    private fun releaseWifiLocks() {
+        try {
+            multicastLock?.takeIf { it.isHeld }?.release()
+            wifiLock?.takeIf { it.isHeld }?.release()
+        } catch (error: Exception) {
+            // Zwolnienie już zwolnionej blokady — nie ma czym się przejmować.
+        }
+        multicastLock = null
+        wifiLock = null
     }
 
     private fun buildNotification(): Notification {

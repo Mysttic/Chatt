@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Sieć: serwer wiadomości + discovery UDP w sieci lokalnej.
-         CHANGE_WIFI_MULTICAST_STATE przyda się przy MulticastLock (część
-         urządzeń filtruje broadcasty bez niego — obsłużymy w fazie 5). -->
+         CHANGE_WIFI_MULTICAST_STATE jest potrzebne do MulticastLock, który
+         bierze ChattService — bez niego układ Wi-Fi odsiewa broadcasty. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
@@ -12,6 +12,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Wyjątek od optymalizacji baterii: w trybie Doze system odcina sieć
+         aplikacjom bez wyjątku, a tu nie ma serwera push, który by ją obudził.
+         O zgodę pyta użytkownik z ustawień, sami niczego nie wymuszamy. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <application
         android:label="Chatt"
         android:name=".ChattApplication"
