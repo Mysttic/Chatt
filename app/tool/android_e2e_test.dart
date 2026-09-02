@@ -1,0 +1,320 @@
+// E2E na PRAWDZIWYM Androidzie: instancja hosta (ten proces) rozmawia
+// z aplikacją zainstalowaną na urządzeniu/emulatorze.
+//
+// Emulator siedzi za NAT-em, więc zamiast Wi-Fi używamy tuneli adb:
+//   adb forward tcp:47781 tcp:47780   host  -> aplikacja na urządzeniu
+//   adb reverse tcp:47790 tcp:47790   urządzenie -> instancja hosta
+// (test ustawia je sam). Instancja hosta MUSI stać na innym porcie niż
+// aplikacja na urządzeniu: `adb reverse` na 47780 nie wstanie, bo ten port
+// jest już zajęty przez aplikację. Na fizycznym telefonie w tej samej sieci
+// Wi-Fi nic z tego nie jest potrzebne — tam działa discovery.
+//
+// Wymagania: zainstalowana aplikacja na urządzeniu (`flutter install`) oraz
+// adb w PATH albo w zmiennej ADB. Test sam ją restartuje na starcie.
+//
+// Uruchomienie:
+//   flutter test tool/android_e2e_test.dart
+//
+// Zmienne: ADB (ścieżka do adb), CHATT_DEVICE (id urządzenia z `adb devices`).
+@Timeout(Duration(minutes: 5))
+library;
+
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+import 'package:chatt/data/db.dart';
+import 'package:chatt/services/app_services.dart';
+
+/// Port instancji hosta (inny niż domyślny 47780 aplikacji na urządzeniu).
+const int hostPort = 47790;
+
+/// Port aplikacji na urządzeniu widziany z hosta (tunel adb forward).
+const int deviceProxyPort = 47781;
+
+String get _adb => Platform.environment['ADB'] ?? 'adb';
+String get _device => Platform.environment['CHATT_DEVICE'] ?? 'emulator-5554';
+
+/// Wyjście adb czytamy jako UTF-8, a nie kodowaniem systemowym Windows.
+/// Inaczej „Odrzuć" ze zrzutu drzewa widoków wraca jako „OdrzuÄ‡" i żadne
+/// wyszukiwanie po polskiej etykiecie nie trafia.
+Future<ProcessResult> adb(List<String> args) => Process.run(
+      _adb,
+      ['-s', _device, ...args],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    );
+
+const String appPackage = 'com.mysttic.chatt';
+
+/// Świeży start aplikacji na urządzeniu. Bez tego kolejny przebieg zastaje
+/// karty z poprzedniego (prośba o plik wisi dwie minuty, więc przerwany test
+/// zostawia ją na ekranie) i klika w nieaktualną. Czekamy na `/info`, bo
+/// dopiero odpowiedź stamtąd znaczy, że serwer w aplikacji wstał.
+Future<void> restartApp() async {
+  await adb(['shell', 'am', 'force-stop', appPackage]);
+  await adb([
+    'shell',
+    'monkey',
+    '-p',
+    appPackage,
+    '-c',
+    'android.intent.category.LAUNCHER',
+    '1',
+  ]);
+  final koniec = DateTime.now().add(const Duration(seconds: 60));
+  while (DateTime.now().isBefore(koniec)) {
+    final client = HttpClient();
+    try {
+      final response = await (await client.get(
+        '127.0.0.1',
+        deviceProxyPort,
+        '/info',
+      ))
+          .close();
+      await response.drain<void>();
+      if (response.statusCode == 200) return;
+    } catch (_) {
+      // Jeszcze nie wstała — próbujemy dalej.
+    } finally {
+      client.close(force: true);
+    }
+    await Future<void>.delayed(const Duration(seconds: 1));
+  }
+  throw StateError('Aplikacja na urządzeniu nie odpowiedziała na /info '
+      'przez minutę po starcie');
+}
+
+/// Zawartość pliku inna przy każdym uruchomieniu testu. Urządzenie trzyma
+/// odebrane pliki między przebiegami, a zapowiedź wykrywa duplikat po sumie
+/// kontrolnej — przy stałej treści drugi przebieg dostawałby „już to mam"
+/// i nikt by o nic nie pytał.
+List<int> swiezaTresc(int rozmiar) {
+  final bajty = List<int>.generate(rozmiar, (i) => i % 251);
+  // Znacznik czasu na początku: dwa przebiegi nie trafią w tę samą mikrosekundę.
+  var znacznik = DateTime.now().microsecondsSinceEpoch;
+  for (var i = 0; i < 8 && i < rozmiar; i++) {
+    bajty[i] = znacznik & 0xff;
+    znacznik >>= 8;
+  }
+  return bajty;
+}
+
+/// Środek widgetu o danej etykiecie, znaleziony w drzewie dostępności.
+/// Flutter wystawia teksty jako `content-desc`, systemowe widoki jako `text`.
+/// Zwraca null, gdy przez [timeout] nic takiego się nie pojawiło.
+///
+/// Zrzut drzewa bierzemy w pętli, bo `uiautomator dump` czeka na „spokojne"
+/// okno i przy animacjach Fluttera potrafi się poddać. Bez sprawdzenia, czy
+/// zrzut faktycznie powstał, czytalibyśmy poprzedni plik i szukali przycisku
+/// na nieaktualnym ekranie.
+Future<(int, int)?> findWidget(
+  String label, {
+  Duration timeout = const Duration(seconds: 15),
+}) async {
+  final koniec = DateTime.now().add(timeout);
+  do {
+    final where = await _findOnce(label);
+    if (where != null) return where;
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+  } while (DateTime.now().isBefore(koniec));
+  return null;
+}
+
+/// Etykiety widoczne na ekranie — do komunikatu błędu, żeby nie trzeba było
+/// zgadywać, na czym test się potknął.
+Future<String> widocznaTresc() async {
+  const dump = '/sdcard/chatt_ui.xml';
+  final dumped = await adb(['shell', 'uiautomator', 'dump', dump]);
+  if (!'${dumped.stdout}'.contains(dump)) {
+    return 'nie udało się zrzucić drzewa: ${dumped.stdout} ${dumped.stderr}';
+  }
+  final xml = (await adb(['shell', 'cat', dump])).stdout as String;
+  return RegExp(r'content-desc="([^"]+)"')
+      .allMatches(xml)
+      .map((m) => m.group(1)!.replaceAll('&#10;', ' / '))
+      .take(12)
+      .join(' | ');
+}
+
+Future<(int, int)?> _findOnce(String label) async {
+  const dump = '/sdcard/chatt_ui.xml';
+  final dumped = await adb(['shell', 'uiautomator', 'dump', dump]);
+  if (!'${dumped.stdout}'.contains(dump)) return null;
+  final xml = (await adb(['shell', 'cat', dump])).stdout as String;
+  for (final node in xml.split('<node ')) {
+    if (!node.contains('content-desc="$label"') &&
+        !node.contains('text="$label"')) {
+      continue;
+    }
+    final bounds =
+        RegExp(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"').firstMatch(node);
+    if (bounds == null) continue;
+    final left = int.parse(bounds.group(1)!);
+    final top = int.parse(bounds.group(2)!);
+    final right = int.parse(bounds.group(3)!);
+    final bottom = int.parse(bounds.group(4)!);
+    return ((left + right) ~/ 2, (top + bottom) ~/ 2);
+  }
+  return null;
+}
+
+/// Klik w przycisk prośby o plik. Szukamy go po etykiecie, a nie po stałych
+/// współrzędnych: karta zmienia wysokość (np. ostrzeżenie przy niesparowanym
+/// urządzeniu), więc klikanie „na oko" trafiało raz w jeden przycisk, raz
+/// w drugi. Enter tu nie zadziała: na Androidzie przycisk z autofocusem nie
+/// dostaje fokusu klawiatury.
+Future<void> tapOfferButton({required bool accept}) async {
+  // Dwie etykiety, bo aplikacja na urządzeniu może być po polsku albo po
+  // angielsku, a test nie ma powodu tego wymuszać.
+  final labels = accept ? ['Akceptuj', 'Accept'] : ['Odrzuć', 'Reject'];
+  for (final label in labels) {
+    // Na drugą etykietę (inny język aplikacji) nie ma sensu czekać długo:
+    // jeśli karta wisi, to z pierwszą albo z drugą, ale już teraz.
+    final where = await findWidget(
+      label,
+      timeout: label == labels.first
+          ? const Duration(seconds: 15)
+          : const Duration(seconds: 1),
+    );
+    if (where == null) continue;
+    await adb(['shell', 'input', 'tap', '${where.$1}', '${where.$2}']);
+    return;
+  }
+  throw StateError('Nie znalazłem na ekranie przycisku ${labels.first}. '
+      'Co widać: ${await widocznaTresc()}');
+}
+
+/// Zrzut ekranu urządzenia do pliku (do dokumentacji i podglądu, co się stało).
+Future<void> screenshot(String path) async {
+  final result = await Process.run(_adb, ['-s', _device, 'exec-out', 'screencap', '-p'],
+      stdoutEncoding: null);
+  File(path)
+    ..createSync(recursive: true)
+    ..writeAsBytesSync(result.stdout as List<int>);
+}
+
+void main() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
+  late Directory work;
+  late AppServices host;
+  late Directory shots;
+
+  setUpAll(() async {
+    work = Directory.systemTemp.createTempSync('chatt_android');
+    shots = Directory(p.join(Directory.current.path, '..', 'docs', 'screenshots', 'android'))
+      ..createSync(recursive: true);
+
+    // Tunele w obie strony (idempotentne).
+    await adb(['forward', 'tcp:$deviceProxyPort', 'tcp:47780']);
+    final reverse = await adb(['reverse', 'tcp:$hostPort', 'tcp:$hostPort']);
+    expect(reverse.exitCode, 0,
+        reason: 'bez tunelu zwrotnego telefon nie odpowie hostowi: '
+            '${reverse.stderr}');
+
+    await restartApp();
+
+    host = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: hostPort,
+      nameOverride: 'Komputer PC',
+      enableDiscovery: false,
+      receivedDirOverride: p.join(work.path, 'received'),
+      // Host przyjmuje pliki bez pytania — pytanie o zgodę testujemy po
+      // stronie telefonu, na żywym UI.
+      fileOfferPolicy: acceptAllFileOffers,
+    );
+  });
+
+  tearDownAll(() async {
+    await host.dispose();
+    await adb(['forward', '--remove', 'tcp:$deviceProxyPort']);
+    await adb(['reverse', '--remove', 'tcp:$hostPort']);
+    work.deleteSync(recursive: true);
+  });
+
+  test('aplikacja na Androidzie odpowiada na /info i przyjmuje wiadomość',
+      () async {
+    final phone = await host.addPeerByAddress('127.0.0.1', deviceProxyPort);
+    expect(phone, isNotNull,
+        reason: 'serwer HTTP aplikacji na Androidzie musi odpowiedzieć na /info');
+    expect(phone!.guid, isNot(host.identity.guid),
+        reason: 'to musi być telefon, a nie pętla na nas samych');
+    expect(phone.port, deviceProxyPort,
+        reason: 'zapisany port to ten, pod którym telefon jest osiągalny '
+            '(tunel), a nie ten, którym się przedstawia');
+
+    final conversation = await host.openConversationWith(phone);
+    await host.sendText(conversation, 'Hej z komputera! Widzisz to na telefonie?');
+
+    final sent = (await host.db.watchMessages(conversation).first).last;
+    expect(sent.status, MessageStatus.delivered,
+        reason: 'Android potwierdził odbiór (ACK)');
+
+    await Future<void>.delayed(const Duration(seconds: 2));
+    await screenshot(p.join(shots.path, 'and1_wiadomosc_odebrana.png'));
+  });
+
+  test('plik: telefon pyta o zgodę i dopiero potem odbiera bajty', () async {
+    final phone = (await host.db.watchPeers().first).first;
+    final conversation = await host.openConversationWith(phone);
+
+    final source = File(p.join(work.path, 'raport-z-komputera.bin'));
+    source.writeAsBytesSync(swiezaTresc(1200 * 1024));
+
+    // Wysyłka czeka na decyzję użytkownika — nie blokujemy się na niej.
+    final sending = host.sendFile(conversation, source.path);
+
+    // Prośba o zgodę powinna wyskoczyć na telefonie.
+    await Future<void>.delayed(const Duration(seconds: 3));
+    await screenshot(p.join(shots.path, 'and2_prosba_o_plik.png'));
+
+    await tapOfferButton(accept: true);
+    await sending;
+
+    final message = (await host.db.watchMessages(conversation).first).last;
+    expect(message.kind, MessageKind.file);
+    expect(message.status, MessageStatus.delivered,
+        reason: 'po akceptacji plik dochodzi w całości (sha256 się zgadza)');
+
+    // Plik naprawdę leży w katalogu aplikacji na urządzeniu (nie tylko
+    // „nadawca uznał, że dostarczył").
+    final listing = await adb([
+      'shell',
+      'run-as',
+      'com.mysttic.chatt',
+      'ls',
+      '-l',
+      // files/, nie app_flutter/ — tylko stamtąd FileProvider potrafi
+      // wypuścić plik do innej aplikacji.
+      '/data/data/com.mysttic.chatt/files/Chatt/received',
+    ]);
+    expect(listing.stdout.toString(), contains('raport-z-komputera.bin'));
+
+    await Future<void>.delayed(const Duration(seconds: 2));
+    await screenshot(p.join(shots.path, 'and3_plik_odebrany.png'));
+  });
+
+  test('odmowa na telefonie kończy się statusem "nie dostarczono"', () async {
+    final phone = (await host.db.watchPeers().first).first;
+    final conversation = await host.openConversationWith(phone);
+
+    final source = File(p.join(work.path, 'niechciany.bin'));
+    source.writeAsBytesSync(swiezaTresc(64 * 1024));
+
+    final sending = host.sendFile(conversation, source.path);
+    await Future<void>.delayed(const Duration(seconds: 3));
+    await screenshot(p.join(shots.path, 'and4_odmowa.png'));
+    await tapOfferButton(accept: false);
+    await sending;
+
+    final message = (await host.db.watchMessages(conversation).first).last;
+    expect(message.status, MessageStatus.failed,
+        reason: 'odmowa odbiorcy = wiadomość niedostarczona, do ponowienia');
+  });
+}

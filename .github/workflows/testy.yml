@@ -1,0 +1,52 @@
+name: Testy
+
+# Bramka przed wpuszczeniem zmian do master: analiza statyczna i cały zestaw
+# testów. Odpala się **wyłącznie** przy pull requeście do master — zwykłe
+# pchnięcia na develop i gałęzie robocze nie uruchamiają niczego.
+#
+# Domyślne `types` (opened, reopened, synchronize) zostawiamy świadomie:
+# dopóki PR jest otwarty, dorzucone do niego commity przechodzą testy jeszcze
+# raz. Bez tego dałoby się scalić PR na podstawie wyniku sprzed poprawek.
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+# Kolejny commit w otwartym PR anuluje poprzedni, jeszcze trwający bieg.
+concurrency:
+  group: testy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testy:
+    name: analyze i flutter test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Wersja przypięta na sztywno: przypadkowa aktualizacja Fluttera nie
+          # ma prawa wywrócić buildu. Podbijamy ją świadomie, razem z lokalnym
+          # SDK (patrz docs/budowanie.md).
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+
+      - name: Zależności
+        run: flutter pub get
+
+      - name: Analiza statyczna
+        run: flutter analyze
+
+      # Testy podnoszą po dwie pełne instancje aplikacji w jednym procesie
+      # i każą im rozmawiać po prawdziwym gnieździe TCP, a discovery działa
+      # na rozgłoszeniach UDP — dlatego biegną na maszynie, a nie w atrapach.
+      - name: Testy
+        run: flutter test --reporter expanded

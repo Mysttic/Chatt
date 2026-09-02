@@ -1,0 +1,160 @@
+{
+  "@@locale": "pl",
+
+  "appTitle": "Chatt",
+  "cancel": "Anuluj",
+  "delete": "Usuń",
+  "confirm": "Potwierdź",
+  "close": "Zamknij",
+  "copy": "Kopiuj",
+  "errorWithDetails": "Błąd: {details}",
+  "@errorWithDetails": {
+    "placeholders": { "details": {} }
+  },
+
+  "settingsTitle": "Ustawienia",
+  "nearbyButton": "W pobliżu",
+  "noConversationsTitle": "Brak rozmów",
+  "noConversationsBody": "Znajdź urządzenia w tej samej sieci Wi-Fi przyciskiem „W pobliżu” i napisz pierwszą wiadomość.",
+  "deleteConversationTitle": "Usunąć rozmowę z {name}?",
+  "@deleteConversationTitle": {
+    "placeholders": { "name": {} }
+  },
+  "deleteConversationBody": "Znikną wiadomości i samo urządzenie z listy znanych. Odebrane pliki zostają na dysku.",
+  "conversationDeleted": "Usunięto rozmowę z {name}",
+  "@conversationDeleted": {
+    "placeholders": { "name": {} }
+  },
+
+  "nearbyTitle": "Urządzenia w pobliżu",
+  "addByAddress": "Dodaj po adresie IP",
+  "scanRunning": "Szukam… (znaleziono {count})",
+  "@scanRunning": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "scanStart": "Szukaj urządzeń w sieci",
+  "scanNothingFound": "Nie znaleziono urządzeń. Sprawdź, czy Chatt działa na drugim urządzeniu w tej samej sieci, albo dodaj je ręcznie po adresie.",
+  "scanFound": "Znaleziono: {count}",
+  "@scanFound": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "noKnownDevices": "Nie znasz jeszcze żadnych urządzeń.",
+  "longPressToDelete": "Przytrzymaj urządzenie, żeby je usunąć",
+  "lastSeen": "widziano {when}",
+  "@lastSeen": {
+    "placeholders": { "when": {} }
+  },
+  "deleteDeviceTitle": "Usunąć {name}?",
+  "@deleteDeviceTitle": {
+    "placeholders": { "name": {} }
+  },
+  "deleteDeviceBody": "Urządzenie zniknie z listy razem z rozmową i jej wiadomościami. Odebrane pliki zostają na dysku.",
+  "deviceDeleted": "Usunięto {name}",
+  "@deviceDeleted": {
+    "placeholders": { "name": {} }
+  },
+  "manualAddTitle": "Dodaj urządzenie po adresie",
+  "ipLabel": "Adres IP",
+  "ipHint": "np. 192.168.1.20",
+  "portLabel": "Port",
+  "connect": "Połącz",
+  "noChattAtAddress": "Pod {host}:{port} nie odpowiada żaden Chatt.",
+  "@noChattAtAddress": {
+    "placeholders": { "host": {}, "port": { "type": "int" } }
+  },
+
+  "peerOnline": "dostępny",
+  "peerOffline": "niedostępny",
+  "pairTooltipPaired": "Urządzenie sparowane kodem",
+  "pairTooltip": "Sparuj przez porównanie kodu",
+  "sendFileTooltip": "Wyślij plik",
+  "sendTooltip": "Wyślij",
+  "messageHint": "Napisz wiadomość…",
+  "notDeliveredRetry": "Nie dostarczono — ponów",
+  "fileFallbackName": "plik",
+  "openFile": "Otwórz",
+  "showFolder": "Pokaż folder",
+  "shareFile": "Udostępnij",
+  "copyPath": "Kopiuj ścieżkę",
+  "fileGone": "Tego pliku już nie ma na dysku.",
+  "fileOpenFailed": "Nie udało się otworzyć pliku.",
+  "receivingFile": "Odbieram: {name}",
+  "@receivingFile": {
+    "placeholders": { "name": {} }
+  },
+  "pairStartFailed": "Nie udało się zacząć parowania: urządzenie nie odpowiada.",
+
+  "pairAgainWarning": "To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.",
+  "pairRequest": "{name} chce się sparować",
+  "@pairRequest": {
+    "placeholders": { "name": {} }
+  },
+  "pairCompareHint": "Sprawdź, czy drugie urządzenie pokazuje ten sam kod:",
+  "pairCodesMatch": "Zgadza się",
+  "pairCodesDiffer": "Nie zgadza się",
+  "pairChecking": "Czekam…",
+  "pairedWith": "Sparowano z {name}",
+  "@pairedWith": {
+    "placeholders": { "name": {} }
+  },
+  "pairRejected": "Drugie urządzenie przerwało parowanie",
+  "pairCodeExpired": "Parowanie straciło ważność, zacznij od nowa",
+  "pairPeerUnreachable": "Drugie urządzenie nie odpowiada",
+
+  "fileOfferTitle": "{name} chce wysłać plik",
+  "@fileOfferTitle": {
+    "placeholders": { "name": {} }
+  },
+  "fileOfferResume": "{size} — wznowienie, masz już {have}",
+  "@fileOfferResume": {
+    "placeholders": { "size": {}, "have": {} }
+  },
+  "unpairedWarning": "Urządzenie niesparowane — nazwę można sobie ustawić dowolną",
+  "moreFilesWaiting": "{count, plural, one{Czeka jeszcze {count} plik} few{Czekają jeszcze {count} pliki} other{Czeka jeszcze {count} plików}}",
+  "@moreFilesWaiting": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "reject": "Odrzuć",
+  "accept": "Akceptuj",
+
+  "nicknameLabel": "Twój nick",
+  "nicknameRequired": "Podaj nick",
+  "welcomeLabel": "Wiadomość powitalna",
+  "welcomeHelper": "Widoczna dla innych przy wyszukiwaniu",
+  "portFieldLabel": "Preferowany port nasłuchu",
+  "portRange": "Port z zakresu 1024 do 65535",
+  "save": "Zapisz",
+  "saved": "Zapisano.",
+  "savedRestartNeeded": "Zapisano. Nowy port zacznie działać po ponownym uruchomieniu aplikacji.",
+  "appearance": "Wygląd",
+  "themeSystem": "Systemowy",
+  "themeLight": "Jasny",
+  "themeDark": "Ciemny",
+  "language": "Język",
+  "languageSystem": "Systemowy",
+  "languagePolish": "Polski",
+  "languageEnglish": "Angielski",
+  "backgroundListening": "Nasłuch w tle",
+  "batteryExemptOk": "System nie usypia Chatta. Wiadomości i pliki dochodzą też przy zgaszonym ekranie.",
+  "batteryOptimizedWarning": "Android usypia Chatta przy zgaszonym ekranie i potrafi odciąć mu sieć. Bez wyjątku wiadomości mogą nie dochodzić, dopóki nie otworzysz aplikacji.",
+  "batteryExemptButton": "Wyłącz optymalizację baterii",
+  "batteryExemptUnavailable": "To urządzenie nie ma ekranu z optymalizacją baterii. Poszukaj jej w ustawieniach systemu.",
+  "cleanUpDevices": "Wyczyść nieużywane urządzenia",
+  "cleanUpHelp": "Usuwa z listy urządzenia, z którymi nie ma żadnej wiadomości i których nie widać od godziny. Sparowanych i rozmów nie rusza.",
+  "nothingToCleanUp": "Nie było czego usuwać.",
+  "cleanedUp": "Usunięto z listy: {count}",
+  "@cleanedUp": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "thisDevice": "To urządzenie",
+  "listeningOn": "Nasłuch",
+  "deviceIdentifier": "Identyfikator",
+  "listeningPort": "port {port}",
+  "@listeningPort": {
+    "placeholders": { "port": { "type": "int" } }
+  },
+  "manualPairingHint": "Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.",
+
+  "backgroundServiceTitle": "Chatt nasłuchuje",
+  "backgroundServiceBody": "Odbiera wiadomości i pliki z tej sieci Wi-Fi"
+}
