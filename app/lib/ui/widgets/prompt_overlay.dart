@@ -132,7 +132,14 @@ class _PairingCardState extends State<_PairingCard> {
           children: [
             Row(
               children: [
-                Icon(Icons.shield_outlined, color: scheme.primary),
+                Icon(
+                  widget.pairing.alreadyPaired
+                      ? Icons.gpp_maybe_outlined
+                      : Icons.shield_outlined,
+                  color: widget.pairing.alreadyPaired
+                      ? scheme.error
+                      : scheme.primary,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -142,6 +149,15 @@ class _PairingCardState extends State<_PairingCard> {
                 ),
               ],
             ),
+            // Ponowne parowanie znaczy nowy klucz, a prośbę mógł przysłać
+            // ktokolwiek — sama nazwa niczego nie dowodzi.
+            if (widget.pairing.alreadyPaired) ...[
+              const SizedBox(height: 8),
+              Text(
+                context.l10n.pairAgainWarning,
+                style: TextStyle(color: scheme.error, fontSize: 13),
+              ),
+            ],
             const SizedBox(height: 8),
             TextField(
               controller: _code,

@@ -190,6 +190,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Nie udało się zacząć parowania — urządzenie nie odpowiada.';
 
   @override
+  String get pairAgainWarning =>
+      'To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.';
+
+  @override
   String pairRequest(Object name) {
     return '$name chce się sparować';
   }

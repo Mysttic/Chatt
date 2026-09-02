@@ -404,6 +404,12 @@ abstract class AppLocalizations {
   /// **'Nie udało się zacząć parowania — urządzenie nie odpowiada.'**
   String get pairStartFailed;
 
+  /// No description provided for @pairAgainWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.'**
+  String get pairAgainWarning;
+
   /// No description provided for @pairRequest.
   ///
   /// In pl, this message translates to:

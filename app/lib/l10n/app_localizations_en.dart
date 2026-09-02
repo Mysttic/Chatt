@@ -190,6 +190,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not start pairing — the device is not answering.';
 
   @override
+  String get pairAgainWarning =>
+      'This device is already paired. Accepting will replace the key you talk to it with. Anyone can send this request under the same name, so only do it if you asked for it yourself.';
+
+  @override
   String pairRequest(Object name) {
     return '$name wants to pair';
   }

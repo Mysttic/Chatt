@@ -69,7 +69,18 @@ class PendingPairing {
   final String peerGuid;
   final String peerName;
 
-  const PendingPairing({required this.peerGuid, required this.peerName});
+  /// To urządzenie jest już sparowane, więc zgoda **podmieni** klucz sesji.
+  /// `POST /pair` nie jest niczym uwierzytelniony: prośbę z cudzym guid-em
+  /// i cudzą nazwą może przysłać każdy z tej sieci. Kluczem to nie grozi
+  /// (trzeba jeszcze przepisać kod z ekranu tamtego urządzenia), ale
+  /// użytkownik musi zobaczyć, że nie jest to pierwsze parowanie.
+  final bool alreadyPaired;
+
+  const PendingPairing({
+    required this.peerGuid,
+    required this.peerName,
+    this.alreadyPaired = false,
+  });
 }
 
 /// Kod parowania pokazany na ekranie tego urządzenia: sam kod, para kluczy
@@ -440,7 +451,11 @@ class AppServices {
         _pairingOffers[peer.guid] = theirKey;
         pendingPairings.value = [
           ...pendingPairings.value.where((p) => p.peerGuid != peer.guid),
-          PendingPairing(peerGuid: peer.guid, peerName: peer.name),
+          PendingPairing(
+            peerGuid: peer.guid,
+            peerName: peer.name,
+            alreadyPaired: peer.sessionKey != null,
+          ),
         ];
         return PairOutcome.accepted;
 

@@ -77,6 +77,27 @@ void main() {
         isNot(PairOutcome.accepted));
   });
 
+  test('ponowne parowanie jest oznaczone jako podmiana klucza', () async {
+    final bobAtAlice = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    final pin = (await alice.startPairing(bobAtAlice!))!;
+    expect(await bob.confirmPairing(alice.identity.guid, pin),
+        PairOutcome.accepted);
+    expect(bob.pendingPairings.value, isEmpty);
+
+    // Druga prośba o parowanie z tego samego guid-a. `POST /pair` nie jest
+    // uwierzytelniony, więc mógł ją przysłać ktokolwiek pod tą nazwą —
+    // użytkownik musi zobaczyć, że to nie jest pierwsze parowanie.
+    expect(await alice.startPairing(bobAtAlice), isNotNull);
+    expect(bob.pendingPairings.value.single.alreadyPaired, isTrue,
+        reason: 'zgoda podmieni klucz sesji, a nie założy nowy');
+  });
+
+  test('pierwsze parowanie nie straszy podmianą klucza', () async {
+    final bobAtAlice = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    expect(await alice.startPairing(bobAtAlice!), isNotNull);
+    expect(bob.pendingPairings.value.single.alreadyPaired, isFalse);
+  });
+
   test('parowanie z niedostępnym urządzeniem zwraca null', () async {
     final bobAtAlice = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
     await bob.server.stop();
