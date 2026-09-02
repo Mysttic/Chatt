@@ -12,12 +12,12 @@ void main() {
   setUp(() => db = ChattDb(NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  test('ensureSettings tworzy wiersz raz i zachowuje GUID', () async {
+  test('ensureSettings tworzy tożsamość raz i ją zachowuje', () async {
     var factoryCalls = 0;
     Future<Setting> ensure() => db.ensureSettings(
-          guidFactory: () {
+          identityFactory: () async {
             factoryCalls++;
-            return 'guid-test';
+            return ('klucz-test', 'guid-test');
           },
           defaultNickname: 'Tester',
           defaultPort: 50000,
@@ -27,8 +27,9 @@ void main() {
     final second = await ensure();
 
     expect(first.deviceGuid, 'guid-test');
+    expect(first.identityKey, 'klucz-test');
     expect(second.deviceGuid, 'guid-test');
-    expect(factoryCalls, 1);
+    expect(factoryCalls, 1, reason: 'klucza nie losujemy przy każdym starcie');
     expect(second.nickname, 'Tester');
     expect(second.tcpPort, 50000);
   });

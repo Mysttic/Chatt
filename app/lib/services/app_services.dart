@@ -230,18 +230,30 @@ class AppServices {
     Directory(receivedDir).createSync(recursive: true);
     Directory(p.join(receivedDir, _incompleteSubdir)).createSync(recursive: true);
 
+    // Tożsamość to para kluczy: identyfikator jest liczony z klucza
+    // publicznego, więc losowanie GUID-a zniknęło.
     final settings = await db.ensureSettings(
-      guidFactory: _uuid.v4,
+      identityFactory: () async {
+        final para = await ChattCrypto.newKeyPair();
+        final publiczny = await ChattCrypto.publicKeyOf(para);
+        return (
+          base64.encode(await ChattCrypto.privateKeyOf(para)),
+          ChattCrypto.guidFromPublicKey(publiczny),
+        );
+      },
       defaultNickname:
           nameOverride ?? ChattEnv.instanceName ?? _defaultDeviceName(),
       defaultPort: portOverride ?? ChattEnv.tcpPort ?? defaultTcpPort,
     );
 
+    final identityKeyPair =
+        await ChattCrypto.identityKeyPair(base64.decode(settings.identityKey));
     var identity = DeviceIdentity(
       guid: settings.deviceGuid,
       name: settings.nickname,
       welcomeMessage: settings.welcomeMessage,
       tcpPort: settings.tcpPort,
+      publicKey: await ChattCrypto.publicKeyOf(identityKeyPair),
     );
 
     late final AppServices services;
