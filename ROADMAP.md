@@ -110,6 +110,84 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 - [x] CI/CD na GitHubie: `testy.yml` (analiza i cały zestaw testów wyłącznie przy pull requeście do `master`, żeby nie mielić runnerów przy każdym commicie) oraz `wydanie.yml` (scalenie do `master` buduje Windows i podpisany APK, zakłada tag `v<wersja>` i wystawia Release). Numer wydania stoi w `VERSION.md` i to on jest wyzwalaczem: workflow rusza tylko wtedy, gdy ten plik był w scalanych zmianach, a druga bramka sprawdza, czy taki tag już nie istnieje. Zgodności `VERSION.md` z `pubspec.yaml` pilnuje workflow, a podnosi je razem `app/tool/wersja.py`. Brak sekretów z kluczem przerywa wydanie zamiast wypuścić APK podpisany kluczem debug
 - [x] Podpisywanie buildu release własnym kluczem (RSA 4096, alias `chatt`): keystore poza repozytorium, hasła w gitignorowanym `android/key.properties`, a przy ich braku build nadal przechodzi kluczem debug z ostrzeżeniem. Sprawdzone: `apksigner verify` pokazuje `CN=Chatt, O=Mysttic, C=PL` i „Verifies" (schemat v2, bo `minSdk` to 24), podpisany APK instaluje się i działa na emulatorze
 
+## 3a. Wydanie 0.2.0 — „szyfrowane zawsze"
+
+> **Teza wydania:** nikt w sieci nie ma jak podsłuchać rozmowy, niezależnie od
+> tego, czy urządzenia zdążyły się sparować.
+>
+> Stan wyjściowy po 0.1.0 tej tezy nie spełnia: szyfrowanie włącza się dopiero
+> po sparowaniu, więc do tego czasu wszystko leci jawnym tekstem po LAN‑ie.
+> Do tego klucz sesji jest jeden na zawsze (kto go kiedyś zdobędzie, odszyfruje
+> też nagrany wcześniej ruch), a baza z historią leży na dysku bez szyfrowania.
+
+**Decyzje podjęte przed rozpoczęciem (02.09.2026):**
+
+1. **Tożsamością urządzenia jest klucz, nie losowy GUID.** GUID przestaje być
+   losowany i zaczyna być liczony z klucza publicznego: `sha256(klucz)`,
+   pierwsze 16 bajtów, sformatowane jak UUID (żeby nic w kodzie, bazie i logach
+   nie pękło). Dzięki temu nie da się podać cudzego identyfikatora bez jego
+   klucza prywatnego — podszywanie się przestaje być kwestią wpisania cudzego
+   napisu. **Koszt, przyjęty świadomie:** wszystkie urządzenia dostają nowe
+   identyfikatory, więc istniejące rozmowy i parowania trzeba założyć od nowa.
+   Migracja do schematu v6 czyści listę urządzeń i historię, a nie zostawia
+   wpisów, z którymi nie da się już rozmawiać.
+2. **Pełny zakres**, czyli fazy 8–11 razem z szyfrowaniem bazy na dysku.
+
+### Faza 8 — Szyfrowanie domyślne (rdzeń wydania)
+- [ ] Trwała para kluczy X25519 przy pierwszym starcie, w bazie (schemat v6);
+      GUID liczony z klucza publicznego (patrz decyzja 1)
+- [ ] Klucz publiczny w `GET /info` i w pakietach discovery, żeby druga strona
+      mogła zaszyfrować **pierwszą** wiadomość, bez rundy „przywitaj się jawnie"
+- [ ] **Uścisk dłoni per sesja** (`POST /handshake`) w schemacie Noise KK: obie
+      strony znają nawzajem swój klucz statyczny, dorzucają efemeryczne
+      i z połączonych uzgodnień wychodzi klucz ważny tylko na tę sesję.
+      Odpowiedź niesie identyfikator sesji; kolejne zapytania podają go
+      w kopercie, a nieznana albo wygasła sesja to 409 i ponowny uścisk dłoni
+- [ ] **Forward secrecy**: klucze efemeryczne giną po sesji, więc nagrany dziś
+      ruch nie odszyfruje się po późniejszej kradzieży urządzenia
+- [ ] Klucz pliku wyprowadzany z klucza sesji **w chwili zapowiedzi** i zapisany
+      obok `.part` — bez tego wznowienie transferu po wygaśnięciu sesji nie
+      miałoby czym dokończyć strumienia AES‑CTR (to był powód, dla którego
+      rotacja kluczy została odłożona w 0.1.0)
+- [ ] Jawny tekst **znika z protokołu** (wersja 5). Niesparowany rozmówca jest
+      szyfrowany dokładnie tak samo jak sparowany
+- [ ] TOFU: klucz rozmówcy przypinamy przy pierwszym kontakcie; zmiana klucza
+      znanego urządzenia to głośne ostrzeżenie w rozmowie, nie ciche przyjęcie
+- [ ] Tarcza w trzech stanach: brak szyfrowania (starsza wersja po drugiej
+      stronie), szyfrowane niezweryfikowane, zweryfikowane
+- [ ] Testy: podsłuch na łączu nie widzi treści **przed** sparowaniem; dwie
+      sesje tego samego rozmówcy mają różne klucze; ujawnienie klucza
+      statycznego nie odszyfrowuje nagranej wcześniej sesji; wznowienie pliku
+      po wygaśnięciu sesji dokłada tylko resztę
+
+### Faza 9 — Weryfikacja bez przepisywania
+- [ ] Ekran **odcisku klucza**: własny i rozmówcy, do porównania w dowolnym
+      momencie, a nie tylko w oknie parowania
+- [ ] **Parowanie kodem QR**: komputer pokazuje kod z kluczem publicznym
+      i adresem, telefon skanuje. Mocniejsze od sześciu cyfr (napastnik nie ma
+      szansy jednej na milion, tylko zero) i szybsze. Nowe zależności:
+      renderowanie i skanowanie kodu, plus uprawnienie do aparatu
+- [ ] Porównanie kodu zostaje jako droga awaryjna tam, gdzie nie ma aparatu
+      (komputer z komputerem)
+- [ ] Ostrzeżenie przy zmianie klucza znanego urządzenia, z odciskiem starego
+      i nowego obok siebie
+
+### Faza 10 — Dane w spoczynku
+- [ ] Baza szyfrowana (SQLCipher), klucz w Android Keystore i Windows DPAPI
+- [ ] Migracja istniejącej bazy: przepisanie do zaszyfrowanej i skasowanie
+      jawnej, z zachowaniem historii
+- [ ] „Wyczyść historię" w ustawieniach i opcjonalne kasowanie wiadomości
+      starszych niż wybrana liczba dni
+
+### Faza 11 — UI i wygoda
+- [ ] **Windows: ikona w zasobniku, start zminimalizowany, autostart.** Dziś
+      aplikacja nasłuchuje wyłącznie z otwartym oknem, czyli w praktyce rzadko
+- [ ] Wysyłka wielu plików naraz i przeciąganie ich na okno
+- [ ] Miniatury obrazków w rozmowie (uwaga: dekodowanie obrazka od obcego to
+      powierzchnia ataku, miniatury robimy dopiero po akceptacji pliku)
+- [ ] Szukanie w rozmowach
+- [ ] Usuwanie pojedynczych wiadomości
+
 ## 4. Podział pracy
 
 - **Claude (sesje chmurowe, branch `claude/wifi-device-communication-npzb1g`)**: cały kod + testy jednostkowe + testy E2E dwóch instancji na Linuksie + golden/screenshoty UI. Realnie ~90% weryfikacji dzieje się bez Twojego udziału.
@@ -118,9 +196,11 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 
 ## 5. Następny krok
 
-Fazy 0–7 są zrobione i zweryfikowane na sprzęcie: 34 testy `flutter test` (zielone), `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie oraz rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi. Dokumentacja jest w `docs/` (instrukcja, budowanie i wydania, testy, architektura).
+Wersja **0.1.0 jest wydana** (fazy 0–7): 34 testy `flutter test` zielone, `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie, rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi, dokumentacja w `docs/`, podpisany APK i wydanie z GitHub Actions.
 
-Zostało:
+Następne wydanie to **0.2.0 „szyfrowane zawsze"** — plan w sekcji 3a. Rdzeniem jest faza 8: dziś szyfrowanie włącza się dopiero po sparowaniu, więc teza „nikt nie podsłucha" jeszcze nie jest spełniona.
+
+Poza tym zostało:
 
 1. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
 
