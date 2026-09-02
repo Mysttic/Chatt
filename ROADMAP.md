@@ -82,9 +82,9 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 - [x] **Rozmowa PC ⇄ Android na dwóch prawdziwych aplikacjach**: wiadomości w obie strony (z ACK i ponowieniem) oraz plik 6,8 MB z akceptacją na telefonie, sha256 zgodne co do bajtu. Przez tunele adb, bo emulator jest za NAT-em
 - [x] Nasłuch w tle na Androidzie: silnik Fluttera w cache'u aplikacji + usługa pierwszoplanowa (`ChattService`, typ `connectedDevice`) i powiadomienia o wiadomościach przy zamkniętym oknie. Zmierzone przed i po: zwykły proces po zmieceniu z listy zadań nie odbierał nic, teraz przyjmuje wiadomości i pokazuje powiadomienie (`docs/screenshots/android/and7_powiadomienie.png`)
 - [x] Utwardzenie nasłuchu w tle: usługa trzyma MulticastLock (bez niego układ Wi‑Fi odsiewa pakiety rozgłoszeniowe, zanim dojdą do aplikacji, czyli ginie discovery), a w ustawieniach jest prośba o wyjątek od optymalizacji baterii — w trybie Doze system odcina sieć aplikacjom bez wyjątku, a tu nie ma żadnego serwera push, który mógłby aplikację obudzić (`docs/screenshots/android/and10_nasluch_w_tle.png`). WifiLock bierzemy tylko do Androida 12 włącznie: od 13 system przyjmuje HIGH_PERF i go ignoruje (zmierzone w `dumpsys wifi`), a LOW_LATENCY działa wyłącznie dla aplikacji na wierzchu, więc do nasłuchu w tle jest bezużyteczny
-- [ ] Tryb Doze na prawdziwym telefonie. Na emulatorze (Android 16, `dumpsys deviceidle force-idle` przy zgaszonym ekranie i odłączonym zasilaniu) sprawdzone tyle: proces usługi żyje, gniazdo nasłuchu przyjmuje połączenia, wiadomość ląduje w bazie i pokazuje się powiadomienie. Czego emulator **nie rozstrzyga**: czy zapora Doze przepuści ruch po prawdziwej sieci — próba kontrolna (ta sama sonda przy zatrzymanej aplikacji) też przeszła, więc emulator po prostu nie egzekwuje reguł per‑UID, a tunel adb i tak idzie po pętli zwrotnej
-- [ ] To samo w fizycznej sieci Wi‑Fi z prawdziwym telefonem (dopiero to sprawdzi discovery UDP)
-- [ ] **Kamień milowy: pierwsza prawdziwa rozmowa i transfer pliku PC ⇄ telefon w fizycznej sieci Wi‑Fi**
+- [x] **Tryb Doze na prawdziwym telefonie** (moto g84 5G, Android 15; `dumpsys deviceidle force-idle`, ekran zgaszony, zasilanie odłączone, aplikacja zmieciona z wierzchu). Wiadomości z PC dochodzą po prawdziwym Wi‑Fi przez cały czas snu: pięć prób w ciągu ośmiu minut, każda HTTP 200 w ~0,2 s, z powiadomieniem. Mechanizm widać wprost w `dumpsys netpolicy`: `blocked=DOZE|APP_BACKGROUND, allowed=FOREGROUND, effective=NONE` — Doze chciałby odciąć sieć, ale procState `FGS` (usługa pierwszoplanowa) to znosi. Wyjątek od optymalizacji baterii **nie był** potrzebny; zostaje jako zabezpieczenie na producentów, którzy dokładają własne ubijanie aplikacji
+- [x] **Discovery UDP w fizycznej sieci Wi‑Fi** (PC po kablu 192.168.68.147/25, telefon po Wi‑Fi 192.168.68.140/25). Działa w obie strony: skan z PC znajduje telefon także przy **zgaszonym ekranie i aplikacji w tle** (MulticastLock trzymany przez usługę), a skan z telefonu znajduje aplikację na Windows. Na Windows trzeba mieć przepuszczony ruch przychodzący dla `chatt.exe` osobno dla TCP i UDP; ręczny sprawdzian: `app/tool/wifi_discovery_check.dart`
+- [x] **Kamień milowy: pierwsza prawdziwa rozmowa i transfer pliku PC ⇄ telefon w fizycznej sieci Wi‑Fi** (02.09.2026). Bez tuneli i bez adb: telefon znalazł aplikację na Windows skanem, wysłał wiadomość (dostarczona, podwójny check), a plik 6,5 MB z komputera doszedł po akceptacji na telefonie z sumą `93e19974…cb1` zgodną co do bajtu po obu stronach
 
 ### Faza 6 — Szlif
 - [x] Parowanie kodem PIN: `POST /pair`, sześciocyfrowy kod losowany i pokazywany na jednym urządzeniu, przepisywany na drugim, ważny 2 minuty i jednorazowy. Zgodny kod ustawia `verified` po obu stronach; w czacie jest tarcza (zielona = sparowane), a prośba o plik od niesparowanego urządzenia ostrzega, że nazwę można sobie ustawić dowolną. Sprawdzone Windows ⇄ Android (`docs/screenshots/android/and8_kod_parowania.png`, `and9_sparowane.png`)
@@ -106,12 +106,11 @@ Zostaje w repo **jako referencja** (modele danych, parsery filtrów IP/portów z
 
 ## 5. Następny krok
 
-Fazy 0–4 są zrobione i zweryfikowane: 17 testów `flutter test` (zielone), `flutter analyze` bez uwag, oraz 3 testy E2E na żywej aplikacji na Androidzie. Zostało:
+Fazy 0–5 są zrobione i zweryfikowane na sprzęcie: 32 testy `flutter test` (zielone), `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie oraz rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi. Zostało:
 
-1. **Właściciel, żeby odblokować Windows**: w Visual Studio Installerze dołożyć workload „Desktop development with C++" i włączyć tryb dewelopera (`start ms-settings:developers`, potrzebne do symlinków wtyczek). Wtedy `cd app && flutter run -d windows` i pierwszy realny test PC ⇄ telefon w domowym Wi‑Fi.
-2. **Faza 5 do dokończenia**: nasłuch w tle na Androidzie (foreground service + powiadomienia), discovery na fizycznym Wi‑Fi, zachowanie przy zmianie IP.
-3. **Faza 6**: parowanie PIN (kolumna `verified` w bazie już czeka), szyfrowanie, tryb ciemny, ikona, i18n.
-4. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
+1. **Faza 6, punkty otwarte**: pełny PAKE zamiast obecnego parowania, rotacja kluczy, szyfrowanie discovery.
+2. **Los kodu C#/MAUI**: parytet funkcji na Windows i Androidzie jest potwierdzony, więc katalogi `Chatt`, `Chatt.Entities`, `Chatt.grpc` i `Prototype/` można usunąć. Decyzja właściciela.
+3. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
 
 Uruchamianie testów lokalnie (Flutter nie jest w PATH):
 
