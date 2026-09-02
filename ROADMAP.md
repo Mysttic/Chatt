@@ -100,6 +100,14 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 - [x] i18n PL/EN: teksty w `app/lib/l10n/*.arb`, wybór języka w ustawieniach (systemowy/polski/angielski, zapisany w bazie, schemat v5). Teksty powiadomienia usługi w tle idą z Darta do Kotlina, więc też są w języku aplikacji, a nie systemu
 - [x] Ikona powiadomień na Androidzie: własna biała sylwetka dwóch dymków (`res/drawable-*/ic_notification.png`, generowana tym samym skryptem co reszta ikon)
 
+### Faza 7 — Dokumentacja ✅ (02.09.2026)
+- [x] `docs/instrukcja.md` — obsługa dla użytkownika: znajdowanie urządzeń, wiadomości i statusy, pliki z akceptacją i wznawianiem, parowanie przez porównanie kodu, nasłuch w tle, co robić gdy skan nic nie znajduje
+- [x] `docs/budowanie.md` — środowisko, build Windows i Androida, uprawnienia w manifeście i po co są, numer wersji w jednym miejscu, lista kroków przy wydaniu i lista kontrolna do sprawdzenia ręcznie
+- [x] `docs/testy.md` — co pokrywa każdy z 34 testów, scenariusze na żywym sprzęcie, świadome dziury w pokryciu
+- [x] `docs/architektura.md` — protokół, schemat bazy z migracjami, model zagrożeń i to, co w nim zostaje otwarte, nasłuch w tle na Androidzie
+- [x] README jako wizytówka: zrzuty, szybki start, tabela „który dokument do czego"
+- [x] Zrzuty produktu generowane skryptem (`app/tool/product_shots.dart`), żeby dało się je odświeżyć po zmianie UI zamiast klikać ręcznie
+
 ## 4. Podział pracy
 
 - **Claude (sesje chmurowe, branch `claude/wifi-device-communication-npzb1g`)**: cały kod + testy jednostkowe + testy E2E dwóch instancji na Linuksie + golden/screenshoty UI. Realnie ~90% weryfikacji dzieje się bez Twojego udziału.
@@ -108,9 +116,11 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 
 ## 5. Następny krok
 
-Fazy 0–6 są zrobione i zweryfikowane na sprzęcie: 34 testy `flutter test` (zielone), `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie oraz rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi. Zostało:
+Fazy 0–7 są zrobione i zweryfikowane na sprzęcie: 34 testy `flutter test` (zielone), `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie oraz rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi. Dokumentacja jest w `docs/` (instrukcja, budowanie i wydania, testy, architektura).
 
-1. **Dokumentacja**: instrukcje uruchomienia i wydawania wersji, zrzuty z produktu, opis testów jednostkowych i E2E.
+Zostało:
+
+1. **Podpisywanie APK własnym kluczem** — build release używa na razie klucza debug, co wystarcza na własne urządzenia, ale nie do dystrybucji.
 2. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
 
 Uruchamianie testów lokalnie (Flutter nie jest w PATH):
