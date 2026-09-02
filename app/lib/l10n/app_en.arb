@@ -38,7 +38,9 @@
 
   "peerOnline": "available",
   "peerOffline": "unavailable",
-  "pairTooltipPaired": "Device paired with a code",
+  "shieldNoEncryption": "No encryption — the other side runs an older version",
+  "shieldEncrypted": "Encrypted, identity unconfirmed. Tap to compare a code",
+  "shieldVerified": "Encrypted and confirmed",
   "pairTooltip": "Pair by comparing a code",
   "sendFileTooltip": "Send a file",
   "sendTooltip": "Send",
@@ -54,7 +56,7 @@
   "receivingFile": "Receiving: {name}",
   "pairStartFailed": "Could not start pairing: the device is not answering.",
 
-  "pairAgainWarning": "This device is already paired. Accepting will replace the key you talk to it with. Anyone can send this request under the same name, so only do it if you asked for it yourself.",
+  "pairAgainWarning": "This device's identity is already confirmed. Anyone can send this request under the same name, so only confirm if you asked for it yourself.",
   "pairRequest": "{name} wants to pair",
   "pairCompareHint": "Check that the other device shows the same code:",
   "pairCodesMatch": "They match",
@@ -67,7 +69,7 @@
 
   "fileOfferTitle": "{name} wants to send a file",
   "fileOfferResume": "{size} — resuming, you already have {have}",
-  "unpairedWarning": "Device is not paired — anyone can pick that name",
+  "unpairedWarning": "Identity unconfirmed — anyone can pick that name",
   "moreFilesWaiting": "{count, plural, one{{count} more file waiting} other{{count} more files waiting}}",
   "reject": "Reject",
   "accept": "Accept",

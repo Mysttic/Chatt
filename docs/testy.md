@@ -1,6 +1,6 @@
 # Testy
 
-Podział jest prosty: **34 testy `flutter test`** sprawdzają wszystko, co da się
+Podział jest prosty: **42 testy `flutter test`** sprawdzają wszystko, co da się
 sprawdzić bez sprzętu, a osobne scenariusze w `app/tool/` sterują żywą
 aplikacją na urządzeniu. Rzeczy, których nie sprawdzi ani jedno, ani drugie,
 są wypisane na końcu.
@@ -51,8 +51,8 @@ transferu).
 
 ### Discovery (`test/discovery_test.dart`, 3 testy)
 - skan znajduje drugą instancję i uczy ją o skanującym
-- od sparowanego przyjmujemy tylko podpisaną odpowiedź (podszycie się pod
-  znane urządzenie wypada z wyniku skanu)
+- od znanego urządzenia przyjmujemy tylko podpisaną odpowiedź (podszycie się
+  pod nie wypada z wyniku skanu)
 - rozmówca ze zmienionym adresem jest odnajdywany po GUID
 
 ### Wiadomości (`test/messaging_e2e_test.dart`, 5 testów)
@@ -68,8 +68,10 @@ transferu).
 - plik 3 MB dochodzi w całości, bajt w bajt
 - odbiorca offline: failed, retry po powrocie dostarcza
 - odmowa odbiorcy: żaden bajt nie leci, po zgodzie retry dostarcza
-- zła suma kontrolna: plik odrzucony, nic nie ląduje w odebranych
-- wznowienie: druga próba dokłada tylko brakującą część
+- uszkodzenie w locie (łącze przekręcające bajt): plik odrzucony, nic nie
+  ląduje w odebranych
+- część transferu z poprzedniej sesji nie jest dopisywana, transfer rusza od
+  zera i składa się bajt w bajt
 - nadawca wznawia po zerwaniu sieci: druga próba dosyła tylko resztę
 - uszkodzone metadane → 400, serwer żyje dalej
 
@@ -78,26 +80,37 @@ transferu).
 - „nie zgadza się" po jednej stronie zrywa parowanie po obu
 - klucz niezgodny ze zobowiązaniem jest odrzucany (tak wyglądałby napastnik
   dobierający klucze pod kod)
-- ponowne parowanie jest oznaczone jako podmiana klucza
-- pierwsze parowanie nie straszy podmianą klucza
+- ponowne potwierdzanie znanego urządzenia jest wyraźnie oznaczone
+- pierwsze potwierdzenie nie straszy ostrzeżeniem
 - parowanie z niedostępnym urządzeniem zwraca null
+
+### Tożsamość i sesje (`test/identity_crypto_test.dart`, 8 testów)
+- identyfikator liczy się z klucza publicznego i jest powtarzalny
+- tożsamość przeżywa zapis i odczyt klucza prywatnego
+- obie strony uścisku dłoni wyliczają ten sam klucz sesji
+- **inne klucze efemeryczne dają inny klucz sesji** — to jest forward secrecy
+  zapisane jako asercja, a nie obietnica w komentarzu
+- podmieniony klucz statyczny psuje uzgodnienie
+- klucz pliku wisi na kluczu sesji i guidzie wiadomości
+- urządzenie rozgłasza klucz, a jego identyfikator z niego wynika
 
 ### Szyfrowanie (`test/encryption_test.dart`, 4 testy)
 - sparowani: treść wiadomości nie leci jawnym tekstem (sprawdzane przez
   podsłuch na łączu, nie przez zaufanie kodowi)
-- niesparowani: ruch leci po staremu, jawnym tekstem
+- **niesparowani: treść też nie leci jawnym tekstem** — teza wydania 0.2.0
 - sparowani: plik jedzie zaszyfrowany i składa się bajt w bajt
 - sparowani: wznowienie zaszyfrowanego pliku dosyła tylko resztę
 
 ### Odporność na obniżenie zabezpieczeń (`test/downgrade_test.dart`, 3 testy)
-Napastnik zna GUID sparowanego rozmówcy, ale nie zna klucza:
-- jawna wiadomość podszyta pod sparowanego rozmówcę jest odrzucana
-- jawna zapowiedź pliku od sparowanego rozmówcy jest odrzucana
+Napastnik zna identyfikator rozmówcy, ale nie zna jego klucza prywatnego:
+- jawna wiadomość podszyta pod znanego rozmówcę jest odrzucana
+- jawna zapowiedź pliku od znanego rozmówcy jest odrzucana
 - jawny transfer nie podmieni pliku zapowiedzianego szyfrem
 
 Te trzy testy powstały po tym, jak przegląd kodu znalazł dokładnie takie
-dziury w pierwszej wersji szyfrowania. Każdy z nich przechodzi na czerwono po
-usunięciu odpowiedniego warunku w `_authenticated`.
+dziury w pierwszej wersji szyfrowania. Od protokołu 5 broni ich już sam
+protokół (jawnego tekstu nie ma), ale zostają jako świadek: gdyby kiedyś wrócił
+awaryjny tryb bez szyfrowania, te testy zapalą się na czerwono.
 
 ## Scenariusze na żywym sprzęcie
 

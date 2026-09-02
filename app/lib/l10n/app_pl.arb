@@ -65,7 +65,9 @@
 
   "peerOnline": "dostępny",
   "peerOffline": "niedostępny",
-  "pairTooltipPaired": "Urządzenie sparowane kodem",
+  "shieldNoEncryption": "Bez szyfrowania — druga strona ma starszą wersję",
+  "shieldEncrypted": "Szyfrowane, ale tożsamość niepotwierdzona. Kliknij, żeby porównać kod",
+  "shieldVerified": "Szyfrowane i potwierdzone",
   "pairTooltip": "Sparuj przez porównanie kodu",
   "sendFileTooltip": "Wyślij plik",
   "sendTooltip": "Wyślij",
@@ -84,7 +86,7 @@
   },
   "pairStartFailed": "Nie udało się zacząć parowania: urządzenie nie odpowiada.",
 
-  "pairAgainWarning": "To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.",
+  "pairAgainWarning": "Tożsamość tego urządzenia jest już potwierdzona. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc potwierdzaj tylko wtedy, gdy sam o to poprosiłeś.",
   "pairRequest": "{name} chce się sparować",
   "@pairRequest": {
     "placeholders": { "name": {} }
@@ -109,7 +111,7 @@
   "@fileOfferResume": {
     "placeholders": { "size": {}, "have": {} }
   },
-  "unpairedWarning": "Urządzenie niesparowane — nazwę można sobie ustawić dowolną",
+  "unpairedWarning": "Tożsamość niepotwierdzona — nazwę można sobie ustawić dowolną",
   "moreFilesWaiting": "{count, plural, one{Czeka jeszcze {count} plik} few{Czekają jeszcze {count} pliki} other{Czeka jeszcze {count} plików}}",
   "@moreFilesWaiting": {
     "placeholders": { "count": { "type": "int" } }

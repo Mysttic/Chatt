@@ -302,11 +302,23 @@ abstract class AppLocalizations {
   /// **'niedostępny'**
   String get peerOffline;
 
-  /// No description provided for @pairTooltipPaired.
+  /// No description provided for @shieldNoEncryption.
   ///
   /// In pl, this message translates to:
-  /// **'Urządzenie sparowane kodem'**
-  String get pairTooltipPaired;
+  /// **'Bez szyfrowania — druga strona ma starszą wersję'**
+  String get shieldNoEncryption;
+
+  /// No description provided for @shieldEncrypted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szyfrowane, ale tożsamość niepotwierdzona. Kliknij, żeby porównać kod'**
+  String get shieldEncrypted;
+
+  /// No description provided for @shieldVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szyfrowane i potwierdzone'**
+  String get shieldVerified;
 
   /// No description provided for @pairTooltip.
   ///
@@ -395,7 +407,7 @@ abstract class AppLocalizations {
   /// No description provided for @pairAgainWarning.
   ///
   /// In pl, this message translates to:
-  /// **'To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.'**
+  /// **'Tożsamość tego urządzenia jest już potwierdzona. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc potwierdzaj tylko wtedy, gdy sam o to poprosiłeś.'**
   String get pairAgainWarning;
 
   /// No description provided for @pairRequest.
@@ -467,7 +479,7 @@ abstract class AppLocalizations {
   /// No description provided for @unpairedWarning.
   ///
   /// In pl, this message translates to:
-  /// **'Urządzenie niesparowane — nazwę można sobie ustawić dowolną'**
+  /// **'Tożsamość niepotwierdzona — nazwę można sobie ustawić dowolną'**
   String get unpairedWarning;
 
   /// No description provided for @moreFilesWaiting.

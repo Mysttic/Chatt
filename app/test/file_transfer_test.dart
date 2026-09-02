@@ -1,14 +1,12 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:crypto/crypto.dart' show sha256;
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:chatt/data/db.dart';
-import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// E2E transferu plików między dwiema pełnymi instancjami: zgoda odbiorcy,
@@ -175,90 +173,131 @@ void main() {
     expect(File(atBob.filePath!).lengthSync(), source.lengthSync());
   });
 
-  test('zła suma kontrolna: plik odrzucony, nic nie ląduje w odebranych',
+  test('uszkodzenie w locie: plik odrzucony, nic nie ląduje w odebranych',
       () async {
-    final source = makeRandomFile('podmieniony.bin', 64 * 1024);
-    final ok = await alice.client.sendFile(
-      host: '127.0.0.1',
-      port: bob.server.port!,
-      headers: {
-        headerMessageGuid: 'guid-zlej-sumy',
-        headerFrom: encodeIdentityHeader(alice.identity),
-        headerFileName: Uri.encodeComponent('podmieniony.bin'),
-        headerFileSize: '${source.lengthSync()}',
-        headerSentAt: DateTime.now().toUtc().toIso8601String(),
-        headerFileSha256: 'a' * 64, // suma "z sufitu"
-        headerFileOffset: '0',
-      },
-      file: source,
-    );
+    final source = makeRandomFile('podmieniony.bin', 256 * 1024);
 
-    expect(ok, isFalse);
+    // Łącze, które przekręca jeden bajt gdzieś w środku transferu. Suma
+    // kontrolna przyszła wcześniej w zaszyfrowanej zapowiedzi, więc odbiorca
+    // ma z czym porównać to, co złożył.
+    var przekrecone = false;
+    final psujaceLacze = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    psujaceLacze.listen((client) async {
+      final target = await Socket.connect('127.0.0.1', bob.server.port!);
+      var forwarded = 0;
+      client.listen(
+        (chunk) {
+          forwarded += chunk.length;
+          if (!przekrecone && forwarded > 100 * 1024) {
+            przekrecone = true;
+            final kopia = List<int>.from(chunk);
+            kopia[0] = kopia[0] ^ 0xff;
+            target.add(kopia);
+            return;
+          }
+          target.add(chunk);
+        },
+        onDone: () => target.close(),
+        onError: (Object _) => target.destroy(),
+      );
+      target.listen(client.add,
+          onDone: () => client.close(), onError: (Object _) => client.destroy());
+    });
+    addTearDown(() => psujaceLacze.close());
+
+    final bobAsPeer =
+        await alice.addPeerByAddress('127.0.0.1', psujaceLacze.port);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+    await alice.sendFile(conversation, source.path);
+
+    expect(przekrecone, isTrue, reason: 'test ma sens tylko, gdy coś zepsuł');
     final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
     final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
-    expect(await bob.db.watchMessages(convAtBob).first, isEmpty);
+    expect(await bob.db.watchMessages(convAtBob).first, isEmpty,
+        reason: 'uszkodzony plik nie ma prawa trafić do rozmowy');
     expect(
         Directory(p.join(work.path, 'bob_received')).listSync().whereType<File>(),
-        isEmpty);
-    expect(File(p.join(work.path, 'bob_received', '.incomplete',
-            'guid-zlej-sumy.part'))
-        .existsSync(),
-        isFalse,
-        reason: 'część po złej sumie kontrolnej idzie do kosza');
+        isEmpty,
+        reason: 'ani do katalogu odebranych');
   });
 
-  test('wznowienie: druga próba dokłada tylko brakującą część', () async {
+  test('część z poprzedniej sesji nie jest dopisywana, transfer rusza od zera',
+      () async {
     final source = makeRandomFile('film.bin', 512 * 1024);
-    final bytes = source.readAsBytesSync();
-    final digest = sha256.convert(bytes).toString();
-    const guid = 'guid-wznowienia';
-    const half = 200 * 1024;
 
-    Map<String, String> headers(int offset) => {
-          headerMessageGuid: guid,
-          headerFrom: encodeIdentityHeader(alice.identity),
-          headerFileName: Uri.encodeComponent('film.bin'),
-          headerFileSize: '${bytes.length}',
-          headerSentAt: DateTime.now().toUtc().toIso8601String(),
-          headerFileSha256: digest,
-          headerFileOffset: '$offset',
-        };
+    // Łącze zrywa transfer w połowie: u Bartka zostaje część pliku.
+    var cutAfter = 200 * 1024;
+    final flakyLink = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    flakyLink.listen((client) async {
+      final target = await Socket.connect('127.0.0.1', bob.server.port!);
+      var forwarded = 0;
+      client.listen(
+        (chunk) {
+          forwarded += chunk.length;
+          if (cutAfter > 0 && forwarded > cutAfter) {
+            client.destroy();
+            target.destroy();
+            return;
+          }
+          target.add(chunk);
+        },
+        onDone: () => target.close(),
+        onError: (Object _) => target.destroy(),
+      );
+      target.listen(client.add,
+          onDone: () => client.close(), onError: (Object _) => client.destroy());
+    });
+    addTearDown(() => flakyLink.close());
 
-    // Pierwsza próba urywa się w połowie: Bartek nie kwituje odbioru...
-    final firstChunk = File(p.join(work.path, 'film.czesc1'))
-      ..writeAsBytesSync(bytes.sublist(0, half));
-    final first = await alice.client.sendFile(
-      host: '127.0.0.1',
-      port: bob.server.port!,
-      headers: headers(0),
-      file: firstChunk,
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', flakyLink.port);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+    final message = (await alice.db.watchMessages(
+            await alice.openConversationWith(bobAsPeer))
+        .first);
+    expect(message, isEmpty);
+
+    await alice.sendFile(conversation, source.path);
+    expect((await alice.db.watchMessages(conversation).first).single.status,
+        MessageStatus.failed,
+        reason: 'transfer się urwał');
+    final part = Directory(p.join(work.path, 'bob_received', '.incomplete'))
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.part'));
+    expect(part, isNotEmpty, reason: 'kawałek został do dokończenia');
+
+    // Obie strony zaczynają od nowa: klucz pliku wisi na kluczu sesji, więc
+    // po jej wymianie stara część jest zaszyfrowana czymś innym. Dopisanie do
+    // niej dałoby plik, którego nie da się odszyfrować w całości — dlatego
+    // zapowiedź niesie znacznik klucza, a odbiorca każe zacząć od zera.
+    await alice.dispose();
+    alice = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Alicja',
+      enableDiscovery: false,
+      receivedDirOverride: p.join(work.path, 'alice_received2'),
+      fileOfferPolicy: acceptAllFileOffers,
     );
-    expect(first, isFalse);
+    cutAfter = 0; // kabel już nie zrywa
 
-    // ...ale to, co doszło, zostaje na dysku do dokończenia.
-    final part =
-        File(p.join(work.path, 'bob_received', '.incomplete', '$guid.part'));
-    expect(part.existsSync(), isTrue);
-    expect(part.lengthSync(), half);
+    final bobPonownie =
+        await alice.addPeerByAddress('127.0.0.1', flakyLink.port);
+    final rozmowaPonownie = await alice.openConversationWith(bobPonownie!);
+    await alice.sendFile(rozmowaPonownie, source.path);
 
-    // Druga próba wysyła wyłącznie resztę, od miejsca przerwania.
-    final restChunk = File(p.join(work.path, 'film.czesc2'))
-      ..writeAsBytesSync(bytes.sublist(half));
-    final second = await alice.client.sendFile(
-      host: '127.0.0.1',
-      port: bob.server.port!,
-      headers: headers(half),
-      file: restChunk,
-    );
-    expect(second, isTrue);
+    final wyslana =
+        (await alice.db.watchMessages(rozmowaPonownie).first).single;
+    expect(wyslana.status, MessageStatus.delivered);
 
-    final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
-    final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
-    final atBob = (await bob.db.watchMessages(convAtBob).first).single;
-    expect(atBob.fileSize, bytes.length);
-    expect(File(atBob.filePath!).readAsBytesSync(), bytes,
-        reason: 'złożony plik musi być identyczny z oryginałem');
-    expect(part.existsSync(), isFalse, reason: 'część posprzątana');
+    final odebrane = Directory(p.join(work.path, 'bob_received'))
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('film.bin'))
+        .toList();
+    expect(odebrane, hasLength(1));
+    expect(odebrane.single.readAsBytesSync(), source.readAsBytesSync(),
+        reason: 'plik złożony od zera musi być bajt w bajt taki sam');
   });
 
   test('nadawca wznawia po zerwaniu sieci: druga próba dosyła tylko resztę',
@@ -333,7 +372,7 @@ void main() {
       headers: {'x-chatt-message-guid': 'x'}, // brak reszty nagłówków
       file: makeRandomFile('smieci.bin', 1024),
     );
-    expect(ok, isFalse);
+    expect(ok.delivered, isFalse);
     expect(await alice.client.fetchInfo('127.0.0.1', bob.server.port!), isNotNull);
   });
 }

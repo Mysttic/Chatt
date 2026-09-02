@@ -133,32 +133,48 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
    wpisów, z którymi nie da się już rozmawiać.
 2. **Pełny zakres**, czyli fazy 8–11 razem z szyfrowaniem bazy na dysku.
 
-### Faza 8 — Szyfrowanie domyślne (rdzeń wydania)
-- [ ] Trwała para kluczy X25519 przy pierwszym starcie, w bazie (schemat v6);
+### Faza 8 — Szyfrowanie domyślne ✅ (02.09.2026)
+- [x] Trwała para kluczy X25519 przy pierwszym starcie, w bazie (schemat v6);
       GUID liczony z klucza publicznego (patrz decyzja 1)
-- [ ] Klucz publiczny w `GET /info` i w pakietach discovery, żeby druga strona
+- [x] Klucz publiczny w `GET /info` i w pakietach discovery, żeby druga strona
       mogła zaszyfrować **pierwszą** wiadomość, bez rundy „przywitaj się jawnie"
-- [ ] **Uścisk dłoni per sesja** (`POST /handshake`) w schemacie Noise KK: obie
+- [x] **Uścisk dłoni per sesja** (`POST /handshake`) w schemacie Noise KK: obie
       strony znają nawzajem swój klucz statyczny, dorzucają efemeryczne
       i z połączonych uzgodnień wychodzi klucz ważny tylko na tę sesję.
       Odpowiedź niesie identyfikator sesji; kolejne zapytania podają go
       w kopercie, a nieznana albo wygasła sesja to 409 i ponowny uścisk dłoni
-- [ ] **Forward secrecy**: klucze efemeryczne giną po sesji, więc nagrany dziś
-      ruch nie odszyfruje się po późniejszej kradzieży urządzenia
-- [ ] Klucz pliku wyprowadzany z klucza sesji **w chwili zapowiedzi** i zapisany
-      obok `.part` — bez tego wznowienie transferu po wygaśnięciu sesji nie
-      miałoby czym dokończyć strumienia AES‑CTR (to był powód, dla którego
-      rotacja kluczy została odłożona w 0.1.0)
-- [ ] Jawny tekst **znika z protokołu** (wersja 5). Niesparowany rozmówca jest
-      szyfrowany dokładnie tak samo jak sparowany
-- [ ] TOFU: klucz rozmówcy przypinamy przy pierwszym kontakcie; zmiana klucza
-      znanego urządzenia to głośne ostrzeżenie w rozmowie, nie ciche przyjęcie
-- [ ] Tarcza w trzech stanach: brak szyfrowania (starsza wersja po drugiej
-      stronie), szyfrowane niezweryfikowane, zweryfikowane
-- [ ] Testy: podsłuch na łączu nie widzi treści **przed** sparowaniem; dwie
-      sesje tego samego rozmówcy mają różne klucze; ujawnienie klucza
-      statycznego nie odszyfrowuje nagranej wcześniej sesji; wznowienie pliku
-      po wygaśnięciu sesji dokłada tylko resztę
+- [x] **Forward secrecy**: klucze efemeryczne żyją tylko w pamięci i giną
+      z sesją, więc nagrany dziś ruch nie odszyfruje się po późniejszej
+      kradzieży urządzenia
+- [x] Klucz pliku wyprowadzany z klucza sesji, a w zapowiedzi jedzie jego
+      **znacznik** zapisywany obok `.part`. Niezgodność znacznika (część
+      z poprzedniej sesji) każe zacząć transfer od zera, zamiast cicho
+      odszyfrować śmieci nowym kluczem na starych bajtach
+- [x] Jawny tekst **zniknął z protokołu** (wersja 5). Niesparowany rozmówca
+      jest szyfrowany dokładnie tak samo jak sparowany, a zapytanie bez koperty
+      dostaje 409 zamiast odpowiedzi
+- [x] Guid nadawcy zniknął też z jawnej części koperty — zostaje sam numer
+      sesji, zmieniany przy każdym uścisku dłoni, więc podsłuchujący nie widzi
+      już nawet tego, kto z kim rozmawia
+- [x] Parowanie zmieniło rolę: nie ustala klucza (ten jest efemeryczny), tylko
+      potwierdza tożsamość. Do kodu do porównania wchodzą oba klucze statyczne
+- [x] Tarcza w trzech stanach: brak szyfrowania (starsza wersja po drugiej
+      stronie), szyfrowane niepotwierdzone, potwierdzone
+- [x] Testy: podsłuch na łączu nie widzi treści **przed** sparowaniem; dwie
+      sesje tego samego rozmówcy mają różne klucze; podmieniony klucz statyczny
+      psuje uzgodnienie; część transferu z poprzedniej sesji nie jest
+      dopisywana. Razem 42 zielone, plus 3 E2E na żywym Androidzie
+
+**Ostrzeżenie o zmianie klucza wypadło z planu.** Skoro identyfikator wynika
+z klucza, to inny klucz znaczy inny identyfikator, czyli po prostu inne
+urządzenie na liście. Stan „to samo urządzenie, nowy klucz" nie istnieje.
+
+**Znany koszt:** restart którejkolwiek strony w trakcie transferu kasuje
+postęp, bo klucz pliku wisi na kluczu sesji. Zerwanie sieci na sekundy czy
+minuty wznawia się normalnie (sesja żyje godzinę). Alternatywą byłoby
+wyprowadzanie klucza pliku z kluczy statycznych, ale wtedy kradzież tożsamości
+odszyfrowuje wszystkie nagrane wcześniej pliki — czyli dokładnie to, przed czym
+to wydanie ma chronić.
 
 ### Faza 9 — Weryfikacja bez przepisywania
 - [ ] Ekran **odcisku klucza**: własny i rozmówcy, do porównania w dowolnym
@@ -169,8 +185,8 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
       renderowanie i skanowanie kodu, plus uprawnienie do aparatu
 - [ ] Porównanie kodu zostaje jako droga awaryjna tam, gdzie nie ma aparatu
       (komputer z komputerem)
-- [ ] Ostrzeżenie przy zmianie klucza znanego urządzenia, z odciskiem starego
-      i nowego obok siebie
+- [ ] ~~Ostrzeżenie przy zmianie klucza~~ — niepotrzebne, patrz uwaga
+      w fazie 8
 
 ### Faza 10 — Dane w spoczynku
 - [ ] Baza szyfrowana (SQLCipher), klucz w Android Keystore i Windows DPAPI

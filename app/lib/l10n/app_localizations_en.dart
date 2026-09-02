@@ -134,7 +134,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get peerOffline => 'unavailable';
 
   @override
-  String get pairTooltipPaired => 'Device paired with a code';
+  String get shieldNoEncryption =>
+      'No encryption — the other side runs an older version';
+
+  @override
+  String get shieldEncrypted =>
+      'Encrypted, identity unconfirmed. Tap to compare a code';
+
+  @override
+  String get shieldVerified => 'Encrypted and confirmed';
 
   @override
   String get pairTooltip => 'Pair by comparing a code';
@@ -183,7 +191,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pairAgainWarning =>
-      'This device is already paired. Accepting will replace the key you talk to it with. Anyone can send this request under the same name, so only do it if you asked for it yourself.';
+      'This device\'s identity is already confirmed. Anyone can send this request under the same name, so only confirm if you asked for it yourself.';
 
   @override
   String pairRequest(Object name) {
@@ -229,7 +237,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unpairedWarning =>
-      'Device is not paired — anyone can pick that name';
+      'Identity unconfirmed — anyone can pick that name';
 
   @override
   String moreFilesWaiting(int count) {

@@ -120,16 +120,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: peer.verified
-                ? context.l10n.pairTooltipPaired
-                : context.l10n.pairTooltip,
-            icon: Icon(
-              peer.verified ? Icons.verified_user : Icons.shield_outlined,
-              color: peer.verified ? Colors.green : null,
-            ),
-            onPressed: peer.verified ? null : _startPairing,
-          ),
+          // Trzy stany, bo od protokołu 5 szyfrowanie i potwierdzenie
+          // tożsamości to dwie różne rzeczy:
+          //   brak klucza    — po drugiej stronie starsza wersja, nie ma jak
+          //                    rozmawiać (i nie udajemy, że jest inaczej),
+          //   klucz jest     — ruch szyfrowany, ale nie wiadomo, czyj to
+          //                    klucz,
+          //   potwierdzony   — porównaliście kod, wiadomo z kim rozmawiacie.
+          Builder(builder: (context) {
+            final maKlucz = peer.publicKey != null;
+            final (ikona, kolor, opis) = switch ((maKlucz, peer.verified)) {
+              (false, _) => (
+                  Icons.gpp_bad_outlined,
+                  Theme.of(context).colorScheme.error,
+                  context.l10n.shieldNoEncryption,
+                ),
+              (true, false) => (
+                  Icons.lock_outline,
+                  null,
+                  context.l10n.shieldEncrypted,
+                ),
+              (true, true) => (
+                  Icons.verified_user,
+                  Colors.green,
+                  context.l10n.shieldVerified,
+                ),
+            };
+            return IconButton(
+              tooltip: opis,
+              icon: Icon(ikona, color: kolor),
+              onPressed: peer.verified || !maKlucz ? null : _startPairing,
+            );
+          }),
         ],
       ),
       body: Column(

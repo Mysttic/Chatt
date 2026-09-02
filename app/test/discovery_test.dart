@@ -5,7 +5,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:chatt/data/db.dart';
-import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
 Future<void> eventually(
@@ -90,18 +89,19 @@ void main() {
       await bob.dispose();
     });
 
+    // Sam kontakt wystarczy: klucz rozmówcy przypinamy przy pierwszej sesji,
+    // a od tej chwili wymagamy podpisanych odpowiedzi.
     final bobAtAlice = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
-    expect(await alice.startPairing(bobAtAlice!), isNotNull);
-    expect(await alice.confirmPairing(bob.identity.guid), PairOutcome.accepted);
-    expect(await bob.confirmPairing(alice.identity.guid), PairOutcome.accepted);
+    final rozmowa = await alice.openConversationWith(bobAtAlice!);
+    await alice.sendText(rozmowa, 'cześć');
 
     expect((await alice.scan()).map((p) => p.guid), contains(bob.identity.guid),
-        reason: 'sparowany podpisuje odpowiedź kluczem sesji');
+        reason: 'znajomy podpisuje odpowiedź kluczem z uzgodnienia statycznych');
 
-    // Podmieniamy u Alicji klucz sesji Bartka. Od tej chwili jego podpis
+    // Podmieniamy u Alicji przypięty klucz Bartka. Od tej chwili jego podpis
     // przestaje pasować — dokładnie tak wygląda ktoś, kto zna sam GUID
-    // i odpowiada spod swojego adresu.
-    await alice.db.setPeerPaired(
+    // i odpowiada spod swojego adresu, nie mając klucza prywatnego.
+    await alice.db.setPeerKey(
       (await alice.db.peerByGuid(bob.identity.guid))!.id,
       base64Encode(List<int>.filled(32, 7)),
     );

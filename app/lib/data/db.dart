@@ -227,6 +227,12 @@ class ChattDb extends _$ChattDb {
 
   /// Motyw i język zapisujemy osobno: zmieniają się jednym kliknięciem,
   /// bez formularza i bez przycisku „zapisz".
+  /// Przypięcie klucza publicznego rozmówcy. Robimy to przy pierwszym
+  /// kontakcie — od tej chwili wiadomo, z czyim kluczem rozmawiamy.
+  Future<void> setPeerKey(int peerId, String publicKey) =>
+      (update(peers)..where((p) => p.id.equals(peerId)))
+          .write(PeersCompanion(publicKey: Value(publicKey)));
+
   Future<void> saveTheme(AppTheme theme) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(theme: Value(theme)));

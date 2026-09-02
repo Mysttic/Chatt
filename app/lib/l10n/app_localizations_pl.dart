@@ -134,7 +134,15 @@ class AppLocalizationsPl extends AppLocalizations {
   String get peerOffline => 'niedostępny';
 
   @override
-  String get pairTooltipPaired => 'Urządzenie sparowane kodem';
+  String get shieldNoEncryption =>
+      'Bez szyfrowania — druga strona ma starszą wersję';
+
+  @override
+  String get shieldEncrypted =>
+      'Szyfrowane, ale tożsamość niepotwierdzona. Kliknij, żeby porównać kod';
+
+  @override
+  String get shieldVerified => 'Szyfrowane i potwierdzone';
 
   @override
   String get pairTooltip => 'Sparuj przez porównanie kodu';
@@ -183,7 +191,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get pairAgainWarning =>
-      'To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.';
+      'Tożsamość tego urządzenia jest już potwierdzona. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc potwierdzaj tylko wtedy, gdy sam o to poprosiłeś.';
 
   @override
   String pairRequest(Object name) {
@@ -229,7 +237,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get unpairedWarning =>
-      'Urządzenie niesparowane — nazwę można sobie ustawić dowolną';
+      'Tożsamość niepotwierdzona — nazwę można sobie ustawić dowolną';
 
   @override
   String moreFilesWaiting(int count) {
