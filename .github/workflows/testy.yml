@@ -1,21 +1,19 @@
 name: Testy
 
 # Bramka przed wpuszczeniem zmian do master: analiza statyczna i cały zestaw
-# testów. Odpala się przy każdym pchnięciu na develop i gałęzie robocze oraz
-# przy każdym pull requeście, więc wynik jest znany zanim PR w ogóle powstanie.
+# testów. Odpala się **wyłącznie** przy pull requeście do master — zwykłe
+# pchnięcia na develop i gałęzie robocze nie uruchamiają niczego.
+#
+# Domyślne `types` (opened, reopened, synchronize) zostawiamy świadomie:
+# dopóki PR jest otwarty, dorzucone do niego commity przechodzą testy jeszcze
+# raz. Bez tego dałoby się scalić PR na podstawie wyniku sprzed poprawek.
 on:
-  push:
-    branches:
-      - develop
-      - 'feature/**'
-      - 'claude/**'
   pull_request:
     branches:
       - master
-      - develop
   workflow_dispatch:
 
-# Kolejne pchnięcie na tę samą gałąź anuluje poprzedni, jeszcze trwający bieg.
+# Kolejny commit w otwartym PR anuluje poprzedni, jeszcze trwający bieg.
 concurrency:
   group: testy-${{ github.ref }}
   cancel-in-progress: true

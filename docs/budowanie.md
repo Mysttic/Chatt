@@ -148,19 +148,28 @@ Repozytorium: [github.com/Mysttic/Chatt](https://github.com/Mysttic/Chatt).
 ```
 feature/coś ──┐
               ├─→ develop ──(pull request)──→ master ──→ wydanie
-claude/coś ───┘        ▲                          │
-                       └── testy przy każdym      └── build Windows + APK,
-                           pchnięciu i przy PR         tag i Release
+claude/coś ───┘                   │                │
+                                  │                └── build Windows + APK,
+                                  └── testy            tag i Release
 ```
 
-- **`develop`** — tu trafia bieżąca praca. Każde pchnięcie uruchamia
+- **`develop`** — tu trafia bieżąca praca. Zwykłe pchnięcia **nie uruchamiają
+  niczego**, żeby nie mielić runnerów przy każdym commicie.
+- **Pull request do `master`** uruchamia
   [`.github/workflows/testy.yml`](../.github/workflows/testy.yml): `flutter
-  analyze` i cały zestaw testów. Wynik jest więc znany, zanim otworzysz PR.
-- **Pull request `develop` → `master`** — te same testy odpalają się jeszcze
-  raz na scalonym wyniku.
+  analyze` i cały zestaw testów. Dopóki PR jest otwarty, dorzucone do niego
+  commity przechodzą testy jeszcze raz — inaczej dałoby się scalić PR na
+  podstawie wyniku sprzed poprawek.
 - **Scalenie do `master`** uruchamia
   [`.github/workflows/wydanie.yml`](../.github/workflows/wydanie.yml): build
   Windows i podpisanego APK, tag i Release na GitHubie.
+
+Testy odpalają się dla każdego PR-a **do `master`**, nie tylko z `develop`.
+Zawężenie do jednej gałęzi źródłowej znaczyłoby, że PR z gałęzi hotfiksowej
+nie dostaje żadnego sprawdzenia, a przy włączonym wymaganiu zielonych testów
+wisiałby w nieskończoność, czekając na bieg, który nigdy nie wystartuje.
+
+Testy można też odpalić ręcznie: *Actions → Testy → Run workflow*.
 
 ### Skąd bierze się numer wydania
 
