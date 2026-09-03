@@ -69,6 +69,17 @@ void main() {
     return file;
   }
 
+  /// Gniazda w atrapach łącza. Zapis do gniazda, które druga strona zdążyła
+  /// już zamknąć (odbiorca odrzucił plik, test zerwał kabel), zgłasza błąd
+  /// przez `done`, a nieobsłużony wywraca cały test. Na Windowsie domknięcie
+  /// przychodzi zwykle za późno, żeby to zobaczyć; na Linuksie leci
+  /// „Broken pipe" i test się sypie mimo poprawnych asercji — tak wyszło
+  /// dopiero na CI. Atrapa ma ten błąd pochłonąć: sprawdzamy zachowanie
+  /// aplikacji, a nie to, które gniazdo zamknęło się pierwsze.
+  void pochlonBledyZapisu(Socket socket) {
+    socket.done.then((_) {}, onError: (Object _) {});
+  }
+
   test('kilka plików naraz idzie po kolei, każdy z własnym pytaniem o zgodę',
       () async {
     final pierwszy = makeRandomFile('pierwszy.bin', 64 * 1024);
@@ -228,6 +239,8 @@ void main() {
     final psujaceLacze = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     psujaceLacze.listen((client) async {
       final target = await Socket.connect('127.0.0.1', bob.server.port!);
+      pochlonBledyZapisu(client);
+      pochlonBledyZapisu(target);
       var forwarded = 0;
       client.listen(
         (chunk) {
@@ -274,6 +287,8 @@ void main() {
     final flakyLink = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     flakyLink.listen((client) async {
       final target = await Socket.connect('127.0.0.1', bob.server.port!);
+      pochlonBledyZapisu(client);
+      pochlonBledyZapisu(target);
       var forwarded = 0;
       client.listen(
         (chunk) {
@@ -353,6 +368,8 @@ void main() {
     final flakyLink = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     flakyLink.listen((client) async {
       final target = await Socket.connect('127.0.0.1', bob.server.port!);
+      pochlonBledyZapisu(client);
+      pochlonBledyZapisu(target);
       var forwarded = 0;
       client.listen(
         (chunk) {
