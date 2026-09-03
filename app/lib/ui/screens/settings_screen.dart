@@ -9,7 +9,9 @@ import '../../core/crypto.dart';
 import '../../core/languages.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
+import '../backgrounds.dart';
 import '../l10n_context.dart';
+import '../widgets/common.dart';
 
 /// Ustawienia instancji (odpowiednik EditConfiguration.PNG) + informacje
 /// potrzebne do ręcznego parowania (adresy IP i faktyczny port nasłuchu).
@@ -163,8 +165,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.settingsTitle)),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      // Formularz rozciągnięty na cały monitor czyta się fatalnie.
+      body: ContentColumn(
+        child: ListView(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomSystemInset(context)),
         children: [
           Form(
             key: _form,
@@ -241,6 +245,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             },
             onSelectionChanged: (wybor) =>
                 services.db.saveTheme(wybor.first),
+          ),
+          const SizedBox(height: 16),
+          Text(context.l10n.background,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 96,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: chattBackgrounds.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final tlo = chattBackgrounds[index];
+                final wybrane =
+                    (ref.watch(settingsProvider).value?.background ?? 0) == index;
+                return _BackgroundChip(
+                  background: tlo,
+                  selected: wybrane,
+                  onTap: () => services.db.saveBackground(index),
+                );
+              },
+            ),
           ),
           const SizedBox(height: 16),
           Text(context.l10n.language,
@@ -451,6 +477,68 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Podgląd jednego tła: prostokąt z gradientem i podpis pod spodem.
+/// „Bez tła" pokazuje kolor powierzchni z motywu, żeby wybór wyglądał
+/// tak samo jak reszta.
+class _BackgroundChip extends StatelessWidget {
+  final ChattBackground background;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _BackgroundChip({
+    required this.background,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final kolory = background.plain
+        ? [scheme.surfaceContainerHighest, scheme.surfaceContainerHighest]
+        : background.colorsFor(Theme.of(context).brightness);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 88,
+            height: 60,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: kolory,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected ? scheme.primary : scheme.outlineVariant,
+                width: selected ? 3 : 1,
+              ),
+            ),
+            child: selected
+                ? Icon(Icons.check, color: scheme.primary)
+                : null,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            background.label(context.l10n),
+            style: TextStyle(
+              fontSize: 12,
+              color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              fontWeight: selected ? FontWeight.w600 : null,
             ),
           ),
         ],

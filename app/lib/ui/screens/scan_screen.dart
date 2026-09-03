@@ -6,6 +6,7 @@ import '../../core/pair_link.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../widgets/common.dart';
 
 /// Skanowanie kodu QR z drugiego urządzenia. Zwraca rozmówcę, którego
 /// tożsamość została właśnie potwierdzona, albo null (rezygnacja lub błąd).
@@ -85,7 +86,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 32,
+            // Podgląd z aparatu idzie na cały ekran, więc podpowiedź trzeba
+            // samemu odsunąć od paska gestów.
+            bottom: 32 + bottomSystemInset(context),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

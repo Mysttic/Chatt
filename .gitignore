@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Instalator Windows budowany przez Inno Setup (tool/wydanie i CI)
+/dist/

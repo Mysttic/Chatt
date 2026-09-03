@@ -118,6 +118,27 @@ class ChattServer {
     _server = null;
   }
 
+  /// Górna granica ciała zapytania. Wiadomości i zapowiedzi plików to metadane
+  /// — megabajt to i tak wielokrotność tego, co potrzebne. Bez tej granicy
+  /// ktokolwiek w sieci mógł wysłać wielogigabajtowy JSON i wywrócić aplikację
+  /// na braku pamięci: ciało czytamy do końca, **zanim** w ogóle wiadomo, czy
+  /// nadawca ma sesję. Sama treść pliku tędy nie idzie — ta leci strumieniowo
+  /// przez `/file` prosto na dysk.
+  static const int _maxBodyBytes = 1024 * 1024;
+
+  /// Ciało zapytania albo null, gdy przekroczyło granicę.
+  Future<List<int>?> _readBody(Request request) async {
+    final bytes = <int>[];
+    await for (final chunk in request.read()) {
+      bytes.addAll(chunk);
+      if (bytes.length > _maxBodyBytes) return null;
+    }
+    return bytes;
+  }
+
+  Response _tooLarge() =>
+      _json({'ok': false, 'error': 'too_large'}, status: 413);
+
   /// Nic z sieci nie może położyć serwera: błąd handlera to 500 i jedziemy dalej.
   Middleware get _guardErrors => (inner) => (request) async {
         try {
@@ -140,7 +161,8 @@ class ChattServer {
     if (handler == null) {
       return _json({'ok': false, 'error': 'not_supported'}, status: 404);
     }
-    final body = await request.read().expand((chunk) => chunk).toList();
+    final body = await _readBody(request);
+    if (body == null) return _tooLarge();
     final json = tryDecodeJsonMap(body);
     if (json == null) {
       return _json({'ok': false, 'error': 'bad_request'}, status: 400);
@@ -156,7 +178,8 @@ class ChattServer {
   }
 
   Future<Response> _handleMessage(Request request) async {
-    final body = await request.read().expand((chunk) => chunk).toList();
+    final body = await _readBody(request);
+    if (body == null) return _tooLarge();
     final opened = await _unseal(tryDecodeJsonMap(body));
     final json = opened.json;
     if (json == null) {
@@ -192,7 +215,8 @@ class ChattServer {
     if (handler == null) {
       return _json({'ok': false, 'error': 'pairing_not_supported'}, status: 404);
     }
-    final body = await request.read().expand((chunk) => chunk).toList();
+    final body = await _readBody(request);
+    if (body == null) return _tooLarge();
     final json = tryDecodeJsonMap(body);
     final message = json == null ? null : PairMessage.fromJson(json);
     if (message == null) {
@@ -218,7 +242,8 @@ class ChattServer {
     if (handler == null) {
       return _json({'ok': false, 'error': 'files_not_supported'}, status: 404);
     }
-    final body = await request.read().expand((chunk) => chunk).toList();
+    final body = await _readBody(request);
+    if (body == null) return _tooLarge();
     final opened = await _unseal(tryDecodeJsonMap(body));
     final json = opened.json;
     if (json == null) {

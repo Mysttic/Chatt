@@ -65,6 +65,31 @@ komputer potrzebny jest **cały ten katalog** (exe plus biblioteki DLL i katalog
 
 Częsty błąd przy przebudowie: `LNK1168: cannot open chatt.exe` — to znaczy, że
 poprzednia instancja aplikacji jeszcze działa. Zamknij ją i powtórz build.
+Uwaga: od wersji 0.3.0 zamknięcie okna **chowa aplikację do zasobnika**, więc
+„zamknij ją" znaczy „Zamknij Chatt" z menu ikony albo `Stop-Process -Name chatt`.
+
+### Instalator
+
+Instalator budujemy z [Inno Setup 6](https://jrsoftware.org/isdl.php). Skrypt
+leży w `app\windows\installer\chatt.iss`, numer wersji wchodzi z zewnątrz,
+żeby nie było go w trzecim miejscu:
+
+```
+choco install innosetup -y
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DWersja=0.3.0 app\windows\installer\chatt.iss
+```
+
+Wynik: `dist\chatt-0.3.0-instalator.exe` (katalog `dist/` jest w `.gitignore`).
+Skrypt bierze **cały** katalog `Release`, bo sam `.exe` bez bibliotek i katalogu
+`data` nie ruszy. Instalacja jest per użytkownik (`PrivilegesRequired=lowest`),
+więc nie ma okna UAC, a aplikacja ląduje w `%LOCALAPPDATA%\Programs\Chatt`.
+
+Instalator nie jest podpisany certyfikatem — SmartScreen pokaże ostrzeżenie.
+Podpisanie wymaga płatnego certyfikatu do podpisu kodu; to samo dotyczyłoby
+MSIX-a, dlatego poszedł zwykły instalator.
+
+W workflow wydania robi to krok „Instalator": Inno Setup jest na obrazie
+`windows-latest`, a gdyby zniknął, krok go doinstalowuje.
 
 Przy pierwszym uruchomieniu zapora Windows pyta o zgodę na ruch przychodzący.
 Reguły powstają osobno dla TCP i UDP i osobno dla ścieżki debug i release, więc
@@ -268,8 +293,9 @@ Buildem i tagiem zajmuje się CI, po twojej stronie zostaje reszta:
 2. Odśwież zrzuty do dokumentacji, jeśli zmienił się UI:
    `flutter test tool/product_shots.dart` (wymaga uruchomionego emulatora).
 3. Otwórz PR `develop` → `master` i poczekaj, aż testy zaświecą się na zielono.
-4. Scal PR. Workflow wydania zbuduje Windows i podpisany APK, założy tag
-   `v<wersja>` i wystawi Release z oboma plikami.
+4. Scal PR. Workflow wydania zbuduje podpisany APK, wersję przenośną Windows
+   (zip) i instalator (exe), założy tag `v<wersja>` i wystawi Release z tymi
+   trzema plikami.
 5. Pobierz APK z Release, zainstaluj na telefonie i przejdź
    [krótką listę kontrolną](#lista-kontrolna-po-wydaniu).
 
@@ -286,6 +312,8 @@ prawdziwych urządzeń w jednej sieci:
 - [ ] plik kilku megabajtów dochodzi po akceptacji, suma się zgadza;
 - [ ] parowanie: kody na obu ekranach są takie same, po zgodzie tarcza zielona;
 - [ ] telefon z zamkniętą aplikacją i zgaszonym ekranem nadal odbiera;
+- [ ] instalator Windows przechodzi całą drogę: instalacja, skrót w menu Start,
+      uruchomienie, odinstalowanie (historia rozmów ma zostać);
 - [ ] po restarcie aplikacji rozmowy i ustawienia są na miejscu.
 
 ## Sesje chmurowe

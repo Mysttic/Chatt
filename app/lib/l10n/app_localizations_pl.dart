@@ -60,6 +60,9 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get pickConversation => 'Wybierz rozmowę z listy';
+
+  @override
   String get nearbyTitle => 'Urządzenia w pobliżu';
 
   @override
@@ -209,6 +212,25 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get copyPath => 'Kopiuj ścieżkę';
+
+  @override
+  String get saveFile => 'Zapisz na urządzeniu';
+
+  @override
+  String get saveFileHint =>
+      'Kopia w Zdjęciach albo Pobranych, poza katalogiem aplikacji';
+
+  @override
+  String savedTo(Object where) {
+    return 'Zapisano w $where';
+  }
+
+  @override
+  String get saveFailed => 'Nie udało się zapisać pliku.';
+
+  @override
+  String get saveUnsupported =>
+      'Ten system nie ma gdzie zapisać pliku bez dodatkowych uprawnień. Użyj „Udostępnij”.';
 
   @override
   String get fileGone => 'Tego pliku już nie ma na dysku.';
@@ -396,6 +418,24 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get themeDark => 'Ciemny';
+
+  @override
+  String get background => 'Tło';
+
+  @override
+  String get backgroundNone => 'Bez tła';
+
+  @override
+  String get backgroundDusk => 'Zmierzch';
+
+  @override
+  String get backgroundOcean => 'Ocean';
+
+  @override
+  String get backgroundForest => 'Las';
+
+  @override
+  String get backgroundSand => 'Piasek';
 
   @override
   String get language => 'Język';

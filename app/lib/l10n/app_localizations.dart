@@ -182,6 +182,12 @@ abstract class AppLocalizations {
   /// **'Usunięto rozmowę z {name}'**
   String conversationDeleted(Object name);
 
+  /// No description provided for @pickConversation.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz rozmowę z listy'**
+  String get pickConversation;
+
   /// No description provided for @nearbyTitle.
   ///
   /// In pl, this message translates to:
@@ -439,6 +445,36 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Kopiuj ścieżkę'**
   String get copyPath;
+
+  /// No description provided for @saveFile.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zapisz na urządzeniu'**
+  String get saveFile;
+
+  /// No description provided for @saveFileHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kopia w Zdjęciach albo Pobranych, poza katalogiem aplikacji'**
+  String get saveFileHint;
+
+  /// No description provided for @savedTo.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zapisano w {where}'**
+  String savedTo(Object where);
+
+  /// No description provided for @saveFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się zapisać pliku.'**
+  String get saveFailed;
+
+  /// No description provided for @saveUnsupported.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ten system nie ma gdzie zapisać pliku bez dodatkowych uprawnień. Użyj „Udostępnij”.'**
+  String get saveUnsupported;
 
   /// No description provided for @fileGone.
   ///
@@ -751,6 +787,42 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Ciemny'**
   String get themeDark;
+
+  /// No description provided for @background.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tło'**
+  String get background;
+
+  /// No description provided for @backgroundNone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bez tła'**
+  String get backgroundNone;
+
+  /// No description provided for @backgroundDusk.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zmierzch'**
+  String get backgroundDusk;
+
+  /// No description provided for @backgroundOcean.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ocean'**
+  String get backgroundOcean;
+
+  /// No description provided for @backgroundForest.
+  ///
+  /// In pl, this message translates to:
+  /// **'Las'**
+  String get backgroundForest;
+
+  /// No description provided for @backgroundSand.
+  ///
+  /// In pl, this message translates to:
+  /// **'Piasek'**
+  String get backgroundSand;
 
   /// No description provided for @language.
   ///

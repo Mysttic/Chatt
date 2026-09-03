@@ -15,6 +15,7 @@ import '../core/env.dart';
 import '../core/file_actions.dart';
 import '../core/identity.dart';
 import '../core/pair_link.dart';
+import '../core/received_paths.dart';
 import '../data/db.dart';
 import '../data/db_open.dart';
 import '../network/client.dart';
@@ -273,7 +274,7 @@ class AppServices {
     final db = ChattDb(executor ?? opened!.executor);
     final receivedDir = receivedDirOverride ?? await _defaultReceivedDir();
     Directory(receivedDir).createSync(recursive: true);
-    Directory(p.join(receivedDir, _incompleteSubdir)).createSync(recursive: true);
+    Directory(p.join(receivedDir, incompleteSubdir)).createSync(recursive: true);
 
     // Tożsamość to para kluczy: identyfikator jest liczony z klucza
     // publicznego, więc losowanie GUID-a zniknęło.
@@ -1401,6 +1402,11 @@ class AppServices {
         received += chunk.length;
         sinceFlush += chunk.length;
         transfer.receivedBytes.value = received;
+        // Nadawca leje więcej, niż zapowiedział. Przerywamy w locie, a nie po
+        // stronie sprawdzenia na końcu: czekanie do końca strumienia znaczyło
+        // pozwolenie na zapisanie całego dysku plikiem, na który zgoda
+        // dotyczyła paru megabajtów.
+        if (received > meta.fileSize) break;
         // Bez tego cała treść potrafiła się zebrać w buforze IOSink-a, bo
         // pętla nie czekała ani chwili na dysk.
         if (sinceFlush >= 4 * 1024 * 1024) {
@@ -1494,23 +1500,14 @@ class AppServices {
 
   // --- Pliki częściowe (wznawianie) ----------------------------------------
 
-  /// Podkatalog na transfery w trakcie — dzięki temu w katalogu odebranych
-  /// leżą wyłącznie kompletne pliki.
-  static const String _incompleteSubdir = '.incomplete';
-
   File _partFile(String messageGuid) =>
-      File(p.join(receivedDir, _incompleteSubdir, '$messageGuid.part'));
+      File(partPath(receivedDir, messageGuid));
 
   File _partMetaFile(String messageGuid) =>
-      File(p.join(receivedDir, _incompleteSubdir, '$messageGuid.json'));
+      File(partMetaPath(receivedDir, messageGuid));
 
-  String _receivedPathFor(String messageGuid, String fileName) {
-    final safeName =
-        p.basename(fileName).replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-    final shortGuid =
-        messageGuid.length > 8 ? messageGuid.substring(0, 8) : messageGuid;
-    return p.join(receivedDir, '${shortGuid}_$safeName');
-  }
+  String _receivedPathFor(String messageGuid, String fileName) =>
+      receivedFilePath(receivedDir, messageGuid, fileName);
 
   /// Ile bajtów tego pliku mamy już z poprzedniej próby. Część liczy się
   /// tylko wtedy, gdy opis obok niej zgadza się co do nazwy, rozmiaru i sumy
@@ -1578,7 +1575,7 @@ class AppServices {
   /// Porzucone kawałki (nadawca już nie wróci) nie mogą puchnąć w nieskończoność.
   void _sweepStaleParts({Duration keepFor = const Duration(days: 7)}) {
     try {
-      final dir = Directory(p.join(receivedDir, _incompleteSubdir));
+      final dir = Directory(p.join(receivedDir, incompleteSubdir));
       if (!dir.existsSync()) return;
       final deadline = DateTime.now().subtract(keepFor);
       for (final entry in dir.listSync().whereType<File>()) {
@@ -1601,6 +1598,15 @@ class AppServices {
     final path = message.filePath;
     if (path == null) return FileActionResult.missing;
     return FileActions.revealInFolder(path);
+  }
+
+  /// Zapisuje kopię odebranego pliku poza katalogiem aplikacji: w Zdjęciach
+  /// albo Pobranych na Androidzie, a na pulpicie tam, gdzie wskaże użytkownik.
+  Future<({SaveResult result, String? where})> saveFileFromMessage(
+      Message message) async {
+    final path = message.filePath;
+    if (path == null) return (result: SaveResult.missing, where: null);
+    return FileActions.saveCopy(path);
   }
 
   // --- Ustawienia -----------------------------------------------------------

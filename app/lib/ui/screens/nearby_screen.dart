@@ -120,7 +120,8 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: ContentColumn(
+        child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
@@ -169,6 +170,8 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                     ),
                     Expanded(
                       child: ListView.separated(
+                        padding: EdgeInsets.only(
+                            bottom: bottomSystemInset(context)),
                         itemCount: items.length,
                         separatorBuilder: (_, _) =>
                             const Divider(height: 1, indent: 72),
@@ -218,6 +221,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

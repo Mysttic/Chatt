@@ -60,6 +60,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get pickConversation => 'Pick a conversation from the list';
+
+  @override
   String get nearbyTitle => 'Nearby devices';
 
   @override
@@ -209,6 +212,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get copyPath => 'Copy path';
+
+  @override
+  String get saveFile => 'Save to device';
+
+  @override
+  String get saveFileHint =>
+      'A copy in Pictures or Downloads, outside the app folder';
+
+  @override
+  String savedTo(Object where) {
+    return 'Saved to $where';
+  }
+
+  @override
+  String get saveFailed => 'Could not save the file.';
+
+  @override
+  String get saveUnsupported =>
+      'This system has nowhere to save the file without extra permissions. Use “Share”.';
 
   @override
   String get fileGone => 'That file is no longer on disk.';
@@ -395,6 +417,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get themeDark => 'Dark';
+
+  @override
+  String get background => 'Background';
+
+  @override
+  String get backgroundNone => 'No background';
+
+  @override
+  String get backgroundDusk => 'Dusk';
+
+  @override
+  String get backgroundOcean => 'Ocean';
+
+  @override
+  String get backgroundForest => 'Forest';
+
+  @override
+  String get backgroundSand => 'Sand';
 
   @override
   String get language => 'Language';

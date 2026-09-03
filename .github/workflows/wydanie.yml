@@ -160,10 +160,28 @@ jobs:
           Compress-Archive -Path app/build/windows/x64/runner/Release/* `
             -DestinationPath chatt-windows.zip
 
+      # Instalator obok wersji przenośnej: skrót w menu Start, odinstalowanie
+      # z ustawień systemu i jedno miejsce na aktualizację. Inno Setup jest
+      # na obrazie windows-latest; gdyby zniknął, doinstalowujemy go.
+      - name: Instalator
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          if (-not (Test-Path $iscc)) { throw "Nie ma ISCC.exe pod $iscc" }
+          & $iscc "/DWersja=${{ needs.wersja.outputs.wersja }}" `
+            app\windows\installer\chatt.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup zwrocil $LASTEXITCODE" }
+          Get-ChildItem dist
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: chatt-windows.zip
+          path: |
+            chatt-windows.zip
+            dist/*.exe
           if-no-files-found: error
 
   wydanie:
@@ -188,6 +206,9 @@ jobs:
           mkdir -p wydanie
           mv pliki/android/app-release.apk "wydanie/chatt-$WERSJA-android.apk"
           mv pliki/windows/chatt-windows.zip "wydanie/chatt-$WERSJA-windows.zip"
+          # Instalator nazywa się już z numerem wersji (nadaje go Inno Setup).
+          mv "pliki/windows/dist/chatt-$WERSJA-instalator.exe" \
+             "wydanie/chatt-$WERSJA-windows-instalator.exe"
           ls -la wydanie
 
       - name: Utwórz wydanie

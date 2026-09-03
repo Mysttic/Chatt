@@ -45,6 +45,42 @@ String formatClock(DateTime time) {
   return '${two(time.hour)}:${two(time.minute)}';
 }
 
+/// Od tej szerokości okna pokazujemy listę rozmów i rozmowę obok siebie.
+/// Poniżej jeden ekran naraz, bo dwa panele na telefonie to dwa paski.
+const double dwupanelOd = 900;
+
+bool czyDwupanel(BuildContext context) =>
+    MediaQuery.sizeOf(context).width >= dwupanelOd;
+
+/// Ogranicza szerokość treści na dużym oknie i przykleja ją do góry.
+///
+/// Formularz rozciągnięty na cały monitor czyta się fatalnie: oko wraca
+/// z końca linii w nieznane miejsce. Na wąskim ekranie nic nie zmienia.
+class ContentColumn extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+
+  const ContentColumn({super.key, required this.child, this.maxWidth = 760});
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: child,
+        ),
+      );
+}
+
+/// Wysokość paska nawigacji, którą trzeba dołożyć na dole przewijanej treści.
+///
+/// Od Androida 15 (API 35) system rysuje swoje paski **na** aplikacji i nie
+/// zwęża jej okna, więc ostatni element listy chowa się pod paskiem gestów.
+/// Bierzemy `padding`, a nie `viewPadding`: przy otwartej klawiaturze pasek
+/// leży nad nią i dokładanie tej przerwy drugi raz odsuwałoby treść w próżnię.
+double bottomSystemInset(BuildContext context) =>
+    MediaQuery.paddingOf(context).bottom;
+
 /// Rozmiar pliku po ludzku: 512 B, 12,3 KB, 3,4 MB, 1,20 GB.
 String formatFileSize(int? bytes) {
   if (bytes == null) return '';

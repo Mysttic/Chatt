@@ -35,6 +35,9 @@ class Settings extends Table {
   IntColumn get tcpPort =>
       integer().withDefault(const Constant(defaultTcpPort))();
 
+  /// Numer wybranego tła (patrz `ui/backgrounds.dart`). 0 znaczy „bez tła".
+  IntColumn get background => integer().withDefault(const Constant(0))();
+
   /// Po ilu dniach kasować wiadomości. 0 znaczy „trzymaj bez końca".
   /// Kasowanie dotyczy wpisów w bazie; odebrane pliki zostają na dysku.
   IntColumn get retentionDays => integer().withDefault(const Constant(0))();
@@ -128,7 +131,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -172,6 +175,10 @@ class ChattDb extends _$ChattDb {
         // v7: samoczynne kasowanie starych wiadomości. Domyślnie wyłączone —
         // włączenie go za kogoś skasowałoby historię bez pytania.
         await m.addColumn(settings, settings.retentionDays);
+      }
+      if (from < 8) {
+        // v8: tło do wyboru. Domyślnie zero, czyli wygląd sprzed zmiany.
+        await m.addColumn(settings, settings.background);
       }
     },
   );
@@ -249,6 +256,10 @@ class ChattDb extends _$ChattDb {
   Future<void> saveLanguage(AppLanguage language) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(language: Value(language)));
+
+  Future<void> saveBackground(int background) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(background: Value(background)));
 
   Future<void> saveRetentionDays(int days) =>
       (update(settings)..where((s) => s.id.equals(1)))

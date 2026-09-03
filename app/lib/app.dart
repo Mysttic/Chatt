@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/languages.dart';
 import 'data/db.dart';
 import 'l10n/app_localizations.dart';
 import 'services/providers.dart';
+import 'ui/backgrounds.dart';
 import 'ui/screens/conversations_screen.dart';
 import 'ui/widgets/prompt_overlay.dart';
 
@@ -26,11 +28,33 @@ class ChattApp extends ConsumerWidget {
     };
     // null = idziemy za językiem systemu (Flutter wybierze z obsługiwanych).
     final locale = settings?.language.locale;
+    // Wybrane tło leży pod całą aplikacją, więc powierzchnie, które je
+    // zasłaniały (tło ekranu i pasek u góry), muszą zrobić się przezroczyste.
+    // Karty i dymki zostają nieprzezroczyste — na nich stoi czytelność.
+    final tlo = backgroundAt(settings?.background ?? 0);
+
     ThemeData theme(Brightness brightness) => ThemeData(
           colorScheme:
               ColorScheme.fromSeed(seedColor: chattSeedColor, brightness: brightness),
           fontFamily: 'Roboto',
           useMaterial3: true,
+          scaffoldBackgroundColor: tlo.plain ? null : Colors.transparent,
+          appBarTheme: tlo.plain
+              ? null
+              : AppBarTheme(
+                  backgroundColor: Colors.transparent,
+                  scrolledUnderElevation: 0,
+                  // Jasność ikon paska systemowego trzeba podać wprost:
+                  // Flutter liczy ją z koloru paska aplikacji, a ten jest
+                  // teraz przezroczysty i wychodziło z tego białe na jasnym.
+                  systemOverlayStyle: brightness == Brightness.dark
+                      ? SystemUiOverlayStyle.light
+                      : SystemUiOverlayStyle.dark,
+                ),
+          // Na pulpicie steruje się myszą, a nie palcem: listy i przyciski
+          // dostają ciaśniejsze odstępy, przez co na monitorze mieści się
+          // więcej niż trzy wiersze. Na telefonie bez zmian.
+          visualDensity: VisualDensity.adaptivePlatformDensity,
         );
 
     return MaterialApp(
@@ -46,8 +70,10 @@ class ChattApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       home: const ConversationsScreen(),
       // Prośby o zgodę na odbiór pliku muszą być widoczne na każdym ekranie.
-      builder: (context, child) =>
-          PromptOverlay(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => AppBackground(
+        background: tlo,
+        child: PromptOverlay(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

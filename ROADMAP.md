@@ -261,6 +261,92 @@ zapisał ikonę w swojej liście zasobnika razem z poprawną podpowiedzią.
 traktuje każdą nową. Przypięcie jej na stałe to decyzja użytkownika, aplikacja
 nie ma jak jej wymusić.
 
+## 3b. Wydanie 0.3.0 — „wygodniej i ładniej"
+
+> **Teza wydania:** aplikacja ma się dobrze czuć na dużym monitorze i na
+> telefonie z gestami, a odebrany plik ma dać się zapisać tam, gdzie
+> użytkownik go szuka.
+
+Zgłoszone po obejrzeniu 0.2.0 na obu platformach.
+
+**Decyzje podjęte przed rozpoczęciem (03.09.2026):**
+
+1. **Dwa panele na szerokim oknie** (wybór użytkownika spośród trzech
+   wariantów) razem z zagęszczeniem odstępów i ograniczeniem szerokości
+   treści. Sam podział bez zagęszczenia zostawiłby połowę problemu.
+2. **Instalator z Inno Setup**, nie MSIX. MSIX wymaga certyfikatu do
+   podpisu, a bez niego Windows i tak każe użytkownikowi ręcznie zaufać
+   paczce — czyli gorzej niż zwykły instalator. Wersja przenośna (zip)
+   zostaje obok, bo nie każdy chce cokolwiek instalować.
+3. **Tła to gotowe zestawy**, nie dowolny kolor z palety. Dowolny kolor przy
+   dymkach z motywu Material daje kombinacje nie do czytania; zestaw
+   przygotowanych gradientów da się sprawdzić w jasnym i ciemnym motywie.
+
+### Faza 12 — Wygoda i wygląd ✅ (03.09.2026)
+- [x] **Android: nic nie chowa się pod paskiem gestów.** Od API 35 system
+      rysuje paski **na** aplikacji i nie zwęża jej okna. Przewijane listy
+      dostały dolny margines wysokości paska (`bottomSystemInset`), a podgląd
+      z aparatu odsunięcie podpowiedzi. Widać to było na dole ustawień:
+      ostatnia karta kończyła się dokładnie na krawędzi ekranu
+- [x] **Zapisanie odebranego pliku** tam, gdzie użytkownik go szuka: przycisk
+      w dymku (jedno dotknięcie) i pozycja w menu. Na Androidzie obrazki idą
+      do `Pictures/Chatt`, reszta do `Download` — przez MediaStore, więc bez
+      żadnego uprawnienia od Androida 10. Na pulpicie systemowe okno zapisu
+- [x] **Dwa panele od 900 px szerokości**: lista rozmów obok rozmowy, bez
+      przeskakiwania między ekranami. Poniżej tej szerokości wszystko działa
+      jak dotąd
+- [x] **Zagęszczenie**: `VisualDensity.adaptivePlatformDensity`, dymki
+      ograniczone do 560 px, formularze do 760 px
+- [x] **Tła do wyboru**: cztery gradienty plus „bez tła", każdy w wariancie
+      jasnym i ciemnym, zapisywane w ustawieniach (schemat v8)
+- [x] **Instalator Windows** (Inno Setup) obok wersji przenośnej, budowany
+      w tym samym workflow wydania. Instalacja per użytkownik, więc bez UAC;
+      odinstalowanie sprząta wpis autostartu, ale **nie rusza bazy** — to dane
+      użytkownika
+- [x] Testy: 71 jednostkowych i 4 E2E na Androidzie, w tym nowy sprawdzający,
+      że zapisany obrazek naprawdę ląduje w `/sdcard/Pictures/Chatt`, a nie
+      tylko w katalogu aplikacji
+
+**Znalezione przy okazji:** przezroczysty pasek aplikacji (potrzebny pod tło)
+psuł jasność ikon paska systemowego — Flutter liczy ją z koloru paska, a ten
+przestał mieć kolor. Ikony robiły się białe na jasnym tle. Podajemy ją teraz
+wprost z jasności motywu.
+
+### Przegląd bezpieczeństwa przed wydaniem 0.3.0 ✅ (03.09.2026)
+
+Trzy dziury, wszystkie do wykorzystania przez **dowolne urządzenie w tej samej
+sieci** — od 0.2.0 szyfrowanie nie wymaga sparowania, więc sesję nawiąże każdy.
+
+- [x] **Wyjście poza katalog aplikacji przez identyfikator wiadomości**
+      (poważne). Identyfikator z sieci szedł wprost do nazw plików
+      w `.incomplete/`. `../../../x` pozwalał skasować cudzy plik `.json`
+      (wystarczyła **odmowa** przyjęcia pliku), a po przyjęciu — nadpisać
+      dowolny plik `.part` treścią nadawcy i zapisać `.json` z jego danymi.
+      Na Windowsie w zasięgu całego konta użytkownika. Poprawione dwoma
+      zaporami: protokół przyjmuje tylko identyfikatory w kształcie UUID,
+      a nazwa na dysku wychodzi ze skrótu, nie z samego identyfikatora
+- [x] **Zapisanie całego dysku przyjętym plikiem** (średnie). Pętla odbioru
+      sprawdzała zapowiedziany rozmiar dopiero po zakończeniu strumienia, więc
+      zgoda na 2 MB pozwalała nadawcy lać bajty bez końca. Teraz przerywa się
+      w chwili przekroczenia
+- [x] **Wywrócenie aplikacji rozmiarem zapytania** (średnie). Ciało POST-a
+      czytaliśmy w całości do pamięci, zanim padło pytanie o sesję —
+      wielogigabajtowy JSON od kogokolwiek w sieci kończył się brakiem pamięci.
+      Granica megabajta i 413
+- [x] Osiem testów w `test/security_test.dart`, każdy czerwony przed poprawką
+
+Sprawdzone i **nie** wymagało zmian: klucz sesji i koperty (AES-GCM losuje
+nonce sam, nie ma powtórzeń), nonce strumienia pliku (wisi na guidzie
+i sumie kontrolnej, więc ponowienie po podmianie treści nie powtórzy
+strumienia klucza), nazwa pliku od nadawcy (już wcześniej przez `basename`
+i wycięcie znaków zakazanych), zapis do galerii na Androidzie (bierze nazwę
+z oczyszczonej ścieżki na dysku, nie z nazwy od nadawcy), kolejność sprawdzeń
+w `/file` (sesja przed czytaniem strumienia).
+
+**Znany koszt:** instalatora nie da się sprawdzić lokalnie bez Inno Setup
+(`choco install innosetup`); na maszynie właściciela go nie ma, więc skrypt
+kompiluje się dopiero na CI przy wydaniu.
+
 ## 4. Podział pracy
 
 - **Claude (sesje chmurowe, branch `claude/wifi-device-communication-npzb1g`)**: cały kod + testy jednostkowe + testy E2E dwóch instancji na Linuksie + golden/screenshoty UI. Realnie ~90% weryfikacji dzieje się bez Twojego udziału.

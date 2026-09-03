@@ -32,7 +32,9 @@ wiadomości i pliki przesyłane **bezpośrednio między urządzeniami**, bez
 - **Na Windowsie ikona w zasobniku**: krzyżyk chowa okno zamiast kończyć
   nasłuch, a aplikacja może wstawać razem z systemem.
 - **Wygoda**: wiele plików naraz (także przeciągniętych na okno), miniatury
-  obrazków, szukanie w rozmowach, kasowanie pojedynczych wiadomości.
+  obrazków, zapisanie odebranego pliku do Zdjęć/Pobranych jednym dotknięciem,
+  szukanie w rozmowach, kasowanie pojedynczych wiadomości.
+- **Dwa panele na szerokim oknie** (lista obok rozmowy) i tła do wyboru.
 - **Polski i angielski**, motyw jasny/ciemny/systemowy, jedno i drugie zapisane
   w bazie.
 
@@ -71,7 +73,7 @@ w [`docs/makiety/`](docs/makiety/).
 
 ```
 cd app
-flutter test        # 69 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
+flutter test        # 79 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
 flutter analyze
 ```
 

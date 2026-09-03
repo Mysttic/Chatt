@@ -118,7 +118,7 @@ sprzątane po siedmiu dniach.
 
 ## Baza
 
-`drift` (SQLite), schemat w wersji **7**. Tabele: `settings`, `peers`,
+`drift` (SQLite), schemat w wersji **8**. Tabele: `settings`, `peers`,
 `conversations`, `messages`. Migracje są napisane po kolei, więc baza
 z wcześniejszej wersji aplikacji doczytuje się bez utraty danych — z jednym
 wyjątkiem, opisanym niżej:
@@ -131,6 +131,7 @@ wyjątkiem, opisanym niżej:
 | 5 | `settings.language` |
 | 6 | `settings.identityKey`, `peers.publicKey`; **czyści listę urządzeń i historię** |
 | 7 | `settings.retentionDays` (samoczynne kasowanie starych wiadomości) |
+| 8 | `settings.background` (wybrane tło) |
 
 Czyszczenie przy v6 jest świadome: identyfikatory przestały być losowane
 i zaczęły wynikać z kluczy, więc wszystkie urządzenia dostały nowe. Zapisani
@@ -269,6 +270,30 @@ reguła obowiązywała tylko wobec sparowanych i wystarczyło jeden jawny pakiet
 z cudzym identyfikatorem, żeby podszyć się pod zieloną tarczę; trzy testy
 w `test/downgrade_test.dart` odgrywają dokładnie ten atak.
 
+### Napisy z sieci a dysk
+
+Jedyne miejsce, w którym napis od nadawcy staje się nazwą pliku, to
+[`core/received_paths.dart`](../app/lib/core/received_paths.dart). Dwie zapory,
+bo jedna to za mało:
+
+1. **Protokół odsiewa kształt.** `isSafeMessageGuid` przyjmuje tylko litery,
+   cyfry i myślnik (do 64 znaków). Identyfikator wiadomości trafia do nazw
+   plików, więc `../../../cokolwiek` znaczyłby zapis poza katalogiem aplikacji
+   — na pulpicie wszędzie tam, gdzie sięga użytkownik.
+2. **Nazwa na dysku wychodzi ze skrótu**, nigdy z samego identyfikatora. Ze
+   skrótu nie da się zrobić ścieżki, więc nawet gdyby pierwsza zapora kiedyś
+   przepuściła coś dziwnego, plik i tak zostanie w katalogu odebranych.
+
+Nazwa pliku od nadawcy przechodzi dodatkowo przez `p.basename` i wycięcie
+znaków zakazanych w nazwach na Windows.
+
+Ciało zapytania ma **granicę megabajta** (`_maxBodyBytes` w `server.dart`).
+Bez niej ktokolwiek w sieci mógł wysłać wielogigabajtowy JSON i wywrócić
+aplikację na braku pamięci: ciało czytamy do końca, zanim w ogóle wiadomo, czy
+nadawca ma sesję. Treść pliku tędy nie idzie — ta leci strumieniowo przez
+`/file` prosto na dysk, a odbiór przerywa się w chwili, gdy nadawca przekroczy
+zapowiedziany rozmiar.
+
 ### Co zostaje otwarte
 
 - `POST /pair` nie jest uwierzytelniony, więc każdy może wywołać kartę
@@ -347,6 +372,30 @@ nasłuchuje, dopóki żyje proces, a proces na pulpicie kończy się razem z okn
   (`windows/runner/chatt_autostart.cpp`). Wpis konta użytkownika, nie usługa:
   bez uprawnień administratora i do skasowania także ręcznie. Wartość to
   ścieżka do `.exe` w cudzysłowie plus `--minimized`.
+
+## Układ: jedno okno, dwa rozmiary
+
+Jeden zestaw ekranów obsługuje telefon i monitor, bez osobnej wersji na
+każdą platformę:
+
+- **Próg 900 px** (`czyDwupanel`): powyżej lista rozmów i rozmowa stoją obok
+  siebie w jednym `Scaffold`-ie, poniżej rozmowa jest osobnym ekranem na
+  stosie nawigacji. Ta sama `ChatScreen` w obu przypadkach — wbudowana nie
+  dostaje strzałki „wstecz", bo nie ma czego zdejmować ze stosu.
+- **Górne granice szerokości**: dymki 560 px, formularze 760 px
+  (`ContentColumn`). Bez nich na monitorze linia ciągnie się przez pół metra.
+- **`VisualDensity.adaptivePlatformDensity`**: na pulpicie steruje się myszą,
+  więc listy i przyciski dostają ciaśniejsze odstępy niż na telefonie.
+- **Paski systemowe Androida**: od API 35 system rysuje je **na** aplikacji
+  i nie zwęża okna, więc przewijana treść musi sama dołożyć sobie dolny
+  margines (`bottomSystemInset`). Bierzemy `MediaQuery.padding`, a nie
+  `viewPadding`: przy otwartej klawiaturze pasek leży nad nią i dokładanie tej
+  przerwy drugi raz odsuwałoby treść w próżnię.
+- **Tła** (`ui/backgrounds.dart`) to gradient pod całą aplikacją, wstrzykiwany
+  w `MaterialApp.builder`. Włączenie tła robi tło ekranu i pasek aplikacji
+  przezroczystymi; karty i dymki zostają nieprzezroczyste, bo na nich stoi
+  czytelność. Jasność ikon paska systemowego trzeba wtedy podać wprost —
+  Flutter liczy ją z koloru paska aplikacji, a ten przestaje mieć kolor.
 
 ## Skąd wziął się wygląd
 

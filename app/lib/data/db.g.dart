@@ -95,6 +95,18 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     requiredDuringInsert: false,
     defaultValue: const Constant(defaultTcpPort),
   );
+  static const VerificationMeta _backgroundMeta = const VerificationMeta(
+    'background',
+  );
+  @override
+  late final GeneratedColumn<int> background = GeneratedColumn<int>(
+    'background',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _retentionDaysMeta = const VerificationMeta(
     'retentionDays',
   );
@@ -117,6 +129,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     theme,
     language,
     tcpPort,
+    background,
     retentionDays,
   ];
   @override
@@ -174,6 +187,12 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         tcpPort.isAcceptableOrUnknown(data['tcp_port']!, _tcpPortMeta),
       );
     }
+    if (data.containsKey('background')) {
+      context.handle(
+        _backgroundMeta,
+        background.isAcceptableOrUnknown(data['background']!, _backgroundMeta),
+      );
+    }
     if (data.containsKey('retention_days')) {
       context.handle(
         _retentionDaysMeta,
@@ -228,6 +247,10 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.int,
         data['${effectivePrefix}tcp_port'],
       )!,
+      background: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}background'],
+      )!,
       retentionDays: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}retention_days'],
@@ -265,6 +288,9 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// zajęty — patrz DeviceIdentity.tcpPort.
   final int tcpPort;
 
+  /// Numer wybranego tła (patrz `ui/backgrounds.dart`). 0 znaczy „bez tła".
+  final int background;
+
   /// Po ilu dniach kasować wiadomości. 0 znaczy „trzymaj bez końca".
   /// Kasowanie dotyczy wpisów w bazie; odebrane pliki zostają na dysku.
   final int retentionDays;
@@ -277,6 +303,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.theme,
     required this.language,
     required this.tcpPort,
+    required this.background,
     required this.retentionDays,
   });
   @override
@@ -296,6 +323,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       );
     }
     map['tcp_port'] = Variable<int>(tcpPort);
+    map['background'] = Variable<int>(background);
     map['retention_days'] = Variable<int>(retentionDays);
     return map;
   }
@@ -310,6 +338,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       theme: Value(theme),
       language: Value(language),
       tcpPort: Value(tcpPort),
+      background: Value(background),
       retentionDays: Value(retentionDays),
     );
   }
@@ -332,6 +361,7 @@ class Setting extends DataClass implements Insertable<Setting> {
         serializer.fromJson<int>(json['language']),
       ),
       tcpPort: serializer.fromJson<int>(json['tcpPort']),
+      background: serializer.fromJson<int>(json['background']),
       retentionDays: serializer.fromJson<int>(json['retentionDays']),
     );
   }
@@ -351,6 +381,7 @@ class Setting extends DataClass implements Insertable<Setting> {
         $SettingsTable.$converterlanguage.toJson(language),
       ),
       'tcpPort': serializer.toJson<int>(tcpPort),
+      'background': serializer.toJson<int>(background),
       'retentionDays': serializer.toJson<int>(retentionDays),
     };
   }
@@ -364,6 +395,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     AppTheme? theme,
     AppLanguage? language,
     int? tcpPort,
+    int? background,
     int? retentionDays,
   }) => Setting(
     id: id ?? this.id,
@@ -374,6 +406,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     theme: theme ?? this.theme,
     language: language ?? this.language,
     tcpPort: tcpPort ?? this.tcpPort,
+    background: background ?? this.background,
     retentionDays: retentionDays ?? this.retentionDays,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
@@ -392,6 +425,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       theme: data.theme.present ? data.theme.value : this.theme,
       language: data.language.present ? data.language.value : this.language,
       tcpPort: data.tcpPort.present ? data.tcpPort.value : this.tcpPort,
+      background: data.background.present
+          ? data.background.value
+          : this.background,
       retentionDays: data.retentionDays.present
           ? data.retentionDays.value
           : this.retentionDays,
@@ -409,6 +445,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('theme: $theme, ')
           ..write('language: $language, ')
           ..write('tcpPort: $tcpPort, ')
+          ..write('background: $background, ')
           ..write('retentionDays: $retentionDays')
           ..write(')'))
         .toString();
@@ -424,6 +461,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     theme,
     language,
     tcpPort,
+    background,
     retentionDays,
   );
   @override
@@ -438,6 +476,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.theme == this.theme &&
           other.language == this.language &&
           other.tcpPort == this.tcpPort &&
+          other.background == this.background &&
           other.retentionDays == this.retentionDays);
 }
 
@@ -450,6 +489,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<AppTheme> theme;
   final Value<AppLanguage> language;
   final Value<int> tcpPort;
+  final Value<int> background;
   final Value<int> retentionDays;
   const SettingsCompanion({
     this.id = const Value.absent(),
@@ -460,6 +500,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.theme = const Value.absent(),
     this.language = const Value.absent(),
     this.tcpPort = const Value.absent(),
+    this.background = const Value.absent(),
     this.retentionDays = const Value.absent(),
   });
   SettingsCompanion.insert({
@@ -471,6 +512,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.theme = const Value.absent(),
     this.language = const Value.absent(),
     this.tcpPort = const Value.absent(),
+    this.background = const Value.absent(),
     this.retentionDays = const Value.absent(),
   }) : deviceGuid = Value(deviceGuid),
        nickname = Value(nickname);
@@ -483,6 +525,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<int>? theme,
     Expression<int>? language,
     Expression<int>? tcpPort,
+    Expression<int>? background,
     Expression<int>? retentionDays,
   }) {
     return RawValuesInsertable({
@@ -494,6 +537,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (theme != null) 'theme': theme,
       if (language != null) 'language': language,
       if (tcpPort != null) 'tcp_port': tcpPort,
+      if (background != null) 'background': background,
       if (retentionDays != null) 'retention_days': retentionDays,
     });
   }
@@ -507,6 +551,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<AppTheme>? theme,
     Value<AppLanguage>? language,
     Value<int>? tcpPort,
+    Value<int>? background,
     Value<int>? retentionDays,
   }) {
     return SettingsCompanion(
@@ -518,6 +563,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       theme: theme ?? this.theme,
       language: language ?? this.language,
       tcpPort: tcpPort ?? this.tcpPort,
+      background: background ?? this.background,
       retentionDays: retentionDays ?? this.retentionDays,
     );
   }
@@ -553,6 +599,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (tcpPort.present) {
       map['tcp_port'] = Variable<int>(tcpPort.value);
     }
+    if (background.present) {
+      map['background'] = Variable<int>(background.value);
+    }
     if (retentionDays.present) {
       map['retention_days'] = Variable<int>(retentionDays.value);
     }
@@ -570,6 +619,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('theme: $theme, ')
           ..write('language: $language, ')
           ..write('tcpPort: $tcpPort, ')
+          ..write('background: $background, ')
           ..write('retentionDays: $retentionDays')
           ..write(')'))
         .toString();
@@ -2337,6 +2387,7 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<AppTheme> theme,
   Value<AppLanguage> language,
   Value<int> tcpPort,
+  Value<int> background,
   Value<int> retentionDays,
 });
 typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
@@ -2348,6 +2399,7 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<AppTheme> theme,
   Value<AppLanguage> language,
   Value<int> tcpPort,
+  Value<int> background,
   Value<int> retentionDays,
 });
 
@@ -2399,6 +2451,11 @@ class $$SettingsTableFilterComposer
 
   ColumnFilters<int> get tcpPort => $composableBuilder(
     column: $table.tcpPort,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get background => $composableBuilder(
+    column: $table.background,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2457,6 +2514,11 @@ class $$SettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get background => $composableBuilder(
+    column: $table.background,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get retentionDays => $composableBuilder(
     column: $table.retentionDays,
     builder: (column) => ColumnOrderings(column),
@@ -2502,6 +2564,11 @@ class $$SettingsTableAnnotationComposer
   GeneratedColumn<int> get tcpPort =>
       $composableBuilder(column: $table.tcpPort, builder: (column) => column);
 
+  GeneratedColumn<int> get background => $composableBuilder(
+    column: $table.background,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get retentionDays => $composableBuilder(
     column: $table.retentionDays,
     builder: (column) => column,
@@ -2544,6 +2611,7 @@ class $$SettingsTableTableManager
                 Value<AppTheme> theme = const Value.absent(),
                 Value<AppLanguage> language = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
+                Value<int> background = const Value.absent(),
                 Value<int> retentionDays = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
@@ -2554,6 +2622,7 @@ class $$SettingsTableTableManager
                 theme: theme,
                 language: language,
                 tcpPort: tcpPort,
+                background: background,
                 retentionDays: retentionDays,
               ),
           createCompanionCallback:
@@ -2566,6 +2635,7 @@ class $$SettingsTableTableManager
                 Value<AppTheme> theme = const Value.absent(),
                 Value<AppLanguage> language = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
+                Value<int> background = const Value.absent(),
                 Value<int> retentionDays = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
@@ -2576,6 +2646,7 @@ class $$SettingsTableTableManager
                 theme: theme,
                 language: language,
                 tcpPort: tcpPort,
+                background: background,
                 retentionDays: retentionDays,
               ),
           withReferenceMapper: (p0) => p0

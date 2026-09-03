@@ -21,7 +21,9 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
+import 'package:flutter/material.dart' show Canvas, Color, Offset, Paint, Rect;
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -115,10 +117,12 @@ List<int> swiezaTresc(int rozmiar) {
 Future<(int, int)?> findWidget(
   String label, {
   Duration timeout = const Duration(seconds: 15),
+  bool fragment = false,
+  bool ostatni = false,
 }) async {
   final koniec = DateTime.now().add(timeout);
   do {
-    final where = await _findOnce(label);
+    final where = await _findOnce(label, fragment: fragment, ostatni: ostatni);
     if (where != null) return where;
     await Future<void>.delayed(const Duration(milliseconds: 500));
   } while (DateTime.now().isBefore(koniec));
@@ -141,14 +145,18 @@ Future<String> widocznaTresc() async {
       .join(' | ');
 }
 
-Future<(int, int)?> _findOnce(String label) async {
+Future<(int, int)?> _findOnce(String label,
+    {bool fragment = false, bool ostatni = false}) async {
   const dump = '/sdcard/chatt_ui.xml';
   final dumped = await adb(['shell', 'uiautomator', 'dump', dump]);
   if (!'${dumped.stdout}'.contains(dump)) return null;
   final xml = (await adb(['shell', 'cat', dump])).stdout as String;
+  final opis = fragment
+      ? RegExp('content-desc="[^"]*${RegExp.escape(label)}')
+      : RegExp('content-desc="${RegExp.escape(label)}"');
+  (int, int)? znaleziony;
   for (final node in xml.split('<node ')) {
-    if (!node.contains('content-desc="$label"') &&
-        !node.contains('text="$label"')) {
+    if (!opis.hasMatch(node) && !node.contains('text="$label"')) {
       continue;
     }
     final bounds =
@@ -158,9 +166,13 @@ Future<(int, int)?> _findOnce(String label) async {
     final top = int.parse(bounds.group(2)!);
     final right = int.parse(bounds.group(3)!);
     final bottom = int.parse(bounds.group(4)!);
-    return ((left + right) ~/ 2, (top + bottom) ~/ 2);
+    znaleziony = ((left + right) ~/ 2, (top + bottom) ~/ 2);
+    // Ta sama etykieta bywa na ekranie kilka razy (przycisk zapisu przy
+    // każdym pliku w rozmowie). `ostatni` bierze najniższy, czyli najnowszą
+    // wiadomość.
+    if (!ostatni) return znaleziony;
   }
-  return null;
+  return znaleziony;
 }
 
 /// Klik w przycisk prośby o plik. Szukamy go po etykiecie, a nie po stałych
@@ -187,6 +199,50 @@ Future<void> tapOfferButton({required bool accept}) async {
   }
   throw StateError('Nie znalazłem na ekranie przycisku ${labels.first}. '
       'Co widać: ${await widocznaTresc()}');
+}
+
+/// Klik w cokolwiek podpisanego jedną z [etykiety]. Dwie, bo aplikacja na
+/// urządzeniu może być po polsku albo po angielsku, a test nie ma powodu tego
+/// wymuszać. [fragment] dopasowuje po kawałku opisu — Flutter potrafi scalić
+/// całą kartę czy wiersz listy w jeden węzeł.
+Future<void> stuknijEtykiete(List<String> etykiety,
+    {bool fragment = false, bool ostatni = false}) async {
+  for (final etykieta in etykiety) {
+    final gdzie = await findWidget(
+      etykieta,
+      fragment: fragment,
+      ostatni: ostatni,
+      timeout: etykieta == etykiety.first
+          ? const Duration(seconds: 15)
+          : const Duration(seconds: 1),
+    );
+    if (gdzie == null) continue;
+    await adb(['shell', 'input', 'tap', '${gdzie.$1}', '${gdzie.$2}']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    return;
+  }
+  throw StateError('Nie znalazłem na ekranie: ${etykiety.first}. '
+      'Co widać: ${await widocznaTresc()}');
+}
+
+/// Obrazek na demo miniatury i zapisywania. Rysowany, bo zrzuty i testy mają
+/// się odtwarzać bez wlekania za sobą cudzych zdjęć.
+Future<List<int>> demoObrazek() async {
+  const bok = 480.0;
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder, const Rect.fromLTWH(0, 0, bok, bok));
+  canvas.drawRect(
+    const Rect.fromLTWH(0, 0, bok, bok),
+    Paint()
+      ..shader = ui.Gradient.linear(
+        Offset.zero,
+        const Offset(bok, bok),
+        const [Color(0xFF2E6BE6), Color(0xFF35C4C4)],
+      ),
+  );
+  final obraz = await recorder.endRecording().toImage(bok.toInt(), bok.toInt());
+  final dane = await obraz.toByteData(format: ui.ImageByteFormat.png);
+  return dane!.buffer.asUint8List();
 }
 
 /// Zrzut ekranu urządzenia do pliku (do dokumentacji i podglądu, co się stało).
@@ -298,6 +354,45 @@ void main() {
 
     await Future<void>.delayed(const Duration(seconds: 2));
     await screenshot(p.join(shots.path, 'and3_plik_odebrany.png'));
+  });
+
+  test('zapisanie obrazka wynosi go z katalogu aplikacji do Zdjęć', () async {
+    const galeria = '/sdcard/Pictures/Chatt';
+    const nazwa = 'zdjecie-do-zapisania.png';
+    // Po poprzednim przebiegu plik mógł zostać — inaczej test przeszedłby
+    // na cudzym wyniku.
+    await adb(['shell', 'rm', '-f', '$galeria/$nazwa']);
+
+    final phone = (await host.db.watchPeers().first).first;
+    final conversation = await host.openConversationWith(phone);
+
+    final source = File(p.join(work.path, nazwa));
+    source.writeAsBytesSync(await demoObrazek());
+    final sending = host.sendFile(conversation, source.path);
+    await Future<void>.delayed(const Duration(seconds: 3));
+    await tapOfferButton(accept: true);
+    await sending;
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    // Do dymka z plikiem trzeba wejść w rozmowę: wiersz listy Flutter scala
+    // w jeden węzeł razem z podglądem i godziną, więc szukamy po fragmencie.
+    await stuknijEtykiete(['Komputer PC'], fragment: true);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    // Przycisków zapisu jest w rozmowie tyle, ile plików — bierzemy ten przy
+    // najnowszej wiadomości, czyli przy obrazku.
+    await stuknijEtykiete(['Zapisz na urządzeniu', 'Save to device'],
+        ostatni: true);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    // Zrzut przed asercją: gdy zapis się nie uda, na ekranie wisi komunikat
+    // z powodem i bez tego zrzutu trzeba by zgadywać.
+    await screenshot(p.join(shots.path, 'and22_zapisany_obrazek.png'));
+
+    final listing = await adb(['shell', 'ls', '-l', galeria]);
+    expect(listing.stdout.toString(), contains(nazwa),
+        reason: 'zapisany obrazek ma wylądować w Zdjęciach, tam gdzie widzi '
+            'go galeria, a nie tylko w katalogu aplikacji');
+
+    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
   });
 
   test('odmowa na telefonie kończy się statusem "nie dostarczono"', () async {

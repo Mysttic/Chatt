@@ -1,6 +1,6 @@
 # Testy
 
-Podział jest prosty: **69 testów `flutter test`** sprawdzają wszystko, co da się
+Podział jest prosty: **79 testów `flutter test`** sprawdzają wszystko, co da się
 sprawdzić bez sprzętu, a osobne scenariusze w `app/tool/` sterują żywą
 aplikacją na urządzeniu. Rzeczy, których nie sprawdzi ani jedno, ani drugie,
 są wypisane na końcu.
@@ -113,12 +113,15 @@ transferu).
 - sparowani: plik jedzie zaszyfrowany i składa się bajt w bajt
 - sparowani: wznowienie zaszyfrowanego pliku dosyła tylko resztę
 
-### Szukanie i miniatury (`test/search_test.dart`, 10 testów)
+### Szukanie, tła i miniatury (`test/search_test.dart`, 12 testów)
 - szukanie nie patrzy na wielkość liter, a pusty napis pasuje do wszystkiego
 - plik szuka się po nazwie, bo to ją widać w dymku
 - lista rozmów filtruje się po nazwie rozmówcy i ostatniej wiadomości; rozmowa
   bez żadnej wiadomości nie wywala filtrowania
 - miniaturę dostają tylko obrazki po rozszerzeniu, `zdjecie.png.exe` nie
+- numer tła spoza listy wraca do „bez tła" zamiast wywalać się na indeksie
+  (w bazie może zostać numer z nowszej wersji)
+- każdy zestaw tła ma kolory na motyw jasny i ciemny
 
 ### Baza na dysku (`test/encrypted_db_test.dart`, 9 testów)
 - build naprawdę ma SQLite3MultipleCiphers (`PRAGMA cipher` coś zwraca)
@@ -133,6 +136,18 @@ transferu).
 - „wyczyść historię" zostawia urządzenia razem z potwierdzeniem
 - granica wieku kasuje tylko wiadomości sprzed niej, a wyłączona (0 dni) nie
   kasuje niczego
+
+### Napastnik na łączu (`test/security_test.dart`, 8 testów)
+Testy z przeglądu bezpieczeństwa 0.3.0. Każdy z nich świecił się na czerwono
+przed poprawką:
+- identyfikator wiadomości ze ścieżką (`../../../../evil`, `..\..\evil`,
+  `/etc/chatt`) jest odrzucany w zapowiedzi pliku, w wiadomości i w nagłówkach
+  transferu; zwykły UUID przechodzi
+- ścieżka części transferu, jej opisu i pliku docelowego zostaje w katalogu
+  odebranych **niezależnie** od tego, co przyśle nadawca (sprawdzane przez
+  `p.isWithin`, które przy `..` zwraca false)
+- dwa różne identyfikatory nie sklejają się do jednego pliku
+- ośmiomegabajtowe zapytanie nie kładzie serwera, a `/info` po nim odpowiada
 
 ### Odporność na obniżenie zabezpieczeń (`test/downgrade_test.dart`, 3 testy)
 Napastnik zna identyfikator rozmówcy, ale nie zna jego klucza prywatnego:
@@ -157,8 +172,10 @@ adb forward tcp:47781 tcp:47780    host -> aplikacja na urządzeniu
 adb reverse tcp:47790 tcp:47790    urządzenie -> instancja hosta
 ```
 
-Trzy testy: `/info` z wiadomością i potwierdzeniem, plik z akceptacją klikniętą
-na ekranie i sprawdzoną sumą, odmowa kończąca się statusem „nie dostarczono".
+Cztery testy: `/info` z wiadomością i potwierdzeniem, plik z akceptacją
+klikniętą na ekranie i sprawdzoną sumą, zapisanie obrazka na urządzeniu
+(sprawdzane przez `ls /sdcard/Pictures/Chatt`, a nie przez zaufanie
+komunikatowi w aplikacji), odmowa kończąca się statusem „nie dostarczono".
 Test sam restartuje aplikację na starcie, klika przyciski znalezione po
 etykiecie w drzewie dostępności i wysyła pliki o świeżej treści przy każdym
 przebiegu — inaczej kolejne uruchomienia trafiały na stan po poprzednim.
@@ -170,6 +187,14 @@ Tego jednego nie da się sprawdzić na emulatorze.
 ### `tool/product_shots.dart`
 Zakłada demonstracyjną rozmowę i robi zrzuty do `docs/screenshots/produkt/`.
 Po wszystkim czyści dane aplikacji, żeby na urządzeniu nie zostało demo.
+
+### `tool/zrzut_okna.ps1`
+Zrzut **samego okna aplikacji** na Windowsie (nie całego pulpitu), z ustawieniem
+mu rozmiaru. Do oglądania układu na szerokim oknie bez zgadywania:
+
+```
+powershell -ExecutionPolicy Bypass -File tool/zrzut_okna.ps1 -Plik okno.png -Szerokosc 1400 -Wysokosc 900
+```
 
 ### `tool/podglad_bazy.dart`
 Mówi, ile czego jest w bazie, i czy plik w ogóle da się otworzyć bez hasła.
