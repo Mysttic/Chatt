@@ -18,6 +18,12 @@ Flutter celowo nie jest w PATH, więc w poleceniach niżej pojawia się pełna
 Tryb dewelopera na Windows (`start ms-settings:developers`) jest potrzebny,
 bo build desktopowy tworzy dowiązania symboliczne do wtyczek.
 
+**Build potrzebuje sieci.** `package:sqlite3` w wersji 3 dobiera silnik przez
+build hooks i ściąga gotowe binaria z wydań na GitHubie. My prosimy tam
+o SQLite3MultipleCiphers (`hooks.user_defines.sqlite3.source: sqlite3mc`
+w `pubspec.yaml`) — bez tego `PRAGMA key` nic by nie robił, a baza zapisałaby
+się jawnym tekstem. Pierwszy build po `flutter clean` ściąga je od nowa.
+
 ## Codzienna praca
 
 ```

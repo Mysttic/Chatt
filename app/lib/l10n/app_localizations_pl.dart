@@ -411,6 +411,55 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get privacy => 'Prywatność';
+
+  @override
+  String get dbKeyProtected =>
+      'Historia leży na dysku zaszyfrowana, a klucz do niej trzyma schowek systemowy. Skopiowanie samego pliku bazy nic nie da.';
+
+  @override
+  String get dbKeyUnprotected =>
+      'Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to przed podejrzeniem samego pliku, nie przed kopią całego katalogu aplikacji.';
+
+  @override
+  String get retentionLabel => 'Kasuj wiadomości starsze niż';
+
+  @override
+  String get retentionNever => 'Nie kasuj';
+
+  @override
+  String retentionDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dni',
+      many: '$count dni',
+      few: '$count dni',
+      one: '$count dzień',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get retentionHelp =>
+      'Kasowanie dotyczy wpisów w rozmowach. Odebrane pliki zostają na dysku.';
+
+  @override
+  String get clearHistory => 'Wyczyść historię';
+
+  @override
+  String get clearHistoryTitle => 'Wyczyścić całą historię?';
+
+  @override
+  String get clearHistoryBody =>
+      'Znikną wszystkie wiadomości i rozmowy. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.';
+
+  @override
+  String historyCleared(int count) {
+    return 'Usunięto wiadomości: $count';
+  }
+
+  @override
   String get thisDevice => 'To urządzenie';
 
   @override

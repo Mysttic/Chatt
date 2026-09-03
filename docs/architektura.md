@@ -118,7 +118,7 @@ sprzątane po siedmiu dniach.
 
 ## Baza
 
-`drift` (SQLite), schemat w wersji **6**. Tabele: `settings`, `peers`,
+`drift` (SQLite), schemat w wersji **7**. Tabele: `settings`, `peers`,
 `conversations`, `messages`. Migracje są napisane po kolei, więc baza
 z wcześniejszej wersji aplikacji doczytuje się bez utraty danych — z jednym
 wyjątkiem, opisanym niżej:
@@ -130,6 +130,7 @@ wyjątkiem, opisanym niżej:
 | 4 | `settings.theme` |
 | 5 | `settings.language` |
 | 6 | `settings.identityKey`, `peers.publicKey`; **czyści listę urządzeń i historię** |
+| 7 | `settings.retentionDays` (samoczynne kasowanie starych wiadomości) |
 
 Czyszczenie przy v6 jest świadome: identyfikatory przestały być losowane
 i zaczęły wynikać z kluczy, więc wszystkie urządzenia dostały nowe. Zapisani
@@ -144,14 +145,47 @@ starcie.
 Schemat wywodzi się z modelu z pierwszej wersji projektu:
 [`makiety/schemat_bazy.png`](makiety/schemat_bazy.png).
 
+### Baza na dysku jest zaszyfrowana
+
+Zamiast zwykłego SQLite build dołącza **SQLite3MultipleCiphers** (wybór
+`hooks.user_defines.sqlite3.source: sqlite3mc` w `pubspec.yaml`). Przy
+otwieraniu leci `PRAGMA key`, więc plik `chatt.sqlite` nie ma nawet czytelnego
+nagłówka: sprawdzone, `od -c` pokazuje losowe bajty, a otwarcie bez hasła
+kończy się `SqliteException(26): file is not a database`.
+
+Hasło to 32 losowe bajty, leżące obok bazy w pliku `chatt.key`. Sam plik nic
+nie daje, bo jego zawartość jest owinięta przez **schowek systemowy** kanałem
+`chatt/sekrety`:
+
+| Platforma | Czym owinięte | Implementacja |
+|---|---|---|
+| Android | AES-GCM kluczem z **Keystore** (bez wymogu odblokowania: aplikacja odbiera wiadomości przy zgaszonym ekranie) | `ChattChannels.kt` |
+| Windows | **DPAPI** kluczem konta użytkownika, z dodatkową entropią | `windows/runner/chatt_secrets.cpp` |
+
+Pierwszy bajt `chatt.key` mówi, czy zawartość jest owinięta. Gdy schowek
+odmówi (platforma bez implementacji), klucz zapisuje się jawnie, a ustawienia
+mówią o tym wprost — szyfrowanie bazy dalej działa, ale chroni już tylko przed
+skopiowaniem samego pliku bazy, nie całego katalogu aplikacji. Gdy klucz
+systemowy **zniknie** (reinstalacja, przywrócenie kopii na inne urządzenie),
+`DatabaseKey.load` rzuca błąd zamiast po cichu założyć pustą bazę.
+
+Jawna baza po starszej wersji przepisuje się przy pierwszym starcie
+(`migrateToEncrypted`): szyfrowanie działa na stronach pliku, więc bazy nie da
+się „dokluczyć" w miejscu. Kopia powstaje obok, oryginał znika dopiero po jej
+domknięciu, więc przerwanie w połowie zostawia albo starą bazę, albo nową.
+Sprawdzone na obu platformach na prawdziwej bazie sprzed zmiany: nick i reszta
+ustawień przeżyły, plik po starcie jest zaszyfrowany.
+
 ## Bezpieczeństwo
 
 ### Model zagrożeń
 
 Zakładamy napastnika **w tej samej sieci lokalnej**: może podsłuchiwać,
-wysyłać własne pakiety i podawać się za kogo chce. Nie zakładamy napastnika
-z dostępem do odblokowanego urządzenia — baza i klucze leżą w katalogu
-aplikacji bez dodatkowego szyfrowania.
+wysyłać własne pakiety i podawać się za kogo chce. Dochodzi do tego napastnik,
+który **dobierze się do dysku**: skopiuje plik bazy albo cały katalog
+aplikacji. Baza jest zaszyfrowana, a jej klucz trzyma schowek systemowy, więc
+sam plik nic nie da. Nie zakładamy napastnika z dostępem do **odblokowanego,
+działającego** urządzenia — tam klucz jest w pamięci procesu z definicji.
 
 ### Potwierdzenie tożsamości (dawniej „parowanie")
 
@@ -251,7 +285,12 @@ w `test/downgrade_test.dart` odgrywają dokładnie ten atak.
   jeszcze nie zna.
 - Rotacja kluczy sesji: świadomie odłożona, bo wznawianie transferu wymaga
   tego samego klucza między sesjami.
-- Baza i klucze leżą na dysku bez szyfrowania.
+- Odebrane pliki leżą na dysku bez szyfrowania. Baza owija tylko historię
+  rozmów; zawartość przesłanych plików zostaje tam, gdzie użytkownik ma ją
+  otwierać innymi aplikacjami.
+- Klucz bazy jest do wyjęcia przez proces działający **jako ten sam użytkownik
+  systemu**: na Windowsie DPAPI odwinie go każdemu takiemu procesowi, na
+  Androidzie chroni go piaskownica aplikacji.
 
 ## Android: nasłuch w tle
 

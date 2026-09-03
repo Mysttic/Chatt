@@ -410,6 +410,53 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get privacy => 'Privacy';
+
+  @override
+  String get dbKeyProtected =>
+      'The history on disk is encrypted and the key is held by the system keystore. Copying the database file alone gets you nothing.';
+
+  @override
+  String get dbKeyUnprotected =>
+      'The history is encrypted, but the system keystore refused to hold the key, so it sits next to the database. That protects the database file alone, not a copy of the whole app directory.';
+
+  @override
+  String get retentionLabel => 'Delete messages older than';
+
+  @override
+  String get retentionNever => 'Never delete';
+
+  @override
+  String retentionDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '$count day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get retentionHelp =>
+      'This deletes entries in conversations. Received files stay on disk.';
+
+  @override
+  String get clearHistory => 'Clear history';
+
+  @override
+  String get clearHistoryTitle => 'Clear the entire history?';
+
+  @override
+  String get clearHistoryBody =>
+      'Every message and conversation disappears. Devices keep their confirmed identity, and received files stay on disk.';
+
+  @override
+  String historyCleared(int count) {
+    return 'Messages deleted: $count';
+  }
+
+  @override
   String get thisDevice => 'This device';
 
   @override

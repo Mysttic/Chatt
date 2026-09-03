@@ -1,6 +1,6 @@
 # Testy
 
-Podział jest prosty: **47 testów `flutter test`** sprawdzają wszystko, co da się
+Podział jest prosty: **56 testów `flutter test`** sprawdzają wszystko, co da się
 sprawdzić bez sprzętu, a osobne scenariusze w `app/tool/` sterują żywą
 aplikacją na urządzeniu. Rzeczy, których nie sprawdzi ani jedno, ani drugie,
 są wypisane na końcu.
@@ -109,6 +109,20 @@ transferu).
 - sparowani: plik jedzie zaszyfrowany i składa się bajt w bajt
 - sparowani: wznowienie zaszyfrowanego pliku dosyła tylko resztę
 
+### Baza na dysku (`test/encrypted_db_test.dart`, 9 testów)
+- build naprawdę ma SQLite3MultipleCiphers (`PRAGMA cipher` coś zwraca)
+  i `PRAGMA key` szyfruje: napisu z bazy nie widać w bajtach pliku
+- zaszyfrowanej bazy nie da się otworzyć bez hasła
+- jawna baza po starszej wersji przepisuje się z historią: wiadomości,
+  rozmówcy i **potwierdzenie tożsamości** przeżywają, a drugi start nie ma
+  już czego przepisywać
+- klucz bazy: bez schowka systemowego zapisuje się jawnie, ale się nie zmienia
+  między startami; ze schowkiem na dysk trafia co innego niż hasło; schowek,
+  który przestał odwijać klucz, to błąd, a nie cicha pusta baza
+- „wyczyść historię" zostawia urządzenia razem z potwierdzeniem
+- granica wieku kasuje tylko wiadomości sprzed niej, a wyłączona (0 dni) nie
+  kasuje niczego
+
 ### Odporność na obniżenie zabezpieczeń (`test/downgrade_test.dart`, 3 testy)
 Napastnik zna identyfikator rozmówcy, ale nie zna jego klucza prywatnego:
 - jawna wiadomość podszyta pod znanego rozmówcę jest odrzucana
@@ -145,6 +159,11 @@ Tego jednego nie da się sprawdzić na emulatorze.
 ### `tool/product_shots.dart`
 Zakłada demonstracyjną rozmowę i robi zrzuty do `docs/screenshots/produkt/`.
 Po wszystkim czyści dane aplikacji, żeby na urządzeniu nie zostało demo.
+
+### `tool/podglad_bazy.dart`
+Mówi, ile czego jest w bazie, i czy plik w ogóle da się otworzyć bez hasła.
+Po wydaniu 0.2.0 na zaszyfrowanej bazie odpowiada „nie da się odczytać" —
+i o to chodzi.
 
 ### `tool/ui_e2e.sh`
 Linuksowy scenariusz z dwiema instancjami pod Xvfb, sterowanymi xdotool —

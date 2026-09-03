@@ -199,12 +199,35 @@ Nowe zależności: `qr_flutter` (rysowanie kodu) i `mobile_scanner` (aparat,
 uprawnienie `CAMERA` dokłada sama wtyczka). Build Windows przechodzi bez
 zmian — przycisk skanowania pokazuje się tylko tam, gdzie jest aparat.
 
-### Faza 10 — Dane w spoczynku
-- [ ] Baza szyfrowana (SQLCipher), klucz w Android Keystore i Windows DPAPI
-- [ ] Migracja istniejącej bazy: przepisanie do zaszyfrowanej i skasowanie
-      jawnej, z zachowaniem historii
-- [ ] „Wyczyść historię" w ustawieniach i opcjonalne kasowanie wiadomości
-      starszych niż wybrana liczba dni
+### Faza 10 — Dane w spoczynku ✅ (03.09.2026)
+- [x] **Baza szyfrowana**, klucz w Android Keystore i Windows DPAPI. Zamiast
+      SQLCipher poszedł **SQLite3MultipleCiphers**: `package:sqlite3` w wersji
+      3 wybiera silnik przez build hooks (`hooks.user_defines`), a sqlite3mc
+      jest tam gotowy na wszystkie platformy natywne. SQLCipher linkuje
+      OpenSSL na Windowsie, Linuksie i Androidzie i ciągnie starszy silnik —
+      przy identycznym efekcie dla nas był po prostu droższy
+- [x] Klucz bazy (32 losowe bajty) leży w `chatt.key` owinięty przez schowek
+      systemowy: AES-GCM z Keystore na Androidzie, DPAPI na Windowsie, przez
+      wspólny kanał `chatt/sekrety`. Utrata klucza systemowego to błąd, a nie
+      ciche założenie pustej bazy
+- [x] Migracja istniejącej bazy: przepisanie do zaszyfrowanej i skasowanie
+      jawnej, z zachowaniem historii. Sprawdzone na obu platformach na
+      **prawdziwej bazie sprzed zmiany** (schemat v5, nick `BEEMYSTTIC`):
+      po starcie plik nie ma czytelnego nagłówka, a ustawienia są na miejscu
+- [x] „Wyczyść historię" w ustawieniach (z pytaniem, bo to nieodwracalne)
+      i kasowanie wiadomości starszych niż 7, 30, 90 albo 365 dni. Domyślnie
+      wyłączone. Urządzenia i potwierdzone tożsamości zostają
+      (`docs/screenshots/android/and20_prywatnosc.png`,
+      `and21_wyczysc_historie.png`)
+- [x] Testy: plik bazy nie zawiera treści wiadomości; bez hasła nie da się jej
+      otworzyć; migracja zachowuje historię i potwierdzenie tożsamości; klucz
+      trafia na dysk owinięty; granica wieku kasuje tylko to, co starsze.
+      Razem 56 zielonych
+
+**Znany koszt:** klucz bazy odwinie każdy proces działający jako ten sam
+użytkownik systemu (na Windowsie wprost przez DPAPI). Ochrona jest przed
+skopiowaniem dysku albo samego pliku, nie przed cudzym kodem uruchomionym
+na koncie użytkownika.
 
 ### Faza 11 — UI i wygoda
 - [ ] **Windows: ikona w zasobniku, start zminimalizowany, autostart.** Dziś

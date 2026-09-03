@@ -6,6 +6,15 @@ version: 0.1.0+1
 environment:
   sdk: ^3.13.2
 
+# Zamiast zwykłego SQLite dołączamy SQLite3MultipleCiphers — ten sam silnik
+# z dołożonym szyfrowaniem stron. Bez tego `PRAGMA key` nic nie robi, a baza
+# leży na dysku jawnym tekstem. Działa na wszystkich platformach natywnych,
+# więc Windows i Android dostają to samo.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlite3mc
+
 dependencies:
   crypto: ^3.0.7
   cryptography: ^2.9.0
@@ -24,6 +33,7 @@ dependencies:
   qr_flutter: ^4.1.0
   shelf: ^1.4.2
   shelf_router: ^1.1.4
+  sqlite3: ^3.5.2
   uuid: ^4.6.0
 
 dev_dependencies:

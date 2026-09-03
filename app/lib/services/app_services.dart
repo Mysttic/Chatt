@@ -5,8 +5,6 @@ import 'dart:io';
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:cryptography/cryptography.dart' show SimpleKeyPair;
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
-import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -18,6 +16,7 @@ import '../core/file_actions.dart';
 import '../core/identity.dart';
 import '../core/pair_link.dart';
 import '../data/db.dart';
+import '../data/db_open.dart';
 import '../network/client.dart';
 import '../network/discovery.dart';
 import '../network/protocol.dart';
@@ -247,6 +246,11 @@ class AppServices {
   /// dużego transferu nie czytało pliku drugi raz tylko po to.
   final Map<String, String> _sentFileHashes = {};
 
+  /// Czy klucz zaszyfrowanej bazy leży na dysku owinięty przez system
+  /// (Android Keystore, Windows DPAPI). `false` znaczy, że schowek systemowy
+  /// odmówił i klucz leży obok bazy jawnie — patrz [DatabaseKey].
+  bool keyProtected = true;
+
   static const _uuid = Uuid();
 
   AppServices._(this.db, this.client, this.server, this.responder,
@@ -263,7 +267,10 @@ class AppServices {
     FileOfferPolicy? fileOfferPolicy,
     IncomingMessageHook? onIncomingMessage,
   }) async {
-    final db = ChattDb(executor ?? _defaultExecutor());
+    // Testy podają własny executor (baza w pamięci) i wtedy nie ma czego
+    // szyfrować ani przepisywać.
+    final opened = executor == null ? await openAppDatabase() : null;
+    final db = ChattDb(executor ?? opened!.executor);
     final receivedDir = receivedDirOverride ?? await _defaultReceivedDir();
     Directory(receivedDir).createSync(recursive: true);
     Directory(p.join(receivedDir, _incompleteSubdir)).createSync(recursive: true);
@@ -322,9 +329,11 @@ class AppServices {
     services =
         AppServices._(db, PeerClient(), server, responder, receivedDir, identity);
     services._identityKeys = identityKeyPair;
+    services.keyProtected = opened?.keyProtected ?? true;
     services._offerPolicy = fileOfferPolicy ?? services._askUserAboutOffer;
     services._onIncoming = onIncomingMessage;
     services._sweepStaleParts();
+    services._startRetention();
     // Urządzenia, które przewinęły się przez sieć i nigdy nic nie napisały,
     // nie mają po co zaśmiecać listy w nieskończoność.
     await db.sweepStalePeers();
@@ -348,15 +357,6 @@ class AppServices {
     if (Platform.isAndroid || Platform.isIOS) return 'Telefon';
     final host = Platform.localHostname;
     return (host.isEmpty || host == 'localhost') ? 'Moje urządzenie' : host;
-  }
-
-  static QueryExecutor _defaultExecutor() {
-    final dir = ChattEnv.dataDir;
-    if (dir != null) {
-      Directory(dir).createSync(recursive: true);
-      return NativeDatabase.createInBackground(File(p.join(dir, 'chatt.db')));
-    }
-    return driftDatabase(name: 'chatt');
   }
 
   static Future<String> _defaultReceivedDir() async {
@@ -1629,12 +1629,38 @@ class AppServices {
     }
   }
 
+  // --- Kasowanie starych wiadomości -----------------------------------------
+
+  Timer? _retentionTimer;
+  StreamSubscription<Setting>? _retentionWatch;
+
+  /// Pilnuje ustawionej granicy wieku wiadomości: raz przy starcie, potem po
+  /// każdej zmianie ustawienia i co sześć godzin, gdyby aplikacja chodziła
+  /// tygodniami bez restartu.
+  void _startRetention() {
+    _retentionWatch = db.watchSettings().listen(
+      (settings) => applyRetention(settings.retentionDays),
+      onError: (_) {},
+    );
+    _retentionTimer = Timer.periodic(const Duration(hours: 6), (_) async {
+      final settings = await db.getSettings();
+      if (settings != null) await applyRetention(settings.retentionDays);
+    });
+  }
+
+  /// Kasuje wiadomości starsze niż [days] dni. Zero znaczy „nie kasuj".
+  /// Zwraca liczbę usuniętych wpisów.
+  Future<int> applyRetention(int days) =>
+      days <= 0 ? Future.value(0) : db.deleteMessagesOlderThan(Duration(days: days));
+
   Future<void> dispose() async {
     // Nikt już nie odpowie na wiszące prośby o zgodę — odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {
       _resolveOffer(guid, false);
     }
+    _retentionTimer?.cancel();
+    await _retentionWatch?.cancel();
     responder.stop();
     await server.stop();
     client.dispose();

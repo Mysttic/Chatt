@@ -133,6 +133,29 @@ Powiadomienia usługi w tle też idą za językiem aplikacji, a nie systemu.
 
 ![Tryb ciemny](screenshots/produkt/android_lista_rozmow_ciemny.png)
 
+## Prywatność: co leży na dysku
+
+Historia rozmów leży na dysku **zaszyfrowana**, a klucz do niej trzyma schowek
+systemowy (Keystore na Androidzie, DPAPI na Windowsie). Skopiowanie samego
+pliku bazy nic nie daje. Ustawienia mówią o tym wprost, razem z ostrzeżeniem,
+gdyby na danym urządzeniu schowek nie zadziałał.
+
+![Prywatność](screenshots/android/and20_prywatnosc.png)
+
+Tam samym są dwie rzeczy do zrobienia ręcznie:
+
+- **Kasuj wiadomości starsze niż** — do wyboru 7, 30, 90 albo 365 dni.
+  Domyślnie wyłączone. Aplikacja sprząta przy starcie, po zmianie ustawienia
+  i co sześć godzin.
+- **Wyczyść historię** — kasuje wszystkie wiadomości i rozmowy od razu.
+  Nieodwracalne, więc pyta o potwierdzenie. Urządzenia razem z potwierdzoną
+  tożsamością zostają, więc nie trzeba się parować od nowa.
+
+![Wyczyść historię](screenshots/android/and21_wyczysc_historie.png)
+
+W obu przypadkach **odebrane pliki zostają na dysku**. Aplikacja kasuje własne
+wpisy, a nie zawartość, którą użytkownik otwiera innymi programami.
+
 ## Dwie instancje na jednym komputerze
 
 Do testów bez drugiego urządzenia: druga instancja musi dostać własny katalog

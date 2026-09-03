@@ -173,6 +173,23 @@
   "@cleanedUp": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "privacy": "Prywatność",
+  "dbKeyProtected": "Historia leży na dysku zaszyfrowana, a klucz do niej trzyma schowek systemowy. Skopiowanie samego pliku bazy nic nie da.",
+  "dbKeyUnprotected": "Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to przed podejrzeniem samego pliku, nie przed kopią całego katalogu aplikacji.",
+  "retentionLabel": "Kasuj wiadomości starsze niż",
+  "retentionNever": "Nie kasuj",
+  "retentionDays": "{count, plural, one{{count} dzień} few{{count} dni} many{{count} dni} other{{count} dni}}",
+  "@retentionDays": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "retentionHelp": "Kasowanie dotyczy wpisów w rozmowach. Odebrane pliki zostają na dysku.",
+  "clearHistory": "Wyczyść historię",
+  "clearHistoryTitle": "Wyczyścić całą historię?",
+  "clearHistoryBody": "Znikną wszystkie wiadomości i rozmowy. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.",
+  "historyCleared": "Usunięto wiadomości: {count}",
+  "@historyCleared": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "thisDevice": "To urządzenie",
   "listeningOn": "Nasłuch",
   "deviceIdentifier": "Identyfikator",

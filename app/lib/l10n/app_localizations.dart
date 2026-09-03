@@ -770,6 +770,72 @@ abstract class AppLocalizations {
   /// **'Usunięto z listy: {count}'**
   String cleanedUp(int count);
 
+  /// No description provided for @privacy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Prywatność'**
+  String get privacy;
+
+  /// No description provided for @dbKeyProtected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Historia leży na dysku zaszyfrowana, a klucz do niej trzyma schowek systemowy. Skopiowanie samego pliku bazy nic nie da.'**
+  String get dbKeyProtected;
+
+  /// No description provided for @dbKeyUnprotected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to przed podejrzeniem samego pliku, nie przed kopią całego katalogu aplikacji.'**
+  String get dbKeyUnprotected;
+
+  /// No description provided for @retentionLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kasuj wiadomości starsze niż'**
+  String get retentionLabel;
+
+  /// No description provided for @retentionNever.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie kasuj'**
+  String get retentionNever;
+
+  /// No description provided for @retentionDays.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} dzień} few{{count} dni} many{{count} dni} other{{count} dni}}'**
+  String retentionDays(int count);
+
+  /// No description provided for @retentionHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kasowanie dotyczy wpisów w rozmowach. Odebrane pliki zostają na dysku.'**
+  String get retentionHelp;
+
+  /// No description provided for @clearHistory.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyść historię'**
+  String get clearHistory;
+
+  /// No description provided for @clearHistoryTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyścić całą historię?'**
+  String get clearHistoryTitle;
+
+  /// No description provided for @clearHistoryBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Znikną wszystkie wiadomości i rozmowy. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.'**
+  String get clearHistoryBody;
+
+  /// No description provided for @historyCleared.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunięto wiadomości: {count}'**
+  String historyCleared(int count);
+
   /// No description provided for @thisDevice.
   ///
   /// In pl, this message translates to:

@@ -108,6 +108,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     ));
   }
 
+  /// Wyczyszczenie historii jest nieodwracalne, więc pytamy wprost.
+  Future<void> _clearHistory() async {
+    final zgoda = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.clearHistoryTitle),
+        content: Text(context.l10n.clearHistoryBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(context.l10n.delete),
+          ),
+        ],
+      ),
+    );
+    if (zgoda != true || !mounted) return;
+
+    final usuniete = await ref.read(appServicesProvider).db.clearHistory();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(usuniete == 0
+          ? context.l10n.nothingToCleanUp
+          : context.l10n.historyCleared(usuniete)),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final services = ref.read(appServicesProvider);
@@ -274,6 +304,68 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
           const SizedBox(height: 32),
+          Text(context.l10n.privacy,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    services.keyProtected
+                        ? Icons.lock_outline
+                        : Icons.lock_open_outlined,
+                    color: services.keyProtected ? scheme.primary : scheme.error,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(services.keyProtected
+                        ? context.l10n.dbKeyProtected
+                        : context.l10n.dbKeyUnprotected),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int>(
+            initialValue: ref.watch(settingsProvider).value?.retentionDays ?? 0,
+            decoration: InputDecoration(
+              labelText: context.l10n.retentionLabel,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.auto_delete_outlined),
+            ),
+            items: [
+              for (final dni in _retentionChoices)
+                DropdownMenuItem(
+                  value: dni,
+                  child: Text(dni == 0
+                      ? context.l10n.retentionNever
+                      : context.l10n.retentionDays(dni)),
+                ),
+            ],
+            onChanged: (wybor) async {
+              if (wybor == null) return;
+              await services.db.saveRetentionDays(wybor);
+              // Ustawienie ma zadziałać od razu, a nie dopiero przy restarcie.
+              await services.applyRetention(wybor);
+            },
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.retentionHelp,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _clearHistory,
+            icon: const Icon(Icons.delete_sweep_outlined),
+            label: Text(context.l10n.clearHistory),
+            style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
+          ),
+          const SizedBox(height: 32),
           Text(context.l10n.thisDevice,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -316,6 +408,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
   }
 }
+
+/// Granice wieku wiadomości do wyboru. Zero to „nie kasuj".
+const _retentionChoices = [0, 7, 30, 90, 365];
 
 class _InfoRow extends StatelessWidget {
   final String label;

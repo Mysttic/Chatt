@@ -35,6 +35,10 @@ class Settings extends Table {
   IntColumn get tcpPort =>
       integer().withDefault(const Constant(defaultTcpPort))();
 
+  /// Po ilu dniach kasować wiadomości. 0 znaczy „trzymaj bez końca".
+  /// Kasowanie dotyczy wpisów w bazie; odebrane pliki zostają na dysku.
+  IntColumn get retentionDays => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -124,7 +128,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -163,6 +167,11 @@ class ChattDb extends _$ChattDb {
         await m.database.customStatement('DELETE FROM messages');
         await m.database.customStatement('DELETE FROM conversations');
         await m.database.customStatement('DELETE FROM peers');
+      }
+      if (from < 7) {
+        // v7: samoczynne kasowanie starych wiadomości. Domyślnie wyłączone —
+        // włączenie go za kogoś skasowałoby historię bez pytania.
+        await m.addColumn(settings, settings.retentionDays);
       }
     },
   );
@@ -240,6 +249,31 @@ class ChattDb extends _$ChattDb {
   Future<void> saveLanguage(AppLanguage language) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(language: Value(language)));
+
+  Future<void> saveRetentionDays(int days) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(retentionDays: Value(days)));
+
+  // --- Historia -------------------------------------------------------------
+
+  /// Kasuje całą historię rozmów: wiadomości i same rozmowy. Urządzenia
+  /// zostają razem z potwierdzoną tożsamością — inaczej trzeba by parować
+  /// wszystko od nowa tylko dlatego, że ktoś chciał wyczyścić treści.
+  /// Odebrane pliki zostają na dysku. Zwraca liczbę usuniętych wiadomości.
+  Future<int> clearHistory() => transaction(() async {
+    final removed = await delete(messages).go();
+    await delete(conversations).go();
+    return removed;
+  });
+
+  /// Kasuje wiadomości starsze niż [age]. Rozmowy zostają, bo pusta rozmowa
+  /// to nadal rozmowa — po prostu bez treści sprzed granicy.
+  /// Zwraca liczbę usuniętych wiadomości.
+  Future<int> deleteMessagesOlderThan(Duration age) {
+    final cutoff = DateTime.now().subtract(age);
+    return (delete(messages)..where((m) => m.createdAt.isSmallerThanValue(cutoff)))
+        .go();
+  }
 
   // --- Rozmówcy -------------------------------------------------------------
 

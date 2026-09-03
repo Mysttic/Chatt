@@ -6,11 +6,18 @@ import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 /**
  * Kanały platformowe aplikacji. Instalowane na silniku Fluttera trzymanym
@@ -21,6 +28,14 @@ import java.io.File
 object ChattChannels {
     private const val filesChannel = "chatt/files"
     private const val backgroundChannel = "chatt/background"
+    private const val secretsChannel = "chatt/sekrety"
+
+    /** Nazwa klucza w Keystore. Sam klucz nigdy nie opuszcza Keystore. */
+    private const val keystoreAlias = "chatt-klucz-bazy"
+
+    /** GCM: 12 bajtów wektora inicjującego z przodu, 128-bitowy tag z tyłu. */
+    private const val ivLength = 12
+    private const val tagBits = 128
 
     fun install(context: Context, engine: FlutterEngine) {
         val messenger = engine.dartExecutor.binaryMessenger
@@ -65,6 +80,72 @@ object ChattChannels {
                 else -> result.notImplemented()
             }
         }
+
+        MethodChannel(messenger, secretsChannel).setMethodCallHandler { call, result ->
+            val data = call.argument<ByteArray>("data")
+            if (data == null) {
+                result.error("no_data", "Brak danych", null)
+                return@setMethodCallHandler
+            }
+            try {
+                when (call.method) {
+                    "protect" -> result.success(protect(data))
+                    "unprotect" -> result.success(unprotect(data))
+                    else -> result.notImplemented()
+                }
+            } catch (error: Exception) {
+                // Keystore potrafi odmówić (klucz skasowany po przywróceniu
+                // kopii zapasowej, uszkodzony magazyn). Strona Dartowa umie
+                // rozpoznać taki błąd i pokazać go użytkownikowi.
+                result.error("keystore", error.message, null)
+            }
+        }
+    }
+
+    /**
+     * Szyfruje [data] kluczem AES z Keystore, zakładając go przy pierwszym
+     * użyciu. Wynik to wektor inicjujący sklejony z szyfrogramem.
+     */
+    private fun protect(data: ByteArray): ByteArray {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, databaseKey())
+        return cipher.iv + cipher.doFinal(data)
+    }
+
+    private fun unprotect(data: ByteArray): ByteArray {
+        require(data.size > ivLength) { "Blob za krótki" }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            databaseKey(),
+            GCMParameterSpec(tagBits, data, 0, ivLength),
+        )
+        return cipher.doFinal(data, ivLength, data.size - ivLength)
+    }
+
+    /**
+     * Klucz AES trzymany w Keystore. Bez wymogu uwierzytelnienia użytkownika:
+     * aplikacja musi otworzyć bazę także wtedy, gdy budzi ją wiadomość przy
+     * zablokowanym ekranie.
+     */
+    private fun databaseKey(): SecretKey {
+        val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (store.getEntry(keystoreAlias, null) as? KeyStore.SecretKeyEntry)
+            ?.let { return it.secretKey }
+
+        val generator = KeyGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                keystoreAlias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .build()
+        )
+        return generator.generateKey()
     }
 
     /**
