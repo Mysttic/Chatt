@@ -36,7 +36,7 @@ def z_version_md():
 def z_pubspec():
     """(wersja, numer builda) z linii `version:`."""
     tresc = io.open(PUBSPEC, encoding="utf-8").read()
-    dopasowanie = re.search(r"^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$", tresc, re.M)
+    dopasowanie = re.search(r"^version:[ \t]*(\d+\.\d+\.\d+)\+(\d+)[ \t]*$", tresc, re.M)
     if not dopasowanie:
         raise SystemExit("pubspec.yaml nie ma linii `version: x.y.z+n`")
     return dopasowanie.group(1), int(dopasowanie.group(2))
@@ -54,7 +54,9 @@ def zapisz(nowa):
     tresc = io.open(PUBSPEC, encoding="utf-8").read()
     io.open(PUBSPEC, "w", encoding="utf-8").write(
         re.sub(
-            r"^version:\s*\d+\.\d+\.\d+\+\d+\s*$",
+            # `[ \t]` zamiast `\s`: `\s*$` w trybie MULTILINE zjadał pustą
+            # linię pod numerem wersji i sklejał go z następną sekcją.
+            r"^version:[ \t]*\d+\.\d+\.\d+\+\d+[ \t]*$",
             "version: {0}+{1}".format(nowa, build + 1),
             tresc,
             count=1,
