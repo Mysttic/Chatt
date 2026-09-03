@@ -550,6 +550,11 @@ class ChattDb extends _$ChattDb {
         ),
       );
 
+  /// Kasuje jedną wiadomość. Tylko u siebie — protokół nie ma jak kazać
+  /// drugiej stronie zapomnieć czegoś, co już dostała. Plik na dysku zostaje.
+  Future<void> deleteMessage(int id) =>
+      (delete(messages)..where((m) => m.id.equals(id))).go();
+
   Future<void> markConversationRead(int conversationId) =>
       (update(messages)..where(
             (m) =>

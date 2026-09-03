@@ -69,6 +69,50 @@ void main() {
     return file;
   }
 
+  test('kilka plików naraz idzie po kolei, każdy z własnym pytaniem o zgodę',
+      () async {
+    final pierwszy = makeRandomFile('pierwszy.bin', 64 * 1024);
+    final drugi = makeRandomFile('drugi.bin', 32 * 1024);
+    final trzeci = makeRandomFile('trzeci.bin', 16 * 1024);
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+
+    // Tą drogą idzie i wybór kilku plików z okna, i przeciągnięcie ich na okno.
+    await alice.sendFiles(
+      conversation,
+      [pierwszy.path, drugi.path, trzeci.path],
+    );
+
+    // Osobna zgoda na każdy plik, w kolejności wysyłania — tego wymaga model
+    // „odbiorca widzi nazwę i rozmiar, zanim polecą bajty".
+    expect(bobOffers.map((o) => o.fileName),
+        ['pierwszy.bin', 'drugi.bin', 'trzeci.bin']);
+
+    final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
+    final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
+    final uBartka = await bob.db.watchMessages(convAtBob).first;
+    expect(uBartka.map((m) => m.fileName),
+        ['pierwszy.bin', 'drugi.bin', 'trzeci.bin']);
+    for (final wiadomosc in uBartka) {
+      expect(File(wiadomosc.filePath!).lengthSync(), wiadomosc.fileSize);
+    }
+
+    final uAlicji = await alice.db.watchMessages(conversation).first;
+    expect(uAlicji.every((m) => m.status == MessageStatus.delivered), isTrue);
+  });
+
+  test('katalog podany razem z plikami jest pomijany bez wywrotki', () async {
+    final plik = makeRandomFile('jedyny.bin', 8 * 1024);
+    final katalog = Directory(p.join(work.path, 'jakis-katalog'))
+      ..createSync();
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+
+    await alice.sendFiles(conversation, [katalog.path, plik.path]);
+
+    expect(bobOffers.map((o) => o.fileName), ['jedyny.bin']);
+  });
+
   test('plik 3 MB dochodzi w całości, bajt w bajt', () async {
     final source = makeRandomFile('zdjecie.bin', 3 * 1024 * 1024 + 137);
     final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);

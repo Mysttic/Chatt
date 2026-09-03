@@ -113,6 +113,24 @@ void main() {
     expect(await db.messageByGuid('m-del'), isNull);
   });
 
+  test('kasowanie jednej wiadomości nie rusza reszty rozmowy', () async {
+    final peer = await db.upsertPeer(
+        guid: 'jedna-wiadomosc', name: 'J', welcomeMessage: '', host: 'x', port: 1);
+    final conv = await db.ensureConversation(peer.id);
+    final zostaje = await db.insertOutgoing(
+        conversationId: conv, messageGuid: 'm-zostaje', body: 'zostaje');
+    final znika = await db.insertOutgoing(
+        conversationId: conv, messageGuid: 'm-znika', body: 'znika');
+
+    await db.deleteMessage(znika);
+
+    expect(await db.messageById(znika), isNull);
+    expect((await db.messageById(zostaje))!.body, 'zostaje');
+    // Rozmowa i rozmówca zostają: skasowana jest jedna wiadomość, nie wątek.
+    expect(await db.peerByGuid('jedna-wiadomosc'), isNotNull);
+    expect(await db.watchMessages(conv).first, hasLength(1));
+  });
+
   test('sprzątanie zabiera tylko martwe wpisy bez historii', () async {
     final dawno = DateTime.now().subtract(const Duration(days: 30));
 

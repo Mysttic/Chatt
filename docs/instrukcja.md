@@ -54,10 +54,26 @@ potem leci do rozmówcy. Jeśli w międzyczasie zmienił mu się adres IP,
 aplikacja sama przeszuka sieć po jego identyfikatorze i ponowi wysyłkę pod
 nowym adresem.
 
+**Przytrzymanie dymka** daje menu: skopiowanie treści i skasowanie wiadomości.
+Kasowanie działa tylko u Ciebie — protokół nie ma jak kazać drugiej stronie
+zapomnieć czegoś, co już dostała, i aplikacja mówi to wprost zamiast obiecywać
+„usuń u wszystkich".
+
+![Menu wiadomości](screenshots/produkt/android_menu_wiadomosci.png)
+
+**Lupa w pasku** szuka w otwartej rozmowie: lista zostawia same pasujące
+wiadomości, a trafienie jest podświetlone. Ta sama lupa na liście rozmów
+filtruje ją po nazwie rozmówcy i ostatniej wiadomości.
+
+![Szukanie](screenshots/produkt/android_szukanie_w_rozmowie.png)
+
 ## Pliki
 
-Spinacz przy polu tekstowym otwiera systemowy wybór pliku. Odbiorca **najpierw
-dostaje pytanie**, czy chce ten plik przyjąć — dopiero po zgodzie lecą bajty.
+Spinacz przy polu tekstowym otwiera systemowy wybór pliku; **można zaznaczyć
+kilka naraz**. Na komputerze pliki da się też po prostu **przeciągnąć na okno
+rozmowy**. Odbiorca **najpierw dostaje pytanie**, czy chce ten plik przyjąć —
+dopiero po zgodzie lecą bajty. Przy kilku plikach pytanie przychodzi osobno
+dla każdego, po kolei.
 
 ![Prośba o plik](screenshots/produkt/android_prosba_o_plik.png)
 
@@ -72,7 +88,14 @@ dostaje pytanie**, czy chce ten plik przyjąć — dopiero po zgodzie lecą bajt
   przesyła ani bajtu — odbiorca odpowiada „już to mam".
 
 Odebrane pliki lądują w katalogu aplikacji. Kliknięcie w dymek otwiera plik,
-a przytrzymanie daje „Pokaż folder", „Udostępnij" i „Kopiuj ścieżkę".
+a przytrzymanie daje „Pokaż folder", „Udostępnij", „Kopiuj ścieżkę"
+i „Usuń wiadomość".
+
+Obrazki dostają w rozmowie **miniaturę** — ale dopiero po przyjęciu pliku.
+Dekodowanie obrazka od obcego to powierzchnia ataku, więc dekoder dostaje
+wyłącznie to, na co sam się zgodziłeś i co już leży na dysku.
+
+![Miniatura obrazka](screenshots/produkt/android_miniatura_obrazka.png)
 
 ## Szyfrowanie i potwierdzanie tożsamości
 
@@ -124,6 +147,22 @@ telefonów usługa pierwszoplanowa wystarcza sama z siebie, ale część
 producentów dokłada własne mechanizmy ubijania aplikacji.
 
 ![Ustawienia](screenshots/produkt/android_ustawienia.png)
+
+## Nasłuch w tle na Windowsie
+
+Zamknięcie okna krzyżykiem **chowa Chatta do zasobnika** zamiast kończyć
+program: nasłuch działa dalej, a okno wraca kliknięciem ikony. Wyjście
+z programu jest w menu tej ikony (prawy przycisk → „Zamknij Chatt").
+
+Windows 11 chowa nowe ikony pod strzałkę „pokaż ukryte ikony". Żeby Chatt
+siedział widocznie na pasku, przeciągnij go stamtąd na pasek albo przypnij
+w ustawieniach zasobnika systemu.
+
+W Ustawieniach, w sekcji **Windows**, jest przełącznik **„Uruchamiaj razem
+z Windowsem"**. Włączony sprawia, że aplikacja wstaje po zalogowaniu i od razu
+siada w zasobniku, bez otwierania okna. Pod spodem to zwykły wpis autostartu
+konta użytkownika — bez usług i bez uprawnień administratora, więc da się go
+skasować także ręcznie.
 
 ## Wygląd i język
 

@@ -294,6 +294,38 @@ class AppLocalizationsPl extends AppLocalizations {
   String get pairPeerUnreachable => 'Drugie urządzenie nie odpowiada';
 
   @override
+  String get dropFilesHint => 'Upuść pliki, żeby je wysłać';
+
+  @override
+  String get copyText => 'Kopiuj tekst';
+
+  @override
+  String get deleteMessage => 'Usuń wiadomość';
+
+  @override
+  String get deleteMessageHint => 'Zniknie tylko z tego urządzenia';
+
+  @override
+  String get messageDeleted => 'Wiadomość usunięta z tego urządzenia';
+
+  @override
+  String get searchTooltip => 'Szukaj w rozmowie';
+
+  @override
+  String get searchHint => 'Szukaj w rozmowie…';
+
+  @override
+  String get searchConversationsTooltip => 'Szukaj rozmowy';
+
+  @override
+  String get searchConversationsHint => 'Szukaj rozmowy…';
+
+  @override
+  String searchNothingFound(Object query) {
+    return 'Nic nie pasuje do „$query”';
+  }
+
+  @override
   String fileOfferTitle(Object name) {
     return '$name chce wysłać plik';
   }
@@ -476,6 +508,32 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get manualPairingHint =>
       'Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.';
+
+  @override
+  String get windowsSection => 'Windows';
+
+  @override
+  String get startWithWindows => 'Uruchamiaj razem z Windowsem';
+
+  @override
+  String get startWithWindowsHelp =>
+      'Chatt wstaje po zalogowaniu i od razu siada w zasobniku, więc wiadomości dochodzą bez otwierania okna.';
+
+  @override
+  String get startWithWindowsFailed => 'Nie udało się zmienić autostartu.';
+
+  @override
+  String get trayHint =>
+      'Zamknięcie okna chowa Chatt do zasobnika i nie przerywa nasłuchu. Wyjście z programu jest w menu ikony.';
+
+  @override
+  String get trayTooltip => 'Chatt — nasłuchuje w sieci lokalnej';
+
+  @override
+  String get trayShow => 'Pokaż Chatt';
+
+  @override
+  String get trayQuit => 'Zamknij Chatt';
 
   @override
   String get backgroundServiceTitle => 'Chatt nasłuchuje';

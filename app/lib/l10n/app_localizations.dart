@@ -578,6 +578,66 @@ abstract class AppLocalizations {
   /// **'Drugie urządzenie nie odpowiada'**
   String get pairPeerUnreachable;
 
+  /// No description provided for @dropFilesHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Upuść pliki, żeby je wysłać'**
+  String get dropFilesHint;
+
+  /// No description provided for @copyText.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kopiuj tekst'**
+  String get copyText;
+
+  /// No description provided for @deleteMessage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usuń wiadomość'**
+  String get deleteMessage;
+
+  /// No description provided for @deleteMessageHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zniknie tylko z tego urządzenia'**
+  String get deleteMessageHint;
+
+  /// No description provided for @messageDeleted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wiadomość usunięta z tego urządzenia'**
+  String get messageDeleted;
+
+  /// No description provided for @searchTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj w rozmowie'**
+  String get searchTooltip;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj w rozmowie…'**
+  String get searchHint;
+
+  /// No description provided for @searchConversationsTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj rozmowy'**
+  String get searchConversationsTooltip;
+
+  /// No description provided for @searchConversationsHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj rozmowy…'**
+  String get searchConversationsHint;
+
+  /// No description provided for @searchNothingFound.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nic nie pasuje do „{query}”'**
+  String searchNothingFound(Object query);
+
   /// No description provided for @fileOfferTitle.
   ///
   /// In pl, this message translates to:
@@ -865,6 +925,54 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.'**
   String get manualPairingHint;
+
+  /// No description provided for @windowsSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Windows'**
+  String get windowsSection;
+
+  /// No description provided for @startWithWindows.
+  ///
+  /// In pl, this message translates to:
+  /// **'Uruchamiaj razem z Windowsem'**
+  String get startWithWindows;
+
+  /// No description provided for @startWithWindowsHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt wstaje po zalogowaniu i od razu siada w zasobniku, więc wiadomości dochodzą bez otwierania okna.'**
+  String get startWithWindowsHelp;
+
+  /// No description provided for @startWithWindowsFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się zmienić autostartu.'**
+  String get startWithWindowsFailed;
+
+  /// No description provided for @trayHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zamknięcie okna chowa Chatt do zasobnika i nie przerywa nasłuchu. Wyjście z programu jest w menu ikony.'**
+  String get trayHint;
+
+  /// No description provided for @trayTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt — nasłuchuje w sieci lokalnej'**
+  String get trayTooltip;
+
+  /// No description provided for @trayShow.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż Chatt'**
+  String get trayShow;
+
+  /// No description provided for @trayQuit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zamknij Chatt'**
+  String get trayQuit;
 
   /// No description provided for @backgroundServiceTitle.
   ///

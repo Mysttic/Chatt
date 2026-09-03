@@ -294,6 +294,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairPeerUnreachable => 'The other device is not answering';
 
   @override
+  String get dropFilesHint => 'Drop the files to send them';
+
+  @override
+  String get copyText => 'Copy text';
+
+  @override
+  String get deleteMessage => 'Delete message';
+
+  @override
+  String get deleteMessageHint => 'It disappears from this device only';
+
+  @override
+  String get messageDeleted => 'Message deleted from this device';
+
+  @override
+  String get searchTooltip => 'Search this conversation';
+
+  @override
+  String get searchHint => 'Search this conversation…';
+
+  @override
+  String get searchConversationsTooltip => 'Search conversations';
+
+  @override
+  String get searchConversationsHint => 'Search conversations…';
+
+  @override
+  String searchNothingFound(Object query) {
+    return 'Nothing matches “$query”';
+  }
+
+  @override
   String fileOfferTitle(Object name) {
     return '$name wants to send a file';
   }
@@ -473,6 +505,33 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get manualPairingHint =>
       'Type this address on the other device under “Add by IP address” when automatic discovery doesn\'t work.';
+
+  @override
+  String get windowsSection => 'Windows';
+
+  @override
+  String get startWithWindows => 'Start with Windows';
+
+  @override
+  String get startWithWindowsHelp =>
+      'Chatt starts after you log in and goes straight to the tray, so messages arrive without opening the window.';
+
+  @override
+  String get startWithWindowsFailed =>
+      'Could not change the autostart setting.';
+
+  @override
+  String get trayHint =>
+      'Closing the window hides Chatt in the tray and does not stop it listening. Quitting is in the tray icon menu.';
+
+  @override
+  String get trayTooltip => 'Chatt — listening on the local network';
+
+  @override
+  String get trayShow => 'Show Chatt';
+
+  @override
+  String get trayQuit => 'Quit Chatt';
 
   @override
   String get backgroundServiceTitle => 'Chatt is listening';

@@ -2,11 +2,13 @@
 
 #include <optional>
 
+#include "chatt_autostart.h"
 #include "chatt_secrets.h"
 #include "flutter/generated_plugin_registrant.h"
 
-FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {}
+FlutterWindow::FlutterWindow(const flutter::DartProject& project,
+                             bool start_hidden)
+    : project_(project), start_hidden_(start_hidden) {}
 
 FlutterWindow::~FlutterWindow() {}
 
@@ -27,11 +29,17 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   RegisterChattSecrets(flutter_controller_->engine());
+  RegisterChattAutostart(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
-  flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
-  });
+  // Start do zasobnika: okno w ogóle się nie pokazuje, więc nie ma mignięcia
+  // przy każdym uruchomieniu komputera. Pokaże je dopiero użytkownik
+  // z menu ikony w zasobniku.
+  if (!start_hidden_) {
+    flutter_controller_->engine()->SetNextFrameCallback([&]() {
+      this->Show();
+    });
+  }
 
   // Flutter can complete the first frame before the "show window" callback is
   // registered. The following call ensures a frame is pending to ensure the

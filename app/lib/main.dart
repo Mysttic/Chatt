@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/background_service.dart';
 import 'core/languages.dart';
+import 'core/tray.dart';
 import 'data/db.dart';
 import 'l10n/app_localizations.dart';
 import 'services/app_services.dart';
@@ -11,6 +12,10 @@ import 'services/providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Windows: krzyżyk ma chować okno do zasobnika, a nie kończyć nasłuchu.
+  // Musi być przed pierwszą klatką, bo od niej można już kliknąć krzyżyk.
+  await TrayIcon.instance.attach();
 
   // Cały stos (baza, serwer, discovery) startuje przed pierwszą klatką —
   // od tego momentu urządzenie jest widoczne w sieci i przyjmuje wiadomości.
@@ -42,6 +47,12 @@ Future<void> main() async {
     await BackgroundService.start(
       title: teksty.backgroundServiceTitle,
       body: teksty.backgroundServiceBody,
+    );
+    // Menu ikony w zasobniku też idzie za językiem aplikacji.
+    await TrayIcon.instance.apply(
+      tooltip: teksty.trayTooltip,
+      showLabel: teksty.trayShow,
+      quitLabel: teksty.trayQuit,
     );
   });
 

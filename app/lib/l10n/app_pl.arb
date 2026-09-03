@@ -128,6 +128,20 @@
   "pairCodeExpired": "Parowanie straciło ważność, zacznij od nowa",
   "pairPeerUnreachable": "Drugie urządzenie nie odpowiada",
 
+  "dropFilesHint": "Upuść pliki, żeby je wysłać",
+  "copyText": "Kopiuj tekst",
+  "deleteMessage": "Usuń wiadomość",
+  "deleteMessageHint": "Zniknie tylko z tego urządzenia",
+  "messageDeleted": "Wiadomość usunięta z tego urządzenia",
+  "searchTooltip": "Szukaj w rozmowie",
+  "searchHint": "Szukaj w rozmowie…",
+  "searchConversationsTooltip": "Szukaj rozmowy",
+  "searchConversationsHint": "Szukaj rozmowy…",
+  "searchNothingFound": "Nic nie pasuje do „{query}”",
+  "@searchNothingFound": {
+    "placeholders": { "query": {} }
+  },
+
   "fileOfferTitle": "{name} chce wysłać plik",
   "@fileOfferTitle": {
     "placeholders": { "name": {} }
@@ -198,6 +212,15 @@
     "placeholders": { "port": { "type": "int" } }
   },
   "manualPairingHint": "Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.",
+
+  "windowsSection": "Windows",
+  "startWithWindows": "Uruchamiaj razem z Windowsem",
+  "startWithWindowsHelp": "Chatt wstaje po zalogowaniu i od razu siada w zasobniku, więc wiadomości dochodzą bez otwierania okna.",
+  "startWithWindowsFailed": "Nie udało się zmienić autostartu.",
+  "trayHint": "Zamknięcie okna chowa Chatt do zasobnika i nie przerywa nasłuchu. Wyjście z programu jest w menu ikony.",
+  "trayTooltip": "Chatt — nasłuchuje w sieci lokalnej",
+  "trayShow": "Pokaż Chatt",
+  "trayQuit": "Zamknij Chatt",
 
   "backgroundServiceTitle": "Chatt nasłuchuje",
   "backgroundServiceBody": "Odbiera wiadomości i pliki z tej sieci Wi-Fi"

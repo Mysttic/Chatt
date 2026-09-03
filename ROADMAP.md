@@ -229,14 +229,37 @@ użytkownik systemu (na Windowsie wprost przez DPAPI). Ochrona jest przed
 skopiowaniem dysku albo samego pliku, nie przed cudzym kodem uruchomionym
 na koncie użytkownika.
 
-### Faza 11 — UI i wygoda
-- [ ] **Windows: ikona w zasobniku, start zminimalizowany, autostart.** Dziś
-      aplikacja nasłuchuje wyłącznie z otwartym oknem, czyli w praktyce rzadko
-- [ ] Wysyłka wielu plików naraz i przeciąganie ich na okno
-- [ ] Miniatury obrazków w rozmowie (uwaga: dekodowanie obrazka od obcego to
-      powierzchnia ataku, miniatury robimy dopiero po akceptacji pliku)
-- [ ] Szukanie w rozmowach
-- [ ] Usuwanie pojedynczych wiadomości
+### Faza 11 — UI i wygoda ✅ (03.09.2026)
+- [x] **Windows: ikona w zasobniku, start zminimalizowany, autostart.**
+      Krzyżyk chowa okno zamiast kończyć nasłuch, a wyjście z programu jest
+      w menu ikony. Autostart to wpis w rejestrze użytkownika
+      (`HKCU\...\CurrentVersion\Run`) z argumentem `--minimized`, zakładany
+      przez własny kanał `chatt/autostart` — bez uprawnień administratora
+      i bez kolejnej zależności
+- [x] Wysyłka wielu plików naraz (`openFiles`) i przeciąganie ich na okno
+      (`desktop_drop`). Idą po kolei, bo każdy z osobna pyta odbiorcę o zgodę;
+      katalogi odpadają same
+- [x] Miniatury obrazków w rozmowie, dopiero **po** przyjęciu pliku: dekoder
+      dostaje wyłącznie to, co już leży na dysku, a uszkodzony obrazek kończy
+      się pustym miejscem, nie wywrotką listy
+      (`docs/screenshots/produkt/android_miniatura_obrazka.png`)
+- [x] Szukanie: w rozmowie (filtrowanie dymków z podświetleniem trafienia)
+      i na liście rozmów (nazwa rozmówcy, ostatnia wiadomość)
+      (`android_szukanie_w_rozmowie.png`)
+- [x] Usuwanie pojedynczych wiadomości przez przytrzymanie dymka, razem
+      z kopiowaniem treści. Napis mówi wprost, że wiadomość znika **tylko
+      z tego urządzenia** (`android_menu_wiadomosci.png`)
+- [x] Testy: 69 zielonych, w tym wysyłka wielu plików, pomijanie katalogów,
+      filtrowanie rozmów i rozpoznawanie obrazków po rozszerzeniu
+
+**Sprawdzone na Windowsie, nie tylko w kodzie:** zamknięcie okna zostawia
+proces przy życiu i `/info` dalej odpowiada; start z `--minimized` nie tworzy
+okna w ogóle; wpis autostartu powstaje i znika razem z przełącznikiem; Windows
+zapisał ikonę w swojej liście zasobnika razem z poprawną podpowiedzią.
+
+**Znany koszt:** ikona ląduje w schowku „pokaż ukryte ikony" — Windows 11 tak
+traktuje każdą nową. Przypięcie jej na stałe to decyzja użytkownika, aplikacja
+nie ma jak jej wymusić.
 
 ## 4. Podział pracy
 

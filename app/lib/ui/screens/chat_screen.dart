@@ -1,11 +1,13 @@
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/file_actions.dart';
+import '../../core/search.dart';
 import '../../data/db.dart';
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
@@ -31,6 +33,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scroll = ScrollController();
   bool? _online;
 
+  /// Szukanie filtruje listę dymków w miejscu. Pusty napis znaczy „nie szukam"
+  /// — wtedy pole w pasku w ogóle się nie pokazuje.
+  final _search = TextEditingController();
+  bool _searching = false;
+
+  /// Pliki wiszą nad oknem (przeciąganie z pulpitu). Podpowiedź pokazuje się
+  /// tylko wtedy, bo poza tym nie ma o czym mówić.
+  bool _dragging = false;
+
   @override
   void initState() {
     super.initState();
@@ -45,7 +56,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     _input.dispose();
     _scroll.dispose();
+    _search.dispose();
     super.dispose();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _searching = !_searching;
+      if (!_searching) _search.clear();
+    });
+  }
+
+  Future<void> _deleteMessage(Message message) async {
+    await ref.read(appServicesProvider).db.deleteMessage(message.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.messageDeleted)),
+    );
   }
 
   Future<void> _send() async {
@@ -79,11 +106,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
+  /// Wybór plików: można zaznaczyć kilka naraz, wyślą się po kolei.
   Future<void> _attachFile() async {
-    final file = await openFile();
-    if (file == null) return;
-    await ref.read(appServicesProvider).sendFile(widget.conversationId, file.path);
+    final files = await openFiles();
+    if (files.isEmpty) return;
+    await _sendPaths(files.map((f) => f.path));
   }
+
+  Future<void> _sendPaths(Iterable<String> paths) => ref
+      .read(appServicesProvider)
+      .sendFiles(widget.conversationId, paths);
 
   @override
   Widget build(BuildContext context) {
@@ -104,36 +136,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Row(
-          children: [
-            InitialsAvatar(name: widget.peer.name, radius: 18),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        title: _searching
+            ? TextField(
+                controller: _search,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: context.l10n.searchHint,
+                  border: InputBorder.none,
+                ),
+              )
+            : Row(
                 children: [
-                  Text(widget.peer.name,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  Text(
-                    switch (_online) {
-                      null => '${widget.peer.host}:${widget.peer.port}',
-                      true => context.l10n.peerOnline,
-                      false => context.l10n.peerOffline,
-                    },
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: switch (_online) {
-                            true => Colors.green,
-                            false => Theme.of(context).colorScheme.error,
-                            null => null,
+                  InitialsAvatar(name: widget.peer.name, radius: 18),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.peer.name,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(
+                          switch (_online) {
+                            null => '${widget.peer.host}:${widget.peer.port}',
+                            true => context.l10n.peerOnline,
+                            false => context.l10n.peerOffline,
                           },
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: switch (_online) {
+                                  true => Colors.green,
+                                  false => Theme.of(context).colorScheme.error,
+                                  null => null,
+                                },
+                              ),
                         ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
         actions: [
+          IconButton(
+            tooltip: _searching ? context.l10n.close : context.l10n.searchTooltip,
+            icon: Icon(_searching ? Icons.close : Icons.search),
+            onPressed: _toggleSearch,
+          ),
           // Trzy stany, bo od protokołu 5 szyfrowanie i potwierdzenie
           // tożsamości to dwie różne rzeczy:
           //   brak klucza    — po drugiej stronie starsza wersja, nie ma jak
@@ -175,7 +222,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           }),
         ],
       ),
-      body: Column(
+      // Przeciągnięcie plików z pulpitu na okno wysyła je do tej rozmowy.
+      // Na Androidzie nie ma skąd ich przeciągnąć, więc nic się nie dzieje.
+      body: DropTarget(
+        onDragEntered: (_) => setState(() => _dragging = true),
+        onDragExited: (_) => setState(() => _dragging = false),
+        onDragDone: (detail) async {
+          setState(() => _dragging = false);
+          await _sendPaths(detail.files.map((f) => f.path));
+        },
+        child: Stack(
+          children: [
+            Column(
         children: [
           Expanded(
             // Start i koniec wysyłki muszą przerysować dymki, żeby pasek
@@ -187,23 +245,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) =>
                   Center(child: Text(context.l10n.errorWithDetails('$error'))),
-              data: (items) => ListView.builder(
-                controller: _scroll,
-                reverse: true,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  // reverse: true -> element 0 na dole, więc czytamy od końca.
-                  final message = items[items.length - 1 - index];
-                  return _MessageBubble(
-                    message: message,
-                    services: ref.read(appServicesProvider),
-                    onRetry: () => ref
-                        .read(appServicesProvider)
-                        .retryMessage(message.id),
+              data: (all) {
+                final query = _search.text.trim();
+                final items = query.isEmpty
+                    ? all
+                    : all.where((m) => messageMatches(m, query)).toList();
+                if (items.isEmpty && query.isNotEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(
+                        context.l10n.searchNothingFound(query),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    ),
                   );
-                },
-              ),
+                }
+                return ListView.builder(
+                  controller: _scroll,
+                  reverse: true,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    // reverse: true -> element 0 na dole, czytamy od końca.
+                    final message = items[items.length - 1 - index];
+                    return _MessageBubble(
+                      message: message,
+                      services: ref.read(appServicesProvider),
+                      query: query,
+                      onRetry: () => ref
+                          .read(appServicesProvider)
+                          .retryMessage(message.id),
+                      onDelete: () => _deleteMessage(message),
+                    );
+                  },
+                );
+              },
               ),
             ),
           ),
@@ -261,6 +341,45 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ],
+            ),
+            if (_dragging) _DropHint(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Przykrywka pokazywana, gdy nad oknem wiszą przeciągane pliki.
+class _DropHint extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return IgnorePointer(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: scheme.primary, width: 2),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.file_download_outlined,
+                  size: 48, color: scheme.onPrimaryContainer),
+              const SizedBox(height: 12),
+              Text(
+                context.l10n.dropFilesHint,
+                style: TextStyle(
+                    color: scheme.onPrimaryContainer,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -270,9 +389,18 @@ class _MessageBubble extends StatelessWidget {
   final Message message;
   final AppServices services;
   final VoidCallback onRetry;
+  final VoidCallback onDelete;
 
-  const _MessageBubble(
-      {required this.message, required this.services, required this.onRetry});
+  /// Szukany napis do podświetlenia. Pusty znaczy „nikt nie szuka".
+  final String query;
+
+  const _MessageBubble({
+    required this.message,
+    required this.services,
+    required this.onRetry,
+    required this.onDelete,
+    this.query = '',
+  });
 
   /// Otwarcie pliku systemowym skojarzeniem; komunikat tylko wtedy, gdy się
   /// nie udało (na Androidzie pokazujemy ścieżkę do skopiowania).
@@ -344,10 +472,79 @@ class _MessageBubble extends StatelessWidget {
                 Clipboard.setData(ClipboardData(text: path));
               },
             ),
+            _deleteTile(context, sheet),
           ],
         ),
       ),
     );
+  }
+
+  /// Menu tekstowego dymka: skopiowanie treści i skasowanie wpisu u siebie.
+  void _textMenu(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.copy_outlined),
+              title: Text(context.l10n.copyText),
+              onTap: () {
+                Navigator.pop(sheet);
+                Clipboard.setData(ClipboardData(text: message.body));
+              },
+            ),
+            _deleteTile(context, sheet),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Kasowanie dotyczy tylko tego urządzenia — protokół nie ma jak kazać
+  /// drugiej stronie zapomnieć czegoś, co już dostała. Mówi o tym napis pod
+  /// pozycją, żeby nikt nie liczył na cofnięcie wysłanej wiadomości.
+  Widget _deleteTile(BuildContext context, BuildContext sheet) {
+    final scheme = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: Icon(Icons.delete_outline, color: scheme.error),
+      title: Text(context.l10n.deleteMessage,
+          style: TextStyle(color: scheme.error)),
+      subtitle: Text(context.l10n.deleteMessageHint),
+      onTap: () {
+        Navigator.pop(sheet);
+        onDelete();
+      },
+    );
+  }
+
+  /// Treść z podświetlonym szukanym napisem. Kolor bierze się z palety, więc
+  /// czyta się i na własnym dymku, i na cudzym, w obu motywach.
+  Widget _highlighted(BuildContext context, String text, TextStyle style) {
+    if (query.isEmpty) return Text(text, style: style);
+    final scheme = Theme.of(context).colorScheme;
+    final lower = text.toLowerCase();
+    final needle = query.toLowerCase();
+    final spans = <TextSpan>[];
+    var start = 0;
+    while (true) {
+      final at = lower.indexOf(needle, start);
+      if (at < 0) {
+        spans.add(TextSpan(text: text.substring(start)));
+        break;
+      }
+      if (at > start) spans.add(TextSpan(text: text.substring(start, at)));
+      spans.add(TextSpan(
+        text: text.substring(at, at + needle.length),
+        style: TextStyle(
+          backgroundColor: scheme.tertiaryContainer,
+          color: scheme.onTertiaryContainer,
+          fontWeight: FontWeight.w700,
+        ),
+      ));
+      start = at + needle.length;
+    }
+    return Text.rich(TextSpan(children: spans), style: style);
   }
 
   /// Treść dymka: tekst albo kafelek pliku (nazwa, rozmiar, pasek postępu
@@ -356,27 +553,42 @@ class _MessageBubble extends StatelessWidget {
   Widget _content(BuildContext context, bool mine, ColorScheme scheme) {
     final textColor = mine ? scheme.onPrimary : scheme.onSurface;
     if (message.kind != MessageKind.file) {
-      return Text(message.body, style: TextStyle(color: textColor, fontSize: 15));
+      // Przytrzymanie łapie cały dymek (patrz `build`), a nie sam napis —
+      // inaczej menu otwierałoby się tylko dokładnie na literach.
+      return _highlighted(
+          context, message.body, TextStyle(color: textColor, fontSize: 15));
     }
     final progress = services.progressOf(message.id);
+    final thumbnail = _thumbnail();
     return InkWell(
       onTap: () => _openFile(context),
-      onLongPress: () => _fileMenu(context),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.insert_drive_file_outlined, color: textColor),
+          if (thumbnail != null) ...[thumbnail, const SizedBox(height: 8)],
+          Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+              thumbnail != null
+                  ? Icons.image_outlined
+                  : Icons.insert_drive_file_outlined,
+              color: textColor),
           const SizedBox(width: 8),
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(message.fileName ?? context.l10n.fileFallbackName,
-                    style: TextStyle(
-                        color: textColor, fontSize: 15, fontWeight: FontWeight.w500),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
+                _highlighted(
+                  context,
+                  message.fileName ?? context.l10n.fileFallbackName,
+                  TextStyle(
+                      color: textColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500),
+                ),
                 Text(formatFileSize(message.fileSize),
                     style: TextStyle(
                         color: textColor.withValues(alpha: 0.8), fontSize: 12)),
@@ -399,6 +611,31 @@ class _MessageBubble extends StatelessWidget {
             ),
           ),
         ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Miniatura obrazka. Dekodujemy dopiero to, co leży na dysku, czyli plik
+  /// **już przyjęty** przez użytkownika — zapowiedź od obcego nie trafia do
+  /// dekodera. Uszkodzony albo spreparowany obrazek kończy się pustym
+  /// miejscem, a nie wywrotką listy.
+  Widget? _thumbnail() {
+    final path = message.filePath;
+    if (path == null || !isImageFile(message.fileName)) return null;
+    final file = File(path);
+    if (!file.existsSync()) return null;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 220, maxWidth: 260),
+        child: Image.file(
+          file,
+          cacheWidth: 520,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ),
       ),
     );
   }
@@ -409,7 +646,16 @@ class _MessageBubble extends StatelessWidget {
     final mine = message.direction == MessageDirection.outgoing;
     final failed = mine && message.status == MessageStatus.failed;
 
-    final bubble = Container(
+    // Przytrzymanie dowolnego miejsca w dymku otwiera menu: kopiowanie,
+    // a przy pliku także otwieranie i pokazanie w katalogu.
+    final bubble = GestureDetector(
+      // Bez `opaque` dotyk liczyłby się tylko dokładnie na literach: domyślne
+      // `deferToChild` przepuszcza tło i marginesy dymka.
+      behavior: HitTestBehavior.opaque,
+      onLongPress: () => message.kind == MessageKind.file
+          ? _fileMenu(context)
+          : _textMenu(context),
+      child: Container(
       constraints: BoxConstraints(
           maxWidth: MediaQuery.sizeOf(context).width * 0.75),
       margin: const EdgeInsets.symmetric(vertical: 3),
@@ -458,6 +704,7 @@ class _MessageBubble extends StatelessWidget {
             ],
           ),
         ],
+      ),
       ),
     );
 

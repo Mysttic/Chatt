@@ -324,6 +324,30 @@ Pliki wychodzą do innych aplikacji przez FileProvider jako `content://`
 (własny kanał `chatt/files`, bez wtyczek z pub.dev), bo od API 24 zwykła
 ścieżka kończy się `FileUriExposedException`.
 
+## Windows: zasobnik i autostart
+
+Ten sam problem co na Androidzie, tylko inaczej rozwiązany: aplikacja
+nasłuchuje, dopóki żyje proces, a proces na pulpicie kończy się razem z oknem.
+
+- **Krzyżyk chowa okno.** `window_manager` blokuje zamknięcie
+  (`setPreventClose`), a `lib/core/tray.dart` chowa okno zamiast je niszczyć.
+  Wyjście z programu jest w menu ikony w zasobniku i zdejmuje tę blokadę,
+  więc dopiero wtedy zamknięcie okna kończy proces.
+- **Ikona w zasobniku** (`tray_manager`) z podpowiedzią i menu w języku
+  aplikacji — menu przebudowuje się przy zmianie języka, tak samo jak
+  powiadomienie usługi na Androidzie. Ikona jedzie jako zasób Fluttera
+  (`assets/tray_icon.ico`), bo zasobnik czyta plik z dysku, a nie zasoby
+  `.exe`.
+- **Start zminimalizowany** rozstrzyga się w runnerze, a nie w Darcie:
+  `main.cpp` sprawdza argument `--minimized` i nie rejestruje wtedy
+  pokazania okna po pierwszej klatce. Dzięki temu przy starcie systemu nie
+  ma mignięcia oknem.
+- **Autostart** to wpis w `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+  zakładany własnym kanałem `chatt/autostart`
+  (`windows/runner/chatt_autostart.cpp`). Wpis konta użytkownika, nie usługa:
+  bez uprawnień administratora i do skasowania także ręcznie. Wartość to
+  ścieżka do `.exe` w cudzysłowie plus `--minimized`.
+
 ## Skąd wziął się wygląd
 
 Ekrany są robione według makiet z pierwszej wersji projektu, które leżą

@@ -86,6 +86,17 @@
   "pairCodeExpired": "Pairing expired, start again",
   "pairPeerUnreachable": "The other device is not answering",
 
+  "dropFilesHint": "Drop the files to send them",
+  "copyText": "Copy text",
+  "deleteMessage": "Delete message",
+  "deleteMessageHint": "It disappears from this device only",
+  "messageDeleted": "Message deleted from this device",
+  "searchTooltip": "Search this conversation",
+  "searchHint": "Search this conversation…",
+  "searchConversationsTooltip": "Search conversations",
+  "searchConversationsHint": "Search conversations…",
+  "searchNothingFound": "Nothing matches “{query}”",
+
   "fileOfferTitle": "{name} wants to send a file",
   "fileOfferResume": "{size} — resuming, you already have {have}",
   "unpairedWarning": "Identity unconfirmed — anyone can pick that name",
@@ -135,6 +146,15 @@
   "deviceIdentifier": "Identifier",
   "listeningPort": "port {port}",
   "manualPairingHint": "Type this address on the other device under “Add by IP address” when automatic discovery doesn't work.",
+
+  "windowsSection": "Windows",
+  "startWithWindows": "Start with Windows",
+  "startWithWindowsHelp": "Chatt starts after you log in and goes straight to the tray, so messages arrive without opening the window.",
+  "startWithWindowsFailed": "Could not change the autostart setting.",
+  "trayHint": "Closing the window hides Chatt in the tray and does not stop it listening. Quitting is in the tray icon menu.",
+  "trayTooltip": "Chatt — listening on the local network",
+  "trayShow": "Show Chatt",
+  "trayQuit": "Quit Chatt",
 
   "backgroundServiceTitle": "Chatt is listening",
   "backgroundServiceBody": "Receiving messages and files from this Wi-Fi network"

@@ -1,6 +1,6 @@
 # Testy
 
-Podział jest prosty: **56 testów `flutter test`** sprawdzają wszystko, co da się
+Podział jest prosty: **69 testów `flutter test`** sprawdzają wszystko, co da się
 sprawdzić bez sprzętu, a osobne scenariusze w `app/tool/` sterują żywą
 aplikacją na urządzeniu. Rzeczy, których nie sprawdzi ani jedno, ani drugie,
 są wypisane na końcu.
@@ -41,12 +41,13 @@ transferu).
 
 ## Co jest pokryte
 
-### Baza (`test/data_test.dart`, 6 testów)
+### Baza (`test/data_test.dart`, 7 testów)
 - `ensureSettings` tworzy wiersz raz i zachowuje GUID
 - `upsertPeer` aktualizuje adres po GUID, pusty host nie nadpisuje ostatniego dobrego
 - wiadomości: dedupe po `messageGuid` i liczenie nieprzeczytanych
 - status wiadomości: pending → failed → delivered
 - usunięcie rozmówcy zabiera rozmowę i wiadomości
+- kasowanie jednej wiadomości nie rusza reszty rozmowy ani rozmówcy
 - sprzątanie zabiera tylko martwe wpisy bez historii
 
 ### Discovery (`test/discovery_test.dart`, 3 testy)
@@ -64,7 +65,10 @@ transferu).
 - nie rozmawiamy sami ze sobą (pętla na własny adres)
 - serwer odrzuca śmieci bez wywracania się
 
-### Pliki (`test/file_transfer_test.dart`, 7 testów)
+### Pliki (`test/file_transfer_test.dart`, 9 testów)
+- kilka plików naraz idzie po kolei, każdy z własnym pytaniem o zgodę (tą samą
+  drogą co przeciągnięcie ich na okno)
+- katalog podany razem z plikami jest pomijany bez wywrotki
 - plik 3 MB dochodzi w całości, bajt w bajt
 - odbiorca offline: failed, retry po powrocie dostarcza
 - odmowa odbiorcy: żaden bajt nie leci, po zgodzie retry dostarcza
@@ -108,6 +112,13 @@ transferu).
 - **niesparowani: treść też nie leci jawnym tekstem** — teza wydania 0.2.0
 - sparowani: plik jedzie zaszyfrowany i składa się bajt w bajt
 - sparowani: wznowienie zaszyfrowanego pliku dosyła tylko resztę
+
+### Szukanie i miniatury (`test/search_test.dart`, 10 testów)
+- szukanie nie patrzy na wielkość liter, a pusty napis pasuje do wszystkiego
+- plik szuka się po nazwie, bo to ją widać w dymku
+- lista rozmów filtruje się po nazwie rozmówcy i ostatniej wiadomości; rozmowa
+  bez żadnej wiadomości nie wywala filtrowania
+- miniaturę dostają tylko obrazki po rozszerzeniu, `zdjecie.png.exe` nie
 
 ### Baza na dysku (`test/encrypted_db_test.dart`, 9 testów)
 - build naprawdę ma SQLite3MultipleCiphers (`PRAGMA cipher` coś zwraca)

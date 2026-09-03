@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/autostart.dart';
 import '../../core/background_service.dart';
 import '../../core/crypto.dart';
 import '../../core/languages.dart';
@@ -27,12 +28,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   late final TextEditingController _port;
   List<String> _addresses = const [];
   bool _batteryOptimized = false;
+  bool _autostart = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _checkBattery();
+    Autostart.enabled().then((wlaczony) {
+      if (mounted) setState(() => _autostart = wlaczony);
+    });
     final services = ref.read(appServicesProvider);
     _nickname = TextEditingController(text: services.identity.name);
     _welcome = TextEditingController(text: services.identity.welcomeMessage);
@@ -106,6 +111,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ? context.l10n.nothingToCleanUp
           : context.l10n.cleanedUp(removed)),
     ));
+  }
+
+  /// Zapis do rejestru może odmówić (polityka, zablokowany klucz) — wtedy
+  /// przełącznik wraca na swoje miejsce zamiast kłamać.
+  Future<void> _setAutostart(bool value) async {
+    final udalo = await Autostart.setEnabled(value);
+    if (!mounted) return;
+    setState(() => _autostart = udalo ? value : !value);
+    if (!udalo) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.startWithWindowsFailed)),
+      );
+    }
   }
 
   /// Wyczyszczenie historii jest nieodwracalne, więc pytamy wprost.
@@ -290,6 +308,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   ],
                 ),
               ),
+            ),
+          ],
+          // Tylko Windows: na Androidzie ciągłość nasłuchu załatwia usługa
+          // pierwszoplanowa, a zasobnika nie ma.
+          if (Autostart.supported) ...[
+            const SizedBox(height: 24),
+            Text(context.l10n.windowsSection,
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _autostart,
+              onChanged: _setAutostart,
+              secondary: const Icon(Icons.rocket_launch_outlined),
+              title: Text(context.l10n.startWithWindows),
+              subtitle: Text(context.l10n.startWithWindowsHelp),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.dashboard_customize_outlined,
+                    size: 18, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.l10n.trayHint,
+                    style: TextStyle(
+                        color: scheme.onSurfaceVariant, fontSize: 12),
+                  ),
+                ),
+              ],
             ),
           ],
           const SizedBox(height: 24),

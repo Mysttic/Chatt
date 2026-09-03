@@ -29,6 +29,10 @@ wiadomości i pliki przesyłane **bezpośrednio między urządzeniami**, bez
   starszych niż wybrana liczba dni.
 - **Nasłuch w tle na Androidzie**: wiadomości dochodzą przy zamkniętym oknie
   i zgaszonym ekranie, z powiadomieniem.
+- **Na Windowsie ikona w zasobniku**: krzyżyk chowa okno zamiast kończyć
+  nasłuch, a aplikacja może wstawać razem z systemem.
+- **Wygoda**: wiele plików naraz (także przeciągniętych na okno), miniatury
+  obrazków, szukanie w rozmowach, kasowanie pojedynczych wiadomości.
 - **Polski i angielski**, motyw jasny/ciemny/systemowy, jedno i drugie zapisane
   w bazie.
 
@@ -67,7 +71,7 @@ w [`docs/makiety/`](docs/makiety/).
 
 ```
 cd app
-flutter test        # 56 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
+flutter test        # 69 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
 flutter analyze
 ```
 

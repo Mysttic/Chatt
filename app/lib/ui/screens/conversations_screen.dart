@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/search.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
@@ -40,17 +41,57 @@ Future<void> _confirmDelete(
 }
 
 /// Ekran główny: lista konwersacji (odpowiednik ListOfConversation.PNG).
-class ConversationsScreen extends ConsumerWidget {
+class ConversationsScreen extends ConsumerStatefulWidget {
   const ConversationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConversationsScreen> createState() =>
+      _ConversationsScreenState();
+}
+
+class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
+  final _search = TextEditingController();
+  bool _searching = false;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _searching = !_searching;
+      if (!_searching) _search.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final summaries = ref.watch(conversationSummariesProvider);
+    final query = _search.text.trim().toLowerCase();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n.appTitle),
+        title: _searching
+            ? TextField(
+                controller: _search,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: context.l10n.searchConversationsHint,
+                  border: InputBorder.none,
+                ),
+              )
+            : Text(context.l10n.appTitle),
         actions: [
+          IconButton(
+            tooltip: _searching
+                ? context.l10n.close
+                : context.l10n.searchConversationsTooltip,
+            icon: Icon(_searching ? Icons.close : Icons.search),
+            onPressed: _toggleSearch,
+          ),
           IconButton(
             tooltip: context.l10n.settingsTitle,
             icon: const Icon(Icons.settings_outlined),
@@ -71,9 +112,25 @@ class ConversationsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) =>
             Center(child: Text(context.l10n.errorWithDetails('$error'))),
-        data: (items) {
-          if (items.isEmpty) {
+        data: (all) {
+          if (all.isEmpty) {
             return const _EmptyState();
+          }
+          final items = query.isEmpty
+              ? all
+              : all.where((item) => conversationMatches(item, query)).toList();
+          if (items.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Text(
+                  context.l10n.searchNothingFound(_search.text.trim()),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ),
+            );
           }
           return ListView.separated(
             itemCount: items.length,

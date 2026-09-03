@@ -952,6 +952,16 @@ class AppServices {
     await _deliverFile(messageId, peer);
   }
 
+  /// Wysyłka wielu plików naraz (wybór z okna albo przeciągnięcie na okno).
+  /// Idą po kolei, bo każdy z osobna pyta odbiorcę o zgodę — równoległe
+  /// zapowiedzi znaczyłyby kilka pytań naraz i kilka strumieni w tej samej
+  /// sesji. Katalogi odpadają same, bo [sendFile] sprawdza, czy to plik.
+  Future<void> sendFiles(int conversationId, Iterable<String> paths) async {
+    for (final path in paths) {
+      await sendFile(conversationId, path);
+    }
+  }
+
   /// Ponowna próba dostarczenia wiadomości oznaczonej jako niedostarczona.
   Future<void> retryMessage(int messageId) async {
     final message = await db.messageById(messageId);
