@@ -270,6 +270,30 @@ reguła obowiązywała tylko wobec sparowanych i wystarczyło jeden jawny pakiet
 z cudzym identyfikatorem, żeby podszyć się pod zieloną tarczę; trzy testy
 w `test/downgrade_test.dart` odgrywają dokładnie ten atak.
 
+### Napisy z sieci a dysk
+
+Jedyne miejsce, w którym napis od nadawcy staje się nazwą pliku, to
+[`core/received_paths.dart`](../app/lib/core/received_paths.dart). Dwie zapory,
+bo jedna to za mało:
+
+1. **Protokół odsiewa kształt.** `isSafeMessageGuid` przyjmuje tylko litery,
+   cyfry i myślnik (do 64 znaków). Identyfikator wiadomości trafia do nazw
+   plików, więc `../../../cokolwiek` znaczyłby zapis poza katalogiem aplikacji
+   — na pulpicie wszędzie tam, gdzie sięga użytkownik.
+2. **Nazwa na dysku wychodzi ze skrótu**, nigdy z samego identyfikatora. Ze
+   skrótu nie da się zrobić ścieżki, więc nawet gdyby pierwsza zapora kiedyś
+   przepuściła coś dziwnego, plik i tak zostanie w katalogu odebranych.
+
+Nazwa pliku od nadawcy przechodzi dodatkowo przez `p.basename` i wycięcie
+znaków zakazanych w nazwach na Windows.
+
+Ciało zapytania ma **granicę megabajta** (`_maxBodyBytes` w `server.dart`).
+Bez niej ktokolwiek w sieci mógł wysłać wielogigabajtowy JSON i wywrócić
+aplikację na braku pamięci: ciało czytamy do końca, zanim w ogóle wiadomo, czy
+nadawca ma sesję. Treść pliku tędy nie idzie — ta leci strumieniowo przez
+`/file` prosto na dysk, a odbiór przerywa się w chwili, gdy nadawca przekroczy
+zapowiedziany rozmiar.
+
 ### Co zostaje otwarte
 
 - `POST /pair` nie jest uwierzytelniony, więc każdy może wywołać kartę

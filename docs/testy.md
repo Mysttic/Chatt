@@ -1,6 +1,6 @@
 # Testy
 
-Podział jest prosty: **71 testów `flutter test`** sprawdzają wszystko, co da się
+Podział jest prosty: **79 testów `flutter test`** sprawdzają wszystko, co da się
 sprawdzić bez sprzętu, a osobne scenariusze w `app/tool/` sterują żywą
 aplikacją na urządzeniu. Rzeczy, których nie sprawdzi ani jedno, ani drugie,
 są wypisane na końcu.
@@ -136,6 +136,18 @@ transferu).
 - „wyczyść historię" zostawia urządzenia razem z potwierdzeniem
 - granica wieku kasuje tylko wiadomości sprzed niej, a wyłączona (0 dni) nie
   kasuje niczego
+
+### Napastnik na łączu (`test/security_test.dart`, 8 testów)
+Testy z przeglądu bezpieczeństwa 0.3.0. Każdy z nich świecił się na czerwono
+przed poprawką:
+- identyfikator wiadomości ze ścieżką (`../../../../evil`, `..\..\evil`,
+  `/etc/chatt`) jest odrzucany w zapowiedzi pliku, w wiadomości i w nagłówkach
+  transferu; zwykły UUID przechodzi
+- ścieżka części transferu, jej opisu i pliku docelowego zostaje w katalogu
+  odebranych **niezależnie** od tego, co przyśle nadawca (sprawdzane przez
+  `p.isWithin`, które przy `..` zwraca false)
+- dwa różne identyfikatory nie sklejają się do jednego pliku
+- ośmiomegabajtowe zapytanie nie kładzie serwera, a `/info` po nim odpowiada
 
 ### Odporność na obniżenie zabezpieczeń (`test/downgrade_test.dart`, 3 testy)
 Napastnik zna identyfikator rozmówcy, ale nie zna jego klucza prywatnego:

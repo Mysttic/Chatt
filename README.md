@@ -73,7 +73,7 @@ w [`docs/makiety/`](docs/makiety/).
 
 ```
 cd app
-flutter test        # 71 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
+flutter test        # 79 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
 flutter analyze
 ```
 

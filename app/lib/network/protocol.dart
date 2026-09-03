@@ -17,6 +17,18 @@ import '../core/identity.dart';
 const int discoveryPort = 47777;
 const int defaultTcpPort = 47780;
 
+/// Kształt identyfikatora wiadomości przyjmowany z sieci.
+///
+/// To nie jest kosmetyka. Identyfikator trafia do **nazw plików na dysku**
+/// (część transferu i jej opis w `.incomplete/`), więc napis w rodzaju
+/// `../../../cokolwiek` znaczyłby zapis albo skasowanie pliku poza katalogiem
+/// aplikacji — na pulpicie wszędzie tam, gdzie sięga użytkownik. Nasz nadawca
+/// wysyła UUID, więc przyjmujemy tylko litery, cyfry i myślnik.
+final RegExp _messageGuidShape = RegExp(r'^[A-Za-z0-9-]{1,64}$');
+
+bool isSafeMessageGuid(Object? value) =>
+    value is String && _messageGuidShape.hasMatch(value);
+
 /// Ile kolejnych portów TCP próbujemy, gdy preferowany jest zajęty
 /// (np. druga instancja aplikacji na tym samym komputerze).
 const int tcpPortAttempts = 10;
@@ -190,12 +202,12 @@ class IncomingMessage {
     final guid = json['messageGuid'];
     final text = json['text'];
     final from = DeviceIdentity.fromJson(json['from']);
-    if (guid is! String || guid.isEmpty || text is! String || from == null) {
+    if (!isSafeMessageGuid(guid) || text is! String || from == null) {
       return null;
     }
     final sentAt = DateTime.tryParse(json['sentAt'] is String ? json['sentAt'] as String : '');
     return IncomingMessage(
-      messageGuid: guid,
+      messageGuid: guid as String,
       from: from,
       text: text,
       sentAt: sentAt ?? DateTime.now(),
@@ -297,7 +309,11 @@ class IncomingFileMeta {
     final from = decodeIdentityHeader(headers[headerFrom]);
     final rawName = headers[headerFileName];
     final size = int.tryParse(headers[headerFileSize] ?? '');
-    if (guid == null || guid.isEmpty || from == null || rawName == null || size == null || size < 0) {
+    if (!isSafeMessageGuid(guid) ||
+        from == null ||
+        rawName == null ||
+        size == null ||
+        size < 0) {
       return null;
     }
     String name;
@@ -311,7 +327,7 @@ class IncomingFileMeta {
     final sha = headers[headerFileSha256];
     final sentAt = DateTime.tryParse(headers[headerSentAt] ?? '');
     return IncomingFileMeta(
-      messageGuid: guid,
+      messageGuid: guid!,
       from: from,
       fileName: name,
       fileSize: size,
@@ -364,8 +380,7 @@ class FileOffer {
     final name = json['fileName'];
     final size = json['fileSize'];
     final from = DeviceIdentity.fromJson(json['from']);
-    if (guid is! String ||
-        guid.isEmpty ||
+    if (!isSafeMessageGuid(guid) ||
         name is! String ||
         name.isEmpty ||
         size is! int ||
@@ -378,7 +393,7 @@ class FileOffer {
     final sentAt =
         DateTime.tryParse(json['sentAt'] is String ? json['sentAt'] as String : '');
     return FileOffer(
-      messageGuid: guid,
+      messageGuid: guid as String,
       from: from,
       fileName: name,
       fileSize: size,

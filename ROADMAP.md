@@ -312,6 +312,37 @@ psuł jasność ikon paska systemowego — Flutter liczy ją z koloru paska, a t
 przestał mieć kolor. Ikony robiły się białe na jasnym tle. Podajemy ją teraz
 wprost z jasności motywu.
 
+### Przegląd bezpieczeństwa przed wydaniem 0.3.0 ✅ (03.09.2026)
+
+Trzy dziury, wszystkie do wykorzystania przez **dowolne urządzenie w tej samej
+sieci** — od 0.2.0 szyfrowanie nie wymaga sparowania, więc sesję nawiąże każdy.
+
+- [x] **Wyjście poza katalog aplikacji przez identyfikator wiadomości**
+      (poważne). Identyfikator z sieci szedł wprost do nazw plików
+      w `.incomplete/`. `../../../x` pozwalał skasować cudzy plik `.json`
+      (wystarczyła **odmowa** przyjęcia pliku), a po przyjęciu — nadpisać
+      dowolny plik `.part` treścią nadawcy i zapisać `.json` z jego danymi.
+      Na Windowsie w zasięgu całego konta użytkownika. Poprawione dwoma
+      zaporami: protokół przyjmuje tylko identyfikatory w kształcie UUID,
+      a nazwa na dysku wychodzi ze skrótu, nie z samego identyfikatora
+- [x] **Zapisanie całego dysku przyjętym plikiem** (średnie). Pętla odbioru
+      sprawdzała zapowiedziany rozmiar dopiero po zakończeniu strumienia, więc
+      zgoda na 2 MB pozwalała nadawcy lać bajty bez końca. Teraz przerywa się
+      w chwili przekroczenia
+- [x] **Wywrócenie aplikacji rozmiarem zapytania** (średnie). Ciało POST-a
+      czytaliśmy w całości do pamięci, zanim padło pytanie o sesję —
+      wielogigabajtowy JSON od kogokolwiek w sieci kończył się brakiem pamięci.
+      Granica megabajta i 413
+- [x] Osiem testów w `test/security_test.dart`, każdy czerwony przed poprawką
+
+Sprawdzone i **nie** wymagało zmian: klucz sesji i koperty (AES-GCM losuje
+nonce sam, nie ma powtórzeń), nonce strumienia pliku (wisi na guidzie
+i sumie kontrolnej, więc ponowienie po podmianie treści nie powtórzy
+strumienia klucza), nazwa pliku od nadawcy (już wcześniej przez `basename`
+i wycięcie znaków zakazanych), zapis do galerii na Androidzie (bierze nazwę
+z oczyszczonej ścieżki na dysku, nie z nazwy od nadawcy), kolejność sprawdzeń
+w `/file` (sesja przed czytaniem strumienia).
+
 **Znany koszt:** instalatora nie da się sprawdzić lokalnie bez Inno Setup
 (`choco install innosetup`); na maszynie właściciela go nie ma, więc skrypt
 kompiluje się dopiero na CI przy wydaniu.

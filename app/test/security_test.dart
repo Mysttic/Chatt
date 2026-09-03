@@ -1,0 +1,197 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:chatt/core/identity.dart';
+import 'package:chatt/core/received_paths.dart';
+import 'package:chatt/network/protocol.dart';
+import 'package:chatt/services/app_services.dart';
+import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+
+/// Rzeczy, które psuje **napastnik**, a nie użytkownik: napisy z sieci
+/// wchodzące w ścieżki plików i zapytania liczone na wyczerpanie pamięci.
+///
+/// Wszystkie te testy powstały po przeglądzie bezpieczeństwa wydania 0.3.0
+/// i każdy z nich zapalał się na czerwono przed poprawką.
+void main() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+
+  /// Identyfikatory, którymi da się wyjść z katalogu aplikacji. Ostatni jest
+  /// groźny na Windowsie, gdzie backslash też jest separatorem.
+  final zlosliweGuidy = [
+    '../../../../evil',
+    '..\\..\\..\\evil',
+    '/etc/chatt',
+    'a/b',
+    'x' * 200,
+    '',
+  ];
+
+  group('identyfikator wiadomości z sieci', () {
+    test('zapowiedź pliku ze ścieżką w identyfikatorze jest odrzucana', () {
+      for (final guid in zlosliweGuidy) {
+        final json = {
+          'messageGuid': guid,
+          'from': const DeviceIdentity(
+            guid: 'x',
+            name: 'Napastnik',
+            welcomeMessage: '',
+            tcpPort: 47780,
+            publicKey: <int>[],
+          ).toJson(),
+          'fileName': 'niewinny.jpg',
+          'fileSize': 10,
+          'sentAt': DateTime.now().toUtc().toIso8601String(),
+        };
+        expect(FileOffer.fromJson(json), isNull, reason: guid);
+      }
+    });
+
+    test('wiadomość ze ścieżką w identyfikatorze jest odrzucana', () {
+      for (final guid in zlosliweGuidy) {
+        final json = {
+          'messageGuid': guid,
+          'from': const DeviceIdentity(
+            guid: 'x',
+            name: 'Napastnik',
+            welcomeMessage: '',
+            tcpPort: 47780,
+            publicKey: <int>[],
+          ).toJson(),
+          'text': 'cześć',
+          'sentAt': DateTime.now().toUtc().toIso8601String(),
+        };
+        expect(IncomingMessage.fromJson(json), isNull, reason: guid);
+      }
+    });
+
+    test('nagłówki transferu ze ścieżką w identyfikatorze są odrzucane', () {
+      for (final guid in zlosliweGuidy) {
+        final headers = {
+          headerMessageGuid: guid,
+          headerFrom: encodeIdentityHeader(const DeviceIdentity(
+            guid: 'x',
+            name: 'Napastnik',
+            welcomeMessage: '',
+            tcpPort: 47780,
+            publicKey: <int>[],
+          )),
+          headerFileName: 'niewinny.jpg',
+          headerFileSize: '10',
+        };
+        expect(IncomingFileMeta.fromHeaders(headers), isNull, reason: guid);
+      }
+    });
+
+    test('zwykły UUID przechodzi', () {
+      final json = {
+        'messageGuid': '2f1a9c74-0d3e-4f21-9a55-7b1d2c3e4f50',
+        'from': const DeviceIdentity(
+          guid: 'x',
+          name: 'Ktoś',
+          welcomeMessage: '',
+          tcpPort: 47780,
+          publicKey: <int>[],
+        ).toJson(),
+        'fileName': 'raport.pdf',
+        'fileSize': 10,
+        'sentAt': DateTime.now().toUtc().toIso8601String(),
+      };
+      expect(FileOffer.fromJson(json), isNotNull);
+    });
+  });
+
+  group('ścieżki plików nie wychodzą poza katalog aplikacji', () {
+    final katalog = p.join('C:', 'dane', 'received');
+
+    test('część transferu i jej opis zostają w środku', () {
+      for (final guid in [...zlosliweGuidy, 'zwykly-guid']) {
+        for (final sciezka in [
+          partPath(katalog, guid),
+          partMetaPath(katalog, guid),
+        ]) {
+          expect(p.isWithin(katalog, sciezka), isTrue,
+              reason: '$guid -> $sciezka');
+        }
+      }
+    });
+
+    test('plik docelowy zostaje w środku mimo nazwy ze ścieżką', () {
+      const nazwy = [
+        '../../../../evil.exe',
+        '..\\..\\..\\evil.exe',
+        '/etc/passwd',
+        'zwykla.jpg',
+        '..',
+      ];
+      for (final nazwa in nazwy) {
+        for (final guid in zlosliweGuidy) {
+          final sciezka = receivedFilePath(katalog, guid, nazwa);
+          expect(p.isWithin(katalog, sciezka), isTrue,
+              reason: '$guid / $nazwa -> $sciezka');
+        }
+      }
+    });
+
+    test('różne identyfikatory dają różne pliki', () {
+      // Gdyby oczyszczanie sklejało identyfikatory do jednej nazwy, dwa
+      // równoległe transfery pisałyby do tego samego pliku.
+      final a = partPath(katalog, 'a/b');
+      final b = partPath(katalog, 'a_b');
+      expect(a, isNot(b));
+    });
+  });
+
+  group('serwer nie daje się wywrócić rozmiarem zapytania', () {
+    late AppServices bob;
+
+    setUp(() async {
+      bob = await AppServices.start(
+        executor: NativeDatabase.memory(),
+        portOverride: 0,
+        nameOverride: 'Bartek',
+        enableDiscovery: false,
+        receivedDirOverride:
+            Directory.systemTemp.createTempSync('chatt_sec').path,
+      );
+    });
+
+    tearDown(() => bob.dispose());
+
+    test('wielkie ciało zapytania nie jest wczytywane, a serwer żyje dalej',
+        () async {
+      final client = HttpClient();
+      int? status;
+      try {
+        final request =
+            await client.post('127.0.0.1', bob.server.port!, '/message');
+        request.headers.contentType = ContentType.json;
+        // Osiem megabajtów śmieci. Bez granicy serwer wczytałby to w całości
+        // do pamięci, zanim w ogóle sprawdzi, czy nadawca ma sesję — a takich
+        // zapytań można wysłać ile się chce.
+        final kawalek = List<int>.filled(64 * 1024, 65);
+        for (var i = 0; i < 128; i++) {
+          request.add(kawalek);
+        }
+        final response = await request.close();
+        await response.drain<void>();
+        status = response.statusCode;
+      } on SocketException {
+        // Serwer przerwał połączenie w trakcie wysyłania — też dobrze,
+        // bo znaczy, że przestał czytać. Który wariant wyjdzie, zależy od
+        // buforów gniazda, więc test nie wymaga konkretnego.
+      }
+      if (status != null) expect(status, 413);
+
+      // Rzecz najważniejsza: serwer po tym nadal odpowiada.
+      final info = await client.get('127.0.0.1', bob.server.port!, '/info');
+      final infoResponse = await info.close();
+      final tresc = await infoResponse.transform(utf8.decoder).join();
+      expect(infoResponse.statusCode, 200);
+      expect(tresc, contains('"app":"chatt"'));
+      client.close(force: true);
+    });
+  });
+}
