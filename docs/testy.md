@@ -20,7 +20,10 @@ set ADB=C:\Users\mystt\AppData\Local\Android\Sdk\platform-tools\adb.exe
 C:\Users\mystt\dev\flutter\bin\flutter.bat test tool/android_e2e_test.dart
 C:\Users\mystt\dev\flutter\bin\flutter.bat test tool/wifi_discovery_check.dart
 C:\Users\mystt\dev\flutter\bin\flutter.bat test tool/product_shots.dart
+C:\Users\mystt\dev\flutter\bin\flutter.bat test tool/windows_shots.dart
 ```
+
+Zrzuty po angielsku: to samo z `set CHATT_SHOTS_LANG=en`.
 
 Zmienne: `ADB` (ścieżka do adb), `CHATT_DEVICE` (identyfikator z `adb devices`,
 domyślnie `emulator-5554`).
@@ -187,6 +190,22 @@ Tego jednego nie da się sprawdzić na emulatorze.
 ### `tool/product_shots.dart`
 Zakłada demonstracyjną rozmowę i robi zrzuty do `docs/screenshots/produkt/`.
 Po wszystkim czyści dane aplikacji, żeby na urządzeniu nie zostało demo.
+
+### `tool/windows_shots.dart`
+Zrzuty okna Windows **bez klikania po pulpicie**: aplikacja renderuje się
+w harnessie `flutter_test` w 1600×900, z własnym stosem w pamięci i dwoma
+rozmówcami w tym samym procesie, a obraz wychodzi prosto z silnika
+(`RepaintBoundary.toImage`). Na zrzutach nie ma cudzych rozmów, a wynik jest
+taki sam na każdej maszynie. `CHATT_SHOTS_LANG=en` daje wersję angielską.
+Jedna pułapka: harness podmienia `HttpClient` na atrapę odpowiadającą 400, więc
+skrypt przywraca prawdziwego (`HttpOverrides.global = null`).
+
+### `tool/store_assets.py`
+Nagłówek do README (`docs/promo.png`, w repozytorium) oraz materiały
+w wymiarach sklepów: ikona 512, grafika promocyjna 1024×500 w dwóch językach,
+zrzuty telefonu wpasowane w 1080×1920, zrzuty pulpitu ze sprawdzeniem minimum
+1366×768. Te ostatnie lądują w `docs/publikacja/materialy/`, poza
+repozytorium — sklepy są odłożone (`docs/publikacja/README.md`).
 
 ### `tool/zrzut_okna.ps1`
 Zrzut **samego okna aplikacji** na Windowsie (nie całego pulpitu), z ustawieniem

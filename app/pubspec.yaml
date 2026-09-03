@@ -1,7 +1,7 @@
 name: chatt
 description: "Komunikator P2P w sieci lokalnej — wiadomości i pliki bez serwera."
 publish_to: 'none'
-version: 0.3.0+3
+version: 0.3.1+4
 
 environment:
   sdk: ^3.13.2
@@ -45,7 +45,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.34.5
   build_runner: ^2.16.0
-
 flutter:
   uses-material-design: true
 

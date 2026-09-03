@@ -347,6 +347,76 @@ w `/file` (sesja przed czytaniem strumienia).
 (`choco install innosetup`); na maszynie właściciela go nie ma, więc skrypt
 kompiluje się dopiero na CI przy wydaniu.
 
+## 3c. Przygotowanie do publikacji (0.4.0)
+
+> **Teza:** zanim repozytorium stanie się publiczne, ma być gotowe wszystko,
+> co publikacja wymaga — tak, żeby upublicznienie i wejście do sklepów było
+> jednym ruchem, a nie tygodniem dopisywania.
+
+**Decyzje (03.09.2026):**
+
+1. **Repozytorium zostaje prywatne** do decyzji właściciela. Cała praca
+   niżej jest do zrobienia bez publikacji.
+2. ~~Cel: Google Play i Microsoft Store~~ — **odrzucone 03.09.2026**, po
+   przygotowaniu wszystkich materiałów. Oba sklepy wymagają utrzymywania
+   konta, a nie jednorazowego wgrania: ankiety przy zmianach polityk, wymóg
+   nadążania za API, a przy nowych kontach Play test zamknięty z 20 testerami
+   przez 14 dni. Dla aplikacji pokazowej to koszt bez zwrotu. Zostajemy przy
+   GitHub Releases; materiały leżą gotowe w `docs/publikacja/` na wypadek
+   zmiany decyzji.
+3. **Angielski jako język pierwszego kontaktu.** README po angielsku,
+   polski obok. Dokumentacja techniczna zostaje po polsku, bo to język
+   projektu.
+
+### Faza 13 — Treści i materiały ✅ (03.09.2026)
+
+> **Wynik fazy:** Chatt zostaje aplikacją pokazową wydawaną przez GitHub
+> Releases. Sklepy odłożone (patrz decyzja 2), ale treści i grafiki powstały
+> i zostają — pozycjonowanie i polityka prywatności przydają się niezależnie
+> od kanału, a reszta czeka gotowa.
+- [x] Pozycjonowanie: dla kogo (cztery grupy, od „wysyłam sam sobie" po
+      sieci bez internetu), tabela różnic wobec LocalSend, KDE Connect
+      i PairDrop, słowa kluczowe PL/EN, gdzie o tym mówić
+      ([docs/publikacja/pozycjonowanie.md](docs/publikacja/pozycjonowanie.md))
+- [x] Treści do wpisów w Google Play i Microsoft Store, po polsku
+      i angielsku, w limitach (tytuł 30, krótki opis 80, pełny 4000), razem
+      z odpowiedziami do ankiet konsoli
+- [x] Polityka prywatności PL/EN. Kontakt zostaje placeholderem do
+      uzupełnienia przed publikacją
+- [x] README po angielsku jako główne, polski w `README.pl.md`
+- [x] Materiały graficzne skryptem `tool/store_assets.py`: ikona 512,
+      grafika promocyjna 1024×500 w dwóch językach, zrzuty telefonu
+      wpasowane w 1080×1920 (Play nie przyjmuje proporcji emulatora 2,23:1),
+      logo 1080 i zrzuty pulpitu dla Store
+- [x] Zrzuty w dwóch językach: `product_shots` z `CHATT_SHOTS_LANG`, a na
+      Windows nowy `tool/windows_shots.dart`, który renderuje aplikację
+      w harnessie `flutter_test` w 1600×900 z demonstracyjną rozmową —
+      bez klikania po pulpicie i bez cudzych rozmów na zrzutach
+- [x] ~~Pakiety pod sklepy w workflow wydania~~ — zrobione (AAB obok APK,
+      MSIX pod Store, paczka sprawdzona lokalnie: 36 MB, manifest
+      z `privateNetworkClientServer` i `runFullTrust`), a potem **zdjęte**
+      razem z zależnością `msix`, gdy zapadła decyzja o pozostaniu przy
+      GitHubie. Wydanie znów daje trzy pliki: APK, instalator i zip.
+      Instrukcja powrotu jest w `docs/publikacja/README.md`
+- [x] Lista kontrolna publikacji
+      ([docs/publikacja/lista-kontrolna.md](docs/publikacja/lista-kontrolna.md))
+
+**Znalezione przy okazji:** karta z prośbą o plik rozciągała się na całą
+szerokość okna na monitorze (1600 px); dostała granicę 560 px. Widać to było
+dopiero na zrzucie z harnessu.
+
+**Koszty i pułapki, zapisane, żeby nie odkrywać ich drugi raz:**
+- `MakeAppx.exe` dołączony do pakietu `msix` nie startuje na maszynie
+  właściciela (side-by-side); pakowanie kończy narzędzie z Windows SDK.
+- Harness `flutter_test` podmienia `HttpClient` na atrapę (400), nie wczytuje
+  czcionek z pubspec i rysuje obwódki fokusu — `windows_shots.dart` obchodzi
+  wszystkie trzy.
+- Klawiatura ekranowa emulatora ma klawisz z opisem „Send", ten sam co
+  przycisk aplikacji po angielsku; `product_shots` bierze wyżej położony.
+- Pod MSIX rejestr HKCU jest wirtualizowany, więc autostart przez wpis
+  w `Run` nie zadziała w wersji ze Store (do rozwiązania przez `StartupTask`
+  przed wysłaniem do certyfikacji).
+
 ## 4. Podział pracy
 
 - **Claude (sesje chmurowe, branch `claude/wifi-device-communication-npzb1g`)**: cały kod + testy jednostkowe + testy E2E dwóch instancji na Linuksie + golden/screenshoty UI. Realnie ~90% weryfikacji dzieje się bez Twojego udziału.

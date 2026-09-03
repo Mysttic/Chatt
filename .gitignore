@@ -363,3 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 # Instalator Windows budowany przez Inno Setup (tool/wydanie i CI)
 /dist/
+
+# Materiały do sklepów: wynik app/tool/store_assets.py, liczony ze zrzutów
+# i ikony, które są w repozytorium. Trzymanie ich w gicie znaczyłoby dwie
+# kopie tego samego obrazka i konflikt przy każdej zmianie UI.
+/docs/publikacja/materialy/
