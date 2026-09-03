@@ -27,6 +27,12 @@ class PromptOverlay extends ConsumerWidget {
           left: 0,
           right: 0,
           child: SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              // Na szerokim oknie karta rozciągnięta na cały monitor czyta
+              // się jak baner; na telefonie granica i tak nie wchodzi w grę.
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -65,6 +71,8 @@ class PromptOverlay extends ConsumerWidget {
                     },
                   ),
                 ],
+              ),
+            ),
               ),
             ),
           ),

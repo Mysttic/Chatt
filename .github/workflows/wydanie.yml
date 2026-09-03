@@ -152,8 +152,6 @@ jobs:
         working-directory: app
         run: flutter build windows --release
 
-      # Aplikacja na Windows to nie sam exe: potrzebne są jeszcze biblioteki
-      # i katalog data obok niego, więc pakujemy cały katalog Release.
       - name: Spakuj
         shell: pwsh
         run: |
@@ -176,6 +174,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup zwrocil $LASTEXITCODE" }
           Get-ChildItem dist
 
+      # Aplikacja na Windows to nie sam exe: potrzebne są jeszcze biblioteki
+      # i katalog data obok niego, więc pakujemy cały katalog Release.
       - uses: actions/upload-artifact@v4
         with:
           name: windows

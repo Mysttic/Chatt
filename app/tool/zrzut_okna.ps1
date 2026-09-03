@@ -9,7 +9,10 @@ param(
   [string]$Plik = "okno.png",
   [int]$Szerokosc = 1400,
   [int]$Wysokosc = 900,
-  [string]$Proces = "chatt"
+  [string]$Proces = "chatt",
+  # Gdy chodzi kilka instancji (np. własna i testowa z osobnym profilem),
+  # wskazanie procesu po PID wybiera właściwe okno.
+  [int]$ProcessId = 0
 )
 
 Add-Type -AssemblyName System.Drawing
@@ -24,7 +27,11 @@ public class Okno {
 }
 '@
 
-$proc = Get-Process -Name $Proces -ErrorAction SilentlyContinue
+$proc = if ($ProcessId -gt 0) {
+  Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+} else {
+  Get-Process -Name $Proces -ErrorAction SilentlyContinue | Select-Object -First 1
+}
 if (-not $proc -or $proc.MainWindowHandle -eq 0) {
   Write-Error "Brak okna procesu $Proces"
   exit 1

@@ -176,6 +176,8 @@ Od 900 pikseli szerokości okno pokazuje **dwa panele**: listę rozmów po lewej
 i otwartą rozmowę po prawej, bez przeskakiwania między ekranami. Węższe okno
 działa jak dotąd, jeden ekran naraz.
 
+![Dwa panele na Windows](screenshots/windows/pl/04_plik_z_miniatura.png)
+
 Treść ma górną granicę szerokości: dymki do 560 pikseli, formularze do 760.
 Na monitorze 27 cali linia ciągnąca się przez pół metra jest nie do czytania,
 a oko gubi początek następnej.
