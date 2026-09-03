@@ -17,6 +17,17 @@ enum FileActionResult {
   failed,
 }
 
+/// Rozszerzenia, dla których pokazujemy miniaturę. Lista jest krótka
+/// świadomie: dekodowanie obrazka od obcego to powierzchnia ataku, więc
+/// zostają tylko formaty, które Flutter obsługuje sam.
+const _imageExtensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'};
+
+/// Czy pod tą nazwą kryje się obrazek. Decyduje samo rozszerzenie — zawartość
+/// czyta dopiero dekoder, i to wyłącznie dla plików, które użytkownik już
+/// przyjął i ma na dysku.
+bool isImageFile(String? name) =>
+    name != null && _imageExtensions.contains(p.extension(name).toLowerCase());
+
 /// Otwieranie odebranych plików systemowym skojarzeniem. Desktop: proces
 /// systemowy. Android: własny kanał do [MainActivity], która wystawia plik
 /// przez FileProvider jako content:// (zwykłej ścieżki od API 24 nie wolno

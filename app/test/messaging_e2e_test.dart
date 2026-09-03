@@ -146,7 +146,7 @@ void main() {
         sentAt: DateTime.now(),
       ),
     );
-    expect(accepted, isFalse);
+    expect(accepted.delivered, isFalse);
     expect(await alice.db.watchPeers().first, isEmpty);
   });
 
@@ -156,7 +156,7 @@ void main() {
       port: bob.server.port!,
       payload: {'nie': 'to co trzeba'},
     );
-    expect(ok, isFalse);
+    expect(ok.delivered, isFalse);
     // Serwer dalej żyje i obsługuje poprawne zapytania.
     expect(await alice.client.fetchInfo('127.0.0.1', bob.server.port!), isNotNull);
   });

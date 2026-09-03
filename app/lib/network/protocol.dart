@@ -32,7 +32,12 @@ const String typeHere = 'chatt_here';
 /// 4: parowanie przez porównanie kodu na obu ekranach (zobowiązanie + kod
 ///    z uzgodnienia zamiast kodu jako soli) oraz podpisane odpowiedzi
 ///    discovery od sparowanych urządzeń.
-const int protocolVersion = 4;
+/// 5: cały ruch szyfrowany, także z niesparowanymi. Tożsamością urządzenia
+///    jest klucz (guid = skrót klucza publicznego), sesja powstaje przez
+///    POST /handshake i ma klucze efemeryczne, więc nagrany ruch nie
+///    odszyfruje się po późniejszej kradzieży tożsamości. Jawnego tekstu
+///    w protokole już nie ma.
+const int protocolVersion = 5;
 
 /// [nonce] jest losowy na każdy skan. Sparowane urządzenie wplata go
 /// w podpis odpowiedzi, więc podsłuchanej odpowiedzi nie da się odtworzyć
@@ -61,12 +66,100 @@ String newDiscoveryNonce() {
 }
 
 /// Znacznik koperty z zaszyfrowaną treścią (szczegóły w core/crypto.dart).
-/// Jawne zostaje tylko tyle, ile trzeba, żeby odbiorca wiedział, czyim
-/// kluczem odszyfrować.
+/// Jawny zostaje tylko identyfikator sesji — po nim odbiorca znajduje klucz.
+/// Od protokołu 5 nie ma tu guid-a nadawcy, więc podsłuchujący nie widzi
+/// nawet tego, kto z kim rozmawia: numer sesji zmienia się z każdym uściskiem.
 const String envelopeMarker = 'enc';
+
+/// Pole z identyfikatorem sesji w kopercie.
+const String envelopeSession = 'sid';
 
 bool isEncryptedEnvelope(Map<String, Object?> json) =>
     json[envelopeMarker] == 1;
+
+String? sessionOfEnvelope(Map<String, Object?> json) {
+  final sid = json[envelopeSession];
+  return sid is String && sid.isNotEmpty ? sid : null;
+}
+
+// --- Uścisk dłoni: POST /handshake ---------------------------------------
+// Jedna runda, bo obie strony znają już nawzajem klucz statyczny (z discovery
+// albo z GET /info). Każda dorzuca klucz efemeryczny i z czterech uzgodnień
+// X25519 wychodzi klucz ważny tylko na tę sesję (ChattCrypto.sessionKey).
+//
+//   A -> B   { from: <tożsamość A>, e: <klucz efemeryczny A> }
+//   A <- B   { sessionId: ..., e: <klucz efemeryczny B>, from: <tożsamość B> }
+//
+// Sesja żyje wyłącznie w pamięci obu stron. Restart albo bezczynność ją kasuje
+// i przy kolejnej wysyłce powstaje nowa — to jest cała mechanika forward
+// secrecy: nie ma czego wykraść z dysku po fakcie.
+
+/// Jak długo żyje sesja bez ruchu.
+const Duration sessionLifetime = Duration(hours: 1);
+
+/// Odbiorca nie zna podanego numeru sesji (wygasła albo był restart).
+/// Nadawca ma zrobić uścisk dłoni jeszcze raz i ponowić zapytanie.
+const String errorNoSession = 'no_session';
+
+/// Wynik próby dostarczenia. [noSession] jest osobno od [failed], bo to nie
+/// jest błąd do pokazania użytkownikowi — to prośba o powtórzenie uścisku
+/// dłoni i jeszcze jedną próbę.
+enum Delivery {
+  ok,
+  failed,
+  noSession;
+
+  bool get delivered => this == Delivery.ok;
+}
+
+Map<String, Object?> handshakeRequest({
+  required DeviceIdentity from,
+  required List<int> ephemeral,
+}) =>
+    {
+      'from': from.toJson(),
+      'e': base64.encode(ephemeral),
+    };
+
+Map<String, Object?> handshakeReply({
+  required String sessionId,
+  required DeviceIdentity from,
+  required List<int> ephemeral,
+}) =>
+    {
+      'ok': true,
+      'sessionId': sessionId,
+      'from': from.toJson(),
+      'e': base64.encode(ephemeral),
+    };
+
+/// Odpowiedź na uścisk dłoni, po stronie inicjatora.
+class HandshakeResult {
+  final String sessionId;
+  final DeviceIdentity peer;
+  final List<int> ephemeral;
+
+  const HandshakeResult({
+    required this.sessionId,
+    required this.peer,
+    required this.ephemeral,
+  });
+
+  static HandshakeResult? fromJson(Map<String, Object?>? json) {
+    if (json == null || json['ok'] != true) return null;
+    final sid = json['sessionId'];
+    final peer = DeviceIdentity.fromJson(json['from']);
+    final e = DeviceIdentity.decodeKey(json['e']);
+    if (sid is! String || sid.isEmpty || peer == null || e.isEmpty) return null;
+    return HandshakeResult(sessionId: sid, peer: peer, ephemeral: e);
+  }
+}
+
+/// Nowy numer sesji: 16 losowych bajtów.
+String newSessionId() {
+  final rng = Random.secure();
+  return base64.encode(List<int>.generate(16, (_) => rng.nextInt(256)));
+}
 
 /// Bezpieczne dekodowanie datagramu/body: śmieci z sieci nie mogą wywalić
 /// aplikacji, więc każdy błąd parsowania oznacza po prostu "to nie nasze".
@@ -146,9 +239,13 @@ const String headerFileSha256 = 'x-chatt-file-sha256';
 /// Od którego bajtu nadawca wysyła treść (0 = całość, >0 = wznowienie).
 const String headerFileOffset = 'x-chatt-file-offset';
 
-/// "1" = treść jest zaszyfrowana kluczem sesji (AES-CTR). Nazwa pliku i suma
+/// "1" = treść jest zaszyfrowana kluczem pliku (AES-CTR). Nazwa pliku i suma
 /// kontrolna są wtedy w zaszyfrowanej zapowiedzi, nie w nagłówkach.
 const String headerEncrypted = 'x-chatt-encrypted';
+
+/// Numer sesji nadawcy. Treść pliku to surowe bajty, a nie koperta, więc
+/// odbiorca musi mieć gdzieś napisane, czyj to strumień.
+const String headerSession = 'x-chatt-session';
 
 /// Nazwa zastępcza w nagłówku zaszyfrowanego transferu — prawdziwa jest
 /// w zapowiedzi, żeby nie wyciekała jawnym tekstem.
@@ -236,6 +333,12 @@ class FileOffer {
   final String? sha256;
   final DateTime sentAt;
 
+  /// Skrót klucza, którym poleci treść pliku. Klucz wisi na kluczu sesji,
+  /// a ta wygasa — odbiorca porównuje ten znacznik z zapisanym obok części
+  /// transferu i przy niezgodności każe zacząć od zera, zamiast cicho
+  /// odszyfrować śmieci nowym kluczem na starych bajtach.
+  final String? keyEpoch;
+
   const FileOffer({
     required this.messageGuid,
     required this.from,
@@ -243,6 +346,7 @@ class FileOffer {
     required this.fileSize,
     required this.sentAt,
     this.sha256,
+    this.keyEpoch,
   });
 
   Map<String, Object?> toJson() => {
@@ -251,6 +355,7 @@ class FileOffer {
         'fileName': fileName,
         'fileSize': fileSize,
         'sha256': sha256,
+        'keyEpoch': keyEpoch,
         'sentAt': sentAt.toUtc().toIso8601String(),
       };
 
@@ -269,6 +374,7 @@ class FileOffer {
       return null;
     }
     final sha = json['sha256'];
+    final epoch = json['keyEpoch'];
     final sentAt =
         DateTime.tryParse(json['sentAt'] is String ? json['sentAt'] as String : '');
     return FileOffer(
@@ -277,6 +383,7 @@ class FileOffer {
       fileName: name,
       fileSize: size,
       sha256: (sha is String && sha.isNotEmpty) ? sha : null,
+      keyEpoch: (epoch is String && epoch.isNotEmpty) ? epoch : null,
       sentAt: sentAt ?? DateTime.now(),
     );
   }
@@ -344,6 +451,12 @@ class FileOfferReply {
 // nie zgodzą. Kod nie jest sekretem i nie idzie przez sieć, więc nie ma tu
 // czego łamać offline (poprzedni schemat, z kodem jako solą HKDF, na to
 // pozwalał).
+
+/// „Zeskanowałem twój kod QR". Nie daje sama z siebie zielonej tarczy —
+/// drugie urządzenie pyta jeszcze swojego użytkownika, bo kod z ekranu mógł
+/// zobaczyć ktoś jeszcze. Człowiek potwierdza to, czego maszyna nie wie:
+/// że skanowanie właśnie się odbyło i to on je zrobił.
+const String pairScanned = 'scanned';
 
 const String pairCommit = 'commit';
 const String pairReveal = 'reveal';
@@ -431,7 +544,13 @@ class PairMessage {
         'publicKey': publicKey,
       };
 
-  static const _actions = {pairCommit, pairReveal, pairConfirm, pairCancel};
+  static const _actions = {
+    pairCommit,
+    pairReveal,
+    pairConfirm,
+    pairCancel,
+    pairScanned,
+  };
 
   static PairMessage? fromJson(Map<String, Object?> json) {
     final action = json['action'];

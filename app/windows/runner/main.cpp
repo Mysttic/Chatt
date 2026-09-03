@@ -2,6 +2,8 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include <algorithm>
+
 #include "flutter_window.h"
 #include "utils.h"
 
@@ -22,14 +24,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
 
+  // Autostart podnosi aplikację z "--minimized": ma wtedy usiąść w zasobniku
+  // zamiast otwierać okno na środku ekranu przy każdym starcie systemu.
+  const bool start_hidden =
+      std::find(command_line_arguments.begin(), command_line_arguments.end(),
+                "--minimized") != command_line_arguments.end();
+
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
-  FlutterWindow window(project);
+  FlutterWindow window(project, start_hidden);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
   if (!window.Create(L"chatt", origin, size)) {
     return EXIT_FAILURE;
   }
+  // Zostaje true, ale zamknięcie okna i tak nie dochodzi do skutku:
+  // lib/core/tray.dart przechwytuje je i chowa aplikację do zasobnika.
+  // Proces kończy dopiero "Zamknij" z menu ikony, które to przechwytywanie
+  // wyłącza — wtedy zamknięcie okna kończy program jak zwykle.
   window.SetQuitOnClose(true);
 
   ::MSG msg;

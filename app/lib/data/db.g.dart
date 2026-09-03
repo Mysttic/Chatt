@@ -28,6 +28,18 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _identityKeyMeta = const VerificationMeta(
+    'identityKey',
+  );
+  @override
+  late final GeneratedColumn<String> identityKey = GeneratedColumn<String>(
+    'identity_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _nicknameMeta = const VerificationMeta(
     'nickname',
   );
@@ -83,15 +95,29 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     requiredDuringInsert: false,
     defaultValue: const Constant(defaultTcpPort),
   );
+  static const VerificationMeta _retentionDaysMeta = const VerificationMeta(
+    'retentionDays',
+  );
+  @override
+  late final GeneratedColumn<int> retentionDays = GeneratedColumn<int>(
+    'retention_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     deviceGuid,
+    identityKey,
     nickname,
     welcomeMessage,
     theme,
     language,
     tcpPort,
+    retentionDays,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -116,6 +142,15 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     } else if (isInserting) {
       context.missing(_deviceGuidMeta);
     }
+    if (data.containsKey('identity_key')) {
+      context.handle(
+        _identityKeyMeta,
+        identityKey.isAcceptableOrUnknown(
+          data['identity_key']!,
+          _identityKeyMeta,
+        ),
+      );
+    }
     if (data.containsKey('nickname')) {
       context.handle(
         _nicknameMeta,
@@ -139,6 +174,15 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         tcpPort.isAcceptableOrUnknown(data['tcp_port']!, _tcpPortMeta),
       );
     }
+    if (data.containsKey('retention_days')) {
+      context.handle(
+        _retentionDaysMeta,
+        retentionDays.isAcceptableOrUnknown(
+          data['retention_days']!,
+          _retentionDaysMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -155,6 +199,10 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
       deviceGuid: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}device_guid'],
+      )!,
+      identityKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}identity_key'],
       )!,
       nickname: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -180,6 +228,10 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.int,
         data['${effectivePrefix}tcp_port'],
       )!,
+      retentionDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}retention_days'],
+      )!,
     );
   }
 
@@ -196,7 +248,14 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
 
 class Setting extends DataClass implements Insertable<Setting> {
   final int id;
+
+  /// Identyfikator urządzenia. Od schematu v6 nie jest losowany, tylko liczony
+  /// z klucza publicznego (patrz `ChattCrypto.guidFromPublicKey`).
   final String deviceGuid;
+
+  /// Klucz prywatny tożsamości (base64, X25519). To on jest urządzeniem:
+  /// z niego wychodzi klucz publiczny, a z niego identyfikator.
+  final String identityKey;
   final String nickname;
   final String welcomeMessage;
   final AppTheme theme;
@@ -205,20 +264,27 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest
   /// zajęty — patrz DeviceIdentity.tcpPort.
   final int tcpPort;
+
+  /// Po ilu dniach kasować wiadomości. 0 znaczy „trzymaj bez końca".
+  /// Kasowanie dotyczy wpisów w bazie; odebrane pliki zostają na dysku.
+  final int retentionDays;
   const Setting({
     required this.id,
     required this.deviceGuid,
+    required this.identityKey,
     required this.nickname,
     required this.welcomeMessage,
     required this.theme,
     required this.language,
     required this.tcpPort,
+    required this.retentionDays,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['device_guid'] = Variable<String>(deviceGuid);
+    map['identity_key'] = Variable<String>(identityKey);
     map['nickname'] = Variable<String>(nickname);
     map['welcome_message'] = Variable<String>(welcomeMessage);
     {
@@ -230,6 +296,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       );
     }
     map['tcp_port'] = Variable<int>(tcpPort);
+    map['retention_days'] = Variable<int>(retentionDays);
     return map;
   }
 
@@ -237,11 +304,13 @@ class Setting extends DataClass implements Insertable<Setting> {
     return SettingsCompanion(
       id: Value(id),
       deviceGuid: Value(deviceGuid),
+      identityKey: Value(identityKey),
       nickname: Value(nickname),
       welcomeMessage: Value(welcomeMessage),
       theme: Value(theme),
       language: Value(language),
       tcpPort: Value(tcpPort),
+      retentionDays: Value(retentionDays),
     );
   }
 
@@ -253,6 +322,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     return Setting(
       id: serializer.fromJson<int>(json['id']),
       deviceGuid: serializer.fromJson<String>(json['deviceGuid']),
+      identityKey: serializer.fromJson<String>(json['identityKey']),
       nickname: serializer.fromJson<String>(json['nickname']),
       welcomeMessage: serializer.fromJson<String>(json['welcomeMessage']),
       theme: $SettingsTable.$convertertheme.fromJson(
@@ -262,6 +332,7 @@ class Setting extends DataClass implements Insertable<Setting> {
         serializer.fromJson<int>(json['language']),
       ),
       tcpPort: serializer.fromJson<int>(json['tcpPort']),
+      retentionDays: serializer.fromJson<int>(json['retentionDays']),
     );
   }
   @override
@@ -270,6 +341,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'deviceGuid': serializer.toJson<String>(deviceGuid),
+      'identityKey': serializer.toJson<String>(identityKey),
       'nickname': serializer.toJson<String>(nickname),
       'welcomeMessage': serializer.toJson<String>(welcomeMessage),
       'theme': serializer.toJson<int>(
@@ -279,25 +351,30 @@ class Setting extends DataClass implements Insertable<Setting> {
         $SettingsTable.$converterlanguage.toJson(language),
       ),
       'tcpPort': serializer.toJson<int>(tcpPort),
+      'retentionDays': serializer.toJson<int>(retentionDays),
     };
   }
 
   Setting copyWith({
     int? id,
     String? deviceGuid,
+    String? identityKey,
     String? nickname,
     String? welcomeMessage,
     AppTheme? theme,
     AppLanguage? language,
     int? tcpPort,
+    int? retentionDays,
   }) => Setting(
     id: id ?? this.id,
     deviceGuid: deviceGuid ?? this.deviceGuid,
+    identityKey: identityKey ?? this.identityKey,
     nickname: nickname ?? this.nickname,
     welcomeMessage: welcomeMessage ?? this.welcomeMessage,
     theme: theme ?? this.theme,
     language: language ?? this.language,
     tcpPort: tcpPort ?? this.tcpPort,
+    retentionDays: retentionDays ?? this.retentionDays,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
     return Setting(
@@ -305,6 +382,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       deviceGuid: data.deviceGuid.present
           ? data.deviceGuid.value
           : this.deviceGuid,
+      identityKey: data.identityKey.present
+          ? data.identityKey.value
+          : this.identityKey,
       nickname: data.nickname.present ? data.nickname.value : this.nickname,
       welcomeMessage: data.welcomeMessage.present
           ? data.welcomeMessage.value
@@ -312,6 +392,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       theme: data.theme.present ? data.theme.value : this.theme,
       language: data.language.present ? data.language.value : this.language,
       tcpPort: data.tcpPort.present ? data.tcpPort.value : this.tcpPort,
+      retentionDays: data.retentionDays.present
+          ? data.retentionDays.value
+          : this.retentionDays,
     );
   }
 
@@ -320,11 +403,13 @@ class Setting extends DataClass implements Insertable<Setting> {
     return (StringBuffer('Setting(')
           ..write('id: $id, ')
           ..write('deviceGuid: $deviceGuid, ')
+          ..write('identityKey: $identityKey, ')
           ..write('nickname: $nickname, ')
           ..write('welcomeMessage: $welcomeMessage, ')
           ..write('theme: $theme, ')
           ..write('language: $language, ')
-          ..write('tcpPort: $tcpPort')
+          ..write('tcpPort: $tcpPort, ')
+          ..write('retentionDays: $retentionDays')
           ..write(')'))
         .toString();
   }
@@ -333,11 +418,13 @@ class Setting extends DataClass implements Insertable<Setting> {
   int get hashCode => Object.hash(
     id,
     deviceGuid,
+    identityKey,
     nickname,
     welcomeMessage,
     theme,
     language,
     tcpPort,
+    retentionDays,
   );
   @override
   bool operator ==(Object other) =>
@@ -345,77 +432,93 @@ class Setting extends DataClass implements Insertable<Setting> {
       (other is Setting &&
           other.id == this.id &&
           other.deviceGuid == this.deviceGuid &&
+          other.identityKey == this.identityKey &&
           other.nickname == this.nickname &&
           other.welcomeMessage == this.welcomeMessage &&
           other.theme == this.theme &&
           other.language == this.language &&
-          other.tcpPort == this.tcpPort);
+          other.tcpPort == this.tcpPort &&
+          other.retentionDays == this.retentionDays);
 }
 
 class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<int> id;
   final Value<String> deviceGuid;
+  final Value<String> identityKey;
   final Value<String> nickname;
   final Value<String> welcomeMessage;
   final Value<AppTheme> theme;
   final Value<AppLanguage> language;
   final Value<int> tcpPort;
+  final Value<int> retentionDays;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.deviceGuid = const Value.absent(),
+    this.identityKey = const Value.absent(),
     this.nickname = const Value.absent(),
     this.welcomeMessage = const Value.absent(),
     this.theme = const Value.absent(),
     this.language = const Value.absent(),
     this.tcpPort = const Value.absent(),
+    this.retentionDays = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
     required String deviceGuid,
+    this.identityKey = const Value.absent(),
     required String nickname,
     this.welcomeMessage = const Value.absent(),
     this.theme = const Value.absent(),
     this.language = const Value.absent(),
     this.tcpPort = const Value.absent(),
+    this.retentionDays = const Value.absent(),
   }) : deviceGuid = Value(deviceGuid),
        nickname = Value(nickname);
   static Insertable<Setting> custom({
     Expression<int>? id,
     Expression<String>? deviceGuid,
+    Expression<String>? identityKey,
     Expression<String>? nickname,
     Expression<String>? welcomeMessage,
     Expression<int>? theme,
     Expression<int>? language,
     Expression<int>? tcpPort,
+    Expression<int>? retentionDays,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (deviceGuid != null) 'device_guid': deviceGuid,
+      if (identityKey != null) 'identity_key': identityKey,
       if (nickname != null) 'nickname': nickname,
       if (welcomeMessage != null) 'welcome_message': welcomeMessage,
       if (theme != null) 'theme': theme,
       if (language != null) 'language': language,
       if (tcpPort != null) 'tcp_port': tcpPort,
+      if (retentionDays != null) 'retention_days': retentionDays,
     });
   }
 
   SettingsCompanion copyWith({
     Value<int>? id,
     Value<String>? deviceGuid,
+    Value<String>? identityKey,
     Value<String>? nickname,
     Value<String>? welcomeMessage,
     Value<AppTheme>? theme,
     Value<AppLanguage>? language,
     Value<int>? tcpPort,
+    Value<int>? retentionDays,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
       deviceGuid: deviceGuid ?? this.deviceGuid,
+      identityKey: identityKey ?? this.identityKey,
       nickname: nickname ?? this.nickname,
       welcomeMessage: welcomeMessage ?? this.welcomeMessage,
       theme: theme ?? this.theme,
       language: language ?? this.language,
       tcpPort: tcpPort ?? this.tcpPort,
+      retentionDays: retentionDays ?? this.retentionDays,
     );
   }
 
@@ -427,6 +530,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     }
     if (deviceGuid.present) {
       map['device_guid'] = Variable<String>(deviceGuid.value);
+    }
+    if (identityKey.present) {
+      map['identity_key'] = Variable<String>(identityKey.value);
     }
     if (nickname.present) {
       map['nickname'] = Variable<String>(nickname.value);
@@ -447,6 +553,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (tcpPort.present) {
       map['tcp_port'] = Variable<int>(tcpPort.value);
     }
+    if (retentionDays.present) {
+      map['retention_days'] = Variable<int>(retentionDays.value);
+    }
     return map;
   }
 
@@ -455,11 +564,13 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     return (StringBuffer('SettingsCompanion(')
           ..write('id: $id, ')
           ..write('deviceGuid: $deviceGuid, ')
+          ..write('identityKey: $identityKey, ')
           ..write('nickname: $nickname, ')
           ..write('welcomeMessage: $welcomeMessage, ')
           ..write('theme: $theme, ')
           ..write('language: $language, ')
-          ..write('tcpPort: $tcpPort')
+          ..write('tcpPort: $tcpPort, ')
+          ..write('retentionDays: $retentionDays')
           ..write(')'))
         .toString();
   }
@@ -547,6 +658,17 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _publicKeyMeta = const VerificationMeta(
+    'publicKey',
+  );
+  @override
+  late final GeneratedColumn<String> publicKey = GeneratedColumn<String>(
+    'public_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _sessionKeyMeta = const VerificationMeta(
     'sessionKey',
   );
@@ -589,6 +711,7 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
     host,
     port,
     verified,
+    publicKey,
     sessionKey,
     firstSeen,
     lastSeen,
@@ -655,6 +778,12 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
         verified.isAcceptableOrUnknown(data['verified']!, _verifiedMeta),
       );
     }
+    if (data.containsKey('public_key')) {
+      context.handle(
+        _publicKeyMeta,
+        publicKey.isAcceptableOrUnknown(data['public_key']!, _publicKeyMeta),
+      );
+    }
     if (data.containsKey('session_key')) {
       context.handle(
         _sessionKeyMeta,
@@ -714,6 +843,10 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
         DriftSqlType.bool,
         data['${effectivePrefix}verified'],
       )!,
+      publicKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}public_key'],
+      ),
       sessionKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}session_key'],
@@ -744,8 +877,14 @@ class Peer extends DataClass implements Insertable<Peer> {
   final int port;
   final bool verified;
 
-  /// Klucz sesji uzgodniony przy parowaniu (base64, 32 bajty). Dopóki go nie
-  /// ma, ruch z tym urządzeniem leci jawnym tekstem.
+  /// Klucz publiczny rozmówcy (base64), przypięty przy pierwszym kontakcie.
+  /// Jego zmiana znaczy albo reinstalację po drugiej stronie, albo próbę
+  /// podszycia się — w obu przypadkach użytkownik ma to zobaczyć.
+  final String? publicKey;
+
+  /// Ślad po parowaniu z protokołu 4 (klucz sesji na zawsze). Od protokołu 5
+  /// klucz sesji jest efemeryczny i nie trafia do bazy; kolumna zostaje na
+  /// czas migracji i zniknie w kolejnym schemacie.
   final String? sessionKey;
   final DateTime firstSeen;
   final DateTime lastSeen;
@@ -757,6 +896,7 @@ class Peer extends DataClass implements Insertable<Peer> {
     required this.host,
     required this.port,
     required this.verified,
+    this.publicKey,
     this.sessionKey,
     required this.firstSeen,
     required this.lastSeen,
@@ -771,6 +911,9 @@ class Peer extends DataClass implements Insertable<Peer> {
     map['host'] = Variable<String>(host);
     map['port'] = Variable<int>(port);
     map['verified'] = Variable<bool>(verified);
+    if (!nullToAbsent || publicKey != null) {
+      map['public_key'] = Variable<String>(publicKey);
+    }
     if (!nullToAbsent || sessionKey != null) {
       map['session_key'] = Variable<String>(sessionKey);
     }
@@ -788,6 +931,9 @@ class Peer extends DataClass implements Insertable<Peer> {
       host: Value(host),
       port: Value(port),
       verified: Value(verified),
+      publicKey: publicKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(publicKey),
       sessionKey: sessionKey == null && nullToAbsent
           ? const Value.absent()
           : Value(sessionKey),
@@ -809,6 +955,7 @@ class Peer extends DataClass implements Insertable<Peer> {
       host: serializer.fromJson<String>(json['host']),
       port: serializer.fromJson<int>(json['port']),
       verified: serializer.fromJson<bool>(json['verified']),
+      publicKey: serializer.fromJson<String?>(json['publicKey']),
       sessionKey: serializer.fromJson<String?>(json['sessionKey']),
       firstSeen: serializer.fromJson<DateTime>(json['firstSeen']),
       lastSeen: serializer.fromJson<DateTime>(json['lastSeen']),
@@ -825,6 +972,7 @@ class Peer extends DataClass implements Insertable<Peer> {
       'host': serializer.toJson<String>(host),
       'port': serializer.toJson<int>(port),
       'verified': serializer.toJson<bool>(verified),
+      'publicKey': serializer.toJson<String?>(publicKey),
       'sessionKey': serializer.toJson<String?>(sessionKey),
       'firstSeen': serializer.toJson<DateTime>(firstSeen),
       'lastSeen': serializer.toJson<DateTime>(lastSeen),
@@ -839,6 +987,7 @@ class Peer extends DataClass implements Insertable<Peer> {
     String? host,
     int? port,
     bool? verified,
+    Value<String?> publicKey = const Value.absent(),
     Value<String?> sessionKey = const Value.absent(),
     DateTime? firstSeen,
     DateTime? lastSeen,
@@ -850,6 +999,7 @@ class Peer extends DataClass implements Insertable<Peer> {
     host: host ?? this.host,
     port: port ?? this.port,
     verified: verified ?? this.verified,
+    publicKey: publicKey.present ? publicKey.value : this.publicKey,
     sessionKey: sessionKey.present ? sessionKey.value : this.sessionKey,
     firstSeen: firstSeen ?? this.firstSeen,
     lastSeen: lastSeen ?? this.lastSeen,
@@ -865,6 +1015,7 @@ class Peer extends DataClass implements Insertable<Peer> {
       host: data.host.present ? data.host.value : this.host,
       port: data.port.present ? data.port.value : this.port,
       verified: data.verified.present ? data.verified.value : this.verified,
+      publicKey: data.publicKey.present ? data.publicKey.value : this.publicKey,
       sessionKey: data.sessionKey.present
           ? data.sessionKey.value
           : this.sessionKey,
@@ -883,6 +1034,7 @@ class Peer extends DataClass implements Insertable<Peer> {
           ..write('host: $host, ')
           ..write('port: $port, ')
           ..write('verified: $verified, ')
+          ..write('publicKey: $publicKey, ')
           ..write('sessionKey: $sessionKey, ')
           ..write('firstSeen: $firstSeen, ')
           ..write('lastSeen: $lastSeen')
@@ -899,6 +1051,7 @@ class Peer extends DataClass implements Insertable<Peer> {
     host,
     port,
     verified,
+    publicKey,
     sessionKey,
     firstSeen,
     lastSeen,
@@ -914,6 +1067,7 @@ class Peer extends DataClass implements Insertable<Peer> {
           other.host == this.host &&
           other.port == this.port &&
           other.verified == this.verified &&
+          other.publicKey == this.publicKey &&
           other.sessionKey == this.sessionKey &&
           other.firstSeen == this.firstSeen &&
           other.lastSeen == this.lastSeen);
@@ -927,6 +1081,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
   final Value<String> host;
   final Value<int> port;
   final Value<bool> verified;
+  final Value<String?> publicKey;
   final Value<String?> sessionKey;
   final Value<DateTime> firstSeen;
   final Value<DateTime> lastSeen;
@@ -938,6 +1093,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     this.host = const Value.absent(),
     this.port = const Value.absent(),
     this.verified = const Value.absent(),
+    this.publicKey = const Value.absent(),
     this.sessionKey = const Value.absent(),
     this.firstSeen = const Value.absent(),
     this.lastSeen = const Value.absent(),
@@ -950,6 +1106,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     required String host,
     required int port,
     this.verified = const Value.absent(),
+    this.publicKey = const Value.absent(),
     this.sessionKey = const Value.absent(),
     required DateTime firstSeen,
     required DateTime lastSeen,
@@ -967,6 +1124,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     Expression<String>? host,
     Expression<int>? port,
     Expression<bool>? verified,
+    Expression<String>? publicKey,
     Expression<String>? sessionKey,
     Expression<DateTime>? firstSeen,
     Expression<DateTime>? lastSeen,
@@ -979,6 +1137,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
       if (host != null) 'host': host,
       if (port != null) 'port': port,
       if (verified != null) 'verified': verified,
+      if (publicKey != null) 'public_key': publicKey,
       if (sessionKey != null) 'session_key': sessionKey,
       if (firstSeen != null) 'first_seen': firstSeen,
       if (lastSeen != null) 'last_seen': lastSeen,
@@ -993,6 +1152,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     Value<String>? host,
     Value<int>? port,
     Value<bool>? verified,
+    Value<String?>? publicKey,
     Value<String?>? sessionKey,
     Value<DateTime>? firstSeen,
     Value<DateTime>? lastSeen,
@@ -1005,6 +1165,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
       host: host ?? this.host,
       port: port ?? this.port,
       verified: verified ?? this.verified,
+      publicKey: publicKey ?? this.publicKey,
       sessionKey: sessionKey ?? this.sessionKey,
       firstSeen: firstSeen ?? this.firstSeen,
       lastSeen: lastSeen ?? this.lastSeen,
@@ -1035,6 +1196,9 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     if (verified.present) {
       map['verified'] = Variable<bool>(verified.value);
     }
+    if (publicKey.present) {
+      map['public_key'] = Variable<String>(publicKey.value);
+    }
     if (sessionKey.present) {
       map['session_key'] = Variable<String>(sessionKey.value);
     }
@@ -1057,6 +1221,7 @@ class PeersCompanion extends UpdateCompanion<Peer> {
           ..write('host: $host, ')
           ..write('port: $port, ')
           ..write('verified: $verified, ')
+          ..write('publicKey: $publicKey, ')
           ..write('sessionKey: $sessionKey, ')
           ..write('firstSeen: $firstSeen, ')
           ..write('lastSeen: $lastSeen')
@@ -2166,20 +2331,24 @@ abstract class _$ChattDb extends GeneratedDatabase {
 typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<int> id,
   required String deviceGuid,
+  Value<String> identityKey,
   required String nickname,
   Value<String> welcomeMessage,
   Value<AppTheme> theme,
   Value<AppLanguage> language,
   Value<int> tcpPort,
+  Value<int> retentionDays,
 });
 typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<int> id,
   Value<String> deviceGuid,
+  Value<String> identityKey,
   Value<String> nickname,
   Value<String> welcomeMessage,
   Value<AppTheme> theme,
   Value<AppLanguage> language,
   Value<int> tcpPort,
+  Value<int> retentionDays,
 });
 
 class $$SettingsTableFilterComposer
@@ -2198,6 +2367,11 @@ class $$SettingsTableFilterComposer
 
   ColumnFilters<String> get deviceGuid => $composableBuilder(
     column: $table.deviceGuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2227,6 +2401,11 @@ class $$SettingsTableFilterComposer
     column: $table.tcpPort,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<int> get retentionDays => $composableBuilder(
+    column: $table.retentionDays,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsTableOrderingComposer
@@ -2245,6 +2424,11 @@ class $$SettingsTableOrderingComposer
 
   ColumnOrderings<String> get deviceGuid => $composableBuilder(
     column: $table.deviceGuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2272,6 +2456,11 @@ class $$SettingsTableOrderingComposer
     column: $table.tcpPort,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get retentionDays => $composableBuilder(
+    column: $table.retentionDays,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableAnnotationComposer
@@ -2291,6 +2480,11 @@ class $$SettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get identityKey => $composableBuilder(
+    column: $table.identityKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get nickname =>
       $composableBuilder(column: $table.nickname, builder: (column) => column);
 
@@ -2307,6 +2501,11 @@ class $$SettingsTableAnnotationComposer
 
   GeneratedColumn<int> get tcpPort =>
       $composableBuilder(column: $table.tcpPort, builder: (column) => column);
+
+  GeneratedColumn<int> get retentionDays => $composableBuilder(
+    column: $table.retentionDays,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableManager
@@ -2339,37 +2538,45 @@ class $$SettingsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> deviceGuid = const Value.absent(),
+                Value<String> identityKey = const Value.absent(),
                 Value<String> nickname = const Value.absent(),
                 Value<String> welcomeMessage = const Value.absent(),
                 Value<AppTheme> theme = const Value.absent(),
                 Value<AppLanguage> language = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
+                Value<int> retentionDays = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 deviceGuid: deviceGuid,
+                identityKey: identityKey,
                 nickname: nickname,
                 welcomeMessage: welcomeMessage,
                 theme: theme,
                 language: language,
                 tcpPort: tcpPort,
+                retentionDays: retentionDays,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 required String deviceGuid,
+                Value<String> identityKey = const Value.absent(),
                 required String nickname,
                 Value<String> welcomeMessage = const Value.absent(),
                 Value<AppTheme> theme = const Value.absent(),
                 Value<AppLanguage> language = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
+                Value<int> retentionDays = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 deviceGuid: deviceGuid,
+                identityKey: identityKey,
                 nickname: nickname,
                 welcomeMessage: welcomeMessage,
                 theme: theme,
                 language: language,
                 tcpPort: tcpPort,
+                retentionDays: retentionDays,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -2401,6 +2608,7 @@ typedef $$PeersTableCreateCompanionBuilder = PeersCompanion Function({
   required String host,
   required int port,
   Value<bool> verified,
+  Value<String?> publicKey,
   Value<String?> sessionKey,
   required DateTime firstSeen,
   required DateTime lastSeen,
@@ -2413,6 +2621,7 @@ typedef $$PeersTableUpdateCompanionBuilder = PeersCompanion Function({
   Value<String> host,
   Value<int> port,
   Value<bool> verified,
+  Value<String?> publicKey,
   Value<String?> sessionKey,
   Value<DateTime> firstSeen,
   Value<DateTime> lastSeen,
@@ -2481,6 +2690,11 @@ class $$PeersTableFilterComposer extends Composer<_$ChattDb, $PeersTable> {
 
   ColumnFilters<bool> get verified => $composableBuilder(
     column: $table.verified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get publicKey => $composableBuilder(
+    column: $table.publicKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2568,6 +2782,11 @@ class $$PeersTableOrderingComposer extends Composer<_$ChattDb, $PeersTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get publicKey => $composableBuilder(
+    column: $table.publicKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get sessionKey => $composableBuilder(
     column: $table.sessionKey,
     builder: (column) => ColumnOrderings(column),
@@ -2614,6 +2833,9 @@ class $$PeersTableAnnotationComposer extends Composer<_$ChattDb, $PeersTable> {
 
   GeneratedColumn<bool> get verified =>
       $composableBuilder(column: $table.verified, builder: (column) => column);
+
+  GeneratedColumn<String> get publicKey =>
+      $composableBuilder(column: $table.publicKey, builder: (column) => column);
 
   GeneratedColumn<String> get sessionKey => $composableBuilder(
     column: $table.sessionKey,
@@ -2687,6 +2909,7 @@ class $$PeersTableTableManager
                 Value<String> host = const Value.absent(),
                 Value<int> port = const Value.absent(),
                 Value<bool> verified = const Value.absent(),
+                Value<String?> publicKey = const Value.absent(),
                 Value<String?> sessionKey = const Value.absent(),
                 Value<DateTime> firstSeen = const Value.absent(),
                 Value<DateTime> lastSeen = const Value.absent(),
@@ -2698,6 +2921,7 @@ class $$PeersTableTableManager
                 host: host,
                 port: port,
                 verified: verified,
+                publicKey: publicKey,
                 sessionKey: sessionKey,
                 firstSeen: firstSeen,
                 lastSeen: lastSeen,
@@ -2711,6 +2935,7 @@ class $$PeersTableTableManager
                 required String host,
                 required int port,
                 Value<bool> verified = const Value.absent(),
+                Value<String?> publicKey = const Value.absent(),
                 Value<String?> sessionKey = const Value.absent(),
                 required DateTime firstSeen,
                 required DateTime lastSeen,
@@ -2722,6 +2947,7 @@ class $$PeersTableTableManager
                 host: host,
                 port: port,
                 verified: verified,
+                publicKey: publicKey,
                 sessionKey: sessionKey,
                 firstSeen: firstSeen,
                 lastSeen: lastSeen,

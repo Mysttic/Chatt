@@ -12,7 +12,10 @@
 class FlutterWindow : public Win32Window {
  public:
   // Creates a new FlutterWindow hosting a Flutter view running |project|.
-  explicit FlutterWindow(const flutter::DartProject& project);
+  // |start_hidden| pomija pierwsze pokazanie okna: aplikacja podniesiona
+  // przez autostart ma wylądować od razu w zasobniku.
+  explicit FlutterWindow(const flutter::DartProject& project,
+                         bool start_hidden = false);
   virtual ~FlutterWindow();
 
  protected:
@@ -28,6 +31,9 @@ class FlutterWindow : public Win32Window {
 
   // The Flutter instance hosted by this window.
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
+
+  // Czy pominąć pierwsze pokazanie okna (start do zasobnika).
+  bool start_hidden_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

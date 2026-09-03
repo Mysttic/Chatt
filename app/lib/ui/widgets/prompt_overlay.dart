@@ -140,7 +140,9 @@ class _PairingCardState extends State<_PairingCard> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    context.l10n.pairRequest(widget.pairing.peerName),
+                    widget.pairing.fromScan
+                        ? context.l10n.pairScannedTitle(widget.pairing.peerName)
+                        : context.l10n.pairRequest(widget.pairing.peerName),
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
@@ -156,7 +158,9 @@ class _PairingCardState extends State<_PairingCard> {
               ),
             ],
             const SizedBox(height: 8),
-            Text(context.l10n.pairCompareHint),
+            Text(widget.pairing.fromScan
+                ? context.l10n.pairScannedBody
+                : context.l10n.pairCompareHint),
             const SizedBox(height: 8),
             // Kod rozstrzelony i wyśrodkowany: ma się dać porównać rzutem oka
             // na dwa ekrany obok siebie.
@@ -188,14 +192,18 @@ class _PairingCardState extends State<_PairingCard> {
                       : () => widget.services.cancelPairing(
                             widget.pairing.peerGuid,
                           ),
-                  child: Text(context.l10n.pairCodesDiffer),
+                  child: Text(widget.pairing.fromScan
+                      ? context.l10n.cancel
+                      : context.l10n.pairCodesDiffer),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
                   onPressed: _checking ? null : _confirm,
                   child: Text(_checking
                       ? context.l10n.pairChecking
-                      : context.l10n.pairCodesMatch),
+                      : widget.pairing.fromScan
+                          ? context.l10n.pairScannedConfirm
+                          : context.l10n.pairCodesMatch),
                 ),
               ],
             ),

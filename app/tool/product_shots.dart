@@ -15,7 +15,9 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
+import 'package:flutter/material.dart' show Canvas, Color, Offset, Paint, Rect;
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -109,6 +111,89 @@ Future<void> napisz(String tekst) async {
   // więc po wysłaniu ją chowamy.
   await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
   await Future<void>.delayed(const Duration(seconds: 2));
+}
+
+/// Wpisuje tekst w pierwsze pole edycji na ekranie. W trybie szukania jest
+/// nim pole w pasku u góry — leży w drzewie wyżej niż pole wiadomości.
+Future<void> wpisz(String tekst) async {
+  final pole = await znajdzKlase('android.widget.EditText');
+  if (pole == null) throw StateError('Nie ma pola do wpisania');
+  await adb(['shell', 'input', 'tap', '${pole.$1}', '${pole.$2}']);
+  await adb(['shell', 'input', 'text', tekst.replaceAll(' ', '%s')]);
+  await Future<void>.delayed(const Duration(seconds: 1));
+}
+
+/// Prostokąt węzła o opisie zawierającym [etykieta].
+Future<(int, int, int, int)?> ramka(String etykieta,
+    {Duration timeout = const Duration(seconds: 10)}) async {
+  final koniec = DateTime.now().add(timeout);
+  final wzorzec = RegExp('content-desc="[^"]*${RegExp.escape(etykieta)}');
+  do {
+    for (final node in (await drzewo()).split('<node ')) {
+      if (!wzorzec.hasMatch(node)) continue;
+      final b =
+          RegExp(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"').firstMatch(node);
+      if (b == null) continue;
+      return (
+        int.parse(b.group(1)!),
+        int.parse(b.group(2)!),
+        int.parse(b.group(3)!),
+        int.parse(b.group(4)!),
+      );
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+  } while (DateTime.now().isBefore(koniec));
+  return null;
+}
+
+/// Przytrzymanie palcem. Dwie rzeczy, które trzeba tu zrobić inaczej niż
+/// w [stuknij]:
+///
+/// 1. Osobne `motionevent DOWN` i `UP` z prawdziwą przerwą między nimi.
+///    `input swipe` wstrzykuje całą gestykulację na raz i licznik
+///    przytrzymania po stronie Fluttera (zwykły Timer) nie zdąży się odpalić.
+/// 2. [poziom] zamiast środka węzła. Dymek własnej wiadomości jest dosunięty
+///    do prawej, a semantyka Fluttera obejmuje cały wiersz listy — środek
+///    takiego węzła wypada w pustym miejscu obok dymka.
+Future<void> przytrzymaj(String etykieta, {double poziom = 0.5}) async {
+  // Układ musi się uspokoić: współrzędne z drzewa sprzed animacji trafiają
+  // w miejsce, którego już tam nie ma.
+  await Future<void>.delayed(const Duration(seconds: 2));
+  final r = await ramka(etykieta);
+  if (r == null) throw StateError('Nie ma na ekranie: $etykieta');
+  final x = '${(r.$1 + (r.$3 - r.$1) * poziom).round()}';
+  final y = '${(r.$2 + r.$4) ~/ 2}';
+  // Źródło podane wprost: bez niego `input` wybiera domyślne (mysz).
+  await adb(['shell', 'input', 'touchscreen', 'motionevent', 'DOWN', x, y]);
+  await Future<void>.delayed(const Duration(milliseconds: 1200));
+  await adb(['shell', 'input', 'touchscreen', 'motionevent', 'UP', x, y]);
+  await Future<void>.delayed(const Duration(seconds: 1));
+}
+
+/// Obrazek na demo miniatury. Rysowany, a nie dołączany do repozytorium —
+/// zrzuty mają dać się odtworzyć bez wlekania za sobą cudzych zdjęć.
+Future<List<int>> demoObrazek() async {
+  const szerokosc = 720.0;
+  const wysokosc = 480.0;
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder,
+      const Rect.fromLTWH(0, 0, szerokosc, wysokosc));
+  canvas.drawRect(
+    const Rect.fromLTWH(0, 0, szerokosc, wysokosc),
+    Paint()
+      ..shader = ui.Gradient.linear(
+        Offset.zero,
+        const Offset(szerokosc, wysokosc),
+        const [Color(0xFF2E6BE6), Color(0xFF35C4C4)],
+      ),
+  );
+  canvas.drawCircle(const Offset(520, 140), 70,
+      Paint()..color = const Color(0xFFFFE082));
+  final obraz = await recorder
+      .endRecording()
+      .toImage(szerokosc.toInt(), wysokosc.toInt());
+  final dane = await obraz.toByteData(format: ui.ImageByteFormat.png);
+  return dane!.buffer.asUint8List();
 }
 
 Future<(int, int)?> znajdzKlase(String klasa,
@@ -245,9 +330,42 @@ void main() {
     await zrzut('android_prosba_o_plik');
     await stuknij('Akceptuj');
     await wysylka;
+
+    // --- Miniatura obrazka -------------------------------------------------
+    // Drugi transfer idzie zaraz po pierwszym, przed pisaniem: klawiatura
+    // zasłania kartę z pytaniem o zgodę i kolejny plik nie miałby jak wejść.
+    final obrazek = File(p.join(work.path, 'zachod-slonca.png'));
+    obrazek.writeAsBytesSync(await demoObrazek());
+    final wysylkaObrazka = anna.sendFile(rozmowaAnny, obrazek.path);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    await stuknij('Akceptuj');
+    await wysylkaObrazka;
+    await Future<void>.delayed(const Duration(seconds: 2));
+    await zrzut('android_miniatura_obrazka');
+
     await napisz('Mam, dzieki!');
     await Future<void>.delayed(const Duration(seconds: 2));
     await zrzut('android_rozmowa_z_plikiem');
+
+    // --- Menu wiadomości (kopiowanie, kasowanie u siebie) ------------------
+    await przytrzymaj('Mam, dzieki', poziom: 0.85);
+    // Bez tego sprawdzenia nieotwarte menu kończy się cichym cofnięciem
+    // z ekranu rozmowy i mylącym błędem kilka kroków dalej.
+    if (await znajdz('Usuń wiadomość', timeout: const Duration(seconds: 3)) ==
+        null) {
+      throw StateError('Przytrzymanie dymka nie otworzyło menu');
+    }
+    await zrzut('android_menu_wiadomosci');
+    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+
+    // --- Szukanie w rozmowie -----------------------------------------------
+    await stuknij('Szukaj w rozmowie');
+    await wpisz('zdjecia');
+    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    await zrzut('android_szukanie_w_rozmowie');
+    await stuknij('Zamknij');
 
     // --- Urządzenia w pobliżu ---------------------------------------------
     await stuknij('Wstecz');

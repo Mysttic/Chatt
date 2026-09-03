@@ -5,6 +5,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:chatt/core/crypto.dart';
+import 'package:chatt/core/identity.dart';
+import 'package:chatt/core/pair_link.dart';
 import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
@@ -143,6 +145,44 @@ void main() {
     final bobAtAlice = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
     expect(await alice.startPairing(bobAtAlice!), isNotNull);
     expect(bob.pendingPairings.value.single.alreadyPaired, isFalse);
+  });
+
+  test('zeskanowanie kodu potwierdza od razu u skanującego', () async {
+    final kod = PairLink.encode(
+        identity: bob.identity, address: '127.0.0.1');
+
+    final peer = await alice.pairByScan(PairLink.decode(kod)!);
+    expect(peer, isNotNull);
+    expect(peer!.verified, isTrue,
+        reason: 'skanujący widział tamten ekran, więc ma pewność');
+    expect(peer.publicKey, isNotNull, reason: 'klucz przypięty z kodu');
+
+    // U Bartka pojawia się pytanie, bo kod z ekranu mógł zobaczyć ktoś inny.
+    expect(bob.pendingPairings.value.single.fromScan, isTrue);
+    expect((await bob.db.peerByGuid(alice.identity.guid))!.verified, isFalse,
+        reason: 'dopóki nie potwierdzi, tarcza u niego jest szara');
+
+    expect(await bob.confirmPairing(alice.identity.guid), PairOutcome.accepted);
+    expect((await bob.db.peerByGuid(alice.identity.guid))!.verified, isTrue);
+    expect(bob.pendingPairings.value, isEmpty);
+  });
+
+  test('kod z cudzym kluczem pod tym adresem jest odrzucany', () async {
+    // Napastnik pokazuje kod ze swoim kluczem, ale adresem Bartka: liczy na
+    // to, że skanujący przypnie jego klucz do rozmowy z Bartkiem.
+    final obcy = await ChattCrypto.newKeyPair();
+    final podszyty = DeviceIdentity(
+      guid: ChattCrypto.guidFromPublicKey(await ChattCrypto.publicKeyOf(obcy)),
+      name: 'Bartek',
+      welcomeMessage: '',
+      tcpPort: bob.server.port!,
+      publicKey: await ChattCrypto.publicKeyOf(obcy),
+    );
+    final kod = PairLink.encode(identity: podszyty, address: '127.0.0.1');
+
+    expect(await alice.pairByScan(PairLink.decode(kod)!), isNull,
+        reason: 'pod tym adresem odpowiada urządzenie z innym kluczem');
+    expect(await alice.db.peerByGuid(podszyty.guid), isNull);
   });
 
   test('parowanie z niedostępnym urządzeniem zwraca null', () async {

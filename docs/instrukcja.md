@@ -54,10 +54,26 @@ potem leci do rozmówcy. Jeśli w międzyczasie zmienił mu się adres IP,
 aplikacja sama przeszuka sieć po jego identyfikatorze i ponowi wysyłkę pod
 nowym adresem.
 
+**Przytrzymanie dymka** daje menu: skopiowanie treści i skasowanie wiadomości.
+Kasowanie działa tylko u Ciebie — protokół nie ma jak kazać drugiej stronie
+zapomnieć czegoś, co już dostała, i aplikacja mówi to wprost zamiast obiecywać
+„usuń u wszystkich".
+
+![Menu wiadomości](screenshots/produkt/android_menu_wiadomosci.png)
+
+**Lupa w pasku** szuka w otwartej rozmowie: lista zostawia same pasujące
+wiadomości, a trafienie jest podświetlone. Ta sama lupa na liście rozmów
+filtruje ją po nazwie rozmówcy i ostatniej wiadomości.
+
+![Szukanie](screenshots/produkt/android_szukanie_w_rozmowie.png)
+
 ## Pliki
 
-Spinacz przy polu tekstowym otwiera systemowy wybór pliku. Odbiorca **najpierw
-dostaje pytanie**, czy chce ten plik przyjąć — dopiero po zgodzie lecą bajty.
+Spinacz przy polu tekstowym otwiera systemowy wybór pliku; **można zaznaczyć
+kilka naraz**. Na komputerze pliki da się też po prostu **przeciągnąć na okno
+rozmowy**. Odbiorca **najpierw dostaje pytanie**, czy chce ten plik przyjąć —
+dopiero po zgodzie lecą bajty. Przy kilku plikach pytanie przychodzi osobno
+dla każdego, po kolei.
 
 ![Prośba o plik](screenshots/produkt/android_prosba_o_plik.png)
 
@@ -72,29 +88,51 @@ dostaje pytanie**, czy chce ten plik przyjąć — dopiero po zgodzie lecą bajt
   przesyła ani bajtu — odbiorca odpowiada „już to mam".
 
 Odebrane pliki lądują w katalogu aplikacji. Kliknięcie w dymek otwiera plik,
-a przytrzymanie daje „Pokaż folder", „Udostępnij" i „Kopiuj ścieżkę".
+a przytrzymanie daje „Pokaż folder", „Udostępnij", „Kopiuj ścieżkę"
+i „Usuń wiadomość".
 
-## Parowanie i szyfrowanie
+Obrazki dostają w rozmowie **miniaturę** — ale dopiero po przyjęciu pliku.
+Dekodowanie obrazka od obcego to powierzchnia ataku, więc dekoder dostaje
+wyłącznie to, na co sam się zgodziłeś i co już leży na dysku.
 
-Dopóki urządzenia nie są sparowane, rozmawiają jawnym tekstem, a nazwa
-urządzenia jest tylko napisem — każdy może sobie ustawić dowolny. Dlatego
-prośba o plik od niesparowanego urządzenia wyświetla ostrzeżenie.
+![Miniatura obrazka](screenshots/produkt/android_miniatura_obrazka.png)
 
-Tarcza w nagłówku rozmowy zaczyna parowanie. **Oba urządzenia pokazują wtedy
-ten sam sześciocyfrowy kod.** Porównaj je wzrokiem i kliknij „Zgadza się" na
-obu.
+## Szyfrowanie i potwierdzanie tożsamości
+
+**Rozmowa jest szyfrowana od pierwszej wiadomości**, także z urządzeniem,
+którego jeszcze nie potwierdziłeś. Potwierdzenie odpowiada na inne pytanie:
+nie „czy ktoś to przeczyta" (nie przeczyta), tylko „czy po drugiej stronie
+jest ta osoba, o której myślę".
+
+Tarcza w nagłówku rozmowy otwiera panel bezpieczeństwa: stan szyfrowania
+i odciski obu kluczy. Odcisk wynika z klucza urządzenia i nigdy się nie
+zmienia, więc możesz go odczytać na głos i sprawdzić na drugim ekranie
+w dowolnym momencie.
+
+Do potwierdzenia tożsamości są dwie drogi:
+
+- **Kod QR** (szybsza i pewniejsza). Jedno urządzenie pokazuje kod, drugie go
+  skanuje. Skanujący ma pewność od razu, bo widział tamten ekran. Urządzenie,
+  które kod pokazywało, zapyta jeszcze „czy to Ty właśnie skanowałeś" —
+  potwierdź tylko wtedy, gdy faktycznie Ty.
+- **Porównanie kodu** (gdy nie ma aparatu, np. komputer z komputerem). **Oba
+  urządzenia pokazują ten sam sześciocyfrowy kod.** Porównaj je wzrokiem
+  i kliknij „Zgadza się" na obu.
 
 ![Kod do porównania](screenshots/android/and16_kod_do_porownania.png)
 
 - Kod nie jest hasłem i nie idzie przez sieć: wychodzi z uzgodnienia kluczy,
-  które robią między sobą oba urządzenia.
+  które robią między sobą oba urządzenia. W kodzie QR też nie ma nic tajnego —
+  liczy się to, że drugie urządzenie zobaczyło go na Twoim ekranie.
 - Jeśli kody się **różnią**, ktoś siedzi w środku połączenia. Kliknij „Nie
   zgadza się" i sprawdź sieć.
-- Po sparowaniu tarcza robi się zielona, a cały ruch (wiadomości, zapowiedzi
-  plików i treść plików) jest szyfrowany. Od sparowanego urządzenia aplikacja
-  **nie przyjmie już ruchu jawnego**, więc zielona tarcza czegoś dowodzi.
-- Prośba o ponowne sparowanie znanego już urządzenia jest wyraźnie oznaczona
-  na czerwono, bo zgoda podmieniłaby klucz.
+- Po potwierdzeniu tarcza robi się zielona. Szyfrowanie działało już wcześniej
+  — zmienia się to, że od teraz wiadomo, do kogo należy klucz po drugiej
+  stronie.
+- Nazwa urządzenia to tylko napis, który każdy może sobie ustawić dowolnie.
+  Dlatego prośba o plik od urządzenia bez potwierdzonej tożsamości wyświetla
+  ostrzeżenie, a prośba o ponowne potwierdzenie znanego już urządzenia jest
+  oznaczona na czerwono.
 
 ## Nasłuch w tle na Androidzie
 
@@ -110,6 +148,22 @@ producentów dokłada własne mechanizmy ubijania aplikacji.
 
 ![Ustawienia](screenshots/produkt/android_ustawienia.png)
 
+## Nasłuch w tle na Windowsie
+
+Zamknięcie okna krzyżykiem **chowa Chatta do zasobnika** zamiast kończyć
+program: nasłuch działa dalej, a okno wraca kliknięciem ikony. Wyjście
+z programu jest w menu tej ikony (prawy przycisk → „Zamknij Chatt").
+
+Windows 11 chowa nowe ikony pod strzałkę „pokaż ukryte ikony". Żeby Chatt
+siedział widocznie na pasku, przeciągnij go stamtąd na pasek albo przypnij
+w ustawieniach zasobnika systemu.
+
+W Ustawieniach, w sekcji **Windows**, jest przełącznik **„Uruchamiaj razem
+z Windowsem"**. Włączony sprawia, że aplikacja wstaje po zalogowaniu i od razu
+siada w zasobniku, bez otwierania okna. Pod spodem to zwykły wpis autostartu
+konta użytkownika — bez usług i bez uprawnień administratora, więc da się go
+skasować także ręcznie.
+
 ## Wygląd i język
 
 W Ustawieniach wybierasz motyw (systemowy, jasny, ciemny) i język (systemowy,
@@ -117,6 +171,29 @@ polski, angielski). Oba wybory siedzą w bazie, więc przeżywają restart.
 Powiadomienia usługi w tle też idą za językiem aplikacji, a nie systemu.
 
 ![Tryb ciemny](screenshots/produkt/android_lista_rozmow_ciemny.png)
+
+## Prywatność: co leży na dysku
+
+Historia rozmów leży na dysku **zaszyfrowana**, a klucz do niej trzyma schowek
+systemowy (Keystore na Androidzie, DPAPI na Windowsie). Skopiowanie samego
+pliku bazy nic nie daje. Ustawienia mówią o tym wprost, razem z ostrzeżeniem,
+gdyby na danym urządzeniu schowek nie zadziałał.
+
+![Prywatność](screenshots/android/and20_prywatnosc.png)
+
+Tam samym są dwie rzeczy do zrobienia ręcznie:
+
+- **Kasuj wiadomości starsze niż** — do wyboru 7, 30, 90 albo 365 dni.
+  Domyślnie wyłączone. Aplikacja sprząta przy starcie, po zmianie ustawienia
+  i co sześć godzin.
+- **Wyczyść historię** — kasuje wszystkie wiadomości i rozmowy od razu.
+  Nieodwracalne, więc pyta o potwierdzenie. Urządzenia razem z potwierdzoną
+  tożsamością zostają, więc nie trzeba się parować od nowa.
+
+![Wyczyść historię](screenshots/android/and21_wyczysc_historie.png)
+
+W obu przypadkach **odebrane pliki zostają na dysku**. Aplikacja kasuje własne
+wpisy, a nie zawartość, którą użytkownik otwiera innymi programami.
 
 ## Dwie instancje na jednym komputerze
 

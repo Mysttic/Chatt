@@ -128,13 +128,57 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get copied => 'Copied';
+
+  @override
+  String get securityNoEncryptionTitle => 'No encryption';
+
+  @override
+  String get securityNoEncryptionBody =>
+      'The other side runs an older version of Chatt that cannot encrypt. This conversation will not work until you update it.';
+
+  @override
+  String get securityEncryptedTitle => 'Encrypted, identity unconfirmed';
+
+  @override
+  String get securityEncryptedBody =>
+      'Nobody on the network can read this conversation. You have no confirmation yet that the other side is who you think — anyone can pick a device name.';
+
+  @override
+  String get securityVerifiedTitle => 'Encrypted and confirmed';
+
+  @override
+  String get securityVerifiedBody =>
+      'You compared a code, so it is known who the key on the other side belongs to.';
+
+  @override
+  String get fingerprintMine => 'This device\'s fingerprint';
+
+  @override
+  String fingerprintOf(Object name) {
+    return '$name\'s fingerprint';
+  }
+
+  @override
+  String get fingerprintHelp =>
+      'The fingerprint comes from the device key and never changes. Read it out loud and check the other side sees the same — if it does, nobody is in the middle.';
+
+  @override
   String get peerOnline => 'available';
 
   @override
   String get peerOffline => 'unavailable';
 
   @override
-  String get pairTooltipPaired => 'Device paired with a code';
+  String get shieldNoEncryption =>
+      'No encryption — the other side runs an older version';
+
+  @override
+  String get shieldEncrypted =>
+      'Encrypted, identity unconfirmed. Tap to compare a code';
+
+  @override
+  String get shieldVerified => 'Encrypted and confirmed';
 
   @override
   String get pairTooltip => 'Pair by comparing a code';
@@ -183,12 +227,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pairAgainWarning =>
-      'This device is already paired. Accepting will replace the key you talk to it with. Anyone can send this request under the same name, so only do it if you asked for it yourself.';
+      'This device\'s identity is already confirmed. Anyone can send this request under the same name, so only confirm if you asked for it yourself.';
 
   @override
   String pairRequest(Object name) {
     return '$name wants to pair';
   }
+
+  @override
+  String get qrShowTitle => 'Show QR code';
+
+  @override
+  String get qrShowBody =>
+      'Scan this code with the other device. The code holds no secret — what counts is that the other device saw it on this screen.';
+
+  @override
+  String get qrOtherAddress => 'Another address';
+
+  @override
+  String get qrScanTitle => 'Scan QR code';
+
+  @override
+  String get qrScanHint => 'Point at the code shown on the other device';
+
+  @override
+  String get qrScanFailed =>
+      'No device with that key answers at the address from the code. It may be out of date — show it again.';
+
+  @override
+  String pairScannedTitle(Object name) {
+    return '$name scanned the code from this screen';
+  }
+
+  @override
+  String get pairScannedBody =>
+      'Confirm only if it was you scanning just now. Someone else could have seen the code on screen, and the app cannot tell the difference.';
+
+  @override
+  String get pairScannedConfirm => 'That was me';
 
   @override
   String get pairCompareHint =>
@@ -218,6 +294,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pairPeerUnreachable => 'The other device is not answering';
 
   @override
+  String get dropFilesHint => 'Drop the files to send them';
+
+  @override
+  String get copyText => 'Copy text';
+
+  @override
+  String get deleteMessage => 'Delete message';
+
+  @override
+  String get deleteMessageHint => 'It disappears from this device only';
+
+  @override
+  String get messageDeleted => 'Message deleted from this device';
+
+  @override
+  String get searchTooltip => 'Search this conversation';
+
+  @override
+  String get searchHint => 'Search this conversation…';
+
+  @override
+  String get searchConversationsTooltip => 'Search conversations';
+
+  @override
+  String get searchConversationsHint => 'Search conversations…';
+
+  @override
+  String searchNothingFound(Object query) {
+    return 'Nothing matches “$query”';
+  }
+
+  @override
   String fileOfferTitle(Object name) {
     return '$name wants to send a file';
   }
@@ -229,7 +337,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unpairedWarning =>
-      'Device is not paired — anyone can pick that name';
+      'Identity unconfirmed — anyone can pick that name';
 
   @override
   String moreFilesWaiting(int count) {
@@ -334,6 +442,53 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get privacy => 'Privacy';
+
+  @override
+  String get dbKeyProtected =>
+      'The history on disk is encrypted and the key is held by the system keystore. Copying the database file alone gets you nothing.';
+
+  @override
+  String get dbKeyUnprotected =>
+      'The history is encrypted, but the system keystore refused to hold the key, so it sits next to the database. That protects the database file alone, not a copy of the whole app directory.';
+
+  @override
+  String get retentionLabel => 'Delete messages older than';
+
+  @override
+  String get retentionNever => 'Never delete';
+
+  @override
+  String retentionDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days',
+      one: '$count day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get retentionHelp =>
+      'This deletes entries in conversations. Received files stay on disk.';
+
+  @override
+  String get clearHistory => 'Clear history';
+
+  @override
+  String get clearHistoryTitle => 'Clear the entire history?';
+
+  @override
+  String get clearHistoryBody =>
+      'Every message and conversation disappears. Devices keep their confirmed identity, and received files stay on disk.';
+
+  @override
+  String historyCleared(int count) {
+    return 'Messages deleted: $count';
+  }
+
+  @override
   String get thisDevice => 'This device';
 
   @override
@@ -350,6 +505,33 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get manualPairingHint =>
       'Type this address on the other device under “Add by IP address” when automatic discovery doesn\'t work.';
+
+  @override
+  String get windowsSection => 'Windows';
+
+  @override
+  String get startWithWindows => 'Start with Windows';
+
+  @override
+  String get startWithWindowsHelp =>
+      'Chatt starts after you log in and goes straight to the tray, so messages arrive without opening the window.';
+
+  @override
+  String get startWithWindowsFailed =>
+      'Could not change the autostart setting.';
+
+  @override
+  String get trayHint =>
+      'Closing the window hides Chatt in the tray and does not stop it listening. Quitting is in the tray icon menu.';
+
+  @override
+  String get trayTooltip => 'Chatt — listening on the local network';
+
+  @override
+  String get trayShow => 'Show Chatt';
+
+  @override
+  String get trayQuit => 'Quit Chatt';
 
   @override
   String get backgroundServiceTitle => 'Chatt is listening';

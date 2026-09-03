@@ -18,12 +18,21 @@ wiadomości i pliki przesyłane **bezpośrednio między urządzeniami**, bez
 - **Pliki z pytaniem o zgodę**: odbiorca najpierw widzi nazwę, rozmiar i sumę
   kontrolną, dopiero potem lecą bajty. Przerwany transfer wznawia się od
   miejsca przerwania, a całość jest weryfikowana sumą sha256.
-- **Parowanie przez porównanie kodu**: oba urządzenia pokazują ten sam
-  sześciocyfrowy kod, potwierdzasz na obu. Od tej pory cały ruch jest
-  szyfrowany, a od sparowanego urządzenia aplikacja nie przyjmie już ruchu
-  jawnego.
+- **Szyfrowane zawsze**: klucz sesji uzgadniany na każde połączenie, jawnego
+  tekstu w protokole nie ma. Nagrany dziś ruch nie odszyfruje się po
+  późniejszej kradzieży urządzenia.
+- **Potwierdzanie tożsamości**: kodem QR albo porównaniem sześciu cyfr.
+  Szyfrowanie działa i bez tego; potwierdzenie odpowiada na pytanie „czy po
+  drugiej stronie jest ta osoba, o której myślę".
+- **Historia zaszyfrowana na dysku**, klucz w schowku systemowym (Android
+  Keystore, Windows DPAPI). Do tego „wyczyść historię" i kasowanie wiadomości
+  starszych niż wybrana liczba dni.
 - **Nasłuch w tle na Androidzie**: wiadomości dochodzą przy zamkniętym oknie
   i zgaszonym ekranie, z powiadomieniem.
+- **Na Windowsie ikona w zasobniku**: krzyżyk chowa okno zamiast kończyć
+  nasłuch, a aplikacja może wstawać razem z systemem.
+- **Wygoda**: wiele plików naraz (także przeciągniętych na okno), miniatury
+  obrazków, szukanie w rozmowach, kasowanie pojedynczych wiadomości.
 - **Polski i angielski**, motyw jasny/ciemny/systemowy, jedno i drugie zapisane
   w bazie.
 
@@ -62,7 +71,7 @@ w [`docs/makiety/`](docs/makiety/).
 
 ```
 cd app
-flutter test        # 34 testy: baza, discovery, wiadomości, pliki, parowanie, szyfrowanie
+flutter test        # 69 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
 flutter analyze
 ```
 

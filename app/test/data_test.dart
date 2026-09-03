@@ -12,12 +12,12 @@ void main() {
   setUp(() => db = ChattDb(NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  test('ensureSettings tworzy wiersz raz i zachowuje GUID', () async {
+  test('ensureSettings tworzy tożsamość raz i ją zachowuje', () async {
     var factoryCalls = 0;
     Future<Setting> ensure() => db.ensureSettings(
-          guidFactory: () {
+          identityFactory: () async {
             factoryCalls++;
-            return 'guid-test';
+            return ('klucz-test', 'guid-test');
           },
           defaultNickname: 'Tester',
           defaultPort: 50000,
@@ -27,8 +27,9 @@ void main() {
     final second = await ensure();
 
     expect(first.deviceGuid, 'guid-test');
+    expect(first.identityKey, 'klucz-test');
     expect(second.deviceGuid, 'guid-test');
-    expect(factoryCalls, 1);
+    expect(factoryCalls, 1, reason: 'klucza nie losujemy przy każdym starcie');
     expect(second.nickname, 'Tester');
     expect(second.tcpPort, 50000);
   });
@@ -110,6 +111,24 @@ void main() {
     expect(await db.peerByGuid('do-usuniecia'), isNull);
     expect(await db.watchConversationSummaries().first, isEmpty);
     expect(await db.messageByGuid('m-del'), isNull);
+  });
+
+  test('kasowanie jednej wiadomości nie rusza reszty rozmowy', () async {
+    final peer = await db.upsertPeer(
+        guid: 'jedna-wiadomosc', name: 'J', welcomeMessage: '', host: 'x', port: 1);
+    final conv = await db.ensureConversation(peer.id);
+    final zostaje = await db.insertOutgoing(
+        conversationId: conv, messageGuid: 'm-zostaje', body: 'zostaje');
+    final znika = await db.insertOutgoing(
+        conversationId: conv, messageGuid: 'm-znika', body: 'znika');
+
+    await db.deleteMessage(znika);
+
+    expect(await db.messageById(znika), isNull);
+    expect((await db.messageById(zostaje))!.body, 'zostaje');
+    // Rozmowa i rozmówca zostają: skasowana jest jedna wiadomość, nie wątek.
+    expect(await db.peerByGuid('jedna-wiadomosc'), isNotNull);
+    expect(await db.watchMessages(conv).first, hasLength(1));
   });
 
   test('sprzątanie zabiera tylko martwe wpisy bez historii', () async {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../core/crypto.dart';
 import '../core/identity.dart';
 import 'protocol.dart';
 
@@ -13,27 +14,40 @@ class DiscoveredPeer {
   final String host;
   final int tcpPort;
 
+  /// Klucz publiczny znalezionego urządzenia. Od protokołu 5 discovery go
+  /// niesie, więc pierwszą wiadomość da się zaszyfrować bez dodatkowej rundy.
+  final List<int> publicKey;
+
   const DiscoveredPeer({
     required this.guid,
     required this.name,
     required this.welcomeMessage,
     required this.host,
     required this.tcpPort,
+    this.publicKey = const [],
   });
 
   @override
   String toString() => 'DiscoveredPeer($name @ $host:$tcpPort)';
 }
 
+/// Pakiet na urządzenie. Tożsamość musi się zgadzać ze swoim kluczem: guid
+/// jest skrótem klucza publicznego, więc ogłoszenie cudzego identyfikatora ze
+/// swoim kluczem odpada już tutaj i nie wchodzi do żadnej listy.
 DiscoveredPeer? _peerFromPacket(Map<String, Object?> packet, String host) {
   final identity = DeviceIdentity.fromJson(packet);
   if (identity == null) return null;
+  if (identity.hasKey &&
+      ChattCrypto.guidFromPublicKey(identity.publicKey) != identity.guid) {
+    return null;
+  }
   return DiscoveredPeer(
     guid: identity.guid,
     name: identity.name,
     welcomeMessage: identity.welcomeMessage,
     host: host,
     tcpPort: identity.tcpPort,
+    publicKey: identity.publicKey,
   );
 }
 
@@ -44,9 +58,9 @@ class DiscoveryResponder {
   final DeviceIdentity Function() identity;
   final void Function(DiscoveredPeer peer)? onPeerSeen;
 
-  /// Podpis odpowiedzi dla pytającego, jeśli jest z nami sparowany. null =
-  /// nieznajomy, odpowiadamy bez podpisu (nie ma wspólnego sekretu).
-  final Future<String?> Function(String peerGuid, String nonce)? sign;
+  /// Podpis odpowiedzi dla pytającego, jeśli już go znamy. null = nieznajomy,
+  /// odpowiadamy bez podpisu (nie ma z czego go policzyć).
+  final Future<String?> Function(DiscoveredPeer pytajacy, String nonce)? sign;
 
   RawDatagramSocket? _socket;
 
@@ -82,7 +96,7 @@ class DiscoveryResponder {
       final nonce = packet['nonce'];
       final tag = (sender == null || nonce is! String || sign == null)
           ? null
-          : await sign!(sender.guid, nonce);
+          : await sign!(sender, nonce);
 
       // Odpowiedź unicastem prosto do gniazda skanera. Gniazdo mogło się
       // w międzyczasie zamknąć (podpisywanie jest asynchroniczne).

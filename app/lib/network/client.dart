@@ -34,8 +34,34 @@ class PeerClient {
     }
   }
 
-  /// Dostarcza wiadomość. true = odbiorca potwierdził zapis (ACK).
-  Future<bool> sendMessage({
+  /// Uścisk dłoni: wysyłamy swoją tożsamość i klucz efemeryczny, dostajemy
+  /// numer sesji i klucz drugiej strony. null = nie doszło do skutku.
+  Future<HandshakeResult?> handshake({
+    required String host,
+    required int port,
+    required Map<String, Object?> payload,
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    try {
+      final response = await _http
+          .post(
+            Uri.http('$host:$port', '/handshake'),
+            headers: {'content-type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(timeout);
+      if (response.statusCode != 200) return null;
+      return HandshakeResult.fromJson(
+          tryDecodeJsonMap(utf8.encode(response.body)));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Dostarcza wiadomość. [Delivery.ok] = odbiorca potwierdził zapis (ACK),
+  /// [Delivery.noSession] = trzeba powtórzyć uścisk dłoni i spróbować raz
+  /// jeszcze (odbiorca się zrestartował albo sesja wygasła).
+  Future<Delivery> sendMessage({
     required String host,
     required int port,
     required Map<String, Object?> payload,
@@ -49,11 +75,12 @@ class PeerClient {
             body: jsonEncode(payload),
           )
           .timeout(timeout);
-      if (response.statusCode != 200) return false;
+      if (response.statusCode == 409) return Delivery.noSession;
+      if (response.statusCode != 200) return Delivery.failed;
       final json = tryDecodeJsonMap(utf8.encode(response.body));
-      return json?['ok'] == true;
+      return json?['ok'] == true ? Delivery.ok : Delivery.failed;
     } catch (_) {
-      return false;
+      return Delivery.failed;
     }
   }
 
@@ -95,6 +122,7 @@ class PeerClient {
             body: jsonEncode(payload),
           )
           .timeout(timeout);
+      if (response.statusCode == 409) return null; // sesja do odnowienia
       final json = tryDecodeJsonMap(utf8.encode(response.body));
       if (json == null) return null; // 404 z routera = starszy odbiorca
       return FileOfferReply.fromJson(json);
@@ -107,7 +135,7 @@ class PeerClient {
   /// (wznowienie przerwanego transferu). [onProgress] dostaje liczbę bajtów
   /// już zapisanych u odbiorcy, licząc te z poprzedniej próby. Timeout skaluje
   /// się z rozmiarem (wolne Wi-Fi nie może ubijać dużych transferów).
-  Future<bool> sendFile({
+  Future<Delivery> sendFile({
     required String host,
     required int port,
     required Map<String, String> headers,
@@ -172,10 +200,13 @@ class PeerClient {
       final timeout = Duration(seconds: 30 + (total - start) ~/ (512 * 1024));
       final response = await _http.send(request).timeout(timeout);
       final body = await response.stream.bytesToString().timeout(timeout);
-      if (response.statusCode != 200) return false;
-      return tryDecodeJsonMap(utf8.encode(body))?['ok'] == true;
+      if (response.statusCode == 409) return Delivery.noSession;
+      if (response.statusCode != 200) return Delivery.failed;
+      return tryDecodeJsonMap(utf8.encode(body))?['ok'] == true
+          ? Delivery.ok
+          : Delivery.failed;
     } catch (_) {
-      return false;
+      return Delivery.failed;
     } finally {
       // Zerwane połączenie: przestajemy czytać plik (zwalniamy uchwyt)
       // i zamykamy body, żeby nic już nie wołało [onProgress] po tym, jak

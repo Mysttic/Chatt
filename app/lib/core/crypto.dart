@@ -6,7 +6,11 @@ import 'package:crypto/crypto.dart' as digest;
 import 'package:cryptography/cryptography.dart';
 
 import '../network/protocol.dart'
-    show envelopeMarker, isEncryptedEnvelope, pairingCodeDigits;
+    show
+        envelopeMarker,
+        envelopeSession,
+        isEncryptedEnvelope,
+        pairingCodeDigits;
 
 /// Szyfrowanie ruchu między sparowanymi urządzeniami.
 ///
@@ -40,11 +44,140 @@ class ChattCrypto {
   static final _ctr = AesCtr.with256bits(macAlgorithm: MacAlgorithm.empty);
   static final _hmac = Hmac.sha256();
 
-  /// Para kluczy na jedno parowanie.
+  /// Para kluczy na jedno parowanie albo na jedną sesję.
   static Future<SimpleKeyPair> newKeyPair() => _x25519.newKeyPair();
 
   static Future<List<int>> publicKeyOf(SimpleKeyPair keyPair) async =>
       (await keyPair.extractPublicKey()).bytes;
+
+  // --- Trwała tożsamość urządzenia -----------------------------------------
+
+  /// Klucz prywatny do zapisu w bazie. Odtwarzamy z niego parę przez
+  /// [identityKeyPair].
+  static Future<List<int>> privateKeyOf(SimpleKeyPair keyPair) =>
+      keyPair.extractPrivateKeyBytes();
+
+  /// Para kluczy tożsamości odtworzona z zapisanego klucza prywatnego.
+  static Future<SimpleKeyPair> identityKeyPair(List<int> privateKey) =>
+      _x25519.newKeyPairFromSeed(privateKey);
+
+  /// Identyfikator urządzenia liczony z jego klucza publicznego, a nie
+  /// losowany. Dzięki temu nie da się podać cudzego identyfikatora bez jego
+  /// klucza prywatnego — podszycie się przestaje być kwestią wpisania cudzego
+  /// napisu. Kształt zostaje UUID-owy, żeby nic w bazie, logach i testach nie
+  /// musiało się zmieniać.
+  static String guidFromPublicKey(List<int> publicKey) {
+    final skrot = digest.sha256
+        .convert([...utf8.encode('chatt-identity'), ...publicKey])
+        .bytes
+        .sublist(0, 16);
+    final hex = skrot.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+  }
+
+  /// Odcisk klucza do pokazania użytkownikowi: pięć grup po cztery cyfry.
+  /// Tyle da się porównać wzrokiem, a trafienie w cudzy odcisk wymaga
+  /// przeszukania przestrzeni 10^20.
+  static String fingerprint(List<int> publicKey) {
+    final bajty = digest.sha256
+        .convert([...utf8.encode('chatt-fingerprint'), ...publicKey])
+        .bytes;
+    final grupy = <String>[];
+    for (var i = 0; i < 5; i++) {
+      var wartosc = 0;
+      for (var j = 0; j < 3; j++) {
+        wartosc = (wartosc << 8) | bajty[i * 3 + j];
+      }
+      grupy.add((wartosc % 10000).toString().padLeft(4, '0'));
+    }
+    return grupy.join(' ');
+  }
+
+  // --- Uścisk dłoni sesji (Noise KK) ---------------------------------------
+
+  /// Klucz sesji z czterech uzgodnień X25519. Obie strony znają nawzajem swój
+  /// klucz statyczny (z discovery albo z `/info`) i dorzucają do tego klucze
+  /// efemeryczne, ważne tylko na tę jedną sesję.
+  ///
+  /// Co daje który człon:
+  /// - `ee` (efemeryczny × efemeryczny) — **forward secrecy**: po skasowaniu
+  ///   kluczy efemerycznych nagrany ruch nie odszyfruje się nawet komuś, kto
+  ///   później wykradnie klucze statyczne obu stron,
+  /// - `ss` (statyczny × statyczny) — wiąże sesję z tożsamościami,
+  /// - `es` i `se` — wiążą każdy klucz efemeryczny z tożsamością drugiej
+  ///   strony, więc napastnik bez klucza prywatnego nie podstawi swojego.
+  ///
+  /// Do `info` wchodzi cały zapis rozmowy (oba klucze statyczne i oba
+  /// efemeryczne w ustalonej kolejności), więc podmiana czegokolwiek po
+  /// drodze daje po prostu inny klucz i ruch się nie odszyfruje.
+  static Future<List<int>> sessionKey({
+    required SimpleKeyPair myStatic,
+    required SimpleKeyPair myEphemeral,
+    required List<int> theirStatic,
+    required List<int> theirEphemeral,
+    required bool initiator,
+    required List<int> initiatorStatic,
+    required List<int> responderStatic,
+    required List<int> initiatorEphemeral,
+    required List<int> responderEphemeral,
+  }) async {
+    Future<List<int>> dh(SimpleKeyPair mine, List<int> ich) async =>
+        (await _x25519.sharedSecretKey(
+          keyPair: mine,
+          remotePublicKey: SimplePublicKey(ich, type: KeyPairType.x25519),
+        )).extractBytes();
+
+    final ee = await dh(myEphemeral, theirEphemeral);
+    final ss = await dh(myStatic, theirStatic);
+    // Kolejność es/se musi być ta sama po obu stronach, a każda strona liczy
+    // je innym kluczem — stąd rozróżnienie ról.
+    final es = initiator
+        ? await dh(myEphemeral, theirStatic)
+        : await dh(myStatic, theirEphemeral);
+    final se = initiator
+        ? await dh(myStatic, theirEphemeral)
+        : await dh(myEphemeral, theirStatic);
+
+    final derived = await _hkdf.deriveKey(
+      secretKey: SecretKey([...ee, ...es, ...se, ...ss]),
+      nonce: const <int>[],
+      info: [
+        ...utf8.encode('chatt-session-v5'),
+        ...initiatorStatic,
+        ...responderStatic,
+        ...initiatorEphemeral,
+        ...responderEphemeral,
+      ],
+    );
+    return derived.extractBytes();
+  }
+
+  /// Klucz na jeden plik, wyprowadzony z klucza sesji w chwili zapowiedzi.
+  /// Zapisujemy go obok części transferu, więc wznowienie działa nawet wtedy,
+  /// gdy sesja dawno wygasła — bez tego strumień AES-CTR nie miałby czym
+  /// dokończyć.
+  static Future<List<int>> fileKey({
+    required List<int> sessionKey,
+    required String messageGuid,
+  }) async {
+    final derived = await _hkdf.deriveKey(
+      secretKey: SecretKey(sessionKey),
+      nonce: const <int>[],
+      info: utf8.encode('chatt-file-v5|$messageGuid'),
+    );
+    return derived.extractBytes();
+  }
+
+  /// Znacznik klucza pliku do zapowiedzi. Sam klucz nigdzie nie idzie —
+  /// odbiorca porównuje tylko, czy jego część transferu była szyfrowana tym
+  /// samym, czym nadawca szyfruje teraz.
+  static String keyEpoch(List<int> fileKey) => base64.encode(
+        digest.sha256
+            .convert([...utf8.encode('chatt-file-epoch'), ...fileKey])
+            .bytes
+            .sublist(0, 8),
+      );
 
   /// Zobowiązanie do klucza publicznego: inicjator wysyła je, zanim pozna
   /// klucz drugiej strony, więc potem nie może już swojego podmienić.
@@ -58,35 +191,36 @@ class ChattCrypto {
   /// klucz sesji do szyfrowania ruchu i kod do porównania na ekranach.
   /// Do kodu wchodzą oba klucze publiczne w ustalonej kolejności, więc
   /// napastnik nie przełoży kodu z jednej sesji na drugą.
-  static Future<({List<int> sessionKey, String code})> agree({
+  /// Do kodu wchodzą oba klucze **statyczne** (tożsamości), więc zgodny kod
+  /// dowodzi nie tylko braku kogoś w środku, ale też tego, że po drugiej
+  /// stronie siedzi właściciel klucza prywatnego od tej tożsamości. Od
+  /// protokołu 5 nic tu już nie ustala klucza do szyfrowania ruchu — ten
+  /// bierze się z sesji — więc wynikiem jest sam kod do porównania.
+  static Future<String> agreeCode({
     required SimpleKeyPair mine,
     required List<int> theirPublicKey,
     required List<int> initiatorPublicKey,
     required List<int> responderPublicKey,
+    required List<int> initiatorStatic,
+    required List<int> responderStatic,
   }) async {
     final shared = await _x25519.sharedSecretKey(
       keyPair: mine,
       remotePublicKey:
           SimplePublicKey(theirPublicKey, type: KeyPairType.x25519),
     );
-    final sessionKey = await _hkdf.deriveKey(
-      secretKey: shared,
-      nonce: const <int>[],
-      info: utf8.encode('chatt-session-v2'),
-    );
     final codeBytes = await _hkdf.deriveKey(
       secretKey: shared,
       nonce: const <int>[],
       info: [
-        ...utf8.encode('chatt-code-v2'),
+        ...utf8.encode('chatt-code-v5'),
         ...initiatorPublicKey,
         ...responderPublicKey,
+        ...initiatorStatic,
+        ...responderStatic,
       ],
     );
-    return (
-      sessionKey: await sessionKey.extractBytes(),
-      code: _digits(await codeBytes.extractBytes(), pairingCodeDigits),
-    );
+    return _digits(await codeBytes.extractBytes(), pairingCodeDigits);
   }
 
   /// Pierwsze bajty skrótu na [count] cyfr, z zerami wiodącymi.
@@ -130,12 +264,13 @@ class ChattCrypto {
   static bool isEnvelope(Map<String, Object?> json) =>
       isEncryptedEnvelope(json);
 
-  /// Pakuje [payload] w kopertę AES-GCM. Nadawca zostaje jawny, bo odbiorca
-  /// musi wiedzieć, czyim kluczem odszyfrować.
+  /// Pakuje [payload] w kopertę AES-GCM. Jawny zostaje sam numer sesji —
+  /// po nim odbiorca znajduje klucz. Guid nadawcy z koperty zniknął, więc
+  /// podsłuchujący nie ma po czym rozpoznać, kto z kim rozmawia.
   static Future<Map<String, Object?>> seal({
     required Map<String, Object?> payload,
     required List<int> key,
-    required String senderGuid,
+    required String sessionId,
   }) async {
     final box = await _gcm.encrypt(
       utf8.encode(jsonEncode(payload)),
@@ -143,7 +278,7 @@ class ChattCrypto {
     );
     return {
       envelopeMarker: 1,
-      'from': senderGuid,
+      envelopeSession: sessionId,
       'nonce': base64.encode(box.nonce),
       'mac': base64.encode(box.mac.bytes),
       'data': base64.encode(box.cipherText),
@@ -169,10 +304,23 @@ class ChattCrypto {
     }
   }
 
-  /// Guid nadawcy z koperty (do znalezienia klucza), albo null.
-  static String? senderOf(Map<String, Object?> envelope) {
-    final from = envelope['from'];
-    return from is String && from.isNotEmpty ? from : null;
+  /// Klucz do podpisywania odpowiedzi discovery. Wychodzi z uzgodnienia
+  /// samych kluczy statycznych, więc obie strony policzą go bez żywej sesji —
+  /// discovery dzieje się, zanim jakakolwiek sesja powstanie.
+  static Future<List<int>> discoveryKey({
+    required SimpleKeyPair myStatic,
+    required List<int> theirStatic,
+  }) async {
+    final wspolny = await _x25519.sharedSecretKey(
+      keyPair: myStatic,
+      remotePublicKey: SimplePublicKey(theirStatic, type: KeyPairType.x25519),
+    );
+    final derived = await _hkdf.deriveKey(
+      secretKey: wspolny,
+      nonce: const <int>[],
+      info: utf8.encode('chatt-discovery-v5'),
+    );
+    return derived.extractBytes();
   }
 
   // --- Strumień pliku ------------------------------------------------------

@@ -107,8 +107,159 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 - [x] `docs/architektura.md` — protokół, schemat bazy z migracjami, model zagrożeń i to, co w nim zostaje otwarte, nasłuch w tle na Androidzie
 - [x] README jako wizytówka: zrzuty, szybki start, tabela „który dokument do czego"
 - [x] Zrzuty produktu generowane skryptem (`app/tool/product_shots.dart`), żeby dało się je odświeżyć po zmianie UI zamiast klikać ręcznie
-- [x] CI/CD na GitHubie: `testy.yml` (analiza i cały zestaw testów wyłącznie przy pull requeście do `master`, żeby nie mielić runnerów przy każdym commicie) oraz `wydanie.yml` (scalenie do `master` buduje Windows i podpisany APK, zakłada tag `v<wersja>` z `pubspec.yaml` i wystawia Release). Powtórne scalenie bez podbicia wersji nic nie wydaje, bo tag już istnieje. Brak sekretów z kluczem przerywa wydanie zamiast wypuścić APK podpisany kluczem debug
+- [x] CI/CD na GitHubie: `testy.yml` (analiza i cały zestaw testów wyłącznie przy pull requeście do `master`, żeby nie mielić runnerów przy każdym commicie) oraz `wydanie.yml` (scalenie do `master` buduje Windows i podpisany APK, zakłada tag `v<wersja>` i wystawia Release). Numer wydania stoi w `VERSION.md` i to on jest wyzwalaczem: workflow rusza tylko wtedy, gdy ten plik był w scalanych zmianach, a druga bramka sprawdza, czy taki tag już nie istnieje. Zgodności `VERSION.md` z `pubspec.yaml` pilnuje workflow, a podnosi je razem `app/tool/wersja.py`. Brak sekretów z kluczem przerywa wydanie zamiast wypuścić APK podpisany kluczem debug
 - [x] Podpisywanie buildu release własnym kluczem (RSA 4096, alias `chatt`): keystore poza repozytorium, hasła w gitignorowanym `android/key.properties`, a przy ich braku build nadal przechodzi kluczem debug z ostrzeżeniem. Sprawdzone: `apksigner verify` pokazuje `CN=Chatt, O=Mysttic, C=PL` i „Verifies" (schemat v2, bo `minSdk` to 24), podpisany APK instaluje się i działa na emulatorze
+
+## 3a. Wydanie 0.2.0 — „szyfrowane zawsze"
+
+> **Teza wydania:** nikt w sieci nie ma jak podsłuchać rozmowy, niezależnie od
+> tego, czy urządzenia zdążyły się sparować.
+>
+> Stan wyjściowy po 0.1.0 tej tezy nie spełnia: szyfrowanie włącza się dopiero
+> po sparowaniu, więc do tego czasu wszystko leci jawnym tekstem po LAN‑ie.
+> Do tego klucz sesji jest jeden na zawsze (kto go kiedyś zdobędzie, odszyfruje
+> też nagrany wcześniej ruch), a baza z historią leży na dysku bez szyfrowania.
+
+**Decyzje podjęte przed rozpoczęciem (02.09.2026):**
+
+1. **Tożsamością urządzenia jest klucz, nie losowy GUID.** GUID przestaje być
+   losowany i zaczyna być liczony z klucza publicznego: `sha256(klucz)`,
+   pierwsze 16 bajtów, sformatowane jak UUID (żeby nic w kodzie, bazie i logach
+   nie pękło). Dzięki temu nie da się podać cudzego identyfikatora bez jego
+   klucza prywatnego — podszywanie się przestaje być kwestią wpisania cudzego
+   napisu. **Koszt, przyjęty świadomie:** wszystkie urządzenia dostają nowe
+   identyfikatory, więc istniejące rozmowy i parowania trzeba założyć od nowa.
+   Migracja do schematu v6 czyści listę urządzeń i historię, a nie zostawia
+   wpisów, z którymi nie da się już rozmawiać.
+2. **Pełny zakres**, czyli fazy 8–11 razem z szyfrowaniem bazy na dysku.
+
+### Faza 8 — Szyfrowanie domyślne ✅ (02.09.2026)
+- [x] Trwała para kluczy X25519 przy pierwszym starcie, w bazie (schemat v6);
+      GUID liczony z klucza publicznego (patrz decyzja 1)
+- [x] Klucz publiczny w `GET /info` i w pakietach discovery, żeby druga strona
+      mogła zaszyfrować **pierwszą** wiadomość, bez rundy „przywitaj się jawnie"
+- [x] **Uścisk dłoni per sesja** (`POST /handshake`) w schemacie Noise KK: obie
+      strony znają nawzajem swój klucz statyczny, dorzucają efemeryczne
+      i z połączonych uzgodnień wychodzi klucz ważny tylko na tę sesję.
+      Odpowiedź niesie identyfikator sesji; kolejne zapytania podają go
+      w kopercie, a nieznana albo wygasła sesja to 409 i ponowny uścisk dłoni
+- [x] **Forward secrecy**: klucze efemeryczne żyją tylko w pamięci i giną
+      z sesją, więc nagrany dziś ruch nie odszyfruje się po późniejszej
+      kradzieży urządzenia
+- [x] Klucz pliku wyprowadzany z klucza sesji, a w zapowiedzi jedzie jego
+      **znacznik** zapisywany obok `.part`. Niezgodność znacznika (część
+      z poprzedniej sesji) każe zacząć transfer od zera, zamiast cicho
+      odszyfrować śmieci nowym kluczem na starych bajtach
+- [x] Jawny tekst **zniknął z protokołu** (wersja 5). Niesparowany rozmówca
+      jest szyfrowany dokładnie tak samo jak sparowany, a zapytanie bez koperty
+      dostaje 409 zamiast odpowiedzi
+- [x] Guid nadawcy zniknął też z jawnej części koperty — zostaje sam numer
+      sesji, zmieniany przy każdym uścisku dłoni, więc podsłuchujący nie widzi
+      już nawet tego, kto z kim rozmawia
+- [x] Parowanie zmieniło rolę: nie ustala klucza (ten jest efemeryczny), tylko
+      potwierdza tożsamość. Do kodu do porównania wchodzą oba klucze statyczne
+- [x] Tarcza w trzech stanach: brak szyfrowania (starsza wersja po drugiej
+      stronie), szyfrowane niepotwierdzone, potwierdzone
+- [x] Testy: podsłuch na łączu nie widzi treści **przed** sparowaniem; dwie
+      sesje tego samego rozmówcy mają różne klucze; podmieniony klucz statyczny
+      psuje uzgodnienie; część transferu z poprzedniej sesji nie jest
+      dopisywana. Razem 42 zielone, plus 3 E2E na żywym Androidzie
+
+**Ostrzeżenie o zmianie klucza wypadło z planu.** Skoro identyfikator wynika
+z klucza, to inny klucz znaczy inny identyfikator, czyli po prostu inne
+urządzenie na liście. Stan „to samo urządzenie, nowy klucz" nie istnieje.
+
+**Znany koszt:** restart którejkolwiek strony w trakcie transferu kasuje
+postęp, bo klucz pliku wisi na kluczu sesji. Zerwanie sieci na sekundy czy
+minuty wznawia się normalnie (sesja żyje godzinę). Alternatywą byłoby
+wyprowadzanie klucza pliku z kluczy statycznych, ale wtedy kradzież tożsamości
+odszyfrowuje wszystkie nagrane wcześniej pliki — czyli dokładnie to, przed czym
+to wydanie ma chronić.
+
+### Faza 9 — Weryfikacja bez przepisywania ✅ (02.09.2026)
+- [x] **Panel bezpieczeństwa** pod tarczą: stan szyfrowania opisany słowami
+      plus odciski obu kluczy, własnego i rozmówcy. Otwiera się także po
+      potwierdzeniu tożsamości, bo odcisk ma dać się sprawdzić w dowolnym
+      momencie, a nie tylko raz (`docs/screenshots/android/and17_panel_bezpieczenstwa.png`)
+- [x] Własny odcisk również w ustawieniach — to jego dyktuje się przez telefon
+- [x] **Potwierdzanie kodem QR**: urządzenie pokazuje kod z kluczem publicznym
+      i adresem (`chatt://pair?...`), drugie skanuje. Skanujący ma pewność od
+      razu, bo widział tamten ekran; skanowany dostaje pytanie „czy to Ty
+      właśnie skanowałeś", bo kod z ekranu mógł zobaczyć ktoś jeszcze
+      (`and18_kod_qr.png`, `and19_potwierdzenie_skanu.png`)
+- [x] Kod z cudzym kluczem pod czyimś adresem odpada: przed przypięciem
+      sprawdzamy w `GET /info`, czy pod tym adresem naprawdę stoi urządzenie
+      z tym kluczem
+- [x] Porównanie sześciu cyfr zostaje jako droga awaryjna tam, gdzie nie ma
+      aparatu (komputer z komputerem)
+- [x] ~~Ostrzeżenie przy zmianie klucza~~ — niepotrzebne, patrz uwaga
+      w fazie 8
+
+Nowe zależności: `qr_flutter` (rysowanie kodu) i `mobile_scanner` (aparat,
+uprawnienie `CAMERA` dokłada sama wtyczka). Build Windows przechodzi bez
+zmian — przycisk skanowania pokazuje się tylko tam, gdzie jest aparat.
+
+### Faza 10 — Dane w spoczynku ✅ (03.09.2026)
+- [x] **Baza szyfrowana**, klucz w Android Keystore i Windows DPAPI. Zamiast
+      SQLCipher poszedł **SQLite3MultipleCiphers**: `package:sqlite3` w wersji
+      3 wybiera silnik przez build hooks (`hooks.user_defines`), a sqlite3mc
+      jest tam gotowy na wszystkie platformy natywne. SQLCipher linkuje
+      OpenSSL na Windowsie, Linuksie i Androidzie i ciągnie starszy silnik —
+      przy identycznym efekcie dla nas był po prostu droższy
+- [x] Klucz bazy (32 losowe bajty) leży w `chatt.key` owinięty przez schowek
+      systemowy: AES-GCM z Keystore na Androidzie, DPAPI na Windowsie, przez
+      wspólny kanał `chatt/sekrety`. Utrata klucza systemowego to błąd, a nie
+      ciche założenie pustej bazy
+- [x] Migracja istniejącej bazy: przepisanie do zaszyfrowanej i skasowanie
+      jawnej, z zachowaniem historii. Sprawdzone na obu platformach na
+      **prawdziwej bazie sprzed zmiany** (schemat v5, nick `BEEMYSTTIC`):
+      po starcie plik nie ma czytelnego nagłówka, a ustawienia są na miejscu
+- [x] „Wyczyść historię" w ustawieniach (z pytaniem, bo to nieodwracalne)
+      i kasowanie wiadomości starszych niż 7, 30, 90 albo 365 dni. Domyślnie
+      wyłączone. Urządzenia i potwierdzone tożsamości zostają
+      (`docs/screenshots/android/and20_prywatnosc.png`,
+      `and21_wyczysc_historie.png`)
+- [x] Testy: plik bazy nie zawiera treści wiadomości; bez hasła nie da się jej
+      otworzyć; migracja zachowuje historię i potwierdzenie tożsamości; klucz
+      trafia na dysk owinięty; granica wieku kasuje tylko to, co starsze.
+      Razem 56 zielonych
+
+**Znany koszt:** klucz bazy odwinie każdy proces działający jako ten sam
+użytkownik systemu (na Windowsie wprost przez DPAPI). Ochrona jest przed
+skopiowaniem dysku albo samego pliku, nie przed cudzym kodem uruchomionym
+na koncie użytkownika.
+
+### Faza 11 — UI i wygoda ✅ (03.09.2026)
+- [x] **Windows: ikona w zasobniku, start zminimalizowany, autostart.**
+      Krzyżyk chowa okno zamiast kończyć nasłuch, a wyjście z programu jest
+      w menu ikony. Autostart to wpis w rejestrze użytkownika
+      (`HKCU\...\CurrentVersion\Run`) z argumentem `--minimized`, zakładany
+      przez własny kanał `chatt/autostart` — bez uprawnień administratora
+      i bez kolejnej zależności
+- [x] Wysyłka wielu plików naraz (`openFiles`) i przeciąganie ich na okno
+      (`desktop_drop`). Idą po kolei, bo każdy z osobna pyta odbiorcę o zgodę;
+      katalogi odpadają same
+- [x] Miniatury obrazków w rozmowie, dopiero **po** przyjęciu pliku: dekoder
+      dostaje wyłącznie to, co już leży na dysku, a uszkodzony obrazek kończy
+      się pustym miejscem, nie wywrotką listy
+      (`docs/screenshots/produkt/android_miniatura_obrazka.png`)
+- [x] Szukanie: w rozmowie (filtrowanie dymków z podświetleniem trafienia)
+      i na liście rozmów (nazwa rozmówcy, ostatnia wiadomość)
+      (`android_szukanie_w_rozmowie.png`)
+- [x] Usuwanie pojedynczych wiadomości przez przytrzymanie dymka, razem
+      z kopiowaniem treści. Napis mówi wprost, że wiadomość znika **tylko
+      z tego urządzenia** (`android_menu_wiadomosci.png`)
+- [x] Testy: 69 zielonych, w tym wysyłka wielu plików, pomijanie katalogów,
+      filtrowanie rozmów i rozpoznawanie obrazków po rozszerzeniu
+
+**Sprawdzone na Windowsie, nie tylko w kodzie:** zamknięcie okna zostawia
+proces przy życiu i `/info` dalej odpowiada; start z `--minimized` nie tworzy
+okna w ogóle; wpis autostartu powstaje i znika razem z przełącznikiem; Windows
+zapisał ikonę w swojej liście zasobnika razem z poprawną podpowiedzią.
+
+**Znany koszt:** ikona ląduje w schowku „pokaż ukryte ikony" — Windows 11 tak
+traktuje każdą nową. Przypięcie jej na stałe to decyzja użytkownika, aplikacja
+nie ma jak jej wymusić.
 
 ## 4. Podział pracy
 
@@ -118,9 +269,11 @@ Usunięty (02.09.2026), po potwierdzeniu parytetu funkcji na Windows i Androidzi
 
 ## 5. Następny krok
 
-Fazy 0–7 są zrobione i zweryfikowane na sprzęcie: 34 testy `flutter test` (zielone), `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie oraz rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi. Dokumentacja jest w `docs/` (instrukcja, budowanie i wydania, testy, architektura).
+Wersja **0.1.0 jest wydana** (fazy 0–7): 34 testy `flutter test` zielone, `flutter analyze` bez uwag, 3 testy E2E na żywej aplikacji na Androidzie, rozmowa i transfer pliku PC ⇄ telefon w domowym Wi‑Fi, dokumentacja w `docs/`, podpisany APK i wydanie z GitHub Actions.
 
-Zostało:
+Następne wydanie to **0.2.0 „szyfrowane zawsze"** — plan w sekcji 3a. Rdzeniem jest faza 8: dziś szyfrowanie włącza się dopiero po sparowaniu, więc teza „nikt nie podsłucha" jeszcze nie jest spełniona.
+
+Poza tym zostało:
 
 1. Build APK w chmurze jest zablokowany polityką sieci (`dl.google.com` — tam mieszka Android SDK i artefakty Gradle); lokalnie buduje się bez problemu. Jeśli sesje chmurowe mają budować APK: claude.ai → Environments → dopuść `dl.google.com` i `maven.google.com`.
 

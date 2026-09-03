@@ -89,7 +89,7 @@ void main() {
       ),
     );
 
-    expect(accepted, isFalse, reason: 'serwer ma odmówić');
+    expect(accepted.delivered, isFalse, reason: 'serwer ma odmówić');
     expect(await messagesAtBob(), before, reason: 'nic nie doszło do bazy');
 
     // Adres prawdziwej Alicji nie mógł zostać podmieniony na adres napastnika.
@@ -140,7 +140,8 @@ void main() {
       file: podmiana,
     );
 
-    expect(wciete, isFalse, reason: 'jawny transfer od sparowanego = odmowa');
+    expect(wciete.delivered, isFalse,
+        reason: 'jawny transfer od sparowanego = odmowa');
     expect(
       Directory(p.join(work.path, 'bob')).listSync().whereType<File>(),
       isEmpty,

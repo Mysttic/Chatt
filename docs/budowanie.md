@@ -18,6 +18,12 @@ Flutter celowo nie jest w PATH, więc w poleceniach niżej pojawia się pełna
 Tryb dewelopera na Windows (`start ms-settings:developers`) jest potrzebny,
 bo build desktopowy tworzy dowiązania symboliczne do wtyczek.
 
+**Build potrzebuje sieci.** `package:sqlite3` w wersji 3 dobiera silnik przez
+build hooks i ściąga gotowe binaria z wydań na GitHubie. My prosimy tam
+o SQLite3MultipleCiphers (`hooks.user_defines.sqlite3.source: sqlite3mc`
+w `pubspec.yaml`) — bez tego `PRAGMA key` nic by nie robił, a baza zapisałaby
+się jawnym tekstem. Pierwszy build po `flutter clean` ściąga je od nowa.
+
 ## Codzienna praca
 
 ```
@@ -135,11 +141,26 @@ Uprawnienia w manifeście i po co są:
 
 ## Numer wersji
 
-Jedno miejsce: `app/pubspec.yaml`, linia `version: 0.1.0+1`. Część przed `+`
-to wersja widoczna dla użytkownika (Android `versionName`), część po `+` to
-numer builda (`versionCode`), który przy każdym wydaniu na Androida musi
-rosnąć. Flutter przepisuje obie wartości do projektów natywnych, więc nie
-trzeba nic zmieniać w Gradle ani w plikach Windows.
+Numer wydania stoi w [`VERSION.md`](../VERSION.md) w korzeniu repozytorium.
+To **on** decyduje, czy powstanie nowe wydanie: workflow wydania rusza tylko
+wtedy, gdy ten plik był w scalanych zmianach.
+
+Drugie miejsce z numerem to `app/pubspec.yaml`, linia `version: 0.1.0+1` —
+część przed `+` to `versionName` Androida, część po `+` to `versionCode`,
+który przy każdym wydaniu musi rosnąć. Flutter przepisuje obie wartości do
+projektów natywnych, więc w Gradle ani w plikach Windows nie ma czego zmieniać.
+
+Oba pliki muszą mówić to samo, więc podnosi się je jednym poleceniem:
+
+```
+cd app
+python tool/wersja.py 0.2.0
+```
+
+Skrypt podnosi numer w `VERSION.md` i w `pubspec.yaml`, a numer builda
+zwiększa o jeden. Bez argumentu tylko wypisuje bieżący stan i krzyczy przy
+rozjeździe. Workflow wydania sprawdza to samo i przerywa z czytelnym błędem,
+gdyby ktoś podniósł numer tylko w jednym miejscu.
 
 ## Gałęzie i automatyzacja na GitHubie
 
@@ -171,18 +192,22 @@ wisiałby w nieskończoność, czekając na bieg, który nigdy nie wystartuje.
 
 Testy można też odpalić ręcznie: *Actions → Testy → Run workflow*.
 
-### Skąd bierze się numer wydania
+### Kiedy powstaje wydanie
 
-Z `app/pubspec.yaml`. Workflow czyta linię `version:`, obcina część po `+`
-i szuka taga `v<wersja>`:
+Dwie bramki, jedna po drugiej:
 
-- **taga nie ma** → buduje, tworzy tag i Release z dwoma plikami:
-  `chatt-<wersja>-android.apk` i `chatt-<wersja>-windows.zip`;
-- **tag już jest** → kończy bieg bez robienia niczego.
+1. **Workflow w ogóle nie rusza**, jeśli w scalanych zmianach nie było
+   [`VERSION.md`](../VERSION.md) (filtr `paths` na wyzwalaczu). Scalenie
+   poprawki do kodu albo dokumentacji nie kosztuje więc ani sekundy runnera.
+2. **Bieg kończy się bez robienia niczego**, jeśli tag `v<wersja>` już
+   istnieje. To zabezpieczenie na wypadek, gdyby ktoś ruszył w `VERSION.md`
+   sam opis, nie zmieniając numeru.
 
-W praktyce: żeby wydać wersję, podbijasz `version:` w `pubspec.yaml` na
-`develop` i scalasz PR do `master`. Scalenie bez podbicia wersji niczego nie
-wyda i nie jest błędem — tak wygląda zwykła poprawka do dokumentacji.
+Gdy obie bramki przepuszczą: build Windows i podpisanego APK, tag i Release
+z dwoma plikami — `chatt-<wersja>-android.apk` i `chatt-<wersja>-windows.zip`.
+
+W praktyce wydanie wygląda tak: `python tool/wersja.py 0.2.0` na `develop`,
+PR do `master`, scalenie.
 
 ### Sekrety do podpisania APK
 
@@ -239,7 +264,7 @@ Przy podbiciu SDK trzeba zmienić ją w obu plikach w `.github/workflows/`.
 
 Buildem i tagiem zajmuje się CI, po twojej stronie zostaje reszta:
 
-1. Podbij `version:` w `app/pubspec.yaml` na gałęzi `develop`.
+1. Podbij numer na gałęzi `develop`: `cd app && python tool/wersja.py 0.2.0`.
 2. Odśwież zrzuty do dokumentacji, jeśli zmienił się UI:
    `flutter test tool/product_shots.dart` (wymaga uruchomionego emulatora).
 3. Otwórz PR `develop` → `master` i poczekaj, aż testy zaświecą się na zielono.

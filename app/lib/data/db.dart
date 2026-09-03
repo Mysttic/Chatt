@@ -13,7 +13,14 @@ enum AppLanguage { system, polish, english }
 /// Ustawienia lokalnej instancji — zawsze dokładnie jeden wiersz (id = 1).
 class Settings extends Table {
   IntColumn get id => integer()();
+
+  /// Identyfikator urządzenia. Od schematu v6 nie jest losowany, tylko liczony
+  /// z klucza publicznego (patrz `ChattCrypto.guidFromPublicKey`).
   TextColumn get deviceGuid => text()();
+
+  /// Klucz prywatny tożsamości (base64, X25519). To on jest urządzeniem:
+  /// z niego wychodzi klucz publiczny, a z niego identyfikator.
+  TextColumn get identityKey => text().withDefault(const Constant(''))();
   TextColumn get nickname => text()();
   TextColumn get welcomeMessage => text().withDefault(const Constant(''))();
 
@@ -27,6 +34,10 @@ class Settings extends Table {
   /// zajęty — patrz DeviceIdentity.tcpPort.
   IntColumn get tcpPort =>
       integer().withDefault(const Constant(defaultTcpPort))();
+
+  /// Po ilu dniach kasować wiadomości. 0 znaczy „trzymaj bez końca".
+  /// Kasowanie dotyczy wpisów w bazie; odebrane pliki zostają na dysku.
+  IntColumn get retentionDays => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -43,8 +54,14 @@ class Peers extends Table {
   IntColumn get port => integer()();
   BoolColumn get verified => boolean().withDefault(const Constant(false))();
 
-  /// Klucz sesji uzgodniony przy parowaniu (base64, 32 bajty). Dopóki go nie
-  /// ma, ruch z tym urządzeniem leci jawnym tekstem.
+  /// Klucz publiczny rozmówcy (base64), przypięty przy pierwszym kontakcie.
+  /// Jego zmiana znaczy albo reinstalację po drugiej stronie, albo próbę
+  /// podszycia się — w obu przypadkach użytkownik ma to zobaczyć.
+  TextColumn get publicKey => text().nullable()();
+
+  /// Ślad po parowaniu z protokołu 4 (klucz sesji na zawsze). Od protokołu 5
+  /// klucz sesji jest efemeryczny i nie trafia do bazy; kolumna zostaje na
+  /// czas migracji i zniknie w kolejnym schemacie.
   TextColumn get sessionKey => text().nullable()();
 
   DateTimeColumn get firstSeen => dateTime()();
@@ -111,7 +128,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -138,6 +155,24 @@ class ChattDb extends _$ChattDb {
         // v5: wybór języka
         await m.addColumn(settings, settings.language);
       }
+      if (from < 6) {
+        // v6: tożsamość urządzenia przestaje być losowym GUID-em i zaczyna
+        // być liczona z klucza publicznego. Wszystkie urządzenia dostają
+        // przez to nowe identyfikatory, więc zapisani rozmówcy przestają
+        // pasować do czegokolwiek w sieci. Zostawienie ich znaczyłoby listę
+        // wpisów, do których nie da się już napisać — czyścimy je razem
+        // z historią i prosimy o znalezienie się od nowa.
+        await m.addColumn(settings, settings.identityKey);
+        await m.addColumn(peers, peers.publicKey);
+        await m.database.customStatement('DELETE FROM messages');
+        await m.database.customStatement('DELETE FROM conversations');
+        await m.database.customStatement('DELETE FROM peers');
+      }
+      if (from < 7) {
+        // v7: samoczynne kasowanie starych wiadomości. Domyślnie wyłączone —
+        // włączenie go za kogoś skasowałoby historię bez pytania.
+        await m.addColumn(settings, settings.retentionDays);
+      }
     },
   );
 
@@ -150,22 +185,40 @@ class ChattDb extends _$ChattDb {
       (select(settings)..where((s) => s.id.equals(1))).watchSingle();
 
   /// Tworzy wiersz ustawień przy pierwszym uruchomieniu.
+  /// [identityFactory] daje parę (klucz prywatny base64, identyfikator z niego
+  /// policzony). Wołamy je leniwie, bo losowanie klucza kosztuje, a przy
+  /// kolejnych startach nie ma czego losować.
+  ///
+  /// Wiersz sprzed schematu v6 ma pusty klucz i losowy identyfikator —
+  /// dorabiamy mu tożsamość tutaj, przy pierwszym starcie po aktualizacji.
   Future<Setting> ensureSettings({
-    required String Function() guidFactory,
+    required Future<(String, String)> Function() identityFactory,
     required String defaultNickname,
     required int defaultPort,
   }) async {
     final existing = await getSettings();
-    if (existing != null) return existing;
-    await into(settings).insert(
-      SettingsCompanion.insert(
-        id: const Value(1),
-        deviceGuid: guidFactory(),
-        nickname: defaultNickname,
-        tcpPort: Value(defaultPort),
-      ),
-      mode: InsertMode.insertOrIgnore,
-    );
+    if (existing != null && existing.identityKey.isNotEmpty) return existing;
+
+    final (klucz, guid) = await identityFactory();
+    if (existing == null) {
+      await into(settings).insert(
+        SettingsCompanion.insert(
+          id: const Value(1),
+          deviceGuid: guid,
+          identityKey: Value(klucz),
+          nickname: defaultNickname,
+          tcpPort: Value(defaultPort),
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    } else {
+      await (update(settings)..where((s) => s.id.equals(1))).write(
+        SettingsCompanion(
+          deviceGuid: Value(guid),
+          identityKey: Value(klucz),
+        ),
+      );
+    }
     return (await getSettings())!;
   }
 
@@ -183,6 +236,12 @@ class ChattDb extends _$ChattDb {
 
   /// Motyw i język zapisujemy osobno: zmieniają się jednym kliknięciem,
   /// bez formularza i bez przycisku „zapisz".
+  /// Przypięcie klucza publicznego rozmówcy. Robimy to przy pierwszym
+  /// kontakcie — od tej chwili wiadomo, z czyim kluczem rozmawiamy.
+  Future<void> setPeerKey(int peerId, String publicKey) =>
+      (update(peers)..where((p) => p.id.equals(peerId)))
+          .write(PeersCompanion(publicKey: Value(publicKey)));
+
   Future<void> saveTheme(AppTheme theme) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(theme: Value(theme)));
@@ -190,6 +249,31 @@ class ChattDb extends _$ChattDb {
   Future<void> saveLanguage(AppLanguage language) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(language: Value(language)));
+
+  Future<void> saveRetentionDays(int days) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(retentionDays: Value(days)));
+
+  // --- Historia -------------------------------------------------------------
+
+  /// Kasuje całą historię rozmów: wiadomości i same rozmowy. Urządzenia
+  /// zostają razem z potwierdzoną tożsamością — inaczej trzeba by parować
+  /// wszystko od nowa tylko dlatego, że ktoś chciał wyczyścić treści.
+  /// Odebrane pliki zostają na dysku. Zwraca liczbę usuniętych wiadomości.
+  Future<int> clearHistory() => transaction(() async {
+    final removed = await delete(messages).go();
+    await delete(conversations).go();
+    return removed;
+  });
+
+  /// Kasuje wiadomości starsze niż [age]. Rozmowy zostają, bo pusta rozmowa
+  /// to nadal rozmowa — po prostu bez treści sprzed granicy.
+  /// Zwraca liczbę usuniętych wiadomości.
+  Future<int> deleteMessagesOlderThan(Duration age) {
+    final cutoff = DateTime.now().subtract(age);
+    return (delete(messages)..where((m) => m.createdAt.isSmallerThanValue(cutoff)))
+        .go();
+  }
 
   // --- Rozmówcy -------------------------------------------------------------
 
@@ -465,6 +549,11 @@ class ChattDb extends _$ChattDb {
               : const Value.absent(),
         ),
       );
+
+  /// Kasuje jedną wiadomość. Tylko u siebie — protokół nie ma jak kazać
+  /// drugiej stronie zapomnieć czegoś, co już dostała. Plik na dysku zostaje.
+  Future<void> deleteMessage(int id) =>
+      (delete(messages)..where((m) => m.id.equals(id))).go();
 
   Future<void> markConversationRead(int conversationId) =>
       (update(messages)..where(

@@ -290,6 +290,66 @@ abstract class AppLocalizations {
   /// **'Pod {host}:{port} nie odpowiada żaden Chatt.'**
   String noChattAtAddress(Object host, int port);
 
+  /// No description provided for @copied.
+  ///
+  /// In pl, this message translates to:
+  /// **'Skopiowano'**
+  String get copied;
+
+  /// No description provided for @securityNoEncryptionTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bez szyfrowania'**
+  String get securityNoEncryptionTitle;
+
+  /// No description provided for @securityNoEncryptionBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.'**
+  String get securityNoEncryptionBody;
+
+  /// No description provided for @securityEncryptedTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szyfrowane, tożsamość niepotwierdzona'**
+  String get securityEncryptedTitle;
+
+  /// No description provided for @securityEncryptedBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz — nazwę urządzenia każdy może sobie ustawić dowolnie.'**
+  String get securityEncryptedBody;
+
+  /// No description provided for @securityVerifiedTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szyfrowane i potwierdzone'**
+  String get securityVerifiedTitle;
+
+  /// No description provided for @securityVerifiedBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Porównaliście kod, więc wiadomo, do kogo należy klucz po drugiej stronie.'**
+  String get securityVerifiedBody;
+
+  /// No description provided for @fingerprintMine.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odcisk tego urządzenia'**
+  String get fingerprintMine;
+
+  /// No description provided for @fingerprintOf.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odcisk urządzenia {name}'**
+  String fingerprintOf(Object name);
+
+  /// No description provided for @fingerprintHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo — jeśli tak, nikt nie siedzi w środku rozmowy.'**
+  String get fingerprintHelp;
+
   /// No description provided for @peerOnline.
   ///
   /// In pl, this message translates to:
@@ -302,11 +362,23 @@ abstract class AppLocalizations {
   /// **'niedostępny'**
   String get peerOffline;
 
-  /// No description provided for @pairTooltipPaired.
+  /// No description provided for @shieldNoEncryption.
   ///
   /// In pl, this message translates to:
-  /// **'Urządzenie sparowane kodem'**
-  String get pairTooltipPaired;
+  /// **'Bez szyfrowania — druga strona ma starszą wersję'**
+  String get shieldNoEncryption;
+
+  /// No description provided for @shieldEncrypted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szyfrowane, ale tożsamość niepotwierdzona. Kliknij, żeby porównać kod'**
+  String get shieldEncrypted;
+
+  /// No description provided for @shieldVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szyfrowane i potwierdzone'**
+  String get shieldVerified;
 
   /// No description provided for @pairTooltip.
   ///
@@ -395,7 +467,7 @@ abstract class AppLocalizations {
   /// No description provided for @pairAgainWarning.
   ///
   /// In pl, this message translates to:
-  /// **'To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.'**
+  /// **'Tożsamość tego urządzenia jest już potwierdzona. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc potwierdzaj tylko wtedy, gdy sam o to poprosiłeś.'**
   String get pairAgainWarning;
 
   /// No description provided for @pairRequest.
@@ -403,6 +475,60 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'{name} chce się sparować'**
   String pairRequest(Object name);
+
+  /// No description provided for @qrShowTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż kod QR'**
+  String get qrShowTitle;
+
+  /// No description provided for @qrShowBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego — liczy się to, że drugie urządzenie widziało go na tym ekranie.'**
+  String get qrShowBody;
+
+  /// No description provided for @qrOtherAddress.
+  ///
+  /// In pl, this message translates to:
+  /// **'Inny adres'**
+  String get qrOtherAddress;
+
+  /// No description provided for @qrScanTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zeskanuj kod QR'**
+  String get qrScanTitle;
+
+  /// No description provided for @qrScanHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyceluj w kod pokazany na drugim urządzeniu'**
+  String get qrScanHint;
+
+  /// No description provided for @qrScanFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny — pokaż go jeszcze raz.'**
+  String get qrScanFailed;
+
+  /// No description provided for @pairScannedTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} zeskanował kod z tego ekranu'**
+  String pairScannedTitle(Object name);
+
+  /// No description provided for @pairScannedBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Potwierdź tylko wtedy, gdy to Ty właśnie skanowałeś. Kod z ekranu mógł zobaczyć ktoś jeszcze, a aplikacja nie ma jak tego rozstrzygnąć.'**
+  String get pairScannedBody;
+
+  /// No description provided for @pairScannedConfirm.
+  ///
+  /// In pl, this message translates to:
+  /// **'To ja skanowałem'**
+  String get pairScannedConfirm;
 
   /// No description provided for @pairCompareHint.
   ///
@@ -452,6 +578,66 @@ abstract class AppLocalizations {
   /// **'Drugie urządzenie nie odpowiada'**
   String get pairPeerUnreachable;
 
+  /// No description provided for @dropFilesHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Upuść pliki, żeby je wysłać'**
+  String get dropFilesHint;
+
+  /// No description provided for @copyText.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kopiuj tekst'**
+  String get copyText;
+
+  /// No description provided for @deleteMessage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usuń wiadomość'**
+  String get deleteMessage;
+
+  /// No description provided for @deleteMessageHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zniknie tylko z tego urządzenia'**
+  String get deleteMessageHint;
+
+  /// No description provided for @messageDeleted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wiadomość usunięta z tego urządzenia'**
+  String get messageDeleted;
+
+  /// No description provided for @searchTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj w rozmowie'**
+  String get searchTooltip;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj w rozmowie…'**
+  String get searchHint;
+
+  /// No description provided for @searchConversationsTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj rozmowy'**
+  String get searchConversationsTooltip;
+
+  /// No description provided for @searchConversationsHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj rozmowy…'**
+  String get searchConversationsHint;
+
+  /// No description provided for @searchNothingFound.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nic nie pasuje do „{query}”'**
+  String searchNothingFound(Object query);
+
   /// No description provided for @fileOfferTitle.
   ///
   /// In pl, this message translates to:
@@ -467,7 +653,7 @@ abstract class AppLocalizations {
   /// No description provided for @unpairedWarning.
   ///
   /// In pl, this message translates to:
-  /// **'Urządzenie niesparowane — nazwę można sobie ustawić dowolną'**
+  /// **'Tożsamość niepotwierdzona — nazwę można sobie ustawić dowolną'**
   String get unpairedWarning;
 
   /// No description provided for @moreFilesWaiting.
@@ -644,6 +830,72 @@ abstract class AppLocalizations {
   /// **'Usunięto z listy: {count}'**
   String cleanedUp(int count);
 
+  /// No description provided for @privacy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Prywatność'**
+  String get privacy;
+
+  /// No description provided for @dbKeyProtected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Historia leży na dysku zaszyfrowana, a klucz do niej trzyma schowek systemowy. Skopiowanie samego pliku bazy nic nie da.'**
+  String get dbKeyProtected;
+
+  /// No description provided for @dbKeyUnprotected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to przed podejrzeniem samego pliku, nie przed kopią całego katalogu aplikacji.'**
+  String get dbKeyUnprotected;
+
+  /// No description provided for @retentionLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kasuj wiadomości starsze niż'**
+  String get retentionLabel;
+
+  /// No description provided for @retentionNever.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie kasuj'**
+  String get retentionNever;
+
+  /// No description provided for @retentionDays.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} dzień} few{{count} dni} many{{count} dni} other{{count} dni}}'**
+  String retentionDays(int count);
+
+  /// No description provided for @retentionHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kasowanie dotyczy wpisów w rozmowach. Odebrane pliki zostają na dysku.'**
+  String get retentionHelp;
+
+  /// No description provided for @clearHistory.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyść historię'**
+  String get clearHistory;
+
+  /// No description provided for @clearHistoryTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyścić całą historię?'**
+  String get clearHistoryTitle;
+
+  /// No description provided for @clearHistoryBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Znikną wszystkie wiadomości i rozmowy. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.'**
+  String get clearHistoryBody;
+
+  /// No description provided for @historyCleared.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunięto wiadomości: {count}'**
+  String historyCleared(int count);
+
   /// No description provided for @thisDevice.
   ///
   /// In pl, this message translates to:
@@ -673,6 +925,54 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.'**
   String get manualPairingHint;
+
+  /// No description provided for @windowsSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Windows'**
+  String get windowsSection;
+
+  /// No description provided for @startWithWindows.
+  ///
+  /// In pl, this message translates to:
+  /// **'Uruchamiaj razem z Windowsem'**
+  String get startWithWindows;
+
+  /// No description provided for @startWithWindowsHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt wstaje po zalogowaniu i od razu siada w zasobniku, więc wiadomości dochodzą bez otwierania okna.'**
+  String get startWithWindowsHelp;
+
+  /// No description provided for @startWithWindowsFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się zmienić autostartu.'**
+  String get startWithWindowsFailed;
+
+  /// No description provided for @trayHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zamknięcie okna chowa Chatt do zasobnika i nie przerywa nasłuchu. Wyjście z programu jest w menu ikony.'**
+  String get trayHint;
+
+  /// No description provided for @trayTooltip.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt — nasłuchuje w sieci lokalnej'**
+  String get trayTooltip;
+
+  /// No description provided for @trayShow.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż Chatt'**
+  String get trayShow;
+
+  /// No description provided for @trayQuit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zamknij Chatt'**
+  String get trayQuit;
 
   /// No description provided for @backgroundServiceTitle.
   ///

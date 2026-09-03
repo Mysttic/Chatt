@@ -111,7 +111,9 @@ void main() {
 
   test('sparowani: treść wiadomości nie leci jawnym tekstem', () async {
     final bobAsPeer = await pair();
-    expect(bobAsPeer.sessionKey, isNotNull, reason: 'klucz zapisany po parowaniu');
+    expect(bobAsPeer.verified, isTrue,
+        reason: 'parowanie od protokołu 5 nie zapisuje klucza, tylko '
+            'potwierdza tożsamość — klucz sesji jest efemeryczny');
 
     sniffed.clear();
     final conversation = await alice.openConversationWith(bobAsPeer);
@@ -130,15 +132,21 @@ void main() {
         MessageStatus.delivered);
   });
 
-  test('niesparowani: ruch leci po staremu, jawnym tekstem', () async {
+  test('niesparowani: treść też nie leci jawnym tekstem', () async {
+    // To jest teza wydania 0.2.0: szyfrowanie nie czeka na parowanie.
+    // Parowanie odpowiada tylko na pytanie „z kim rozmawiam", a nie „czy
+    // ktoś to przeczyta po drodze".
     final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', wire.port);
     final conversation = await alice.openConversationWith(bobAsPeer!);
     await alice.sendText(conversation, 'JAWNA-TRESC');
 
-    expect(podsluch().contains('JAWNA-TRESC'), isTrue,
-        reason: 'bez parowania nie ma czym szyfrować — i tak ma dojść');
     expect((await alice.db.watchMessages(conversation).first).last.status,
-        MessageStatus.delivered);
+        MessageStatus.delivered,
+        reason: 'bez parowania wiadomość ma dojść tak samo jak z parowaniem');
+    expect(podsluch().contains('JAWNA-TRESC'), isFalse,
+        reason: 'podsłuch na łączu nie ma prawa zobaczyć treści');
+    expect((await alice.db.peerByGuid(bob.identity.guid))!.verified, isFalse,
+        reason: 'i to wszystko bez sparowania');
   });
 
   test('sparowani: plik jedzie zaszyfrowany i składa się bajt w bajt',

@@ -11,10 +11,13 @@ i serwerem**. Każde urządzenie hostuje mały serwer HTTP (`shelf`) i odzywa si
 na rozgłoszenia UDP. Dokładnie tak działa LocalSend i to jest jedyny układ,
 który daje bezpośrednie połączenie bez niczyjej infrastruktury.
 
-Tożsamością urządzenia jest **GUID** losowany przy pierwszym starcie, a nie
-adres IP. IP zmienia się po restarcie routera, GUID nie — dlatego wszystko
-(rozmowy, klucze, deduplikacja) wisi na GUID-zie, a adres jest tylko
-podpowiedzią, gdzie tego GUID-a ostatnio widziano.
+Tożsamością urządzenia jest **para kluczy X25519**, a nie adres IP i nie
+losowy napis. Identyfikator (`guid`) jest liczony ze skrótu klucza publicznego,
+więc nie da się podać cudzego bez jego klucza prywatnego: kto ogłasza cudzy
+identyfikator, ten nie dokończy uścisku dłoni. IP zmienia się po restarcie
+routera, tożsamość nie — dlatego wszystko (rozmowy, sesje, deduplikacja) wisi
+na identyfikatorze, a adres jest tylko podpowiedzią, gdzie go ostatnio
+widziano.
 
 ## Warstwy
 
@@ -40,8 +43,12 @@ o zgodę — te idą przez `ValueNotifier`.
 
 ## Protokół
 
-Wersja protokołu: **4** (`lib/network/protocol.dart`, stała
+Wersja protokołu: **5** (`lib/network/protocol.dart`, stała
 `protocolVersion`). Podbijamy przy zmianach niekompatybilnych.
+
+**Od wersji 5 nie ma w protokole jawnego tekstu.** Każde zapytanie poza
+`GET /info`, `POST /handshake` i `POST /pair` przychodzi w kopercie związanej
+z sesją; wszystko inne dostaje 409 i prośbę o uścisk dłoni.
 
 ### Discovery (UDP 47777)
 
@@ -53,21 +60,50 @@ Adresy rozgłoszeniowe: globalny `255.255.255.255` plus kierowany per interfejs,
 liczony jak dla /24 (`dart:io` nie zdradza maski podsieci). Zapytanie leci dwa
 razy w odstępie 400 ms, bo pojedynczy datagram w Wi‑Fi łatwo ginie.
 
-Odpowiedź od **sparowanego** urządzenia niesie `tag`: HMAC-SHA256 kluczem
-sesji z guida, portu i nonce'a z zapytania. Skaner wyrzuca z wyniku każdą
+Pakiet niesie też klucz publiczny nadawcy, a odbiorca sprawdza, czy zgadza się
+on z ogłoszonym identyfikatorem — niezgodne tożsamości nie wchodzą do żadnej
+listy. Dzięki temu klucz do pierwszej sesji jest znany, zanim padnie pierwsze
+słowo.
+
+Odpowiedź od **znanego** urządzenia niesie `tag`: HMAC-SHA256 z guida, portu
+i nonce'a z zapytania, kluczem wyprowadzonym z uzgodnienia samych kluczy
+statycznych (liczy się bez żywej sesji). Skaner wyrzuca z wyniku każdą
 odpowiedź, która twierdzi, że jest znanym urządzeniem, a nie ma pasującego
-podpisu. Bez tego ktoś znający sam GUID mógłby zająć jego miejsce na liście —
-a stamtąd bierzemy adres, gdy rozmówcy zmieni się IP.
+podpisu. Bez tego ktoś, kto zna czyjś publiczny klucz, mógłby zająć jego
+miejsce na liście — a stamtąd bierzemy adres, gdy rozmówcy zmieni się IP.
 
 ### Wiadomości i pliki (TCP 47780, konfigurowalny)
 
 | Endpoint | Do czego |
 |---|---|
-| `GET /info` | tożsamość urządzenia; używane też jako „czy żyjesz" |
-| `POST /message` | dostarczenie wiadomości; 200 = potwierdzenie |
-| `POST /pair` | parowanie (cztery akcje, niżej) |
-| `POST /file-offer` | zapowiedź pliku: nazwa, rozmiar, sha256 |
-| `POST /file` | surowe bajty od podanego offsetu |
+| `GET /info` | tożsamość urządzenia **z kluczem publicznym**; używane też jako „czy żyjesz" |
+| `POST /handshake` | nawiązanie sesji (niżej) |
+| `POST /message` | dostarczenie wiadomości; 200 = potwierdzenie, 409 = odnów sesję |
+| `POST /pair` | potwierdzenie tożsamości (cztery akcje, niżej) |
+| `POST /file-offer` | zapowiedź pliku: nazwa, rozmiar, sha256, znacznik klucza |
+| `POST /file` | surowe bajty od podanego offsetu, z numerem sesji w nagłówku |
+
+### Sesja
+
+```
+A → B   POST /handshake   { from: <tożsamość A z kluczem>, e: <efemeryczny A> }
+A ← B                     { sessionId, e: <efemeryczny B>, from: <tożsamość B> }
+```
+
+Obie strony liczą klucz sesji z czterech uzgodnień X25519 (schemat Noise KK):
+`ee` daje forward secrecy, `ss` wiąże sesję z tożsamościami, `es` i `se` wiążą
+każdy klucz efemeryczny z tożsamością drugiej strony. Do wyprowadzenia wchodzi
+cały zapis rozmowy, więc podmiana czegokolwiek po drodze daje po prostu inny
+klucz i ruch się nie odszyfruje.
+
+Sesja żyje **godzinę bezczynności i tylko w pamięci**. Restart ją kasuje,
+a przy kolejnej wysyłce powstaje nowa — to jest cała mechanika forward
+secrecy: nie ma czego wykraść z dysku po fakcie.
+
+Koperta niesie jawnie **wyłącznie numer sesji**. Guid nadawcy z niej zniknął,
+więc podsłuchujący nie widzi nawet tego, kto z kim rozmawia. Nieznany numer
+(restart drugiej strony, wygaśnięcie) to 409: nadawca kasuje swoją sesję,
+robi uścisk dłoni raz jeszcze i ponawia zapytanie jeden raz.
 
 Transfer pliku jest **dwuetapowy**: najpierw zapowiedź, którą odbiorca
 zatwierdza lub odrzuca, dopiero potem bajty. Odmowa oznacza zero przesłanych
@@ -82,9 +118,10 @@ sprzątane po siedmiu dniach.
 
 ## Baza
 
-`drift` (SQLite), schemat w wersji **5**. Tabele: `settings`, `peers`,
+`drift` (SQLite), schemat w wersji **7**. Tabele: `settings`, `peers`,
 `conversations`, `messages`. Migracje są napisane po kolei, więc baza
-z wcześniejszej wersji aplikacji doczytuje się bez utraty danych:
+z wcześniejszej wersji aplikacji doczytuje się bez utraty danych — z jednym
+wyjątkiem, opisanym niżej:
 
 | Wersja | Co doszło |
 |---|---|
@@ -92,6 +129,13 @@ z wcześniejszej wersji aplikacji doczytuje się bez utraty danych:
 | 3 | `peers.sessionKey`; migracja kasuje `verified` przy parowaniach bez klucza |
 | 4 | `settings.theme` |
 | 5 | `settings.language` |
+| 6 | `settings.identityKey`, `peers.publicKey`; **czyści listę urządzeń i historię** |
+| 7 | `settings.retentionDays` (samoczynne kasowanie starych wiadomości) |
+
+Czyszczenie przy v6 jest świadome: identyfikatory przestały być losowane
+i zaczęły wynikać z kluczy, więc wszystkie urządzenia dostały nowe. Zapisani
+rozmówcy przestali pasować do czegokolwiek w sieci, a zostawienie ich
+znaczyłoby listę wpisów, do których nie da się już napisać.
 
 Po każdej zmianie w `lib/data/db.dart` trzeba przegenerować kod (`build_runner`,
 patrz [budowanie.md](budowanie.md)) i **podbić `schemaVersion` razem
@@ -101,27 +145,88 @@ starcie.
 Schemat wywodzi się z modelu z pierwszej wersji projektu:
 [`makiety/schemat_bazy.png`](makiety/schemat_bazy.png).
 
+### Baza na dysku jest zaszyfrowana
+
+Zamiast zwykłego SQLite build dołącza **SQLite3MultipleCiphers** (wybór
+`hooks.user_defines.sqlite3.source: sqlite3mc` w `pubspec.yaml`). Przy
+otwieraniu leci `PRAGMA key`, więc plik `chatt.sqlite` nie ma nawet czytelnego
+nagłówka: sprawdzone, `od -c` pokazuje losowe bajty, a otwarcie bez hasła
+kończy się `SqliteException(26): file is not a database`.
+
+Hasło to 32 losowe bajty, leżące obok bazy w pliku `chatt.key`. Sam plik nic
+nie daje, bo jego zawartość jest owinięta przez **schowek systemowy** kanałem
+`chatt/sekrety`:
+
+| Platforma | Czym owinięte | Implementacja |
+|---|---|---|
+| Android | AES-GCM kluczem z **Keystore** (bez wymogu odblokowania: aplikacja odbiera wiadomości przy zgaszonym ekranie) | `ChattChannels.kt` |
+| Windows | **DPAPI** kluczem konta użytkownika, z dodatkową entropią | `windows/runner/chatt_secrets.cpp` |
+
+Pierwszy bajt `chatt.key` mówi, czy zawartość jest owinięta. Gdy schowek
+odmówi (platforma bez implementacji), klucz zapisuje się jawnie, a ustawienia
+mówią o tym wprost — szyfrowanie bazy dalej działa, ale chroni już tylko przed
+skopiowaniem samego pliku bazy, nie całego katalogu aplikacji. Gdy klucz
+systemowy **zniknie** (reinstalacja, przywrócenie kopii na inne urządzenie),
+`DatabaseKey.load` rzuca błąd zamiast po cichu założyć pustą bazę.
+
+Jawna baza po starszej wersji przepisuje się przy pierwszym starcie
+(`migrateToEncrypted`): szyfrowanie działa na stronach pliku, więc bazy nie da
+się „dokluczyć" w miejscu. Kopia powstaje obok, oryginał znika dopiero po jej
+domknięciu, więc przerwanie w połowie zostawia albo starą bazę, albo nową.
+Sprawdzone na obu platformach na prawdziwej bazie sprzed zmiany: nick i reszta
+ustawień przeżyły, plik po starcie jest zaszyfrowany.
+
 ## Bezpieczeństwo
 
 ### Model zagrożeń
 
 Zakładamy napastnika **w tej samej sieci lokalnej**: może podsłuchiwać,
-wysyłać własne pakiety i podawać się za kogo chce. Nie zakładamy napastnika
-z dostępem do odblokowanego urządzenia — baza i klucze leżą w katalogu
-aplikacji bez dodatkowego szyfrowania.
+wysyłać własne pakiety i podawać się za kogo chce. Dochodzi do tego napastnik,
+który **dobierze się do dysku**: skopiuje plik bazy albo cały katalog
+aplikacji. Baza jest zaszyfrowana, a jej klucz trzyma schowek systemowy, więc
+sam plik nic nie da. Nie zakładamy napastnika z dostępem do **odblokowanego,
+działającego** urządzenia — tam klucz jest w pamięci procesu z definicji.
 
-### Parowanie (protokół 4)
+### Potwierdzenie tożsamości (dawniej „parowanie")
+
+Od protokołu 5 ten rytuał **nie ustala klucza do szyfrowania** — ten bierze się
+z sesji i zmienia co godzinę. Odpowiada wyłącznie na pytanie „czy ten klucz
+należy do osoby, o której myślę", więc jego wynikiem jest zielona tarcza.
 
 ```
 A → B   commit   sha256(pkA)              zobowiązanie do klucza
 A ← B   odpowiedź z pkB                   B losuje własną parę
 A → B   reveal   pkA                      B sprawdza zgodność ze skrótem
-        obie strony liczą klucz sesji i sześciocyfrowy kod z X25519
-        i pokazują kod na ekranie; użytkownicy porównują wzrokiem
+        obie strony liczą sześciocyfrowy kod z uzgodnienia, do którego
+        wchodzą też oba klucze statyczne, i pokazują go na ekranie
 A ⇄ B   confirm  (po kliknięciu na każdym urządzeniu)
 ```
 
-Klucz zapisujemy dopiero, gdy potwierdzą **oba** końce.
+Tarcza robi się zielona dopiero, gdy potwierdzą **oba** końce. Zgodny kod
+dowodzi przy okazji, że po drugiej stronie siedzi właściciel klucza prywatnego
+od tej tożsamości — klucze statyczne wchodzą do wyprowadzenia kodu.
+
+### Kod QR
+
+Szybsza i pewniejsza droga do tego samego. Urządzenie pokazuje
+`chatt://pair?k=<klucz>&h=<adres>&p=<port>&n=<nazwa>`, drugie skanuje.
+
+W kodzie nie ma nic tajnego. Wartość bierze się z **kanału**: kto go
+zeskanował, ten patrzył na tamten ekran, więc wie, że klucz pochodzi stąd,
+a nie od kogoś po drodze. Napastnik nie ma tu szansy jednej na milion, jak
+przy sześciu cyfrach — ma zero, bo nie ma jak podstawić swojego klucza.
+
+Asymetria jest tu nieunikniona i dlatego jest widoczna w UI:
+
+- **skanujący** ma pewność od razu i jego tarcza robi się zielona,
+- **skanowany** dostaje tylko powiadomienie (`pairScanned`) i pyta swojego
+  użytkownika „czy to Ty właśnie skanowałeś", bo kod z ekranu mógł zobaczyć
+  ktoś jeszcze. Człowiek potwierdza to, czego maszyna nie wie: że skanowanie
+  właśnie się odbyło i to on je zrobił.
+
+Przed przypięciem klucza z kodu sprawdzamy jeszcze w `GET /info`, czy pod
+adresem z kodu naprawdę stoi urządzenie z tym kluczem — inaczej dałoby się
+podsunąć kod ze swoim kluczem, a cudzym adresem.
 
 Po co zobowiązanie: bez niego napastnik w środku (osobne uzgodnienie z każdą
 stroną) mógłby losować własne klucze aż do zrównania obu kodów. Skrót wysłany
@@ -140,36 +245,52 @@ hash-to-curve, a własna arytmetyka krzywej to prosta droga do cichego błędu.
 
 ### Szyfrowanie ruchu
 
-- **Wiadomości i zapowiedzi plików**: koperta AES-GCM. Jawny zostaje sam GUID
-  nadawcy, żeby odbiorca wiedział, którym kluczem odszyfrować; `from` ze środka
-  musi się zgadzać z tym jawnym, inaczej sparowany rozmówca mógłby pisać
-  w cudzym imieniu.
+- **Wiadomości i zapowiedzi plików**: koperta AES-GCM. Jawny zostaje sam numer
+  sesji, po którym odbiorca znajduje klucz; `from` ze środka musi się zgadzać
+  z właścicielem tej sesji, inaczej rozmówca mógłby pisać w cudzym imieniu
+  we własnej, poprawnie zaszyfrowanej wiadomości.
 - **Treść plików**: strumień AES-CTR, bo tylko tak da się wznowić transfer od
-  dowolnego bajtu. Nonce liczony z guida wiadomości **i sumy kontrolnej
-  treści** — sam guid nie wystarcza, bo ponowienie po podmianie pliku pod tą
-  samą ścieżką użyłoby drugi raz tego samego strumienia klucza.
+  dowolnego bajtu. Klucz jest osobny na każdy plik, wyprowadzony z klucza
+  sesji i guida wiadomości. Nonce liczony z guida **i sumy kontrolnej treści** —
+  sam guid nie wystarcza, bo ponowienie po podmianie pliku pod tą samą ścieżką
+  użyłoby drugi raz tego samego strumienia klucza.
+- **Wznowienie po wymianie sesji**: zapowiedź niesie znacznik klucza pliku,
+  a odbiorca trzyma go obok części transferu. Niezgodność znaczy, że część
+  jest zaszyfrowana czymś innym — wtedy transfer rusza od zera zamiast dokleić
+  bajty, których nie da się odszyfrować razem z resztą.
 - Integralności pliku pilnuje sha256 z **zaszyfrowanej** zapowiedzi, a nie
   z nagłówka.
 
 ### Reguła, na której to wszystko stoi
 
-Od urządzenia, z którym mamy klucz, przyjmujemy **wyłącznie** ruch
-zaszyfrowany (`_authenticated` w `app_services.dart`). Bez tego wystarczyłby
-jeden jawny pakiet z cudzym GUID-em, żeby podszyć się pod zieloną tarczę. Trzy
-testy w `test/downgrade_test.dart` odgrywają dokładnie ten atak.
+Jawnego tekstu **nie ma w protokole**. Zapytanie bez koperty związanej z żywą
+sesją dostaje 409, niezależnie od tego, kim się przedstawia. Wcześniej ta
+reguła obowiązywała tylko wobec sparowanych i wystarczyło jeden jawny pakiet
+z cudzym identyfikatorem, żeby podszyć się pod zieloną tarczę; trzy testy
+w `test/downgrade_test.dart` odgrywają dokładnie ten atak.
 
 ### Co zostaje otwarte
 
 - `POST /pair` nie jest uwierzytelniony, więc każdy może wywołać kartę
-  parowania podszywając się nazwą pod znajomego. Klucza to nie podmieni (kody
-  muszą się zgodzić na obu ekranach), ale karta ponownego parowania jest
-  wyraźnie oznaczona na czerwono.
+  potwierdzenia, podszywając się nazwą pod znajomego. Zielonej tarczy to nie
+  da (kody muszą się zgodzić na obu ekranach), ale karta dla znanego już
+  urządzenia jest wyraźnie oznaczona na czerwono.
+- **Restart w trakcie transferu kasuje postęp**, bo klucz pliku wisi na kluczu
+  sesji. Zerwanie sieci na sekundy czy minuty wznawia się normalnie. Klucz
+  wyprowadzany z kluczy statycznych naprawiłby to kosztem odszyfrowania
+  wszystkich nagranych wcześniej transferów po kradzieży tożsamości — czyli
+  kosztem tego, po co jest to wydanie.
 - Discovery jest jawne. Nazwa urządzenia i port są widoczne dla każdego w tej
   sieci. Zaszyfrować tego się nie da: rozgłoszenie idzie do kogoś, kogo się
   jeszcze nie zna.
 - Rotacja kluczy sesji: świadomie odłożona, bo wznawianie transferu wymaga
   tego samego klucza między sesjami.
-- Baza i klucze leżą na dysku bez szyfrowania.
+- Odebrane pliki leżą na dysku bez szyfrowania. Baza owija tylko historię
+  rozmów; zawartość przesłanych plików zostaje tam, gdzie użytkownik ma ją
+  otwierać innymi aplikacjami.
+- Klucz bazy jest do wyjęcia przez proces działający **jako ten sam użytkownik
+  systemu**: na Windowsie DPAPI odwinie go każdemu takiemu procesowi, na
+  Androidzie chroni go piaskownica aplikacji.
 
 ## Android: nasłuch w tle
 
@@ -202,6 +323,30 @@ z własnymi mechanizmami ubijania aplikacji.
 Pliki wychodzą do innych aplikacji przez FileProvider jako `content://`
 (własny kanał `chatt/files`, bez wtyczek z pub.dev), bo od API 24 zwykła
 ścieżka kończy się `FileUriExposedException`.
+
+## Windows: zasobnik i autostart
+
+Ten sam problem co na Androidzie, tylko inaczej rozwiązany: aplikacja
+nasłuchuje, dopóki żyje proces, a proces na pulpicie kończy się razem z oknem.
+
+- **Krzyżyk chowa okno.** `window_manager` blokuje zamknięcie
+  (`setPreventClose`), a `lib/core/tray.dart` chowa okno zamiast je niszczyć.
+  Wyjście z programu jest w menu ikony w zasobniku i zdejmuje tę blokadę,
+  więc dopiero wtedy zamknięcie okna kończy proces.
+- **Ikona w zasobniku** (`tray_manager`) z podpowiedzią i menu w języku
+  aplikacji — menu przebudowuje się przy zmianie języka, tak samo jak
+  powiadomienie usługi na Androidzie. Ikona jedzie jako zasób Fluttera
+  (`assets/tray_icon.ico`), bo zasobnik czyta plik z dysku, a nie zasoby
+  `.exe`.
+- **Start zminimalizowany** rozstrzyga się w runnerze, a nie w Darcie:
+  `main.cpp` sprawdza argument `--minimized` i nie rejestruje wtedy
+  pokazania okna po pierwszej klatce. Dzięki temu przy starcie systemu nie
+  ma mignięcia oknem.
+- **Autostart** to wpis w `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+  zakładany własnym kanałem `chatt/autostart`
+  (`windows/runner/chatt_autostart.cpp`). Wpis konta użytkownika, nie usługa:
+  bez uprawnień administratora i do skasowania także ręcznie. Wartość to
+  ścieżka do `.exe` w cudzysłowie plus `--minimized`.
 
 ## Skąd wziął się wygląd
 

@@ -128,13 +128,57 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get copied => 'Skopiowano';
+
+  @override
+  String get securityNoEncryptionTitle => 'Bez szyfrowania';
+
+  @override
+  String get securityNoEncryptionBody =>
+      'Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.';
+
+  @override
+  String get securityEncryptedTitle => 'Szyfrowane, tożsamość niepotwierdzona';
+
+  @override
+  String get securityEncryptedBody =>
+      'Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz — nazwę urządzenia każdy może sobie ustawić dowolnie.';
+
+  @override
+  String get securityVerifiedTitle => 'Szyfrowane i potwierdzone';
+
+  @override
+  String get securityVerifiedBody =>
+      'Porównaliście kod, więc wiadomo, do kogo należy klucz po drugiej stronie.';
+
+  @override
+  String get fingerprintMine => 'Odcisk tego urządzenia';
+
+  @override
+  String fingerprintOf(Object name) {
+    return 'Odcisk urządzenia $name';
+  }
+
+  @override
+  String get fingerprintHelp =>
+      'Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo — jeśli tak, nikt nie siedzi w środku rozmowy.';
+
+  @override
   String get peerOnline => 'dostępny';
 
   @override
   String get peerOffline => 'niedostępny';
 
   @override
-  String get pairTooltipPaired => 'Urządzenie sparowane kodem';
+  String get shieldNoEncryption =>
+      'Bez szyfrowania — druga strona ma starszą wersję';
+
+  @override
+  String get shieldEncrypted =>
+      'Szyfrowane, ale tożsamość niepotwierdzona. Kliknij, żeby porównać kod';
+
+  @override
+  String get shieldVerified => 'Szyfrowane i potwierdzone';
 
   @override
   String get pairTooltip => 'Sparuj przez porównanie kodu';
@@ -183,12 +227,44 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get pairAgainWarning =>
-      'To urządzenie jest już sparowane. Zgoda zastąpi klucz, którym się z nim porozumiewasz. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc rób to tylko, jeśli sam o to poprosiłeś.';
+      'Tożsamość tego urządzenia jest już potwierdzona. Prośbę mógł przysłać ktoś inny pod tą samą nazwą, więc potwierdzaj tylko wtedy, gdy sam o to poprosiłeś.';
 
   @override
   String pairRequest(Object name) {
     return '$name chce się sparować';
   }
+
+  @override
+  String get qrShowTitle => 'Pokaż kod QR';
+
+  @override
+  String get qrShowBody =>
+      'Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego — liczy się to, że drugie urządzenie widziało go na tym ekranie.';
+
+  @override
+  String get qrOtherAddress => 'Inny adres';
+
+  @override
+  String get qrScanTitle => 'Zeskanuj kod QR';
+
+  @override
+  String get qrScanHint => 'Wyceluj w kod pokazany na drugim urządzeniu';
+
+  @override
+  String get qrScanFailed =>
+      'Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny — pokaż go jeszcze raz.';
+
+  @override
+  String pairScannedTitle(Object name) {
+    return '$name zeskanował kod z tego ekranu';
+  }
+
+  @override
+  String get pairScannedBody =>
+      'Potwierdź tylko wtedy, gdy to Ty właśnie skanowałeś. Kod z ekranu mógł zobaczyć ktoś jeszcze, a aplikacja nie ma jak tego rozstrzygnąć.';
+
+  @override
+  String get pairScannedConfirm => 'To ja skanowałem';
 
   @override
   String get pairCompareHint =>
@@ -218,6 +294,38 @@ class AppLocalizationsPl extends AppLocalizations {
   String get pairPeerUnreachable => 'Drugie urządzenie nie odpowiada';
 
   @override
+  String get dropFilesHint => 'Upuść pliki, żeby je wysłać';
+
+  @override
+  String get copyText => 'Kopiuj tekst';
+
+  @override
+  String get deleteMessage => 'Usuń wiadomość';
+
+  @override
+  String get deleteMessageHint => 'Zniknie tylko z tego urządzenia';
+
+  @override
+  String get messageDeleted => 'Wiadomość usunięta z tego urządzenia';
+
+  @override
+  String get searchTooltip => 'Szukaj w rozmowie';
+
+  @override
+  String get searchHint => 'Szukaj w rozmowie…';
+
+  @override
+  String get searchConversationsTooltip => 'Szukaj rozmowy';
+
+  @override
+  String get searchConversationsHint => 'Szukaj rozmowy…';
+
+  @override
+  String searchNothingFound(Object query) {
+    return 'Nic nie pasuje do „$query”';
+  }
+
+  @override
   String fileOfferTitle(Object name) {
     return '$name chce wysłać plik';
   }
@@ -229,7 +337,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get unpairedWarning =>
-      'Urządzenie niesparowane — nazwę można sobie ustawić dowolną';
+      'Tożsamość niepotwierdzona — nazwę można sobie ustawić dowolną';
 
   @override
   String moreFilesWaiting(int count) {
@@ -335,6 +443,55 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get privacy => 'Prywatność';
+
+  @override
+  String get dbKeyProtected =>
+      'Historia leży na dysku zaszyfrowana, a klucz do niej trzyma schowek systemowy. Skopiowanie samego pliku bazy nic nie da.';
+
+  @override
+  String get dbKeyUnprotected =>
+      'Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to przed podejrzeniem samego pliku, nie przed kopią całego katalogu aplikacji.';
+
+  @override
+  String get retentionLabel => 'Kasuj wiadomości starsze niż';
+
+  @override
+  String get retentionNever => 'Nie kasuj';
+
+  @override
+  String retentionDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dni',
+      many: '$count dni',
+      few: '$count dni',
+      one: '$count dzień',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get retentionHelp =>
+      'Kasowanie dotyczy wpisów w rozmowach. Odebrane pliki zostają na dysku.';
+
+  @override
+  String get clearHistory => 'Wyczyść historię';
+
+  @override
+  String get clearHistoryTitle => 'Wyczyścić całą historię?';
+
+  @override
+  String get clearHistoryBody =>
+      'Znikną wszystkie wiadomości i rozmowy. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.';
+
+  @override
+  String historyCleared(int count) {
+    return 'Usunięto wiadomości: $count';
+  }
+
+  @override
   String get thisDevice => 'To urządzenie';
 
   @override
@@ -351,6 +508,32 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get manualPairingHint =>
       'Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.';
+
+  @override
+  String get windowsSection => 'Windows';
+
+  @override
+  String get startWithWindows => 'Uruchamiaj razem z Windowsem';
+
+  @override
+  String get startWithWindowsHelp =>
+      'Chatt wstaje po zalogowaniu i od razu siada w zasobniku, więc wiadomości dochodzą bez otwierania okna.';
+
+  @override
+  String get startWithWindowsFailed => 'Nie udało się zmienić autostartu.';
+
+  @override
+  String get trayHint =>
+      'Zamknięcie okna chowa Chatt do zasobnika i nie przerywa nasłuchu. Wyjście z programu jest w menu ikony.';
+
+  @override
+  String get trayTooltip => 'Chatt — nasłuchuje w sieci lokalnej';
+
+  @override
+  String get trayShow => 'Pokaż Chatt';
+
+  @override
+  String get trayQuit => 'Zamknij Chatt';
 
   @override
   String get backgroundServiceTitle => 'Chatt nasłuchuje';

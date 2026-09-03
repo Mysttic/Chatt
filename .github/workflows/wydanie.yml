@@ -1,12 +1,17 @@
 name: Wydanie
 
-# Wydanie powstaje, gdy PR z develop do master zostanie scalony — czyli przy
-# pchnięciu na master. Numer wersji bierzemy z app/pubspec.yaml; jeśli tag
-# o tej wersji już istnieje, cały bieg kończy się bez robienia niczego.
-# Dzięki temu wydanie robi się samo przez podbicie wersji w pubspec.yaml.
+# Wydanie powstaje, gdy PR z develop do master zostanie scalony — ale tylko
+# wtedy, gdy w scalanych zmianach był VERSION.md. Scalenie samej poprawki do
+# kodu czy dokumentacji nie uruchamia więc niczego.
+#
+# Druga bramka jest w jobie `wersja`: jeśli tag o tej wersji już istnieje,
+# bieg kończy się bez robienia niczego. Chroni to przed powtórnym wydaniem,
+# gdy ktoś ruszy w VERSION.md sam opis, nie zmieniając numeru.
 on:
   push:
     branches: [master]
+    paths:
+      - VERSION.md
   workflow_dispatch:
 
 permissions:
@@ -30,11 +35,26 @@ jobs:
           fetch-depth: 0
 
       - id: odczyt
-        name: Wersja z pubspec.yaml
+        name: Wersja z VERSION.md
         run: |
           set -euo pipefail
+          # Pierwsza linia, która jest samym numerem — reszta pliku to opis.
+          wersja=$(grep -m1 -E '^[0-9]+\.[0-9]+\.[0-9]+$' VERSION.md || true)
+          if [ -z "$wersja" ]; then
+            echo "::error file=VERSION.md::Nie znalazłem numeru wersji (oczekiwany format: 1.2.3)"
+            exit 1
+          fi
+
+          # pubspec.yaml musi mówić to samo, bo stamtąd biorą się versionName
+          # i versionCode Androida. Rozjazd znaczy, że ktoś podniósł numer
+          # tylko w jednym miejscu.
           pelna=$(grep -m1 '^version:' app/pubspec.yaml | sed 's/^version:[[:space:]]*//')
-          wersja=${pelna%%+*}
+          if [ "${pelna%%+*}" != "$wersja" ]; then
+            echo "::error::VERSION.md mówi $wersja, a app/pubspec.yaml $pelna."
+            echo "::error::Podnieś oba naraz: cd app && python tool/wersja.py $wersja"
+            exit 1
+          fi
+
           tag="v$wersja"
           echo "wersja=$wersja" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
