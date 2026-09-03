@@ -1,10 +1,14 @@
 package com.mysttic.chatt
 
 import android.annotation.SuppressLint
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.os.PowerManager
+import android.provider.MediaStore
 import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -49,6 +53,7 @@ object ChattChannels {
             when (call.method) {
                 "open" -> result.success(sendFile(context, path, share = false))
                 "share" -> result.success(sendFile(context, path, share = true))
+                "save" -> result.success(saveToStore(context, path))
                 else -> result.notImplemented()
             }
         }
@@ -207,6 +212,63 @@ object ChattChannels {
             true
         } catch (error: Exception) {
             false
+        }
+    }
+
+    /**
+     * Kopiuje odebrany plik tam, gdzie użytkownik go szuka: obrazki do Zdjęć,
+     * resztę do Pobranych. Od Androida 10 MediaStore nie wymaga do tego
+     * żadnego uprawnienia, bo aplikacja dokłada wpis do kolekcji systemowej,
+     * a nie pisze po cudzym katalogu.
+     *
+     * Zwraca nazwę katalogu do pokazania użytkownikowi albo null, gdy się nie
+     * udało (starszy Android, brak pliku, odmowa dostawcy treści).
+     */
+    private fun saveToStore(context: Context, path: String): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val file = File(path)
+        if (!file.exists()) return null
+
+        val type = mimeTypeOf(file.name)
+        val obrazek = type.startsWith("image/")
+        val katalog = if (obrazek) {
+            Environment.DIRECTORY_PICTURES + "/Chatt"
+        } else {
+            Environment.DIRECTORY_DOWNLOADS
+        }
+        val kolekcja = if (obrazek) {
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        }
+
+        val opis = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+            put(MediaStore.MediaColumns.MIME_TYPE, type)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, katalog)
+            // Wpis niegotowy jest niewidoczny dla galerii, dopóki nie skończymy
+            // kopiowania — inaczej dałoby się zobaczyć plik w połowie.
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+
+        val resolver = context.contentResolver
+        val uri = resolver.insert(kolekcja, opis) ?: return null
+        return try {
+            resolver.openOutputStream(uri).use { wyjscie ->
+                if (wyjscie == null) throw IllegalStateException("brak strumienia")
+                file.inputStream().use { it.copyTo(wyjscie) }
+            }
+            resolver.update(
+                uri,
+                ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
+                null,
+                null,
+            )
+            katalog
+        } catch (error: Exception) {
+            // Połowicznie zapisany plik nie ma prawa zostać w galerii.
+            resolver.delete(uri, null, null)
+            null
         }
     }
 

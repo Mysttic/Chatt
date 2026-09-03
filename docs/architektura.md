@@ -118,7 +118,7 @@ sprzątane po siedmiu dniach.
 
 ## Baza
 
-`drift` (SQLite), schemat w wersji **7**. Tabele: `settings`, `peers`,
+`drift` (SQLite), schemat w wersji **8**. Tabele: `settings`, `peers`,
 `conversations`, `messages`. Migracje są napisane po kolei, więc baza
 z wcześniejszej wersji aplikacji doczytuje się bez utraty danych — z jednym
 wyjątkiem, opisanym niżej:
@@ -131,6 +131,7 @@ wyjątkiem, opisanym niżej:
 | 5 | `settings.language` |
 | 6 | `settings.identityKey`, `peers.publicKey`; **czyści listę urządzeń i historię** |
 | 7 | `settings.retentionDays` (samoczynne kasowanie starych wiadomości) |
+| 8 | `settings.background` (wybrane tło) |
 
 Czyszczenie przy v6 jest świadome: identyfikatory przestały być losowane
 i zaczęły wynikać z kluczy, więc wszystkie urządzenia dostały nowe. Zapisani
@@ -347,6 +348,30 @@ nasłuchuje, dopóki żyje proces, a proces na pulpicie kończy się razem z okn
   (`windows/runner/chatt_autostart.cpp`). Wpis konta użytkownika, nie usługa:
   bez uprawnień administratora i do skasowania także ręcznie. Wartość to
   ścieżka do `.exe` w cudzysłowie plus `--minimized`.
+
+## Układ: jedno okno, dwa rozmiary
+
+Jeden zestaw ekranów obsługuje telefon i monitor, bez osobnej wersji na
+każdą platformę:
+
+- **Próg 900 px** (`czyDwupanel`): powyżej lista rozmów i rozmowa stoją obok
+  siebie w jednym `Scaffold`-ie, poniżej rozmowa jest osobnym ekranem na
+  stosie nawigacji. Ta sama `ChatScreen` w obu przypadkach — wbudowana nie
+  dostaje strzałki „wstecz", bo nie ma czego zdejmować ze stosu.
+- **Górne granice szerokości**: dymki 560 px, formularze 760 px
+  (`ContentColumn`). Bez nich na monitorze linia ciągnie się przez pół metra.
+- **`VisualDensity.adaptivePlatformDensity`**: na pulpicie steruje się myszą,
+  więc listy i przyciski dostają ciaśniejsze odstępy niż na telefonie.
+- **Paski systemowe Androida**: od API 35 system rysuje je **na** aplikacji
+  i nie zwęża okna, więc przewijana treść musi sama dołożyć sobie dolny
+  margines (`bottomSystemInset`). Bierzemy `MediaQuery.padding`, a nie
+  `viewPadding`: przy otwartej klawiaturze pasek leży nad nią i dokładanie tej
+  przerwy drugi raz odsuwałoby treść w próżnię.
+- **Tła** (`ui/backgrounds.dart`) to gradient pod całą aplikacją, wstrzykiwany
+  w `MaterialApp.builder`. Włączenie tła robi tło ekranu i pasek aplikacji
+  przezroczystymi; karty i dymki zostają nieprzezroczyste, bo na nich stoi
+  czytelność. Jasność ikon paska systemowego trzeba wtedy podać wprost —
+  Flutter liczy ją z koloru paska aplikacji, a ten przestaje mieć kolor.
 
 ## Skąd wziął się wygląd
 

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart' show getSaveLocation;
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:path/path.dart' as p;
 
@@ -14,6 +15,23 @@ enum FileActionResult {
   unsupported,
 
   /// Nie udało się uruchomić procesu (brak xdg-open itp.).
+  failed,
+}
+
+/// Wynik zapisania kopii odebranego pliku poza katalogiem aplikacji.
+enum SaveResult {
+  saved,
+
+  /// Użytkownik zamknął okno zapisu.
+  cancelled,
+
+  /// Pliku nie ma na dysku.
+  missing,
+
+  /// Platforma nie ma gdzie zapisać (Android starszy niż 10).
+  unsupported,
+
+  /// Kopiowanie się wywaliło (brak miejsca, brak praw do katalogu).
   failed,
 }
 
@@ -60,6 +78,47 @@ class FileActions {
     if (Platform.isMacOS) return _start('open', ['-R', path]);
     if (Platform.isLinux) return _start('xdg-open', [dir]);
     return FileActionResult.unsupported;
+  }
+
+  /// Zapisuje kopię odebranego pliku tam, gdzie użytkownik będzie go szukał.
+  ///
+  /// Odebrane pliki leżą w katalogu aplikacji: żadna galeria ich nie widzi,
+  /// a po odinstalowaniu znikają. Tutaj robimy z nich zwykły plik użytkownika
+  /// — na Androidzie przez MediaStore (obrazki do Zdjęć, reszta do Pobranych,
+  /// bez uprawnień od Androida 10), na pulpicie przez systemowe okno zapisu.
+  ///
+  /// [where] to miejsce do pokazania w komunikacie.
+  static Future<({SaveResult result, String? where})> saveCopy(
+      String path) async {
+    if (!File(path).existsSync()) {
+      return (result: SaveResult.missing, where: null);
+    }
+
+    if (Platform.isAndroid) {
+      try {
+        final katalog = await _android.invokeMethod<String>('save', {'path': path});
+        return katalog == null
+            // Android starszy niż 10 albo odmowa dostawcy treści. Zostaje
+            // „Udostępnij", które i tak potrafi zapisać plik gdzie indziej.
+            ? (result: SaveResult.unsupported, where: null)
+            : (result: SaveResult.saved, where: katalog);
+      } catch (_) {
+        return (result: SaveResult.unsupported, where: null);
+      }
+    }
+
+    if (!Platform.isWindows && !Platform.isLinux && !Platform.isMacOS) {
+      return (result: SaveResult.unsupported, where: null);
+    }
+
+    try {
+      final gdzie = await getSaveLocation(suggestedName: p.basename(path));
+      if (gdzie == null) return (result: SaveResult.cancelled, where: null);
+      await File(path).copy(gdzie.path);
+      return (result: SaveResult.saved, where: gdzie.path);
+    } catch (_) {
+      return (result: SaveResult.failed, where: null);
+    }
   }
 
   static Future<FileActionResult> _viaAndroid(String method, String path) async {

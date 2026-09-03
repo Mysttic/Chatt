@@ -1603,6 +1603,15 @@ class AppServices {
     return FileActions.revealInFolder(path);
   }
 
+  /// Zapisuje kopię odebranego pliku poza katalogiem aplikacji: w Zdjęciach
+  /// albo Pobranych na Androidzie, a na pulpicie tam, gdzie wskaże użytkownik.
+  Future<({SaveResult result, String? where})> saveFileFromMessage(
+      Message message) async {
+    final path = message.filePath;
+    if (path == null) return (result: SaveResult.missing, where: null);
+    return FileActions.saveCopy(path);
+  }
+
   // --- Ustawienia -----------------------------------------------------------
 
   /// Zapis ustawień. Nick i powitanie działają od razu; nowy port zadziała

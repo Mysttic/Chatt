@@ -91,6 +91,12 @@ Odebrane pliki lądują w katalogu aplikacji. Kliknięcie w dymek otwiera plik,
 a przytrzymanie daje „Pokaż folder", „Udostępnij", „Kopiuj ścieżkę"
 i „Usuń wiadomość".
 
+Strzałka w dół przy odebranym pliku **zapisuje jego kopię tam, gdzie będziesz
+go szukać**: na Androidzie obrazki trafiają do `Pictures/Chatt` (widzi je
+galeria), reszta do `Pobrane`; na komputerze otwiera się systemowe okno
+zapisu. Bez tego plik siedzi w katalogu aplikacji, którego nie widzi żaden
+menedżer plików i który znika przy odinstalowaniu.
+
 Obrazki dostają w rozmowie **miniaturę** — ale dopiero po przyjęciu pliku.
 Dekodowanie obrazka od obcego to powierzchnia ataku, więc dekoder dostaje
 wyłącznie to, na co sam się zgodziłeś i co już leży na dysku.
@@ -164,10 +170,44 @@ siada w zasobniku, bez otwierania okna. Pod spodem to zwykły wpis autostartu
 konta użytkownika — bez usług i bez uprawnień administratora, więc da się go
 skasować także ręcznie.
 
+## Okno na komputerze
+
+Od 900 pikseli szerokości okno pokazuje **dwa panele**: listę rozmów po lewej
+i otwartą rozmowę po prawej, bez przeskakiwania między ekranami. Węższe okno
+działa jak dotąd, jeden ekran naraz.
+
+Treść ma górną granicę szerokości: dymki do 560 pikseli, formularze do 760.
+Na monitorze 27 cali linia ciągnąca się przez pół metra jest nie do czytania,
+a oko gubi początek następnej.
+
+## Instalacja na Windowsie
+
+Wydanie daje dwie rzeczy do wyboru:
+
+- **`chatt-X.Y.Z-windows-instalator.exe`** — zwykły instalator: skrót w menu
+  Start, odinstalowanie z ustawień systemu, jedno miejsce na aktualizację.
+  Instaluje dla Twojego konta, więc nie pyta o hasło administratora.
+- **`chatt-X.Y.Z-windows.zip`** — wersja przenośna: rozpakuj gdziekolwiek
+  i uruchom `chatt.exe`. Nic nie zapisuje w systemie poza własnymi danymi.
+
+Odinstalowanie kasuje wpis autostartu, ale **nie rusza historii rozmów** —
+baza leży w Dokumentach i po ponownej instalacji jest na miejscu. Żeby
+naprawdę się jej pozbyć, użyj „Wyczyść historię" przed odinstalowaniem.
+
+Instalator nie jest podpisany certyfikatem, więc SmartScreen pokaże
+ostrzeżenie „Windows chronił Twój komputer". „Więcej informacji" → „Uruchom
+mimo to". Certyfikat do podpisu kodu kosztuje kilkaset złotych rocznie i nie
+zmieniłby nic w tym, co robi program.
+
 ## Wygląd i język
 
-W Ustawieniach wybierasz motyw (systemowy, jasny, ciemny) i język (systemowy,
-polski, angielski). Oba wybory siedzą w bazie, więc przeżywają restart.
+W Ustawieniach wybierasz motyw (systemowy, jasny, ciemny), **tło** i język
+(systemowy, polski, angielski). Wszystkie wybory siedzą w bazie, więc
+przeżywają restart.
+
+Tła to gotowe zestawy: „Bez tła" (zwykły kolor motywu), Zmierzch, Ocean,
+Las i Piasek. Każdy ma osobne kolory na motyw jasny i ciemny, a wszystkie są
+celowo przygaszone — na tle leżą dymki i karty, które muszą zostać czytelne.
 Powiadomienia usługi w tle też idą za językiem aplikacji, a nie systemu.
 
 ![Tryb ciemny](screenshots/produkt/android_lista_rozmow_ciemny.png)

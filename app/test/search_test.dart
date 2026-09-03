@@ -1,6 +1,8 @@
 import 'package:chatt/core/file_actions.dart';
 import 'package:chatt/core/search.dart';
 import 'package:chatt/data/db.dart';
+import 'package:chatt/ui/backgrounds.dart';
+import 'package:flutter/material.dart' show Brightness;
 import 'package:flutter_test/flutter_test.dart';
 
 Message _message(String body, {String? fileName}) => Message(
@@ -72,6 +74,24 @@ void main() {
     test('rozmowa bez wiadomości nie wywala szukania', () {
       expect(conversationMatches(_summary(name: 'Bartek'), 'raport'), isFalse);
       expect(conversationMatches(_summary(name: 'Bartek'), 'bar'), isTrue);
+    });
+  });
+
+  group('tła', () {
+    test('numer spoza listy wraca do „bez tła”', () {
+      // W bazie może zostać numer z nowszej wersji (ktoś wrócił do starszej)
+      // albo śmieć — aplikacja ma wtedy wyglądać zwyczajnie, a nie wywalić się
+      // na indeksie poza zakresem.
+      expect(backgroundAt(-1).plain, isTrue);
+      expect(backgroundAt(999).plain, isTrue);
+      expect(backgroundAt(0).plain, isTrue);
+    });
+
+    test('każdy zestaw poza „bez tła” ma kolory na oba motywy', () {
+      for (final tlo in chattBackgrounds.skip(1)) {
+        expect(tlo.colorsFor(Brightness.light), hasLength(2), reason: tlo.id);
+        expect(tlo.colorsFor(Brightness.dark), hasLength(2), reason: tlo.id);
+      }
     });
   });
 

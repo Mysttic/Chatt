@@ -1,4 +1,5 @@
 import 'dart:io' show File, Platform;
+import 'dart:math' as math;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
@@ -416,6 +417,24 @@ class _MessageBubble extends StatelessWidget {
     _report(context, result);
   }
 
+  /// Wyniesienie pliku z katalogu aplikacji tam, gdzie użytkownik go szuka.
+  /// Komunikat mówi gdzie, bo inaczej „zapisano" nic nie znaczy.
+  Future<void> _saveFile(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final teksty = context.l10n;
+    final wynik = await services.saveFileFromMessage(message);
+    final napis = switch (wynik.result) {
+      SaveResult.saved => teksty.savedTo(wynik.where ?? ''),
+      // Zamknięte okno zapisu to decyzja użytkownika, nie błąd.
+      SaveResult.cancelled => null,
+      SaveResult.missing => teksty.fileGone,
+      SaveResult.unsupported => teksty.saveUnsupported,
+      SaveResult.failed => teksty.saveFailed,
+    };
+    if (napis == null) return;
+    messenger.showSnackBar(SnackBar(content: Text(napis)));
+  }
+
   void _report(BuildContext context, FileActionResult result) {
     final path = message.filePath ?? '';
     final snack = switch (result) {
@@ -463,6 +482,16 @@ class _MessageBubble extends StatelessWidget {
                 _revealFile(context);
               },
             ),
+            if (message.direction == MessageDirection.incoming)
+              ListTile(
+                leading: const Icon(Icons.save_alt),
+                title: Text(context.l10n.saveFile),
+                subtitle: Text(context.l10n.saveFileHint),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  _saveFile(context);
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.copy_all_outlined),
               title: Text(context.l10n.copyPath),
@@ -610,6 +639,17 @@ class _MessageBubble extends StatelessWidget {
               ],
             ),
           ),
+          // Zapisanie odebranego pliku jednym dotknięciem. Przy własnym
+          // pliku nie ma czego zapisywać — leży u nas od początku.
+          if (message.direction == MessageDirection.incoming) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: context.l10n.saveFile,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(Icons.save_alt, size: 20, color: textColor),
+              onPressed: () => _saveFile(context),
+            ),
+          ],
         ],
           ),
         ],
@@ -656,8 +696,10 @@ class _MessageBubble extends StatelessWidget {
           ? _fileMenu(context)
           : _textMenu(context),
       child: Container(
+      // Górna granica w pikselach, nie tylko ułamek szerokości: na monitorze
+      // dymek ciągnący się przez pół metra jest nie do czytania.
       constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.75),
+          maxWidth: math.min(MediaQuery.sizeOf(context).width * 0.75, 560)),
       margin: const EdgeInsets.symmetric(vertical: 3),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
