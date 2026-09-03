@@ -417,6 +417,28 @@ dopiero na zrzucie z harnessu.
   w `Run` nie zadziała w wersji ze Store (do rozwiązania przez `StartupTask`
   przed wysłaniem do certyfikacji).
 
+## 3d. Znane usterki do naprawienia
+
+### Limit czasu transferu zakłada szybkie łącze
+
+`lib/network/client.dart`, wysyłka pliku:
+
+```dart
+final timeout = Duration(seconds: 30 + (total - start) ~/ (512 * 1024));
+```
+
+To znaczy „30 sekund plus sekunda na każde 512 KB", czyli założenie, że łącze
+wyrabia co najmniej 512 KB/s. W sieci lokalnej zawsze wyrabia, więc do tej
+pory nikt tego nie zauważył. Przez internet (Chatt działa zdalnie po VPN-ie,
+patrz `docs/instrukcja.md`) upload bywa wolniejszy: przy 2 Mbps, czyli
+250 KB/s, plik 100 MB potrzebuje ~400 s, a dostaje 230 — transfer się urywa.
+Wznawianie to odratuje, ale będzie wracać w kółko i nigdy nie dojdzie do
+końca, jeśli każdy kawałek urywa się przed metą.
+
+Do zrobienia: liczyć limit z **faktycznej** przepustowości zamiast stałej —
+zegar odnawiany przy każdym przesłanym kawałku (bezczynność zamiast całości),
+co przy okazji upraszcza wzór i nie karze wolnych łączy.
+
 ## 4. Podział pracy
 
 - **Claude (sesje chmurowe, branch `claude/wifi-device-communication-npzb1g`)**: cały kod + testy jednostkowe + testy E2E dwóch instancji na Linuksie + golden/screenshoty UI. Realnie ~90% weryfikacji dzieje się bez Twojego udziału.
