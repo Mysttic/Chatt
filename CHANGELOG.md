@@ -8,15 +8,25 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.4.0] - 2026-09-04
+
+An English repository: everything a reader meets is in one language, and a
+fresh installation starts in English. No change to the protocol, the database
+schema or the way the app behaves once it is running.
+
+### Added
+- `docs/guide.pl.md`, the user guide in Polish. It is the one document an end
+  user reads rather than a developer, so it is worth having in both languages.
+  It carries three screenshots the English guide does not, because those exist
+  only with a Polish interface.
 
 ### Changed
-- The documentation is English only, in one version. `docs/instrukcja.md`,
-  `architektura.md`, `budowanie.md` and `testy.md` became `guide.md`,
-  `architecture.md`, `building.md` and `testing.md`; `docs/publikacja/` became
-  `docs/publishing/` and `docs/makiety/` became `docs/mockups/`. `README.pl.md`
-  is the only Polish file left, as the entry point for Polish readers. The code
-  comments stay in Polish.
+- The documentation is English, in one version, with two exceptions:
+  `README.pl.md` and the user guide, both of which face readers rather than
+  developers. `docs/instrukcja.md`, `architektura.md`, `budowanie.md` and
+  `testy.md` became `guide.md`, `architecture.md`, `building.md` and
+  `testing.md`; `docs/publikacja/` became `docs/publishing/` and
+  `docs/makiety/` became `docs/mockups/`. The code comments stay in Polish.
 - **English is the default language for a new installation.** The interface was
   already fully bilingual (160 strings in `app_en.arb` and `app_pl.arb`, a
   picker in settings), but a fresh install followed the system language. The
@@ -230,7 +240,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.3.1...develop
+[0.4.0]: https://github.com/Mysttic/Chatt/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Mysttic/Chatt/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Mysttic/Chatt/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Mysttic/Chatt/compare/v0.1.0...v0.2.0

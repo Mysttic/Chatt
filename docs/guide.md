@@ -1,5 +1,7 @@
 # User guide
 
+*Wersja polska: [guide.pl.md](guide.pl.md)*
+
 Chatt joins two devices on the same Wi-Fi network: a Windows PC and an Android
 phone. There is no account, no login and no server in the middle. Messages and
 files go straight from one device to the other.
@@ -47,7 +49,7 @@ Status shown on a sent message:
 |---|---|
 | clock | saved on your side, not delivered yet |
 | double check | the other side confirmed receipt |
-| "Not delivered, retry" | the attempt failed, tap to try again |
+| "Not delivered — retry" | the attempt failed, tap to try again |
 
 A message is never lost on the way: it is saved locally first and only then
 sent. If the other device changed its IP in the meantime, the app searches the
