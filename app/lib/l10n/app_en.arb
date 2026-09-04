@@ -170,5 +170,31 @@
   "trayQuit": "Quit Chatt",
 
   "backgroundServiceTitle": "Chatt is listening",
-  "backgroundServiceBody": "Receiving messages and files from this Wi-Fi network"
+  "backgroundServiceBody": "Receiving messages and files from this Wi-Fi network",
+
+  "copyImage": "Copy image",
+  "imageCopied": "Image copied to the clipboard",
+  "imageCopyFailed": "Could not copy the image",
+
+  "renamePeer": "Rename",
+  "renamePeerTitle": "Your name for this device",
+  "renamePeerHelp": "The name stays on this device and is never sent anywhere. Leave the field empty to go back to the name the device broadcasts.",
+  "peerRenamed": "Now called {name}",
+  "@peerRenamed": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "peerRenameCleared": "Back to the broadcast name",
+  "broadcastName": "Broadcast name: {name}",
+  "@broadcastName": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "autoAcceptTitle": "Accept files without asking",
+  "autoAcceptBody": "Files from this device land in the conversation straight away, with no consent card. It works only with a confirmed identity, and the switch goes off by itself if the confirmation ever goes away.",
+  "autoAcceptNeedsVerified": "Confirm the identity first",
+
+  "selectText": "Select text",
+  "selectTextHint": "Press and hold to select part of it",
+
+  "discoveryDeaf": "This device does not answer scans. Others will find it only by adding its address by hand. The usual cause is another program holding port 47777."
 }

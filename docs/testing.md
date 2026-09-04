@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **79 `flutter test` tests** check everything that can be
+The split is simple: **94 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -52,11 +52,14 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 - deleting one message leaves the rest of the conversation and the peer alone
 - the sweep only removes dead entries with no history
 
-### Discovery (`test/discovery_test.dart`, 3 tests)
+### Discovery (`test/discovery_test.dart`, 4 tests)
 - a scan finds the second instance and teaches it about the scanner
 - from a known device we accept only a signed answer (an impersonation drops
   out of the scan results)
 - a peer whose address changed is found again by GUID
+- the responder reports whether it is actually listening. A swallowed
+  `SocketException` at bind time means a device nobody can find with a
+  scan, and there used to be no way to see that
 
 ### Messages (`test/messaging_e2e_test.dart`, 5 tests)
 - pairing by address, exchanging messages both ways, dedupe
@@ -143,6 +146,27 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 - "clear history" leaves devices together with their confirmation
 - the age limit deletes only messages older than itself, and turned off
   (0 days) it deletes nothing
+
+### Per-peer settings (`test/peer_prefs_test.dart`, 10 tests)
+- a name of your own covers the broadcast one without deleting it, and it
+  survives the peer renaming itself; an empty string or a space brings the
+  broadcast name back
+- taking files without asking cannot be turned on for a peer whose identity is
+  unconfirmed, and removing the confirmation turns it off. The database guards
+  that, not the screen, because it is the boundary of the user's consent
+- three live transfers between two instances: a confirmed peer with consent
+  gets the file through with no question asked; the same peer without consent
+  still raises one; and the flag alone, with the shield gone, raises one too
+
+### Messages in the corner (`test/toasts_test.dart`, 4 tests)
+- the queue keeps its order, a message goes away by its id, and the oldest
+  makes room once there are more than three
+- a card counts itself down and disappears, and a tap closes it at once
+
+The file is separate on purpose: one `testWidgets` anywhere in a file installs
+`TestWidgetsFlutterBinding`, which replaces `HttpClient` with a fake answering
+400 for **the whole** suite. Next door, in `peer_prefs_test.dart`, two
+instances talk to each other over a real socket.
 
 ### An attacker on the wire (`test/security_test.dart`, 8 tests)
 Tests from the 0.3.0 security review. Every one of them was red before the fix:

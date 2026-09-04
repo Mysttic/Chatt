@@ -9,6 +9,7 @@ import '../widgets/common.dart';
 import 'chat_screen.dart';
 import 'nearby_screen.dart';
 import 'settings_screen.dart';
+import '../widgets/toasts.dart';
 
 /// Usunięcie rozmowy kasuje też urządzenie z listy znanych — jedno bez
 /// drugiego nie ma sensu, bo rozmowa i tak odtworzyłaby się przy pierwszym
@@ -18,7 +19,7 @@ Future<void> _confirmDelete(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialog) => AlertDialog(
-      title: Text(context.l10n.deleteConversationTitle(peer.name)),
+      title: Text(context.l10n.deleteConversationTitle(peer.displayName)),
       content: Text(context.l10n.deleteConversationBody),
       actions: [
         TextButton(
@@ -34,10 +35,10 @@ Future<void> _confirmDelete(
   );
   if (confirmed != true || !context.mounted) return;
 
+  final teksty = context.l10n;
+  final nazwa = peer.displayName;
   await ref.read(appServicesProvider).forgetPeer(peer);
-  if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.conversationDeleted(peer.name))));
+  showToast(teksty.conversationDeleted(nazwa));
 }
 
 /// Ekran główny: lista konwersacji (odpowiednik ListOfConversation.PNG).
@@ -190,8 +191,8 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
             itemBuilder: (context, index) {
               final item = items[index];
               return ListTile(
-                leading: InitialsAvatar(name: item.peer.name),
-                title: Text(item.peer.name,
+                leading: InitialsAvatar(name: item.peer.displayName),
+                title: Text(item.peer.displayName,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(
                   item.lastBody ?? item.peer.welcomeMessage,

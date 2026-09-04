@@ -9,6 +9,7 @@ import 'services/providers.dart';
 import 'ui/backgrounds.dart';
 import 'ui/screens/conversations_screen.dart';
 import 'ui/widgets/prompt_overlay.dart';
+import 'ui/widgets/toasts.dart';
 
 /// Fiolet odziedziczony po pierwotnej wersji projektu (ikona MAUI #512BD4).
 const chattSeedColor = Color(0xFF512BD4);
@@ -69,10 +70,13 @@ class ChattApp extends ConsumerWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: const ConversationsScreen(),
-      // Prośby o zgodę na odbiór pliku muszą być widoczne na każdym ekranie.
+      // Prośby o zgodę na odbiór pliku muszą być widoczne na każdym ekranie,
+      // tak samo krótkie komunikaty w rogu.
       builder: (context, child) => AppBackground(
         background: tlo,
-        child: PromptOverlay(child: child ?? const SizedBox.shrink()),
+        child: PromptOverlay(
+          child: ToastHost(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

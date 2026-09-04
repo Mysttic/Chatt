@@ -6,6 +6,7 @@ import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import 'common.dart';
+import 'toasts.dart';
 
 /// Prośby wymagające decyzji „tu i teraz": zgoda na odbiór pliku i kod
 /// parowania. Wiszą nad całą aplikacją, bo mogą przyjść, gdy jesteśmy na
@@ -110,10 +111,7 @@ class _PairingCardState extends State<_PairingCard> {
       _outcome = outcome;
     });
     if (outcome == PairOutcome.accepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(context.l10n.pairedWith(widget.pairing.peerName))),
-      );
+      showToast(context.l10n.pairedWith(widget.pairing.peerName));
     }
   }
 

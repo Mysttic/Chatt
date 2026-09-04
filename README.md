@@ -94,7 +94,7 @@ The full threat model, protocol and decisions are in
 
 ```
 cd app
-flutter test        # 79 tests: database, discovery, messages, files, identity, encryption, attacker on the wire
+flutter test        # 94 tests: database, discovery, messages, files, identity, encryption, attacker on the wire
 flutter analyze
 ```
 

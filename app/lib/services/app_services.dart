@@ -252,6 +252,11 @@ class AppServices {
   /// odmówił i klucz leży obok bazy jawnie — patrz [DatabaseKey].
   bool keyProtected = true;
 
+  /// Czy responder discovery nasłuchuje. `false` znaczy, że to urządzenie nie
+  /// odpowie na cudzy skan: samo znajdzie innych, ale samo zostanie znalezione
+  /// dopiero po ręcznym dodaniu po adresie.
+  bool discoveryListening = false;
+
   static const _uuid = Uuid();
 
   AppServices._(this.db, this.client, this.server, this.responder,
@@ -342,10 +347,17 @@ class AppServices {
     if (enableDiscovery) {
       try {
         await responder.start();
+        services.discoveryListening = true;
       } on SocketException {
-        // Port discovery zajęty bez możliwości współdzielenia (Windows z inną
-        // aplikacją na 47777). Aplikacja działa dalej: będzie widzieć innych
-        // po skanie, sama zostanie znaleziona dopiero po ręcznym dodaniu.
+        // Port discovery zajęty albo niedostępny. Aplikacja działa dalej:
+        // będzie widzieć innych po skanie, ale sama zostanie znaleziona
+        // dopiero po ręcznym dodaniu po adresie.
+        //
+        // Ten wyjątek był tu połykany bez śladu i dzięki temu przeżył długo:
+        // na Androidzie `reusePort` wywracał bind, telefon przestawał
+        // odpowiadać na cudze skany, a użytkownik nie miał tego skąd
+        // zobaczyć. Teraz stan wychodzi na ekran Ustawień.
+        services.discoveryListening = false;
       }
     }
     return services;
@@ -680,7 +692,7 @@ class AppServices {
       ...pendingPairings.value.where((p) => p.peerGuid != peer.guid),
       PendingPairing(
         peerGuid: peer.guid,
-        peerName: peer.name,
+        peerName: peer.displayName,
         code: code,
         alreadyPaired: peer.verified,
         fromScan: fromScan,
@@ -1230,7 +1242,6 @@ class AppServices {
       IncomingMessage message, String fromHost, String session) async {
     // Uwierzytelnienie zrobiła już koperta: treść przyszła kluczem sesji,
     // a `_openEnvelope` sprawdziło, że nadawca zgadza się z jej właścicielem.
-
     final peer = await db.upsertPeer(
       guid: message.from.guid,
       name: message.from.name,
@@ -1284,15 +1295,20 @@ class AppServices {
     }
 
     final resumeFrom = _resumableBytes(offer);
-    final accepted = await _offerPolicy(PendingFileOffer(
-      messageGuid: offer.messageGuid,
-      peerName: peer.name,
-      fileName: offer.fileName,
-      fileSize: offer.fileSize,
-      resumeFrom: resumeFrom,
-      conversationId: conversationId,
-      fromVerifiedPeer: peer.verified,
-    ));
+    // Przyjmowanie bez pytania wymaga **obu** warunków naraz. Sama flaga bez
+    // zielonej tarczy znaczyłaby „bierz pliki od każdego, kto poda się za tego
+    // rozmówcę", a nazwę urządzenia każdy może sobie ustawić dowolnie.
+    // Potwierdzenia nie da się podrobić bez klucza prywatnego.
+    final accepted = (peer.verified && peer.autoAccept) ||
+        await _offerPolicy(PendingFileOffer(
+          messageGuid: offer.messageGuid,
+          peerName: peer.displayName,
+          fileName: offer.fileName,
+          fileSize: offer.fileSize,
+          resumeFrom: resumeFrom,
+          conversationId: conversationId,
+          fromVerifiedPeer: peer.verified,
+        ));
     if (!accepted) {
       _discardPart(offer.messageGuid);
       return const FileOfferReply(accepted: false, reason: 'rejected');
@@ -1376,7 +1392,7 @@ class AppServices {
     final transfer = IncomingTransfer(
       messageGuid: meta.messageGuid,
       conversationId: conversationId,
-      peerName: peer.name,
+      peerName: peer.displayName,
       fileName: fileName,
       fileSize: meta.fileSize,
       received: alreadyOnDisk,

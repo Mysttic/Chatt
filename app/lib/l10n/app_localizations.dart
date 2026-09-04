@@ -1057,6 +1057,96 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Odbiera wiadomości i pliki z tej sieci Wi-Fi'**
   String get backgroundServiceBody;
+
+  /// No description provided for @copyImage.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kopiuj obraz'**
+  String get copyImage;
+
+  /// No description provided for @imageCopied.
+  ///
+  /// In pl, this message translates to:
+  /// **'Obraz skopiowany do schowka'**
+  String get imageCopied;
+
+  /// No description provided for @imageCopyFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się skopiować obrazu'**
+  String get imageCopyFailed;
+
+  /// No description provided for @renamePeer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zmień nazwę'**
+  String get renamePeer;
+
+  /// No description provided for @renamePeerTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Twoja nazwa tego urządzenia'**
+  String get renamePeerTitle;
+
+  /// No description provided for @renamePeerHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nazwa zostaje na tym urządzeniu i nigdzie nie jedzie. Puste pole wraca do nazwy, którą rozgłasza samo urządzenie.'**
+  String get renamePeerHelp;
+
+  /// No description provided for @peerRenamed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nazwa zmieniona na {name}'**
+  String peerRenamed(String name);
+
+  /// No description provided for @peerRenameCleared.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wróciła nazwa rozgłaszana'**
+  String get peerRenameCleared;
+
+  /// No description provided for @broadcastName.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nazwa rozgłaszana: {name}'**
+  String broadcastName(String name);
+
+  /// No description provided for @autoAcceptTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przyjmuj pliki bez pytania'**
+  String get autoAcceptTitle;
+
+  /// No description provided for @autoAcceptBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pliki od tego urządzenia trafiają prosto do rozmowy, bez karty z pytaniem. Działa tylko przy potwierdzonej tożsamości, a przełącznik gaśnie sam, gdy potwierdzenie zniknie.'**
+  String get autoAcceptBody;
+
+  /// No description provided for @autoAcceptNeedsVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Najpierw potwierdź tożsamość'**
+  String get autoAcceptNeedsVerified;
+
+  /// No description provided for @selectText.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zaznacz tekst'**
+  String get selectText;
+
+  /// No description provided for @selectTextHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przytrzymaj, żeby zaznaczyć fragment'**
+  String get selectTextHint;
+
+  /// No description provided for @discoveryDeaf.
+  ///
+  /// In pl, this message translates to:
+  /// **'To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.'**
+  String get discoveryDeaf;
 }
 
 class _AppLocalizationsDelegate

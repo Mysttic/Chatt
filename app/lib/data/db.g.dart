@@ -734,6 +734,30 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _aliasMeta = const VerificationMeta('alias');
+  @override
+  late final GeneratedColumn<String> alias = GeneratedColumn<String>(
+    'alias',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _autoAcceptMeta = const VerificationMeta(
+    'autoAccept',
+  );
+  @override
+  late final GeneratedColumn<bool> autoAccept = GeneratedColumn<bool>(
+    'auto_accept',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("auto_accept" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _firstSeenMeta = const VerificationMeta(
     'firstSeen',
   );
@@ -767,6 +791,8 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
     verified,
     publicKey,
     sessionKey,
+    alias,
+    autoAccept,
     firstSeen,
     lastSeen,
   ];
@@ -844,6 +870,18 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
         sessionKey.isAcceptableOrUnknown(data['session_key']!, _sessionKeyMeta),
       );
     }
+    if (data.containsKey('alias')) {
+      context.handle(
+        _aliasMeta,
+        alias.isAcceptableOrUnknown(data['alias']!, _aliasMeta),
+      );
+    }
+    if (data.containsKey('auto_accept')) {
+      context.handle(
+        _autoAcceptMeta,
+        autoAccept.isAcceptableOrUnknown(data['auto_accept']!, _autoAcceptMeta),
+      );
+    }
     if (data.containsKey('first_seen')) {
       context.handle(
         _firstSeenMeta,
@@ -905,6 +943,14 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
         DriftSqlType.string,
         data['${effectivePrefix}session_key'],
       ),
+      alias: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}alias'],
+      ),
+      autoAccept: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}auto_accept'],
+      )!,
       firstSeen: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}first_seen'],
@@ -940,6 +986,17 @@ class Peer extends DataClass implements Insertable<Peer> {
   /// klucz sesji jest efemeryczny i nie trafia do bazy; kolumna zostaje na
   /// czas migracji i zniknie w kolejnym schemacie.
   final String? sessionKey;
+
+  /// Własna nazwa rozmówcy, nadana lokalnie. [name] jest tym, co urządzenie
+  /// samo o sobie rozgłasza, więc zmienia się bez pytania i każdy może wpisać
+  /// tam cokolwiek. Alias zostaje po naszej stronie i nigdzie nie jedzie.
+  /// Pusty i null znaczą to samo: idziemy za nazwą rozgłaszaną.
+  final String? alias;
+
+  /// Przyjmuj pliki od tego rozmówcy bez pytania. Ma sens wyłącznie przy
+  /// potwierdzonej tożsamości, więc [setPeerVerified] gasi tę flagę razem
+  /// z tarczą — inaczej przetrwałaby unieważnienie potwierdzenia.
+  final bool autoAccept;
   final DateTime firstSeen;
   final DateTime lastSeen;
   const Peer({
@@ -952,6 +1009,8 @@ class Peer extends DataClass implements Insertable<Peer> {
     required this.verified,
     this.publicKey,
     this.sessionKey,
+    this.alias,
+    required this.autoAccept,
     required this.firstSeen,
     required this.lastSeen,
   });
@@ -971,6 +1030,10 @@ class Peer extends DataClass implements Insertable<Peer> {
     if (!nullToAbsent || sessionKey != null) {
       map['session_key'] = Variable<String>(sessionKey);
     }
+    if (!nullToAbsent || alias != null) {
+      map['alias'] = Variable<String>(alias);
+    }
+    map['auto_accept'] = Variable<bool>(autoAccept);
     map['first_seen'] = Variable<DateTime>(firstSeen);
     map['last_seen'] = Variable<DateTime>(lastSeen);
     return map;
@@ -991,6 +1054,10 @@ class Peer extends DataClass implements Insertable<Peer> {
       sessionKey: sessionKey == null && nullToAbsent
           ? const Value.absent()
           : Value(sessionKey),
+      alias: alias == null && nullToAbsent
+          ? const Value.absent()
+          : Value(alias),
+      autoAccept: Value(autoAccept),
       firstSeen: Value(firstSeen),
       lastSeen: Value(lastSeen),
     );
@@ -1011,6 +1078,8 @@ class Peer extends DataClass implements Insertable<Peer> {
       verified: serializer.fromJson<bool>(json['verified']),
       publicKey: serializer.fromJson<String?>(json['publicKey']),
       sessionKey: serializer.fromJson<String?>(json['sessionKey']),
+      alias: serializer.fromJson<String?>(json['alias']),
+      autoAccept: serializer.fromJson<bool>(json['autoAccept']),
       firstSeen: serializer.fromJson<DateTime>(json['firstSeen']),
       lastSeen: serializer.fromJson<DateTime>(json['lastSeen']),
     );
@@ -1028,6 +1097,8 @@ class Peer extends DataClass implements Insertable<Peer> {
       'verified': serializer.toJson<bool>(verified),
       'publicKey': serializer.toJson<String?>(publicKey),
       'sessionKey': serializer.toJson<String?>(sessionKey),
+      'alias': serializer.toJson<String?>(alias),
+      'autoAccept': serializer.toJson<bool>(autoAccept),
       'firstSeen': serializer.toJson<DateTime>(firstSeen),
       'lastSeen': serializer.toJson<DateTime>(lastSeen),
     };
@@ -1043,6 +1114,8 @@ class Peer extends DataClass implements Insertable<Peer> {
     bool? verified,
     Value<String?> publicKey = const Value.absent(),
     Value<String?> sessionKey = const Value.absent(),
+    Value<String?> alias = const Value.absent(),
+    bool? autoAccept,
     DateTime? firstSeen,
     DateTime? lastSeen,
   }) => Peer(
@@ -1055,6 +1128,8 @@ class Peer extends DataClass implements Insertable<Peer> {
     verified: verified ?? this.verified,
     publicKey: publicKey.present ? publicKey.value : this.publicKey,
     sessionKey: sessionKey.present ? sessionKey.value : this.sessionKey,
+    alias: alias.present ? alias.value : this.alias,
+    autoAccept: autoAccept ?? this.autoAccept,
     firstSeen: firstSeen ?? this.firstSeen,
     lastSeen: lastSeen ?? this.lastSeen,
   );
@@ -1073,6 +1148,10 @@ class Peer extends DataClass implements Insertable<Peer> {
       sessionKey: data.sessionKey.present
           ? data.sessionKey.value
           : this.sessionKey,
+      alias: data.alias.present ? data.alias.value : this.alias,
+      autoAccept: data.autoAccept.present
+          ? data.autoAccept.value
+          : this.autoAccept,
       firstSeen: data.firstSeen.present ? data.firstSeen.value : this.firstSeen,
       lastSeen: data.lastSeen.present ? data.lastSeen.value : this.lastSeen,
     );
@@ -1090,6 +1169,8 @@ class Peer extends DataClass implements Insertable<Peer> {
           ..write('verified: $verified, ')
           ..write('publicKey: $publicKey, ')
           ..write('sessionKey: $sessionKey, ')
+          ..write('alias: $alias, ')
+          ..write('autoAccept: $autoAccept, ')
           ..write('firstSeen: $firstSeen, ')
           ..write('lastSeen: $lastSeen')
           ..write(')'))
@@ -1107,6 +1188,8 @@ class Peer extends DataClass implements Insertable<Peer> {
     verified,
     publicKey,
     sessionKey,
+    alias,
+    autoAccept,
     firstSeen,
     lastSeen,
   );
@@ -1123,6 +1206,8 @@ class Peer extends DataClass implements Insertable<Peer> {
           other.verified == this.verified &&
           other.publicKey == this.publicKey &&
           other.sessionKey == this.sessionKey &&
+          other.alias == this.alias &&
+          other.autoAccept == this.autoAccept &&
           other.firstSeen == this.firstSeen &&
           other.lastSeen == this.lastSeen);
 }
@@ -1137,6 +1222,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
   final Value<bool> verified;
   final Value<String?> publicKey;
   final Value<String?> sessionKey;
+  final Value<String?> alias;
+  final Value<bool> autoAccept;
   final Value<DateTime> firstSeen;
   final Value<DateTime> lastSeen;
   const PeersCompanion({
@@ -1149,6 +1236,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     this.verified = const Value.absent(),
     this.publicKey = const Value.absent(),
     this.sessionKey = const Value.absent(),
+    this.alias = const Value.absent(),
+    this.autoAccept = const Value.absent(),
     this.firstSeen = const Value.absent(),
     this.lastSeen = const Value.absent(),
   });
@@ -1162,6 +1251,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     this.verified = const Value.absent(),
     this.publicKey = const Value.absent(),
     this.sessionKey = const Value.absent(),
+    this.alias = const Value.absent(),
+    this.autoAccept = const Value.absent(),
     required DateTime firstSeen,
     required DateTime lastSeen,
   }) : guid = Value(guid),
@@ -1180,6 +1271,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     Expression<bool>? verified,
     Expression<String>? publicKey,
     Expression<String>? sessionKey,
+    Expression<String>? alias,
+    Expression<bool>? autoAccept,
     Expression<DateTime>? firstSeen,
     Expression<DateTime>? lastSeen,
   }) {
@@ -1193,6 +1286,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
       if (verified != null) 'verified': verified,
       if (publicKey != null) 'public_key': publicKey,
       if (sessionKey != null) 'session_key': sessionKey,
+      if (alias != null) 'alias': alias,
+      if (autoAccept != null) 'auto_accept': autoAccept,
       if (firstSeen != null) 'first_seen': firstSeen,
       if (lastSeen != null) 'last_seen': lastSeen,
     });
@@ -1208,6 +1303,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     Value<bool>? verified,
     Value<String?>? publicKey,
     Value<String?>? sessionKey,
+    Value<String?>? alias,
+    Value<bool>? autoAccept,
     Value<DateTime>? firstSeen,
     Value<DateTime>? lastSeen,
   }) {
@@ -1221,6 +1318,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
       verified: verified ?? this.verified,
       publicKey: publicKey ?? this.publicKey,
       sessionKey: sessionKey ?? this.sessionKey,
+      alias: alias ?? this.alias,
+      autoAccept: autoAccept ?? this.autoAccept,
       firstSeen: firstSeen ?? this.firstSeen,
       lastSeen: lastSeen ?? this.lastSeen,
     );
@@ -1256,6 +1355,12 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     if (sessionKey.present) {
       map['session_key'] = Variable<String>(sessionKey.value);
     }
+    if (alias.present) {
+      map['alias'] = Variable<String>(alias.value);
+    }
+    if (autoAccept.present) {
+      map['auto_accept'] = Variable<bool>(autoAccept.value);
+    }
     if (firstSeen.present) {
       map['first_seen'] = Variable<DateTime>(firstSeen.value);
     }
@@ -1277,6 +1382,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
           ..write('verified: $verified, ')
           ..write('publicKey: $publicKey, ')
           ..write('sessionKey: $sessionKey, ')
+          ..write('alias: $alias, ')
+          ..write('autoAccept: $autoAccept, ')
           ..write('firstSeen: $firstSeen, ')
           ..write('lastSeen: $lastSeen')
           ..write(')'))
@@ -2685,6 +2792,8 @@ typedef $$PeersTableCreateCompanionBuilder = PeersCompanion Function({
   Value<bool> verified,
   Value<String?> publicKey,
   Value<String?> sessionKey,
+  Value<String?> alias,
+  Value<bool> autoAccept,
   required DateTime firstSeen,
   required DateTime lastSeen,
 });
@@ -2698,6 +2807,8 @@ typedef $$PeersTableUpdateCompanionBuilder = PeersCompanion Function({
   Value<bool> verified,
   Value<String?> publicKey,
   Value<String?> sessionKey,
+  Value<String?> alias,
+  Value<bool> autoAccept,
   Value<DateTime> firstSeen,
   Value<DateTime> lastSeen,
 });
@@ -2775,6 +2886,16 @@ class $$PeersTableFilterComposer extends Composer<_$ChattDb, $PeersTable> {
 
   ColumnFilters<String> get sessionKey => $composableBuilder(
     column: $table.sessionKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get alias => $composableBuilder(
+    column: $table.alias,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get autoAccept => $composableBuilder(
+    column: $table.autoAccept,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2867,6 +2988,16 @@ class $$PeersTableOrderingComposer extends Composer<_$ChattDb, $PeersTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get alias => $composableBuilder(
+    column: $table.alias,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get autoAccept => $composableBuilder(
+    column: $table.autoAccept,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get firstSeen => $composableBuilder(
     column: $table.firstSeen,
     builder: (column) => ColumnOrderings(column),
@@ -2914,6 +3045,14 @@ class $$PeersTableAnnotationComposer extends Composer<_$ChattDb, $PeersTable> {
 
   GeneratedColumn<String> get sessionKey => $composableBuilder(
     column: $table.sessionKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get alias =>
+      $composableBuilder(column: $table.alias, builder: (column) => column);
+
+  GeneratedColumn<bool> get autoAccept => $composableBuilder(
+    column: $table.autoAccept,
     builder: (column) => column,
   );
 
@@ -2986,6 +3125,8 @@ class $$PeersTableTableManager
                 Value<bool> verified = const Value.absent(),
                 Value<String?> publicKey = const Value.absent(),
                 Value<String?> sessionKey = const Value.absent(),
+                Value<String?> alias = const Value.absent(),
+                Value<bool> autoAccept = const Value.absent(),
                 Value<DateTime> firstSeen = const Value.absent(),
                 Value<DateTime> lastSeen = const Value.absent(),
               }) => PeersCompanion(
@@ -2998,6 +3139,8 @@ class $$PeersTableTableManager
                 verified: verified,
                 publicKey: publicKey,
                 sessionKey: sessionKey,
+                alias: alias,
+                autoAccept: autoAccept,
                 firstSeen: firstSeen,
                 lastSeen: lastSeen,
               ),
@@ -3012,6 +3155,8 @@ class $$PeersTableTableManager
                 Value<bool> verified = const Value.absent(),
                 Value<String?> publicKey = const Value.absent(),
                 Value<String?> sessionKey = const Value.absent(),
+                Value<String?> alias = const Value.absent(),
+                Value<bool> autoAccept = const Value.absent(),
                 required DateTime firstSeen,
                 required DateTime lastSeen,
               }) => PeersCompanion.insert(
@@ -3024,6 +3169,8 @@ class $$PeersTableTableManager
                 verified: verified,
                 publicKey: publicKey,
                 sessionKey: sessionKey,
+                alias: alias,
+                autoAccept: autoAccept,
                 firstSeen: firstSeen,
                 lastSeen: lastSeen,
               ),

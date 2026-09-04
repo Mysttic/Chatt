@@ -8,6 +8,7 @@ project(runner LANGUAGES CXX)
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME} WIN32
   "chatt_autostart.cpp"
+  "chatt_clipboard.cpp"
   "chatt_secrets.cpp"
   "flutter_window.cpp"
   "main.cpp"
@@ -38,6 +39,9 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
 # DPAPI (CryptProtectData) chroni klucz zaszyfrowanej bazy.
 target_link_libraries(${BINARY_NAME} PRIVATE "crypt32.lib")
+# WIC dekoduje obrazek przed wrzuceniem go do schowka; ole32 do COM,
+# shell32 do listy plikow CF_HDROP.
+target_link_libraries(${BINARY_NAME} PRIVATE "windowscodecs.lib" "ole32.lib" "shell32.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

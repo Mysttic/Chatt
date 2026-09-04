@@ -6,6 +6,7 @@ import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
 import 'chat_screen.dart';
+import '../widgets/toasts.dart';
 
 /// Wyszukiwanie urządzeń w sieci (odpowiednik ListOfNearbyDevices.PNG
 /// + ManuallyFindDevice.PNG). Wyniki skanu od razu trafiają do bazy, więc
@@ -34,15 +35,9 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
       _scanning = false;
       _foundInLastScan = found.length;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          found.isEmpty
-              ? context.l10n.scanNothingFound
-              : context.l10n.scanFound(found.length),
-        ),
-      ),
-    );
+    showToast(found.isEmpty
+        ? context.l10n.scanNothingFound
+        : context.l10n.scanFound(found.length));
   }
 
   Future<void> _openChat(Peer peer) async {
@@ -63,7 +58,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
-        title: Text(context.l10n.deleteDeviceTitle(peer.name)),
+        title: Text(context.l10n.deleteDeviceTitle(peer.displayName)),
         content: Text(context.l10n.deleteDeviceBody),
         actions: [
           TextButton(
@@ -79,10 +74,10 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     );
     if (confirmed != true || !mounted) return;
 
+    final teksty = context.l10n;
+    final nazwa = peer.displayName;
     await ref.read(appServicesProvider).forgetPeer(peer);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.deviceDeleted(peer.name))));
+    showToast(teksty.deviceDeleted(nazwa));
   }
 
   Future<void> _addManually() async {
@@ -97,9 +92,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
         .addPeerByAddress(host, port);
     if (!mounted) return;
     if (peer == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.noChattAtAddress(host, port))),
-      );
+      showToast(context.l10n.noChattAtAddress(host, port));
     } else {
       await _openChat(peer);
     }
@@ -178,12 +171,12 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                         itemBuilder: (context, index) {
                           final peer = items[index];
                           return ListTile(
-                            leading: InitialsAvatar(name: peer.name),
+                            leading: InitialsAvatar(name: peer.displayName),
                             title: Row(
                               children: [
                                 Flexible(
                                   child: Text(
-                                    peer.name,
+                                    peer.displayName,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
