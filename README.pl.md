@@ -56,18 +56,18 @@ Na telefonie: `flutter build apk --release` i zainstaluj APK. Oba urządzenia
 muszą być w tej samej sieci, a na Windows trzeba przepuścić ruch przychodzący,
 gdy zapyta o to zapora.
 
-Szczegóły: [instrukcja obsługi](docs/guide.md) ·
+Szczegóły: [instrukcja obsługi](docs/guide.pl.md) ·
 [budowanie i wydawanie wersji](docs/building.md)
 
 ## Dokumentacja
 
-Ten plik jest jedynym po polsku. Reszta dokumentacji jest po angielsku, żeby
-istniała w jednej wersji i nie rozjeżdżała się przy każdej zmianie w kodzie.
-Sama aplikacja mówi po polsku i po angielsku.
+Po polsku są dwa pliki: ten i instrukcja obsługi. Reszta jest po angielsku,
+żeby istniała w jednej wersji i nie rozjeżdżała się przy każdej zmianie
+w kodzie. Sama aplikacja mówi po polsku i po angielsku.
 
 | Dokument | Dla kogo |
 |---|---|
-| [docs/guide.md](docs/guide.md) | użytkownik: parowanie, pliki, nasłuch w tle, rozwiązywanie problemów |
+| [docs/guide.pl.md](docs/guide.pl.md) | użytkownik: parowanie, pliki, nasłuch w tle, rozwiązywanie problemów |
 | [docs/building.md](docs/building.md) | build Windows i Androida, podpisywanie, gałęzie i wydania na GitHubie |
 | [docs/testing.md](docs/testing.md) | co jest testowane, jak to uruchomić, czego testy nie łapią |
 | [docs/architecture.md](docs/architecture.md) | protokół, baza, model zagrożeń, nasłuch w tle na Androidzie |
