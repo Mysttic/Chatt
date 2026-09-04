@@ -27,8 +27,11 @@ class Settings extends Table {
   IntColumn get theme =>
       intEnum<AppTheme>().withDefault(Constant(AppTheme.system.index))();
 
+  /// Domyślnie angielski, a nie język systemu: aplikacja jest wydawana
+  /// międzynarodowo, więc pierwsze uruchomienie ma być zrozumiałe wszędzie.
+  /// Polski i „za systemem" są o jedno dotknięcie w Ustawieniach.
   IntColumn get language =>
-      intEnum<AppLanguage>().withDefault(Constant(AppLanguage.system.index))();
+      intEnum<AppLanguage>().withDefault(Constant(AppLanguage.english.index))();
 
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest
   /// zajęty — patrz DeviceIdentity.tcpPort.

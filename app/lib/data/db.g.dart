@@ -81,7 +81,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         false,
         type: DriftSqlType.int,
         requiredDuringInsert: false,
-        defaultValue: Constant(AppLanguage.system.index),
+        defaultValue: Constant(AppLanguage.english.index),
       ).withConverter<AppLanguage>($SettingsTable.$converterlanguage);
   static const VerificationMeta _tcpPortMeta = const VerificationMeta(
     'tcpPort',
@@ -282,6 +282,10 @@ class Setting extends DataClass implements Insertable<Setting> {
   final String nickname;
   final String welcomeMessage;
   final AppTheme theme;
+
+  /// Domyślnie angielski, a nie język systemu: aplikacja jest wydawana
+  /// międzynarodowo, więc pierwsze uruchomienie ma być zrozumiałe wszędzie.
+  /// Polski i „za systemem" są o jedno dotknięcie w Ustawieniach.
   final AppLanguage language;
 
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest

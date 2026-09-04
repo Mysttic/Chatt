@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Grafiki: nagłówek do README i materiały w wymiarach sklepów.
 
-Sklepy są **odłożone** (patrz docs/publikacja/README.md) — projekt wydaje się
+Sklepy są **odłożone** (patrz docs/publishing/README.md) — projekt wydaje się
 przez GitHub Releases. Skrypt zostaje, bo nagłówek do README powstaje tym
 samym kodem co ikona aplikacji, a materiały sklepowe przydadzą się, gdyby
 decyzja kiedyś się zmieniła.
@@ -9,7 +9,7 @@ decyzja kiedyś się zmieniła.
 Generuje do docs/:
   promo.png                           nagłówek README 1024×500 (w repozytorium)
 
-oraz do docs/publikacja/materialy/ (poza repozytorium, na żądanie):
+oraz do docs/publishing/assets/ (poza repozytorium, na żądanie):
   google-play/ikona-512.png           ikona 512×512 (Play)
   google-play/promo-1024x500.png      grafika promocyjna 1024×500 (Play)
   google-play/zrzuty/{pl,en}/*.png    zrzuty telefonu 1080×1920 (Play)
@@ -40,7 +40,7 @@ KATALOG_TOOL = os.path.dirname(os.path.abspath(__file__))
 KATALOG_APP = os.path.dirname(KATALOG_TOOL)
 KORZEN = os.path.dirname(KATALOG_APP)
 DOCS = os.path.join(KORZEN, "docs")
-WYJSCIE = os.path.join(DOCS, "publikacja", "materialy")
+WYJSCIE = os.path.join(DOCS, "publishing", "assets")
 
 sys.path.insert(0, KATALOG_TOOL)
 import make_icons  # noqa: E402  (ikona rysowana tym samym kodem co w aplikacji)
@@ -72,6 +72,18 @@ HASLO = {
 def czcionka(rozmiar, gruba=True):
     plik = "Roboto-Bold.ttf" if gruba else "Roboto-Regular.ttf"
     return ImageFont.truetype(os.path.join(KATALOG_APP, "fonts", plik), rozmiar)
+
+
+def dopasuj(tekst, rozmiar, maks_szer, gruba=True):
+    """Największa czcionka do `rozmiar`, przy której tekst mieści się
+    w `maks_szer`. Hasło ma inną długość w każdym języku, a wpisany na sztywno
+    rozmiar wychodził w angielskim poza prawą krawędź grafiki."""
+    while rozmiar > 12:
+        font = czcionka(rozmiar, gruba)
+        if font.getlength(tekst) <= maks_szer:
+            return font
+        rozmiar -= 1
+    return czcionka(12, gruba)
 
 
 def zapisz(obraz, sciezka):
@@ -106,10 +118,15 @@ def promo(jezyk):
     obraz.alpha_composite(ikonka, (90, (wys - 300) // 2))
 
     naglowek, podpis = HASLO[jezyk]
+    lewa, maks = 442, szer - 442 - 48
+    czcionka_naglowka = dopasuj(naglowek, 34, maks)
     rysuj = ImageDraw.Draw(obraz)
     rysuj.text((440, 150), "Chatt", font=czcionka(96), fill=(255, 255, 255, 255))
-    rysuj.text((442, 268), naglowek, font=czcionka(34), fill=(255, 255, 255, 255))
-    rysuj.text((442, 318), podpis, font=czcionka(28, gruba=False),
+    rysuj.text((lewa, 268), naglowek, font=czcionka_naglowka,
+               fill=(255, 255, 255, 255))
+    # Podpis nie może urosnąć ponad nagłówek, nawet gdy jest od niego krótszy.
+    rysuj.text((lewa, 318), podpis,
+               font=dopasuj(podpis, czcionka_naglowka.size - 5, maks, gruba=False),
                fill=(255, 255, 255, 215))
     return obraz.convert("RGB")
 

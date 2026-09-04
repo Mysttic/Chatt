@@ -8,7 +8,7 @@ plugins {
 }
 
 // Dane do podpisania buildu release. Plik z hasłami i sam keystore leżą poza
-// gitem (patrz android/.gitignore i docs/budowanie.md). Gdy ich nie ma —
+// gitem (patrz android/.gitignore i docs/building.md). Gdy ich nie ma —
 // na przykład w świeżym klonie albo w sesji chmurowej — build release nadal
 // przechodzi, tylko podpisany kluczem debug.
 val kluczeReleaseFile = rootProject.file("key.properties")
@@ -63,7 +63,7 @@ android {
                 logger.warn(
                     "Brak android/key.properties albo keystore'a spod storeFile — " +
                         "build release zostanie podpisany kluczem debug i nie nadaje " +
-                        "się do rozdawania. Szczegóły w docs/budowanie.md."
+                        "się do rozdawania. Szczegóły w docs/building.md."
                 )
                 signingConfigs.getByName("debug")
             }

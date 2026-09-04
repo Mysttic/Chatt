@@ -1,7 +1,6 @@
 # Chatt Privacy Policy
 
-Last updated: 3 September 2026. Polish version:
-[polityka-prywatnosci.md](polityka-prywatnosci.md).
+Last updated: 4 September 2026.
 
 ## In short
 
@@ -15,7 +14,7 @@ devices.
 | Data | Where it is | Who can see it |
 |---|---|---|
 | Messages and files you send | on your device and on the recipient's device | only the two of you |
-| Device name and welcome message | broadcast on your local network | any device on the same Wi‑Fi network |
+| Device name and welcome message | broadcast on your local network | any device on the same Wi-Fi network |
 | Device identity key (public part) | broadcast on your local network | any device on the same network |
 | Identity key (private part), conversation history | on your device, in an encrypted database | only you |
 | Local network IP address | visible to the devices you talk to | devices on the same network |
@@ -26,8 +25,8 @@ network.
 ## Encryption
 
 - Traffic between devices is always encrypted, from the very first message,
-  with a key negotiated separately for every connection (X25519, AES‑GCM,
-  AES‑CTR for file streams).
+  with a key negotiated separately for every connection (X25519, AES-GCM,
+  AES-CTR for file streams).
 - Conversation history is stored in an encrypted database on disk. The key is
   held by the operating system: Android Keystore on the phone, DPAPI on
   Windows.
@@ -38,7 +37,7 @@ network.
 
 | Permission (Android) | Purpose |
 |---|---|
-| Internet, network state, Wi‑Fi state, multicast | talking to and discovering devices on the local network; the app does not connect to the internet |
+| Internet, network state, Wi-Fi state, multicast | talking to and discovering devices on the local network; the app does not connect to the internet |
 | Camera | scanning a QR code shown by the other device, only when you ask; the image never leaves the device |
 | Notifications | new message alerts and the persistent "listening" notice |
 | Foreground service | receiving messages while the window is closed |

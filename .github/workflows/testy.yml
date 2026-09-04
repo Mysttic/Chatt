@@ -34,7 +34,7 @@ jobs:
         with:
           # Wersja przypięta na sztywno: przypadkowa aktualizacja Fluttera nie
           # ma prawa wywrócić buildu. Podbijamy ją świadomie, razem z lokalnym
-          # SDK (patrz docs/budowanie.md).
+          # SDK (patrz docs/building.md).
           flutter-version: 3.47.2
           channel: stable
           cache: true

@@ -367,4 +367,7 @@ FodyWeavers.xsd
 # Materiały do sklepów: wynik app/tool/store_assets.py, liczony ze zrzutów
 # i ikony, które są w repozytorium. Trzymanie ich w gicie znaczyłoby dwie
 # kopie tego samego obrazka i konflikt przy każdej zmianie UI.
-/docs/publikacja/materialy/
+/docs/publishing/assets/
+
+# Claude Code: lokalna konfiguracja narzedzia autora, nie czesc aplikacji.
+/.claude/
