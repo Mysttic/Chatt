@@ -8,7 +8,11 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.4.0] - 2026-09-04
+
+An English repository: everything a reader meets is in one language, and a
+fresh installation starts in English. No change to the protocol, the database
+schema or the way the app behaves once it is running.
 
 ### Added
 - `docs/guide.pl.md`, the user guide in Polish. It is the one document an end
@@ -236,7 +240,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.3.1...develop
+[0.4.0]: https://github.com/Mysttic/Chatt/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Mysttic/Chatt/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Mysttic/Chatt/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Mysttic/Chatt/compare/v0.1.0...v0.2.0
