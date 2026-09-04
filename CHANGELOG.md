@@ -8,9 +8,11 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.5.0] - 2026-09-04
 
-Comfort work reported after using 0.4.0 on both platforms.
+Comfort inside a conversation, and a phone that answers scans again. Reported
+after using 0.4.0 on both platforms; the Android fix came out of verifying the
+rest of it on a device.
 
 ### Added
 - **A name of your own for a peer.** A device announces its own name, so a PC
@@ -295,7 +297,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.4.0...develop
+[0.5.0]: https://github.com/Mysttic/Chatt/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Mysttic/Chatt/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Mysttic/Chatt/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Mysttic/Chatt/compare/v0.2.0...v0.3.0
