@@ -239,5 +239,31 @@
   "trayQuit": "Zamknij Chatt",
 
   "backgroundServiceTitle": "Chatt nasłuchuje",
-  "backgroundServiceBody": "Odbiera wiadomości i pliki z tej sieci Wi-Fi"
+  "backgroundServiceBody": "Odbiera wiadomości i pliki z tej sieci Wi-Fi",
+
+  "copyImage": "Kopiuj obraz",
+  "imageCopied": "Obraz skopiowany do schowka",
+  "imageCopyFailed": "Nie udało się skopiować obrazu",
+
+  "renamePeer": "Zmień nazwę",
+  "renamePeerTitle": "Twoja nazwa tego urządzenia",
+  "renamePeerHelp": "Nazwa zostaje na tym urządzeniu i nigdzie nie jedzie. Puste pole wraca do nazwy, którą rozgłasza samo urządzenie.",
+  "peerRenamed": "Nazwa zmieniona na {name}",
+  "@peerRenamed": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "peerRenameCleared": "Wróciła nazwa rozgłaszana",
+  "broadcastName": "Nazwa rozgłaszana: {name}",
+  "@broadcastName": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "autoAcceptTitle": "Przyjmuj pliki bez pytania",
+  "autoAcceptBody": "Pliki od tego urządzenia trafiają prosto do rozmowy, bez karty z pytaniem. Działa tylko przy potwierdzonej tożsamości, a przełącznik gaśnie sam, gdy potwierdzenie zniknie.",
+  "autoAcceptNeedsVerified": "Najpierw potwierdź tożsamość",
+
+  "selectText": "Zaznacz tekst",
+  "selectTextHint": "Przytrzymaj, żeby zaznaczyć fragment",
+
+  "discoveryDeaf": "To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program."
 }

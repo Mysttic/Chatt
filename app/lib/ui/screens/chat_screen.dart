@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/clipboard_image.dart';
 import '../../core/file_actions.dart';
 import '../../core/search.dart';
 import '../../data/db.dart';
@@ -15,7 +16,13 @@ import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
 import '../widgets/security_sheet.dart';
+import '../widgets/toasts.dart';
 import 'scan_screen.dart';
+
+/// Telefon zamiast pulpitu. Decyduje o tym, jak zaznacza się tekst i czym
+/// otwiera się menu dymka: myszą klika się prawym przyciskiem, palcem
+/// przytrzymuje.
+final bool dotykowy = Platform.isAndroid || Platform.isIOS;
 
 /// Ekran rozmowy (odpowiednik Conversation.PNG): dymki, statusy dostarczenia,
 /// ponawianie nieudanych wysyłek.
@@ -69,11 +76,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Future<void> _deleteMessage(Message message) async {
+    final teksty = context.l10n;
     await ref.read(appServicesProvider).db.deleteMessage(message.id);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.messageDeleted)),
-    );
+    showToast(teksty.messageDeleted);
   }
 
   Future<void> _send() async {
@@ -86,12 +91,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// karta nad aplikacją (PromptOverlay) — po obu stronach ten sam.
   Future<void> _startPairing() async {
     final services = ref.read(appServicesProvider);
+    final teksty = context.l10n;
     final peer = await services.db.peerByGuid(widget.peer.guid) ?? widget.peer;
     final code = await services.startPairing(peer);
-    if (!mounted || code != null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.pairStartFailed)),
-    );
+    if (code != null) return;
+    showToast(teksty.pairStartFailed);
   }
 
 
@@ -102,9 +106,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       MaterialPageRoute(builder: (_) => const ScanScreen()),
     );
     if (!mounted || peer == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.pairedWith(peer.name))),
-    );
+    showToast(context.l10n.pairedWith(peer.displayName));
   }
 
   /// Wybór plików: można zaznaczyć kilka naraz, wyślą się po kolei.
@@ -149,17 +151,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               )
             : Row(
                 children: [
-                  InitialsAvatar(name: widget.peer.name, radius: 18),
+                  InitialsAvatar(name: peer.displayName, radius: 18),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.peer.name,
+                        Text(peer.displayName,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         Text(
                           switch (_online) {
-                            null => '${widget.peer.host}:${widget.peer.port}',
+                            null => '${peer.host}:${peer.port}',
                             true => context.l10n.peerOnline,
                             false => context.l10n.peerOffline,
                           },
@@ -264,7 +266,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
                   );
                 }
-                return ListView.builder(
+                final lista = ListView.builder(
                   controller: _scroll,
                   reverse: true,
                   padding:
@@ -284,6 +286,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     );
                   },
                 );
+                // Na pulpicie zaznacza się myszą, przez kilka dymków naraz.
+                // Na dotyku `SelectionArea` przechwyciłaby przytrzymanie
+                // i menu dymka (kopiuj, usuń) przestałoby się otwierać, więc
+                // tam zaznaczanie idzie osobną pozycją w tym menu.
+                return dotykowy ? lista : SelectionArea(child: lista);
               },
               ),
             ),
@@ -420,7 +427,6 @@ class _MessageBubble extends StatelessWidget {
   /// Wyniesienie pliku z katalogu aplikacji tam, gdzie użytkownik go szuka.
   /// Komunikat mówi gdzie, bo inaczej „zapisano" nic nie znaczy.
   Future<void> _saveFile(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
     final teksty = context.l10n;
     final wynik = await services.saveFileFromMessage(message);
     final napis = switch (wynik.result) {
@@ -432,27 +438,35 @@ class _MessageBubble extends StatelessWidget {
       SaveResult.failed => teksty.saveFailed,
     };
     if (napis == null) return;
-    messenger.showSnackBar(SnackBar(content: Text(napis)));
+    showToast(napis);
   }
 
   void _report(BuildContext context, FileActionResult result) {
     final path = message.filePath ?? '';
-    final snack = switch (result) {
-      FileActionResult.ok => null,
-      FileActionResult.missing =>
-        SnackBar(content: Text(context.l10n.fileGone)),
+    switch (result) {
+      case FileActionResult.ok:
+        break;
+      case FileActionResult.missing:
+        showToast(context.l10n.fileGone);
       // Android/iOS: bez wtyczki platformowej zostaje ścieżka do skopiowania.
-      FileActionResult.unsupported => SnackBar(
-          content: Text(path),
-          action: SnackBarAction(
-            label: context.l10n.copy,
-            onPressed: () => Clipboard.setData(ClipboardData(text: path)),
-          ),
-        ),
-      FileActionResult.failed =>
-        SnackBar(content: Text(context.l10n.fileOpenFailed)),
-    };
-    if (snack != null) ScaffoldMessenger.of(context).showSnackBar(snack);
+      case FileActionResult.unsupported:
+        showToast(
+          path,
+          actionLabel: context.l10n.copy,
+          onAction: () => Clipboard.setData(ClipboardData(text: path)),
+        );
+      case FileActionResult.failed:
+        showToast(context.l10n.fileOpenFailed);
+    }
+  }
+
+  /// Obraz do schowka: tylko na pulpicie i tylko dla obrazków, bo tylko tam
+  /// jest co wkleić. Na Androidzie tę rolę pełni „Udostępnij".
+  Future<void> _copyImage(BuildContext context) async {
+    final teksty = context.l10n;
+    final path = message.filePath;
+    final ok = path != null && await copyImageToClipboard(path);
+    showToast(ok ? teksty.imageCopied : teksty.imageCopyFailed);
   }
 
   void _fileMenu(BuildContext context) {
@@ -482,6 +496,15 @@ class _MessageBubble extends StatelessWidget {
                 _revealFile(context);
               },
             ),
+            if (canCopyImage && isImageFile(message.fileName))
+              ListTile(
+                leading: const Icon(Icons.image_outlined),
+                title: Text(context.l10n.copyImage),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  _copyImage(context);
+                },
+              ),
             if (message.direction == MessageDirection.incoming)
               ListTile(
                 leading: const Icon(Icons.save_alt),
@@ -508,7 +531,12 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
-  /// Menu tekstowego dymka: skopiowanie treści i skasowanie wpisu u siebie.
+  void _menu(BuildContext context) => message.kind == MessageKind.file
+      ? _fileMenu(context)
+      : _textMenu(context);
+
+  /// Menu tekstowego dymka: skopiowanie treści, zaznaczenie fragmentu
+  /// i skasowanie wpisu u siebie.
   void _textMenu(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -523,8 +551,55 @@ class _MessageBubble extends StatelessWidget {
                 Clipboard.setData(ClipboardData(text: message.body));
               },
             ),
+            // Na pulpicie tej pozycji nie ma: tam zaznacza się wprost
+            // w rozmowie, kursorem, i to działa przez kilka dymków naraz.
+            if (dotykowy)
+              ListTile(
+                leading: const Icon(Icons.text_fields),
+                title: Text(context.l10n.selectText),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  _selectText(context);
+                },
+              ),
             _deleteTile(context, sheet),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Zaznaczanie fragmentu na telefonie. Osobna karta, bo w liście dymków
+  /// zaznaczanie i przytrzymanie otwierające menu biją się o ten sam gest,
+  /// a menu jest jedyną drogą do skasowania wiadomości.
+  void _selectText(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheet) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                context.l10n.selectTextHint,
+                style: TextStyle(
+                  color: Theme.of(sheet).colorScheme.onSurfaceVariant,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: SelectableText(message.body,
+                      style: const TextStyle(fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -692,9 +767,10 @@ class _MessageBubble extends StatelessWidget {
       // Bez `opaque` dotyk liczyłby się tylko dokładnie na literach: domyślne
       // `deferToChild` przepuszcza tło i marginesy dymka.
       behavior: HitTestBehavior.opaque,
-      onLongPress: () => message.kind == MessageKind.file
-          ? _fileMenu(context)
-          : _textMenu(context),
+      onLongPress: () => _menu(context),
+      // Na pulpicie naturalnym gestem jest prawy przycisk, a nie trzymanie
+      // wciśniętego lewego. Przytrzymanie zostaje, bo nikomu nie przeszkadza.
+      onSecondaryTap: dotykowy ? null : () => _menu(context),
       child: Container(
       // Górna granica w pikselach, nie tylko ułamek szerokości: na monitorze
       // dymek ciągnący się przez pół metra jest nie do czytania.

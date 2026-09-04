@@ -148,4 +148,29 @@ void main() {
     final updated = (await alice.db.peerByGuid(bob.identity.guid))!;
     expect(updated.port, bob.server.port, reason: 'adres zaktualizowany w bazie');
   });
+
+  test('stan respondera jest widoczny, a nie połknięty', () async {
+    final zGlosem = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Z responderem',
+    );
+    addTearDown(zGlosem.dispose);
+
+    // Bez tego pola cichy `SocketException` przy bindzie znaczył urządzenie,
+    // którego nikt nie znajdzie skanem, i nie było tego jak zobaczyć.
+    // Na Androidzie przeżyło to długo, bo `reusePort` wywracał bind.
+    expect(zGlosem.discoveryListening, isTrue);
+
+    final niemy = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Bez respondera',
+      enableDiscovery: false,
+    );
+    addTearDown(niemy.dispose);
+
+    expect(niemy.discoveryListening, isFalse,
+        reason: 'wyłączone discovery to też urządzenie głuche na skany');
+  });
 }

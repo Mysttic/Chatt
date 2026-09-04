@@ -56,8 +56,14 @@ potem leci do rozmówcy. Jeśli w międzyczasie zmienił mu się adres IP,
 aplikacja sama przeszuka sieć po jego identyfikatorze i ponowi wysyłkę pod
 nowym adresem.
 
-**Przytrzymanie dymka** daje menu: skopiowanie treści i skasowanie wiadomości.
-Kasowanie działa tylko u Ciebie: protokół nie ma jak kazać drugiej stronie
+**Zaznaczanie tekstu.** Na komputerze przeciągnij kursorem po wiadomości albo
+po kilku naraz i skopiuj przez Ctrl+C. Na telefonie ten gest jest zajęty przez
+menu, więc zaznaczanie siedzi w środku: przytrzymaj dymek i wybierz „Zaznacz
+tekst".
+
+**Przytrzymanie dymka** daje menu: skopiowanie całej treści, zaznaczenie
+fragmentu i skasowanie wiadomości. Na komputerze to samo menu otwiera prawy
+przycisk myszy. Kasowanie działa tylko u Ciebie: protokół nie ma jak kazać drugiej stronie
 zapomnieć czegoś, co już dostała, i aplikacja mówi to wprost zamiast obiecywać
 „usuń u wszystkich".
 
@@ -91,7 +97,9 @@ dla każdego, po kolei.
 
 Odebrane pliki lądują w katalogu aplikacji. Kliknięcie w dymek otwiera plik,
 a przytrzymanie daje „Pokaż folder", „Udostępnij", „Kopiuj ścieżkę"
-i „Usuń wiadomość".
+i „Usuń wiadomość". Na Windowsie obrazek dostaje dodatkowo **„Kopiuj obraz"**,
+które kładzie go do schowka i jako obraz (wkleisz do dokumentu albo do edytora
+grafiki), i jako plik (wkleisz w Eksploratorze).
 
 Strzałka w dół przy odebranym pliku **zapisuje jego kopię tam, gdzie będziesz
 go szukać**: na Androidzie obrazki trafiają do `Pictures/Chatt` (widzi je
@@ -141,6 +149,19 @@ Do potwierdzenia tożsamości są dwie drogi:
   Dlatego prośba o plik od urządzenia bez potwierdzonej tożsamości wyświetla
   ostrzeżenie, a prośba o ponowne potwierdzenie znanego już urządzenia jest
   oznaczona na czerwono.
+
+W tym samym panelu siedzą dwie rzeczy, które należą do rozmówcy, a nie do
+pojedynczej wiadomości:
+
+- **Zmień nazwę.** Urządzenie rozgłasza własną nazwę, więc komputer trafia na
+  listę jako coś w rodzaju `DESKTOP-8F2A1C`. Nadaj mu swoją i to ją zobaczysz
+  wszędzie. Nazwa zostaje na tym urządzeniu, nigdzie nie jedzie, a rozgłaszana
+  wyświetla się pod nią, żeby dało się zauważyć, że druga strona się
+  przemianowała. Puste pole wraca do rozgłaszanej.
+- **Przyjmuj pliki bez pytania.** Pliki od tego urządzenia trafiają wtedy prosto
+  do rozmowy, bez karty z pytaniem. Przełącznik działa wyłącznie przy zielonej
+  tarczy i gaśnie sam, gdy potwierdzenie zniknie: zgoda dotyczyła potwierdzonej
+  tożsamości, a nie nazwy, którą każdy może sobie wpisać.
 
 ## Nasłuch w tle na Androidzie
 
@@ -210,6 +231,11 @@ W Ustawieniach wybierasz motyw (systemowy, jasny, ciemny), **tło** i język
 (systemowy, polski, angielski). Wszystkie wybory siedzą w bazie, więc
 przeżywają restart. Świeża instalacja startuje po angielsku, polski jest
 o jedno dotknięcie dalej.
+
+Krótkie komunikaty („Skopiowano", „Usunięto rozmowę") pokazują się w prawym
+górnym rogu, z paskiem odliczającym czas do zniknięcia. Kliknięcie zamyka je od
+razu. Są na górze, a nie na dole, żeby nie zasłaniały przycisku ani pola
+tekstowego, którego przed chwilą użyłeś.
 
 Tła to gotowe zestawy: „Bez tła" (zwykły kolor motywu), Zmierzch, Ocean,
 Las i Piasek. Każdy ma osobne kolory na motyw jasny i ciemny, a wszystkie są

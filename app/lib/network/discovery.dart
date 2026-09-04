@@ -70,14 +70,20 @@ class DiscoveryResponder {
 
   Future<void> start() async {
     if (_socket != null) return;
-    // reusePort pozwala dwóm instancjom na jednej maszynie (Linux/Android)
-    // dzielić port — broadcasty trafiają wtedy do obu. Windows nie zna
-    // SO_REUSEPORT; tam wystarcza reuseAddress.
+    // reusePort pozwala dwóm instancjom na jednej maszynie dzielić port:
+    // broadcasty trafiają wtedy do obu. Przydaje się wyłącznie w testach
+    // i przy dwóch kopiach aplikacji na jednym pulpicie.
+    //
+    // Lista platform jest wyliczona, a nie wykluczająca Windows, bo Dart nie
+    // wspiera SO_REUSEPORT także na Androidzie: bind rzucał tam wyjątek,
+    // `AppServices.start` go połykał i telefon po cichu przestawał odpowiadać
+    // na cudze skany. W logu widać było tylko
+    // „`reusePort` not supported on this platform".
     final socket = await RawDatagramSocket.bind(
       InternetAddress.anyIPv4,
       discoveryPort,
       reuseAddress: true,
-      reusePort: !Platform.isWindows,
+      reusePort: Platform.isLinux || Platform.isMacOS,
     );
     socket.broadcastEnabled = true;
     socket.listen((event) async {

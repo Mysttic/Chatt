@@ -55,7 +55,12 @@ A message is never lost on the way: it is saved locally first and only then
 sent. If the other device changed its IP in the meantime, the app searches the
 network for its identity and retries at the new address.
 
-**Long-press a bubble** for a menu: copy the text, delete the message. Deleting
+**Selecting text.** On a PC drag the cursor across a message, or across
+several at once, and copy with Ctrl+C. On a phone that gesture is taken by the
+menu, so selection lives inside it: long-press a bubble, then "Select text".
+
+**Long-press a bubble** for a menu: copy the whole message, select part of it,
+delete it. On a PC the same menu also opens with a right click. Deleting
 works on your side only. The protocol has no way to make the other side forget
 something it already received, and the app says that outright instead of
 promising "delete for everyone".
@@ -90,6 +95,9 @@ comes separately for each one, in turn.
 
 Received files land in the app directory. Tapping the bubble opens the file;
 long-pressing gives "Show folder", "Share", "Copy path" and "Delete message".
+On Windows an image also gets **"Copy image"**, which puts it on the clipboard
+both as a picture (paste it into a document or an image editor) and as a file
+(paste it into Explorer).
 
 The down arrow on a received file **saves a copy where you will look for it**:
 on Android images go to `Pictures/Chatt` (the gallery picks them up) and
@@ -136,6 +144,18 @@ There are two ways to confirm an identity:
 - A device name is just a label, and anyone can set it to anything. That is why
   a file request from a device with an unconfirmed identity carries a warning,
   and a request to confirm an already known device again is marked in red.
+
+The same panel holds two things that belong to a peer rather than to a message:
+
+- **Rename.** A device announces its own name, so a PC often arrives as
+  something like `DESKTOP-8F2A1C`. Give it a name of your own and that is what
+  you see everywhere. The name stays on this device, is never sent anywhere,
+  and the announced one keeps showing under it, so you can still notice the
+  other side renaming itself. An empty field brings the announced name back.
+- **Accept files without asking.** Files from that device then land in the
+  conversation with no consent card. The switch only works with a green shield,
+  and it goes off by itself if the confirmation ever goes away: the consent was
+  given to a confirmed identity, not to a name anybody can type.
 
 ## Background listening on Android
 
@@ -202,6 +222,11 @@ nothing about what the program does.
 Settings is where you pick the theme (system, light, dark), the **background**
 and the language (system, Polish, English). Every choice lives in the database,
 so it survives a restart.
+
+Short messages ("Copied", "Deleted the conversation") appear in the top right
+corner with a bar counting down to when they go away. A tap closes one straight
+away. They are up there rather than at the bottom so that they never cover the
+button or the text field you have just used.
 
 Backgrounds are ready-made sets: "No background" (the plain theme colour),
 Dusk, Ocean, Forest and Sand. Each has separate colours for the light and dark

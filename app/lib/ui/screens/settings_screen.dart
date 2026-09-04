@@ -12,6 +12,7 @@ import '../../services/providers.dart';
 import '../backgrounds.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
+import '../widgets/toasts.dart';
 
 /// Ustawienia instancji (odpowiednik EditConfiguration.PNG) + informacje
 /// potrzebne do ręcznego parowania (adresy IP i faktyczny port nasłuchu).
@@ -85,19 +86,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           tcpPort: int.parse(_port.text.trim()),
         );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(needsRestart
-          ? context.l10n.savedRestartNeeded
-          : context.l10n.saved),
-    ));
+    showToast(needsRestart
+        ? context.l10n.savedRestartNeeded
+        : context.l10n.saved);
   }
 
   Future<void> _askBatteryExemption() async {
     final pokazane = await BackgroundService.requestBatteryExemption();
     if (!mounted || pokazane) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.l10n.batteryExemptUnavailable)),
-    );
+    showToast(context.l10n.batteryExemptUnavailable);
   }
 
   /// Ręczne sprzątanie listy. Automatyczne, przy starcie aplikacji, czeka
@@ -108,11 +105,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         .db
         .sweepStalePeers(keepFor: const Duration(hours: 1));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(removed == 0
-          ? context.l10n.nothingToCleanUp
-          : context.l10n.cleanedUp(removed)),
-    ));
+    showToast(removed == 0
+        ? context.l10n.nothingToCleanUp
+        : context.l10n.cleanedUp(removed));
   }
 
   /// Zapis do rejestru może odmówić (polityka, zablokowany klucz) — wtedy
@@ -121,11 +116,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     final udalo = await Autostart.setEnabled(value);
     if (!mounted) return;
     setState(() => _autostart = udalo ? value : !value);
-    if (!udalo) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.l10n.startWithWindowsFailed)),
-      );
-    }
+    if (!udalo) showToast(context.l10n.startWithWindowsFailed);
   }
 
   /// Wyczyszczenie historii jest nieodwracalne, więc pytamy wprost.
@@ -149,13 +140,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     );
     if (zgoda != true || !mounted) return;
 
+    final teksty = context.l10n;
     final usuniete = await ref.read(appServicesProvider).db.clearHistory();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(usuniete == 0
-          ? context.l10n.nothingToCleanUp
-          : context.l10n.historyCleared(usuniete)),
-    ));
+    showToast(usuniete == 0
+        ? teksty.nothingToCleanUp
+        : teksty.historyCleared(usuniete));
   }
 
   @override
@@ -405,6 +394,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
             ),
           ),
+          // Milczący responder znaczy, że urządzenia nikt nie znajdzie skanem.
+          // Bez tego wiersza objaw wygląda jak problem z siecią po drugiej
+          // stronie i szuka się go tygodniami.
+          if (!services.discoveryListening) ...[
+            const SizedBox(height: 12),
+            Card(
+              color: scheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.wifi_find_outlined, color: scheme.onErrorContainer),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(context.l10n.discoveryDeaf,
+                          style: TextStyle(color: scheme.onErrorContainer)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           DropdownButtonFormField<int>(
             initialValue: ref.watch(settingsProvider).value?.retentionDays ?? 0,

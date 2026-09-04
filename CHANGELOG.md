@@ -8,6 +8,63 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.5.0] - 2026-09-04
+
+Comfort inside a conversation, and a phone that answers scans again. Reported
+after using 0.4.0 on both platforms; the Android fix came out of verifying the
+rest of it on a device.
+
+### Added
+- **A name of your own for a peer.** A device announces its own name, so a PC
+  arrives as something like `DESKTOP-8F2A1C`. The security panel now has a
+  rename button; the name stays on this device, is never sent anywhere, and the
+  announced one keeps showing under it, so the other side quietly renaming
+  itself is still visible. An empty field brings the announced name back
+  (schema v9, `peers.alias`).
+- **Accepting files without asking**, per peer, off by default (schema v9,
+  `peers.autoAccept`). It can only be turned on with a confirmed identity, and
+  removing the confirmation turns it off. The database enforces both, not the
+  screen, because this is the boundary of the user's consent: the flag alone,
+  without a green shield, would mean "take files from anyone claiming that
+  name".
+- **Copy image** on Windows for received pictures. Flutter's `Clipboard` only
+  handles text, so the runner grew a `chatt/clipboard` channel that decodes the
+  file with WIC and puts it on the clipboard as `CF_DIB` (pastes into an editor
+  or a document) and `CF_HDROP` (pastes into Explorer). Transparency is
+  composited onto white, because alpha on the clipboard is read differently
+  from program to program and the usual result is a black background.
+- **Selecting message text.** On the desktop the conversation is wrapped in a
+  `SelectionArea`, so the cursor selects across several bubbles at once and
+  Ctrl+C copies. On a phone the same gesture belongs to the bubble menu, which
+  is the only way to delete a message, so selection is a "Select text" entry
+  inside that menu instead of a fight in the gesture arena.
+- On the desktop the bubble menu also opens with a right click, which is the
+  gesture people actually reach for there.
+
+### Fixed
+- **Android stopped answering other devices' scans.** Dart does not support
+  `SO_REUSEPORT` on Android, so the discovery responder's bind threw, and
+  `AppServices.start` swallowed the exception without a trace. The phone kept
+  working in every other way and could find others itself, but nobody could
+  find it with a scan; it had to be added by address. Verified on a device
+  before and after: UDP 47777 has a listener now, and the
+  `reusePort not supported on this platform` line is gone from the log.
+- A failed `adb forward` in `tool/android_e2e_test.dart` was silent. With the
+  port already taken, by an ordinary Chatt running on the same desktop for
+  example, the test connected to **that** instead of the phone and every
+  assertion passed while the device was never touched. The tunnel is now
+  asserted, and `CHATT_PROXY_PORT` moves it out of the way.
+
+### Changed
+- **A discovery failure is now visible.** Settings shows a warning when the
+  responder is not listening, next to the one about the system keystore.
+  Without it the symptom looks like a network problem on the other side.
+- **Short messages moved from the bottom of the screen to the top right corner**
+  and got a bar counting down to when they go away; a tap closes one at once.
+  A `SnackBar` covers exactly what was just used: the "Nearby" button on the
+  conversation list, the text field in a conversation. All 18 call sites across
+  six files now go through one place (`ui/widgets/toasts.dart`).
+
 ## [0.4.0] - 2026-09-04
 
 An English repository: everything a reader meets is in one language, and a
@@ -240,6 +297,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.5.0]: https://github.com/Mysttic/Chatt/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Mysttic/Chatt/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Mysttic/Chatt/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Mysttic/Chatt/compare/v0.2.0...v0.3.0

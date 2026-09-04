@@ -121,7 +121,7 @@ computed. Abandoned parts are cleaned up after seven days.
 
 ## Database
 
-`drift` (SQLite), schema version **8**. Tables: `settings`, `peers`,
+`drift` (SQLite), schema version **9**. Tables: `settings`, `peers`,
 `conversations`, `messages`. Migrations are written in order, so a database
 from an earlier version of the app opens without losing data, with one
 exception described below:
@@ -135,6 +135,7 @@ exception described below:
 | 6 | `settings.identityKey`, `peers.publicKey`; **clears the device list and history** |
 | 7 | `settings.retentionDays` (automatic deletion of old messages) |
 | 8 | `settings.background` (the chosen background) |
+| 9 | `peers.alias` (a name of your own) and `peers.autoAccept` (take files without asking) |
 
 The wipe at v6 is deliberate: identifiers stopped being random and started
 following from keys, so every device got a new one. Saved contacts no longer
@@ -353,6 +354,12 @@ message sent to a closed app did not arrive at all. Hence:
 - the service holds a **MulticastLock**. Without it the Wi-Fi stack filters
   broadcasts out before they reach the app, and discovery dies with the screen
   off;
+- **`reusePort` is off on Android.** Dart does not support `SO_REUSEPORT`
+  there, and asking for it made the responder's bind throw. The exception was
+  swallowed, so the phone quietly stopped answering other devices' scans while
+  everything else kept working. The flag is now enabled only on desktop Linux
+  and macOS, where it lets two instances share the port, and `AppServices`
+  records whether the responder actually started so Settings can say so.
 - **WifiLock** is taken only up to Android 12. From 13 the system accepts
   `WIFI_MODE_FULL_HIGH_PERF` and ignores it (visible in `dumpsys wifi` as
   "0 full high perf"), and `LOW_LATENCY` works only for a foreground app, so it

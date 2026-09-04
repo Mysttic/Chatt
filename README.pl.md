@@ -81,7 +81,7 @@ w [`docs/mockups/`](docs/mockups/).
 
 ```
 cd app
-flutter test        # 79 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
+flutter test        # 94 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
 flutter analyze
 ```
 

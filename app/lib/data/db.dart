@@ -70,8 +70,31 @@ class Peers extends Table {
   /// czas migracji i zniknie w kolejnym schemacie.
   TextColumn get sessionKey => text().nullable()();
 
+  /// Własna nazwa rozmówcy, nadana lokalnie. [name] jest tym, co urządzenie
+  /// samo o sobie rozgłasza, więc zmienia się bez pytania i każdy może wpisać
+  /// tam cokolwiek. Alias zostaje po naszej stronie i nigdzie nie jedzie.
+  /// Pusty i null znaczą to samo: idziemy za nazwą rozgłaszaną.
+  TextColumn get alias => text().nullable()();
+
+  /// Przyjmuj pliki od tego rozmówcy bez pytania. Ma sens wyłącznie przy
+  /// potwierdzonej tożsamości, więc [setPeerVerified] gasi tę flagę razem
+  /// z tarczą — inaczej przetrwałaby unieważnienie potwierdzenia.
+  BoolColumn get autoAccept => boolean().withDefault(const Constant(false))();
+
   DateTimeColumn get firstSeen => dateTime()();
   DateTimeColumn get lastSeen => dateTime()();
+}
+
+/// Nazwa do pokazania: własna, jeśli jest, inaczej ta rozgłaszana przez
+/// urządzenie. Jedno miejsce, bo UI pyta o nią w kilkunastu.
+extension PeerDisplay on Peer {
+  String get displayName {
+    final own = alias;
+    return (own == null || own.trim().isEmpty) ? name : own;
+  }
+
+  /// Czy nazwa jest nasza. Panel bezpieczeństwa pokazuje wtedy obie.
+  bool get hasAlias => displayName != name;
 }
 
 /// Jedna konwersacja na rozmówcę (MVP; grupy kiedyś wymuszą zmianę).
@@ -134,7 +157,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -182,6 +205,13 @@ class ChattDb extends _$ChattDb {
       if (from < 8) {
         // v8: tło do wyboru. Domyślnie zero, czyli wygląd sprzed zmiany.
         await m.addColumn(settings, settings.background);
+      }
+      if (from < 9) {
+        // v9: własna nazwa rozmówcy i przyjmowanie plików bez pytania.
+        // Obie puste na starcie: nikt nie nadał jeszcze żadnej nazwy, a zgoda
+        // na pliki bez pytania musi być świadoma, nie odziedziczona.
+        await m.addColumn(peers, peers.alias);
+        await m.addColumn(peers, peers.autoAccept);
       }
     },
   );
@@ -343,10 +373,42 @@ class ChattDb extends _$ChattDb {
 
   /// Efekt parowania kodem PIN: od teraz wiadomo, że pod tym GUID-em siedzi
   /// urządzenie, które użytkownik świadomie potwierdził.
+  ///
+  /// Zdjęcie potwierdzenia gasi też przyjmowanie plików bez pytania. Zgoda
+  /// dotyczyła konkretnej, potwierdzonej tożsamości; gdy tarcza gaśnie,
+  /// zostawienie otwartej furtki byłoby cichym rozszerzeniem tej zgody.
   Future<void> setPeerVerified(int id, bool verified) =>
       (update(peers)..where((p) => p.id.equals(id))).write(
-        PeersCompanion(verified: Value(verified)),
+        verified
+            ? const PeersCompanion(verified: Value(true))
+            : const PeersCompanion(
+                verified: Value(false),
+                autoAccept: Value(false),
+              ),
       );
+
+  /// Własna nazwa rozmówcy. Pusty napis kasuje ją i wraca do rozgłaszanej.
+  Future<void> setPeerAlias(int id, String? alias) {
+    final trimmed = alias?.trim();
+    return (update(peers)..where((p) => p.id.equals(id))).write(
+      PeersCompanion(
+        alias: Value(trimmed == null || trimmed.isEmpty ? null : trimmed),
+      ),
+    );
+  }
+
+  /// Przyjmowanie plików bez pytania. Włączyć da się tylko przy potwierdzonej
+  /// tożsamości — sprawdzamy to tutaj, a nie w UI, bo to jest granica zgody
+  /// użytkownika, a nie kwestia wyglądu ekranu. Zwraca stan po zapisie.
+  Future<bool> setPeerAutoAccept(int id, bool value) async {
+    final peer =
+        await (select(peers)..where((p) => p.id.equals(id))).getSingleOrNull();
+    if (peer == null) return false;
+    final allowed = value && peer.verified;
+    await (update(peers)..where((p) => p.id.equals(id)))
+        .write(PeersCompanion(autoAccept: Value(allowed)));
+    return allowed;
+  }
 
   /// Sparowanie zakończone: zapisujemy klucz sesji i oznaczamy urządzenie
   /// jako zweryfikowane. Od tej pory ruch z nim jest szyfrowany.

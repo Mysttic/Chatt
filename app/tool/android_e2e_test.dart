@@ -36,7 +36,13 @@ import 'package:chatt/services/app_services.dart';
 const int hostPort = 47790;
 
 /// Port aplikacji na urządzeniu widziany z hosta (tunel adb forward).
-const int deviceProxyPort = 47781;
+///
+/// Do nadpisania przez `CHATT_PROXY_PORT`, bo domyślny bywa zajęty przez
+/// zwyczajnie uruchomionego Chatta na tej samej maszynie. Kiedyś kończyło się
+/// to testem, który po cichu rozmawiał z aplikacją na pulpicie zamiast
+/// z telefonem.
+final int deviceProxyPort =
+    int.tryParse(Platform.environment['CHATT_PROXY_PORT'] ?? '') ?? 47781;
 
 String get _adb => Platform.environment['ADB'] ?? 'adb';
 String get _device => Platform.environment['CHATT_DEVICE'] ?? 'emulator-5554';
@@ -267,7 +273,17 @@ void main() {
       ..createSync(recursive: true);
 
     // Tunele w obie strony (idempotentne).
-    await adb(['forward', 'tcp:$deviceProxyPort', 'tcp:47780']);
+    // Nieudany `forward` był tu wcześniej przemilczany, a to najgorszy
+    // możliwy błąd w tym miejscu: gdy port jest już zajęty przez inną
+    // instancję Chatta na tej maszynie (choćby zwykłą, uruchomioną aplikację
+    // na Windows), test łączy się z NIĄ zamiast z telefonem. Wszystkie
+    // asercje przechodzą, bo po drugiej stronie faktycznie stoi Chatt
+    // z innym guidem, tylko urządzenia nikt nie dotknął. Kosztowało to
+    // godzinę szukania nieistniejącego błędu zapisu na Androidzie.
+    final forward = await adb(['forward', 'tcp:$deviceProxyPort', 'tcp:47780']);
+    expect(forward.exitCode, 0,
+        reason: 'port $deviceProxyPort jest zajęty, więc tunel do telefonu nie '
+            'powstał i test rozmawiałby z czymś innym: ${forward.stderr}');
     final reverse = await adb(['reverse', 'tcp:$hostPort', 'tcp:$hostPort']);
     expect(reverse.exitCode, 0,
         reason: 'bez tunelu zwrotnego telefon nie odpowie hostowi: '

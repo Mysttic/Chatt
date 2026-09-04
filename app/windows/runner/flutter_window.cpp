@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "chatt_autostart.h"
+#include "chatt_clipboard.h"
 #include "chatt_secrets.h"
 #include "flutter/generated_plugin_registrant.h"
 
@@ -30,6 +31,7 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   RegisterChattSecrets(flutter_controller_->engine());
   RegisterChattAutostart(flutter_controller_->engine());
+  RegisterChattClipboard(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   // Start do zasobnika: okno w ogóle się nie pokazuje, więc nie ma mignięcia

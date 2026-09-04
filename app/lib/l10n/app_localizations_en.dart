@@ -579,4 +579,56 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get backgroundServiceBody =>
       'Receiving messages and files from this Wi-Fi network';
+
+  @override
+  String get copyImage => 'Copy image';
+
+  @override
+  String get imageCopied => 'Image copied to the clipboard';
+
+  @override
+  String get imageCopyFailed => 'Could not copy the image';
+
+  @override
+  String get renamePeer => 'Rename';
+
+  @override
+  String get renamePeerTitle => 'Your name for this device';
+
+  @override
+  String get renamePeerHelp =>
+      'The name stays on this device and is never sent anywhere. Leave the field empty to go back to the name the device broadcasts.';
+
+  @override
+  String peerRenamed(String name) {
+    return 'Now called $name';
+  }
+
+  @override
+  String get peerRenameCleared => 'Back to the broadcast name';
+
+  @override
+  String broadcastName(String name) {
+    return 'Broadcast name: $name';
+  }
+
+  @override
+  String get autoAcceptTitle => 'Accept files without asking';
+
+  @override
+  String get autoAcceptBody =>
+      'Files from this device land in the conversation straight away, with no consent card. It works only with a confirmed identity, and the switch goes off by itself if the confirmation ever goes away.';
+
+  @override
+  String get autoAcceptNeedsVerified => 'Confirm the identity first';
+
+  @override
+  String get selectText => 'Select text';
+
+  @override
+  String get selectTextHint => 'Press and hold to select part of it';
+
+  @override
+  String get discoveryDeaf =>
+      'This device does not answer scans. Others will find it only by adding its address by hand. The usual cause is another program holding port 47777.';
 }

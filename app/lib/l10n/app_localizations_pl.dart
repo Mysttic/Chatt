@@ -581,4 +581,56 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get backgroundServiceBody =>
       'Odbiera wiadomości i pliki z tej sieci Wi-Fi';
+
+  @override
+  String get copyImage => 'Kopiuj obraz';
+
+  @override
+  String get imageCopied => 'Obraz skopiowany do schowka';
+
+  @override
+  String get imageCopyFailed => 'Nie udało się skopiować obrazu';
+
+  @override
+  String get renamePeer => 'Zmień nazwę';
+
+  @override
+  String get renamePeerTitle => 'Twoja nazwa tego urządzenia';
+
+  @override
+  String get renamePeerHelp =>
+      'Nazwa zostaje na tym urządzeniu i nigdzie nie jedzie. Puste pole wraca do nazwy, którą rozgłasza samo urządzenie.';
+
+  @override
+  String peerRenamed(String name) {
+    return 'Nazwa zmieniona na $name';
+  }
+
+  @override
+  String get peerRenameCleared => 'Wróciła nazwa rozgłaszana';
+
+  @override
+  String broadcastName(String name) {
+    return 'Nazwa rozgłaszana: $name';
+  }
+
+  @override
+  String get autoAcceptTitle => 'Przyjmuj pliki bez pytania';
+
+  @override
+  String get autoAcceptBody =>
+      'Pliki od tego urządzenia trafiają prosto do rozmowy, bez karty z pytaniem. Działa tylko przy potwierdzonej tożsamości, a przełącznik gaśnie sam, gdy potwierdzenie zniknie.';
+
+  @override
+  String get autoAcceptNeedsVerified => 'Najpierw potwierdź tożsamość';
+
+  @override
+  String get selectText => 'Zaznacz tekst';
+
+  @override
+  String get selectTextHint => 'Przytrzymaj, żeby zaznaczyć fragment';
+
+  @override
+  String get discoveryDeaf =>
+      'To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.';
 }

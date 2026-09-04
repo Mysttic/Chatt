@@ -28,6 +28,7 @@ ConversationSummary _summary({required String name, String? lastBody}) =>
         host: '192.168.1.10',
         port: 47780,
         verified: false,
+        autoAccept: false,
         firstSeen: DateTime(2026, 9, 3),
         lastSeen: DateTime(2026, 9, 3),
       ),
