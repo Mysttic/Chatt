@@ -10,7 +10,7 @@ account, no cloud, always encrypted.**
 
 | Conversation | File request | Nearby devices |
 |---|---|---|
-| ![Conversation](docs/screenshots/produkt/android_rozmowa_z_plikiem.png) | ![File request](docs/screenshots/produkt/android_prosba_o_plik.png) | ![Scan](docs/screenshots/produkt/android_urzadzenia_w_poblizu.png) |
+| <img src="docs/screenshots/produkt/en/android_rozmowa_z_plikiem.png" alt="Conversation" width="230"> | <img src="docs/screenshots/produkt/en/android_prosba_o_plik.png" alt="File request" width="230"> | <img src="docs/screenshots/produkt/en/android_urzadzenia_w_poblizu.png" alt="Nearby devices" width="230"> |
 
 ## Why another one
 
@@ -59,8 +59,8 @@ point is that nothing leaves your network.
 
 Releases ship three files: an Android APK, a Windows installer and a portable
 Windows zip. See the [Releases](../../releases) page. Chatt is not in any app
-store and does not plan to be — see
-[docs/publikacja/README.md](docs/publikacja/README.md) for why.
+store and does not plan to be; the reasons are in
+[docs/publishing/README.md](docs/publishing/README.md).
 
 The Windows installer is not code‑signed, so SmartScreen shows a warning on
 first run ("More info" → "Run anyway"). A signing certificate would change
@@ -78,19 +78,17 @@ encrypted offer. The database is SQLite3MultipleCiphers with the key wrapped
 by the platform keystore.
 
 The full threat model, protocol and decisions are in
-[docs/architektura.md](docs/architektura.md) (Polish).
+[docs/architecture.md](docs/architecture.md).
 
 ## Documentation
 
-Documentation beyond this README is currently in Polish:
-
 | Document | For whom |
 |---|---|
-| [docs/instrukcja.md](docs/instrukcja.md) | users: pairing, files, background listening, troubleshooting |
-| [docs/budowanie.md](docs/budowanie.md) | building for Windows and Android, signing, branches and releases |
-| [docs/testy.md](docs/testy.md) | what is tested, how to run it, what tests cannot catch |
-| [docs/architektura.md](docs/architektura.md) | protocol, database, threat model |
-| [ROADMAP.md](ROADMAP.md) | plan and project status |
+| [docs/guide.md](docs/guide.md) | users: pairing, files, background listening, troubleshooting |
+| [docs/building.md](docs/building.md) | building for Windows and Android, signing, branches and releases |
+| [docs/testing.md](docs/testing.md) | what is tested, how to run it, what tests cannot catch |
+| [docs/architecture.md](docs/architecture.md) | protocol, database, threat model |
+| [CHANGELOG.md](CHANGELOG.md) | what changed in each release |
 
 ## Development
 
@@ -102,10 +100,11 @@ flutter analyze
 
 Layout of `app/lib/`:
 
-- `core/` — device identity, cryptography, platform channels
-- `data/db.dart` — SQLite schema (drift) and queries
-- `network/` — protocol, UDP discovery, HTTP server and client
-- `services/` — `AppServices`, the root that ties everything together, plus Riverpod providers
-- `ui/screens/` — conversations, chat, nearby devices, settings
+- `core/`: device identity, cryptography, platform channels
+- `data/db.dart`: the SQLite schema (drift) and queries
+- `network/`: the protocol, UDP discovery, HTTP server and client
+- `services/`: `AppServices`, the root that ties everything together, plus Riverpod providers
+- `ui/screens/`: conversations, chat, nearby devices, settings
 
-Device scenarios in `app/tool/` are described in [docs/testy.md](docs/testy.md).
+Device scenarios in `app/tool/` are described in
+[docs/testing.md](docs/testing.md).

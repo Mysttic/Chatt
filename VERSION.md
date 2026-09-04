@@ -1,26 +1,26 @@
-# Wersja
+# Version
 
 0.3.1
 
 ---
 
-Tu stoi numer wydania. Zmiana tej liczby i scalenie do `master` to jedyny
-sposób, żeby powstało nowe wydanie — [`.github/workflows/wydanie.yml`](.github/workflows/wydanie.yml)
-rusza wyłącznie wtedy, gdy w scalanych zmianach był ten plik.
+This is where the release number lives. Changing it and merging into `master`
+is the only way a new release happens:
+[`.github/workflows/wydanie.yml`](.github/workflows/wydanie.yml) starts only
+when this file was among the merged changes.
 
-Numer trzyma się schematu `główna.poboczna.poprawka`. Workflow czyta pierwszą
-linię, która składa się wyłącznie z takiej liczby, więc reszta pliku może być
-dowolna.
+The number follows `major.minor.patch`. The workflow reads the first line that
+consists of nothing but such a number, so the rest of the file can be anything.
 
-Numer musi się zgadzać z `version:` w `app/pubspec.yaml` (stamtąd biorą się
-`versionName` i `versionCode` Androida). Pilnuje tego workflow, ale ręcznie
-i tak nie trzeba tego robić:
+The number has to agree with `version:` in `app/pubspec.yaml` (which is where
+Android's `versionName` and `versionCode` come from). The workflow guards that,
+but there is no need to do it by hand anyway:
 
 ```
 cd app
-python tool/wersja.py 0.2.0
+python tool/wersja.py 0.4.0
 ```
 
-Skrypt podnosi numer w obu plikach i zwiększa numer builda w `pubspec.yaml`,
-bo Android nie przyjmie aktualizacji z numerem mniejszym lub równym
-poprzedniemu.
+The script raises the number in both files and increments the build number in
+`pubspec.yaml`, because Android will not accept an update with a number lower
+than or equal to the previous one.
