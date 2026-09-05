@@ -1,0 +1,28 @@
+name: Feature request
+description: Something the app should do and does not
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: >
+        The situation, not the solution. What you were doing when the app got
+        in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you imagine it working, if you have a view.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Out of scope
+      description: >
+        Chatt talks between devices on one local network and will not do
+        anything else. Please confirm the request fits.
+      options:
+        - label: This does not need a server, an account or a connection over the internet.
+          required: true

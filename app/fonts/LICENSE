@@ -1,0 +1,14 @@
+The fonts in this directory are not part of Chatt and keep their own license.
+
+  Roboto-Regular.ttf, Roboto-Medium.ttf, Roboto-Bold.ttf
+  MaterialIcons-Regular.otf
+
+  Copyright Google LLC
+  Licensed under the Apache License, Version 2.0.
+
+The full license text is in the LICENSE file at the root of this repository,
+which is the same license Chatt itself uses. See docs/THIRD-PARTY-NOTICES.md
+for the rest of the components that ship inside the app.
+
+They are bundled rather than taken from the system so that the app renders the
+same on every platform, and so that widget tests have a font to draw with.

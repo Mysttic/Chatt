@@ -10,6 +10,30 @@ into `master`.
 
 ## [Unreleased]
 
+### Added
+- **A licence.** Apache 2.0, in [LICENSE](LICENSE) and [NOTICE](NOTICE), the
+  same one the other Mysttic project uses. Until now the repository had none,
+  which means nobody was allowed to use any of it.
+- **[Third-party notices](docs/THIRD-PARTY-NOTICES.md)**: every component that
+  ships inside the app, with its licence and copyright. The Dart packages split
+  into Apache-2.0, MIT and BSD-3-Clause; alongside them are SQLite,
+  SQLite3MultipleCiphers, the bundled Roboto and Material Icons fonts, and
+  Google ML Kit, which is proprietary and rides along in the Android APK
+  through `mobile_scanner`.
+- `app/fonts/LICENSE`, because four font files sat in the repository with no
+  licence next to them.
+- **[docs/README.md](docs/README.md)** as the documentation index, plus
+  [CONTRIBUTING.md](docs/CONTRIBUTING.md),
+  [SECURITY.md](docs/SECURITY.md) and
+  [CODE_OF_CONDUCT.md](docs/CODE_OF_CONDUCT.md) (Contributor Covenant 2.1).
+- Issue templates for a bug and a feature request, and a pull request template.
+- `brand/icon.svg`: the app icon as vector, matching the geometry that
+  `app/tool/make_icons.py` draws.
+
+### Changed
+- Both READMEs open with the banner, the one-line pitch and three badges
+  (licence, latest release, tests), and close with the licence.
+
 ### Removed
 - The store materials (`docs/publishing/`): finished Google Play and Microsoft
   Store copy, graphic dimensions, questionnaire answers, a publication

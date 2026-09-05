@@ -1,12 +1,25 @@
-# Chatt
+<p align="center">
+  <img src="docs/promo.png" alt="Chatt" width="640">
+</p>
 
-![Chatt](docs/promo.png)
+<p align="center">
+  Komputer i telefon w jednej rozmowie. Wiadomości i pliki idą prosto
+  z jednego urządzenia na drugie po sieci lokalnej.
+  <br>
+  <b>Bez serwera, bez konta, bez chmury, zawsze zaszyfrowane.</b>
+</p>
 
-*English version: [README.md](README.md)*
+<p align="center">
+  <a href="LICENSE"><img alt="Licencja: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <a href="https://github.com/Mysttic/Chatt/releases"><img alt="Najnowsze wydanie" src="https://img.shields.io/github/v/release/Mysttic/Chatt"></a>
+  <a href="https://github.com/Mysttic/Chatt/actions/workflows/testy.yml"><img alt="Testy" src="https://github.com/Mysttic/Chatt/actions/workflows/testy.yml/badge.svg"></a>
+</p>
 
-Komunikator P2P dla urządzeń w jednej sieci Wi‑Fi (PC ⇄ telefon z Androidem):
-wiadomości i pliki przesyłane **bezpośrednio między urządzeniami**, bez
-żadnego serwera pośredniczącego, konta i logowania.
+<p align="center">
+  <i>English version: <a href="README.md">README.md</a></i>
+</p>
+
+---
 
 | Rozmowa | Prośba o plik | Urządzenia w pobliżu |
 |---|---|---|
@@ -66,13 +79,12 @@ Po polsku są dwa pliki: ten i instrukcja obsługi. Reszta jest po angielsku,
 żeby istniała w jednej wersji i nie rozjeżdżała się przy każdej zmianie
 w kodzie. Sama aplikacja mówi po polsku i po angielsku.
 
-| Dokument | Dla kogo |
-|---|---|
-| [docs/guide.pl.md](docs/guide.pl.md) | użytkownik: parowanie, pliki, nasłuch w tle, rozwiązywanie problemów |
-| [docs/building.md](docs/building.md) | build Windows i Androida, podpisywanie, gałęzie i wydania na GitHubie |
-| [docs/testing.md](docs/testing.md) | co jest testowane, jak to uruchomić, czego testy nie łapią |
-| [docs/architecture.md](docs/architecture.md) | protokół, baza, model zagrożeń, nasłuch w tle na Androidzie |
-| [CHANGELOG.md](CHANGELOG.md) | co się zmieniło w każdym wydaniu |
+Spis całej dokumentacji jest w [docs/](docs/README.md). Dla użytkownika:
+[instrukcja obsługi](docs/guide.pl.md). Dla pracujących nad kodem:
+[budowanie i wydawanie](docs/building.md), [architektura](docs/architecture.md),
+[testy](docs/testing.md) i [jak wysłać zmianę](docs/CONTRIBUTING.md).
+
+Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
@@ -92,3 +104,11 @@ Struktura `app/lib/`:
 
 Scenariusze na żywym sprzęcie (`app/tool/`) opisuje
 [docs/testing.md](docs/testing.md).
+
+## Licencja
+
+Apache License 2.0, patrz [LICENSE](LICENSE) i [NOTICE](NOTICE). Komponenty,
+które jadą razem z aplikacją, wymienia [lista licencji](docs/THIRD-PARTY-NOTICES.md).
+
+Znalazłeś błąd bezpieczeństwa? Najpierw przeczytaj [SECURITY.md](docs/SECURITY.md);
+prosi o zgłoszenie prywatne, nie przez publiczne issue.

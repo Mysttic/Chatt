@@ -1,0 +1,64 @@
+name: Bug report
+description: Something does not work as described in the docs
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: part
+    attributes:
+      label: Which part?
+      options:
+        - Finding devices (scan, adding by address)
+        - Messages
+        - Files
+        - Encryption or identity confirmation
+        - Background listening (Android service, Windows tray)
+        - Settings, appearance, language
+        - Build, CI or release package
+        - Documentation
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag, or the version of the installed package.
+      placeholder: v0.5.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Which side does it happen on?
+      options:
+        - Windows
+        - Android
+        - Both
+        - Between a Windows PC and an Android phone
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: network
+    attributes:
+      label: The network
+      description: >
+        Both devices on the same Wi-Fi, or one on a cable? A guest network, an
+        extender, a VPN? If a scan is involved, say whether adding the device
+        by IP address works.
+      placeholder: |
+        PC on Ethernet 192.168.1.10, phone on Wi-Fi 192.168.1.20
+        One router, no VPN. Adding by address works, the scan finds nothing.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Windows version, Android version and phone model.
+      placeholder: |
+        Windows 11 24H2
+        Android 15, Pixel 8
