@@ -154,6 +154,12 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   gets the file through with no question asked; the same peer without consent
   still raises one; and the flag alone, with the shield gone, raises one too
 
+### Migration ahead of its own version (`test/migration_test.dart`, 1 test)
+- a database with the current column layout and `user_version` rolled back to
+  8, which is what a process killed between `ALTER TABLE` and the version
+  write leaves behind; it has to open, keep its rows, and not throw
+  `duplicate column name`
+
 ### Presence on the list (`test/presence_test.dart`, 1 test)
 - two live instances and one entry pointing at an address where nothing
   listens; the provider that feeds the green dot answers `true` for the first

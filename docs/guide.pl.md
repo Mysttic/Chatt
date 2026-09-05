@@ -229,6 +229,11 @@ Odinstalowanie kasuje wpis autostartu, ale **nie rusza historii rozmów**:
 baza leży w Dokumentach i po ponownej instalacji jest na miejscu. Żeby
 naprawdę się jej pozbyć, użyj „Wyczyść historię" przed odinstalowaniem.
 
+Gdy coś zawiedzie przed pokazaniem okna, Chatt mówi to na własnym ekranie
+i zapisuje `chatt-startup-error.txt` obok bazy w Dokumentach. Historia rozmów
+i odebrane pliki zostają nietknięte, a treść tego pliku jest tym, co warto
+dołączyć do zgłoszenia.
+
 Instalator nie jest podpisany certyfikatem, więc SmartScreen pokaże
 ostrzeżenie „Windows chronił Twój komputer". „Więcej informacji" → „Uruchom
 mimo to". Certyfikat do podpisu kodu kosztuje kilkaset złotych rocznie i nie

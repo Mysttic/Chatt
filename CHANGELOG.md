@@ -8,6 +8,26 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.5.2] - 2026-09-06
+
+Two ways of not starting, one of which hid the other. Found on a real
+installation that stayed dead through 0.5.0 and 0.5.1.
+
+### Fixed
+- **A database whose column layout runs ahead of its own version number no
+  longer kills the app.** If a process dies between an `ALTER TABLE` and the
+  write of `user_version`, the column stays and the counter does not. The
+  migration then started over and died on `duplicate column name: alias`,
+  every single time, so the app never opened again. Each migration step now
+  checks `PRAGMA table_info` and adds only what is missing, which also repairs
+  a database already in that state.
+- **A failure before the first frame is now visible.** The window appears only
+  after the first frame, and the whole stack starts before `runApp`, so
+  anything that threw on the way left a living process with no window, no
+  error dialog and no entry in the event log. Startup failures now get their
+  own screen with the error, and a `chatt-startup-error.txt` next to the data
+  with the stack trace.
+
 ## [0.5.1] - 2026-09-05
 
 A package that starts on a computer which has never had Visual Studio on it,
@@ -369,6 +389,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.5.2]: https://github.com/Mysttic/Chatt/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Mysttic/Chatt/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Mysttic/Chatt/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Mysttic/Chatt/compare/v0.3.1...v0.4.0
