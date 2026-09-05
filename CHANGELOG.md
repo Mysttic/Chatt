@@ -8,7 +8,12 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.5.1] - 2026-09-05
+
+A package that starts on a computer which has never had Visual Studio on it,
+and marks on the conversation list that say who is confirmed and who is
+answering right now. The licence and the files a public repository needs land
+here as well.
 
 ### Fixed
 - **The Windows release starts on a computer that has never seen Visual
@@ -364,7 +369,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.5.0...develop
+[0.5.1]: https://github.com/Mysttic/Chatt/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Mysttic/Chatt/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Mysttic/Chatt/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Mysttic/Chatt/compare/v0.3.0...v0.3.1
