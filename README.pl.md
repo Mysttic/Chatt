@@ -42,8 +42,9 @@ wiadomości i pliki przesyłane **bezpośrednio między urządzeniami**, bez
 - **Polski i angielski**, motyw jasny/ciemny/systemowy, jedno i drugie zapisane
   w bazie.
 
-Platformy: **Windows** i **Android** produkcyjnie, Linux desktop i web do
-rozwoju i testów.
+Platformy: **Windows** i **Android**. Oba urządzenia muszą być w tej samej
+sieci. Trybu przez internet nie ma i nie będzie: cały sens polega na tym, że
+nic nie wychodzi poza Twoją sieć.
 
 ## Szybki start
 
@@ -72,10 +73,6 @@ w kodzie. Sama aplikacja mówi po polsku i po angielsku.
 | [docs/testing.md](docs/testing.md) | co jest testowane, jak to uruchomić, czego testy nie łapią |
 | [docs/architecture.md](docs/architecture.md) | protokół, baza, model zagrożeń, nasłuch w tle na Androidzie |
 | [CHANGELOG.md](CHANGELOG.md) | co się zmieniło w każdym wydaniu |
-
-Wcześniejsze podejście w .NET MAUI zostało usunięte po osiągnięciu parytetu
-funkcji; jest w historii gita, a makiety i diagramy z tamtego etapu leżą
-w [`docs/mockups/`](docs/mockups/).
 
 ## Development
 

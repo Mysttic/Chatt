@@ -8,6 +8,27 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Removed
+- The store materials (`docs/publishing/`): finished Google Play and Microsoft
+  Store copy, graphic dimensions, questionnaire answers, a publication
+  checklist and positioning notes, for a channel that was rejected. The privacy
+  policy stays, as `docs/privacy-policy.md`, because it is useful to anyone who
+  runs the app.
+- The prototype mockups (`docs/mockups/`) and `tool/ui_e2e.sh`, a UI scenario
+  under Xvfb for a platform that is not released.
+- `tool/store_assets.py` now only draws the README banner; the store-sized
+  assets went with the rest.
+
+### Changed
+- The documentation describes what the app does, not how it got there. Gone:
+  the claim that Linux desktop and web are targets, the history of the .NET
+  MAUI prototype, and the release-by-release narrative in `architecture.md`
+  and `testing.md`. The rationale that would let somebody undo a deliberate
+  decision stays; the anecdotes moved out, and the release history is in this
+  file anyway.
+
 ## [0.5.0] - 2026-09-04
 
 Comfort inside a conversation, and a phone that answers scans again. Reported
@@ -297,6 +318,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.5.0...develop
 [0.5.0]: https://github.com/Mysttic/Chatt/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Mysttic/Chatt/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Mysttic/Chatt/compare/v0.3.0...v0.3.1

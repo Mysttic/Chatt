@@ -59,8 +59,8 @@ point is that nothing leaves your network.
 
 Releases ship three files: an Android APK, a Windows installer and a portable
 Windows zip. See the [Releases](../../releases) page. Chatt is not in any app
-store and does not plan to be; the reasons are in
-[docs/publishing/README.md](docs/publishing/README.md).
+store: both of them want an account that is maintained rather than a one-off
+upload, which for an app given away for free is a cost with no return.
 
 The Windows installer is not code‑signed, so SmartScreen shows a warning on
 first run ("More info" → "Run anyway"). A signing certificate would change
