@@ -139,7 +139,7 @@ version crashes at startup.
 
 ### The database on disk is encrypted
 
-The build pulls in **SQLite3MultipleCiphers** instead of plain SQLite (the
+The build pulls in **SQLite3MultipleCiphers** (the
 `hooks.user_defines.sqlite3.source: sqlite3mc` choice in `pubspec.yaml`). A
 `PRAGMA key` runs when the database opens, and it has to run before the first
 read, or SQLite sees encrypted pages and calls the file corrupt.
@@ -155,9 +155,9 @@ channel:
 
 The first byte of `chatt.key` says whether the content is wrapped. When the
 keystore refuses, the key is written in the clear and Settings says so;
-encryption still protects against copying the database file, but no longer
-against copying the whole app directory. When the system key **disappears**,
-`DatabaseKey.load` throws instead of quietly assuming an empty database.
+encryption still protects the database file on its own; a copy of the whole
+app directory carries the key with it. When the system key **disappears**,
+`DatabaseKey.load` throws.
 
 A plaintext database left by an older version is rewritten on the first start
 (`migrateToEncrypted`). Encryption works on file pages, so a database cannot be
@@ -276,11 +276,11 @@ size.
   `Duration(seconds: 30 + (total - start) ~/ (512 * 1024))`, which assumes at
   least 512 KB/s. Over a VPN at 2 Mbps a 100 MB file needs about 400 s and gets
   230, so the transfer is cut off and resuming never reaches the end. The fix
-  is a clock refreshed on every chunk, idleness rather than the whole transfer.
+  is a clock refreshed on every chunk, so that only idleness counts.
 - **A failed send always scans the LAN**, even when the peer's last known
   address is not local, so over a VPN the user sees a silent "not delivered"
-  instead of a reason. Diagnostics, not a security gap: the identity is the key
-  and a device at a hijacked address derives a different session key.
+  with no reason given. This is a diagnostics gap: the identity is the key and
+  a device at a hijacked address derives a different session key.
 
 ## Android: background listening
 
@@ -313,8 +313,8 @@ Files go out to other apps through FileProvider as `content://` (our own
 A desktop process ends with its window, so:
 
 - **The X hides the window.** `window_manager` blocks the close
-  (`setPreventClose`) and `lib/core/tray.dart` hides the window instead of
-  destroying it. Quitting is in the tray icon menu and lifts that block.
+  (`setPreventClose`) and `lib/core/tray.dart` hides the window. Quitting is
+  in the tray icon menu and lifts that block.
 - **The tray icon** (`tray_manager`) carries a tooltip and a menu in the app
   language, rebuilt when the language changes. The icon ships as a Flutter
   asset (`assets/tray_icon.ico`), because the tray reads a file from disk, not
@@ -325,7 +325,7 @@ A desktop process ends with its window, so:
 - **Autostart** is an entry in
   `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, created through our own
   `chatt/autostart` channel (`windows/runner/chatt_autostart.cpp`). A user
-  account entry, not a service, so it needs no administrator rights. The value
+  account entry, so it needs no administrator rights. The value
   is the quoted path to the `.exe` plus `--minimized`.
 
 ## Layout: one window, two sizes

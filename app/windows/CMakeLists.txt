@@ -106,3 +106,27 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# Runtime MSVC obok pliku wykonywalnego.
+#
+# chatt.exe oraz wtyczki tray_manager i window_manager linkują się z nim
+# dynamicznie (import MSVCP140.dll, VCRUNTIME140.dll, VCRUNTIME140_1.dll).
+# Na komputerze, na którym nikt nigdy nie instalował "Visual C++ 2015-2022
+# Redistributable", proces kończy się przed pokazaniem okna, tak samo z zipa,
+# jak i po instalatorze. Doniesienie bibliotek do katalogu z aplikacją zdejmuje
+# ten wymóg i nie zmusza użytkownika do niczego dodatkowego.
+#
+# SKIP wyłącza własną regułę instalacji tego modułu: chcemy tylko listy plików,
+# bo katalog docelowy mamy swój. UCRT zostaje poza paczką, bo Windows 10 i 11
+# mają go w systemie.
+set(CMAKE_INSTALL_UCRT_LIBRARIES FALSE)
+set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+include(InstallRequiredSystemLibraries)
+if(NOT CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+  message(FATAL_ERROR
+    "Nie znalazłem bibliotek runtime MSVC do dołożenia obok chatt.exe. "
+    "Wydanie bez nich nie uruchamia się na czystym Windowsie.")
+endif()
+install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
+  DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+  COMPONENT Runtime)

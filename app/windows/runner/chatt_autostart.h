@@ -5,7 +5,7 @@
 
 // Instaluje kanał "chatt/autostart": włączanie i wyłączanie uruchamiania
 // aplikacji razem z Windowsem. Pod spodem jest wpis w rejestrze użytkownika
-// (HKCU\...\CurrentVersion\Run), a nie usługa — nie potrzeba uprawnień
+// (HKCU\...\CurrentVersion\Run), a nie usługa, więc nie potrzeba uprawnień
 // administratora, a użytkownik może go skasować sam.
 void RegisterChattAutostart(flutter::FlutterEngine* engine);
 

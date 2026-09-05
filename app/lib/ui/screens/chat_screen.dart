@@ -41,8 +41,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scroll = ScrollController();
   bool? _online;
 
-  /// Szukanie filtruje listę dymków w miejscu. Pusty napis znaczy „nie szukam"
-  /// — wtedy pole w pasku w ogóle się nie pokazuje.
+  /// Szukanie filtruje listę dymków w miejscu. Pusty napis znaczy „nie szukam",
+  /// wtedy pole w pasku w ogóle się nie pokazuje.
   final _search = TextEditingController();
   bool _searching = false;
 
@@ -88,7 +88,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Parowanie: uzgodnienie leci pod spodem, a kod do porównania pokazuje
-  /// karta nad aplikacją (PromptOverlay) — po obu stronach ten sam.
+  /// karta nad aplikacją (PromptOverlay), po obu stronach ten sam.
   Future<void> _startPairing() async {
     final services = ref.read(appServicesProvider);
     final teksty = context.l10n;
@@ -100,7 +100,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 
   /// Skanowanie kodu z drugiego urządzenia. Po udanym skanie tożsamość jest
-  /// potwierdzona po tej stronie od razu — widzieliśmy tamten ekran.
+  /// potwierdzona po tej stronie od razu: widzieliśmy tamten ekran.
   Future<void> _scanQr() async {
     final peer = await Navigator.of(context).push<Peer>(
       MaterialPageRoute(builder: (_) => const ScanScreen()),
@@ -186,11 +186,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           // Trzy stany, bo od protokołu 5 szyfrowanie i potwierdzenie
           // tożsamości to dwie różne rzeczy:
-          //   brak klucza    — po drugiej stronie starsza wersja, nie ma jak
+          //   brak klucza:   po drugiej stronie starsza wersja, nie ma jak
           //                    rozmawiać (i nie udajemy, że jest inaczej),
-          //   klucz jest     — ruch szyfrowany, ale nie wiadomo, czyj to
+          //   klucz jest:    ruch szyfrowany, ale nie wiadomo, czyj to
           //                    klucz,
-          //   potwierdzony   — porównaliście kod, wiadomo z kim rozmawiacie.
+          //   potwierdzony:  porównaliście kod, wiadomo z kim rozmawiacie.
           Builder(builder: (context) {
             final maKlucz = peer.publicKey != null;
             final (ikona, kolor, opis) = switch ((maKlucz, peer.verified)) {
@@ -295,7 +295,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
           ),
-          // Pliki, które właśnie do nas płyną (po akceptacji) — z postępem.
+          // Pliki, które właśnie do nas płyną (po akceptacji), z postępem.
           ValueListenableBuilder<Map<String, IncomingTransfer>>(
             valueListenable: services.incomingTransfers,
             builder: (context, transfers, _) {
@@ -485,7 +485,7 @@ class _MessageBubble extends StatelessWidget {
               },
             ),
             ListTile(
-              // Android nie ma menedżera plików do pokazania — tam ta sama
+              // Android nie ma menedżera plików do pokazania, tam ta sama
               // akcja udostępnia plik dalej.
               leading: Icon(Platform.isAndroid ? Icons.share : Icons.folder_open),
               title: Text(Platform.isAndroid
@@ -605,7 +605,7 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
-  /// Kasowanie dotyczy tylko tego urządzenia — protokół nie ma jak kazać
+  /// Kasowanie dotyczy tylko tego urządzenia: protokół nie ma jak kazać
   /// drugiej stronie zapomnieć czegoś, co już dostała. Mówi o tym napis pod
   /// pozycją, żeby nikt nie liczył na cofnięcie wysłanej wiadomości.
   Widget _deleteTile(BuildContext context, BuildContext sheet) {
@@ -657,7 +657,7 @@ class _MessageBubble extends StatelessWidget {
   Widget _content(BuildContext context, bool mine, ColorScheme scheme) {
     final textColor = mine ? scheme.onPrimary : scheme.onSurface;
     if (message.kind != MessageKind.file) {
-      // Przytrzymanie łapie cały dymek (patrz `build`), a nie sam napis —
+      // Przytrzymanie łapie cały dymek (patrz `build`), a nie sam napis:
       // inaczej menu otwierałoby się tylko dokładnie na literach.
       return _highlighted(
           context, message.body, TextStyle(color: textColor, fontSize: 15));
@@ -715,7 +715,7 @@ class _MessageBubble extends StatelessWidget {
             ),
           ),
           // Zapisanie odebranego pliku jednym dotknięciem. Przy własnym
-          // pliku nie ma czego zapisywać — leży u nas od początku.
+          // pliku nie ma czego zapisywać, leży u nas od początku.
           if (message.direction == MessageDirection.incoming) ...[
             const SizedBox(width: 4),
             IconButton(
@@ -733,7 +733,7 @@ class _MessageBubble extends StatelessWidget {
   }
 
   /// Miniatura obrazka. Dekodujemy dopiero to, co leży na dysku, czyli plik
-  /// **już przyjęty** przez użytkownika — zapowiedź od obcego nie trafia do
+  /// **już przyjęty** przez użytkownika, zapowiedź od obcego nie trafia do
   /// dekodera. Uszkodzony albo spreparowany obrazek kończy się pustym
   /// miejscem, a nie wywrotką listy.
   Widget? _thumbnail() {
@@ -849,7 +849,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-/// Plik, który właśnie do nas płynie (zgoda już wydana) — pasek postępu nad
+/// Plik, który właśnie do nas płynie (zgoda już wydana), pasek postępu nad
 /// polem tekstowym. Wpis znika, gdy plik jest kompletny i staje się dymkiem.
 class _IncomingTransferTile extends StatelessWidget {
   final IncomingTransfer transfer;

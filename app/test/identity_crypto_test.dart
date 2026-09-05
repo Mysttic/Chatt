@@ -98,7 +98,7 @@ void main() {
     }
 
     // To jest właśnie forward secrecy: klucze statyczne te same, a klucz
-    // sesji inny — po skasowaniu efemerycznych nagranej sesji nie da się
+    // sesji inny: po skasowaniu efemerycznych nagranej sesji nie da się
     // odtworzyć nawet znając tożsamości obu stron.
     expect(await sesja(), isNot(await sesja()));
   });

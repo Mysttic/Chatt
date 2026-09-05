@@ -86,7 +86,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get noKnownDevices => 'You don\'t know any devices yet.';
+  String get nearbyBeforeScan =>
+      'Search the network to see which devices answer right now.';
 
   @override
   String get longPressToDelete => 'Press and hold a device to remove it';
@@ -145,7 +146,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get securityEncryptedBody =>
-      'Nobody on the network can read this conversation. You have no confirmation yet that the other side is who you think — anyone can pick a device name.';
+      'Nobody on the network can read this conversation. You have no confirmation yet that the other side is who you think: anyone can pick a device name.';
 
   @override
   String get securityVerifiedTitle => 'Encrypted and confirmed';
@@ -164,7 +165,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fingerprintHelp =>
-      'The fingerprint comes from the device key and never changes. Read it out loud and check the other side sees the same — if it does, nobody is in the middle.';
+      'The fingerprint comes from the device key and never changes. Read it out loud and check the other side sees the same. If it does, nobody is in the middle.';
 
   @override
   String get peerOnline => 'available';
@@ -174,7 +175,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shieldNoEncryption =>
-      'No encryption — the other side runs an older version';
+      'No encryption: the other side runs an older version';
 
   @override
   String get shieldEncrypted =>
@@ -196,7 +197,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageHint => 'Write a message…';
 
   @override
-  String get notDeliveredRetry => 'Not delivered — retry';
+  String get notDeliveredRetry => 'Not delivered, retry';
 
   @override
   String get fileFallbackName => 'file';
@@ -261,7 +262,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qrShowBody =>
-      'Scan this code with the other device. The code holds no secret — what counts is that the other device saw it on this screen.';
+      'Scan this code with the other device. The code holds no secret. What counts is that the other device saw it on this screen.';
 
   @override
   String get qrOtherAddress => 'Another address';
@@ -274,7 +275,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qrScanFailed =>
-      'No device with that key answers at the address from the code. It may be out of date — show it again.';
+      'No device with that key answers at the address from the code. It may be out of date, so show it again.';
 
   @override
   String pairScannedTitle(Object name) {
@@ -354,12 +355,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String fileOfferResume(Object size, Object have) {
-    return '$size — resuming, you already have $have';
+    return '$size, resuming: you already have $have';
   }
 
   @override
   String get unpairedWarning =>
-      'Identity unconfirmed — anyone can pick that name';
+      'Identity unconfirmed: anyone can pick that name';
 
   @override
   String moreFilesWaiting(int count) {
@@ -490,7 +491,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dbKeyUnprotected =>
-      'The history is encrypted, but the system keystore refused to hold the key, so it sits next to the database. That protects the database file alone, not a copy of the whole app directory.';
+      'The history is encrypted, but the system keystore refused to hold the key, so it sits next to the database. That protects the database file alone; a copy of the whole app directory carries the key with it.';
 
   @override
   String get retentionLabel => 'Delete messages older than';
@@ -532,6 +533,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get thisDevice => 'This device';
 
   @override
+  String get version => 'Version';
+
+  @override
   String get listeningOn => 'Listening';
 
   @override
@@ -565,7 +569,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Closing the window hides Chatt in the tray and does not stop it listening. Quitting is in the tray icon menu.';
 
   @override
-  String get trayTooltip => 'Chatt — listening on the local network';
+  String get trayTooltip => 'Chatt: listening on the local network';
 
   @override
   String get trayShow => 'Show Chatt';

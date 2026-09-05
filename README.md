@@ -29,14 +29,15 @@
 
 Sending a link from your phone to your PC through a chat app, or emailing a
 photo to your own address, routes your stuff through someone else's server.
-Tools like LocalSend fix the file part but keep no conversation; KDE Connect
-does a lot but is not a messenger. Chatt is the missing piece:
+LocalSend moves files and keeps no conversation. KDE Connect joins a phone to
+a desktop for notifications, the clipboard and remote control. Chatt fills the
+gap between them:
 
-- **A conversation, not just a file drop.** History stays, is searchable, and
-  both devices see the same thing.
-- **Always encrypted, not "once paired".** Every connection negotiates its own
-  key; the first message to an unknown device is protected exactly like the
-  hundredth to a paired one. Recorded traffic cannot be decrypted after a
+- **A conversation with history.** It stays, it is searchable, and both
+  devices see the same thing.
+- **Always encrypted.** Every connection negotiates its own key; the first
+  message to an unknown device is protected exactly like the hundredth to a
+  paired one. Recorded traffic cannot be decrypted after a
   device is stolen (forward secrecy).
 - **Nothing leaves your network.** No server, no telemetry, no ads. The app
   needs no internet at all.
@@ -72,8 +73,8 @@ point is that nothing leaves your network.
 
 Releases ship three files: an Android APK, a Windows installer and a portable
 Windows zip. See the [Releases](../../releases) page. Chatt is not in any app
-store: both of them want an account that is maintained rather than a one-off
-upload, which for an app given away for free is a cost with no return.
+store: both of them want the account maintained over time, which for an app
+given away for free is a cost with no return.
 
 The Windows installer is not code‑signed, so SmartScreen shows a warning on
 first run ("More info" → "Run anyway"). A signing certificate would change

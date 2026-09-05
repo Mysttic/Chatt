@@ -8,7 +8,7 @@ import 'package:chatt/ui/widgets/toasts.dart';
 ///
 /// Osobny plik świadomie. Wystarczy jeden `testWidgets` w pliku, żeby
 /// `TestWidgetsFlutterBinding` podmienił `HttpClient` na atrapę odpowiadającą
-/// 400 dla **całego** zestawu — a obok, w peer_prefs_test.dart, stoją testy
+/// 400 dla **całego** zestawu, a obok, w peer_prefs_test.dart, stoją testy
 /// dwóch instancji rozmawiających po prawdziwym gnieździe.
 void main() {
   group('kolejka komunikatów', () {

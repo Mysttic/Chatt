@@ -31,7 +31,7 @@ lists the full tree.
 |---|---|---|---|
 | [SQLite](https://sqlite.org/) | inside the SQLite3MultipleCiphers build | public domain | dedicated to the public domain by the authors |
 | [SQLite3MultipleCiphers](https://github.com/utelle/SQLite3MultipleCiphers) | pulled in by `package:sqlite3` through build hooks (`hooks.user_defines.sqlite3.source: sqlite3mc` in `app/pubspec.yaml`) | MIT | Copyright (c) 2019-2024 Ulrich Telle |
-| [Google ML Kit barcode scanning](https://developers.google.com/ml-kit) | Android only, pulled in by `mobile_scanner` for QR scanning | [Google APIs Terms of Service](https://developers.google.com/terms), not an open-source license | Copyright Google LLC |
+| [Google ML Kit barcode scanning](https://developers.google.com/ml-kit) | Android only, pulled in by `mobile_scanner` for QR scanning | [Google APIs Terms of Service](https://developers.google.com/terms), proprietary | Copyright Google LLC |
 
 ML Kit runs **on the device**; the camera image is not sent anywhere. It is
 listed here because it is proprietary and ships inside the Android APK.
@@ -45,7 +45,7 @@ Both are in `app/fonts/` and are declared in `app/pubspec.yaml`.
 | [Roboto](https://fonts.google.com/specimen/Roboto) (Regular, Medium, Bold) | Apache-2.0 | Copyright Google LLC |
 | Material Icons | Apache-2.0 | Copyright Google LLC |
 
-## Build-time only, not redistributed
+## Build-time only
 
 [Inno Setup](https://jrsoftware.org/isinfo.php) (its own license, builds the
 Windows installer), [build_runner](https://pub.dev/packages/build_runner) and

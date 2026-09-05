@@ -6,7 +6,7 @@ import '../l10n/app_localizations.dart';
 /// Wszystko, co aplikacja wie o dostępnych językach, w jednym miejscu.
 ///
 /// Dodanie kolejnego języka to: nowy plik `lib/l10n/app_XX.arb`, nowa wartość
-/// w [AppLanguage] (na KOŃCU listy — w bazie siedzi indeks) i po jednej
+/// w [AppLanguage] (na KOŃCU listy, w bazie siedzi indeks) i po jednej
 /// gałęzi w [locale] oraz [label]. Reszta (lista w ustawieniach, wybór
 /// locale w MaterialApp, język powiadomień usługi) idzie za tym sama.
 extension AppLanguageX on AppLanguage {
@@ -25,7 +25,7 @@ extension AppLanguageX on AppLanguage {
 
   /// Konkretny język do tekstów spoza drzewa widgetów (powiadomienie usługi
   /// w tle). Dla `system` bierzemy język systemu, ale tylko jeśli mamy dla
-  /// niego tłumaczenie — inaczej angielski.
+  /// niego tłumaczenie, inaczej angielski.
   Locale get effectiveLocale {
     final wybrany = locale;
     if (wybrany != null) return wybrany;

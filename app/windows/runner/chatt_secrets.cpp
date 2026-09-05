@@ -27,7 +27,7 @@ DATA_BLOB Entropy() {
   return blob;
 }
 
-// Zwraca pusty optional, gdy DPAPI odmówi — najczęściej dlatego, że blob
+// Zwraca pusty optional, gdy DPAPI odmówi, najczęściej dlatego, że blob
 // powstał na innym koncie albo innym komputerze.
 std::optional<std::vector<uint8_t>> Transform(const std::vector<uint8_t>& data,
                                               bool protect) {

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Podnosi numer wersji w VERSION.md i w app/pubspec.yaml naraz.
+"""Podnosi numer wersji w VERSION.md, app/pubspec.yaml i lib/core/version.dart.
 
 Numer wydania stoi w VERSION.md (to on decyduje, czy powstanie nowe wydanie),
-ale Android bierze versionName i versionCode z pubspec.yaml — te dwa pliki
-muszą mówić to samo. Workflow wydania sprawdza to i przerywa przy rozjeździe,
-więc łatwiej podnieść oba jednym poleceniem.
+Android bierze versionName i versionCode z pubspec.yaml, a aplikacja pokazuje
+stałą z version.dart. Wszystkie trzy pliki muszą mówić to samo: workflow
+wydania i test/version_test.dart sprawdzają to i przerywają przy rozjeździe,
+więc łatwiej podnieść je jednym poleceniem.
 
 Uruchomienie (z katalogu app/):
     python tool/wersja.py 0.2.0
@@ -20,8 +21,10 @@ KATALOG_APP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KORZEN = os.path.dirname(KATALOG_APP)
 VERSION_MD = os.path.join(KORZEN, "VERSION.md")
 PUBSPEC = os.path.join(KATALOG_APP, "pubspec.yaml")
+DART = os.path.join(KATALOG_APP, "lib", "core", "version.dart")
 
 WERSJA = re.compile(r"^\d+\.\d+\.\d+$")
+STALA_DART = re.compile(r"^const String appVersion = '\d+\.\d+\.\d+';$", re.M)
 
 
 def z_version_md():
@@ -42,9 +45,19 @@ def z_pubspec():
     return dopasowanie.group(1), int(dopasowanie.group(2))
 
 
+def z_dart():
+    """Numer ze stałej `appVersion` w lib/core/version.dart."""
+    tresc = io.open(DART, encoding="utf-8").read()
+    dopasowanie = STALA_DART.search(tresc)
+    if not dopasowanie:
+        raise SystemExit("version.dart nie ma linii `const String appVersion = 'x.y.z';`")
+    return dopasowanie.group(0).split("'")[1]
+
+
 def zapisz(nowa):
     stara_md = z_version_md()
     stara_pubspec, build = z_pubspec()
+    stara_dart = z_dart()
 
     tresc = io.open(VERSION_MD, encoding="utf-8").read()
     io.open(VERSION_MD, "w", encoding="utf-8").write(
@@ -63,18 +76,28 @@ def zapisz(nowa):
             flags=re.M,
         )
     )
+    tresc = io.open(DART, encoding="utf-8").read()
+    io.open(DART, "w", encoding="utf-8").write(
+        STALA_DART.sub(
+            "const String appVersion = '{0}';".format(nowa), tresc, count=1
+        )
+    )
+
     print("VERSION.md   {0} -> {1}".format(stara_md, nowa))
     print("pubspec.yaml {0}+{1} -> {2}+{3}".format(stara_pubspec, build, nowa, build + 1))
+    print("version.dart {0} -> {1}".format(stara_dart, nowa))
 
 
 def main():
     if len(sys.argv) == 1:
         wersja_md = z_version_md()
         wersja_pubspec, build = z_pubspec()
+        wersja_dart = z_dart()
         print("VERSION.md  ", wersja_md)
         print("pubspec.yaml", "{0}+{1}".format(wersja_pubspec, build))
-        if wersja_md != wersja_pubspec:
-            raise SystemExit("ROZJAZD: oba pliki muszą mówić to samo")
+        print("version.dart", wersja_dart)
+        if len({wersja_md, wersja_pubspec, wersja_dart}) != 1:
+            raise SystemExit("ROZJAZD: wszystkie trzy pliki muszą mówić to samo")
         return
 
     nowa = sys.argv[1].lstrip("v")

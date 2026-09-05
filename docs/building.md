@@ -62,8 +62,14 @@ cd app
 ```
 
 Output: `app\build\windows\x64\runner\Release\`. Moving it to another computer
-takes **the whole directory** (the exe plus the DLLs and the `data` directory),
-and the target machine needs the "Microsoft Visual C++ Redistributable".
+takes **the whole directory**: the exe, the DLLs and the `data` directory.
+
+Among those DLLs is the MSVC runtime (`msvcp140.dll`, `vcruntime140.dll` and
+the rest), put there by an install rule in `windows/CMakeLists.txt`. The exe
+and two of the plugins link against it, and a computer that has never had
+Visual Studio on it does not have those libraries. Without them the process
+ends before it draws a window, leaving no error dialog and nothing in the event
+log, so the release workflow also checks that they are in the package.
 
 A common error when rebuilding is `LNK1168: cannot open chatt.exe`, which means
 the previous instance is still running. Closing the window only **hides the app
@@ -150,8 +156,8 @@ older systems.
 
 When `key.properties` or the keystore is missing (a fresh clone, CI without
 the secrets), the release build **still passes**, only signed with the debug key,
-and Gradle prints a warning. Such an APK is fine for testing but not for
-handing out.
+and Gradle prints a warning. Such an APK is fine for testing; handing it out
+needs the release key.
 
 **Changing the key in an already installed app**: the first install of an APK
 signed with a new key onto a device holding a debug build ends in
@@ -216,7 +222,7 @@ claude/x  ──┘                   │                │
   [`.github/workflows/wydanie.yml`](../.github/workflows/wydanie.yml): the
   Windows build and a signed APK, a tag and a GitHub Release.
 
-The tests run for every PR **into `master`**, not only from `develop`.
+The tests run for every PR **into `master`**, whichever branch it comes from.
 Narrowing it to one source branch would mean a PR from a hotfix branch gets no
 check at all, and with green tests required for merging it would hang forever,
 waiting for a run that never starts.

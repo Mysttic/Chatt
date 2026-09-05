@@ -23,7 +23,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   );
 
   /// Aparat zgłasza ten sam kod wiele razy na sekundę, a my za pierwszym
-  /// razem idziemy do sieci — bez tej blokady poleciałoby kilkanaście prób.
+  /// razem idziemy do sieci: bez tej blokady poleciałoby kilkanaście prób.
   bool _zajete = false;
   String? _blad;
 
@@ -41,7 +41,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         .map(PairLink.decode)
         .whereType<PairLink>()
         .firstOrNull;
-    // Aparat widzi też kody, które nas nie dotyczą — te po prostu mijamy,
+    // Aparat widzi też kody, które nas nie dotyczą, te po prostu mijamy,
     // bez komunikatu, żeby nie migać błędem przy każdej naklejce.
     if (surowy == null) return;
 

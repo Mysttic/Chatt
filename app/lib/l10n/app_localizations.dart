@@ -224,11 +224,11 @@ abstract class AppLocalizations {
   /// **'Znaleziono: {count}'**
   String scanFound(int count);
 
-  /// No description provided for @noKnownDevices.
+  /// No description provided for @nearbyBeforeScan.
   ///
   /// In pl, this message translates to:
-  /// **'Nie znasz jeszcze żadnych urządzeń.'**
-  String get noKnownDevices;
+  /// **'Wyszukaj urządzenia, żeby zobaczyć, które odpowiadają w tej chwili.'**
+  String get nearbyBeforeScan;
 
   /// No description provided for @longPressToDelete.
   ///
@@ -323,7 +323,7 @@ abstract class AppLocalizations {
   /// No description provided for @securityEncryptedBody.
   ///
   /// In pl, this message translates to:
-  /// **'Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz — nazwę urządzenia każdy może sobie ustawić dowolnie.'**
+  /// **'Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz: nazwę urządzenia każdy może sobie ustawić dowolnie.'**
   String get securityEncryptedBody;
 
   /// No description provided for @securityVerifiedTitle.
@@ -353,7 +353,7 @@ abstract class AppLocalizations {
   /// No description provided for @fingerprintHelp.
   ///
   /// In pl, this message translates to:
-  /// **'Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo — jeśli tak, nikt nie siedzi w środku rozmowy.'**
+  /// **'Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo. Jeśli tak, nikt nie siedzi w środku rozmowy.'**
   String get fingerprintHelp;
 
   /// No description provided for @peerOnline.
@@ -371,7 +371,7 @@ abstract class AppLocalizations {
   /// No description provided for @shieldNoEncryption.
   ///
   /// In pl, this message translates to:
-  /// **'Bez szyfrowania — druga strona ma starszą wersję'**
+  /// **'Bez szyfrowania: druga strona ma starszą wersję'**
   String get shieldNoEncryption;
 
   /// No description provided for @shieldEncrypted.
@@ -413,7 +413,7 @@ abstract class AppLocalizations {
   /// No description provided for @notDeliveredRetry.
   ///
   /// In pl, this message translates to:
-  /// **'Nie dostarczono — ponów'**
+  /// **'Nie dostarczono, ponów'**
   String get notDeliveredRetry;
 
   /// No description provided for @fileFallbackName.
@@ -521,7 +521,7 @@ abstract class AppLocalizations {
   /// No description provided for @qrShowBody.
   ///
   /// In pl, this message translates to:
-  /// **'Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego — liczy się to, że drugie urządzenie widziało go na tym ekranie.'**
+  /// **'Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego. Liczy się to, że drugie urządzenie widziało go na tym ekranie.'**
   String get qrShowBody;
 
   /// No description provided for @qrOtherAddress.
@@ -545,7 +545,7 @@ abstract class AppLocalizations {
   /// No description provided for @qrScanFailed.
   ///
   /// In pl, this message translates to:
-  /// **'Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny — pokaż go jeszcze raz.'**
+  /// **'Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny, pokaż go jeszcze raz.'**
   String get qrScanFailed;
 
   /// No description provided for @pairScannedTitle.
@@ -683,13 +683,13 @@ abstract class AppLocalizations {
   /// No description provided for @fileOfferResume.
   ///
   /// In pl, this message translates to:
-  /// **'{size} — wznowienie, masz już {have}'**
+  /// **'{size}, wznowienie: masz już {have}'**
   String fileOfferResume(Object size, Object have);
 
   /// No description provided for @unpairedWarning.
   ///
   /// In pl, this message translates to:
-  /// **'Tożsamość niepotwierdzona — nazwę można sobie ustawić dowolną'**
+  /// **'Tożsamość niepotwierdzona: nazwę można sobie ustawić dowolną'**
   String get unpairedWarning;
 
   /// No description provided for @moreFilesWaiting.
@@ -917,7 +917,7 @@ abstract class AppLocalizations {
   /// No description provided for @dbKeyUnprotected.
   ///
   /// In pl, this message translates to:
-  /// **'Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to przed podejrzeniem samego pliku, nie przed kopią całego katalogu aplikacji.'**
+  /// **'Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to sam plik bazy; kopia całego katalogu aplikacji zawiera też klucz.'**
   String get dbKeyUnprotected;
 
   /// No description provided for @retentionLabel.
@@ -973,6 +973,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'To urządzenie'**
   String get thisDevice;
+
+  /// No description provided for @version.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wersja'**
+  String get version;
 
   /// No description provided for @listeningOn.
   ///
@@ -1031,7 +1037,7 @@ abstract class AppLocalizations {
   /// No description provided for @trayTooltip.
   ///
   /// In pl, this message translates to:
-  /// **'Chatt — nasłuchuje w sieci lokalnej'**
+  /// **'Chatt: nasłuchuje w sieci lokalnej'**
   String get trayTooltip;
 
   /// No description provided for @trayShow.

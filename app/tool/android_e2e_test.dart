@@ -7,7 +7,7 @@
 // (test ustawia je sam). Instancja hosta MUSI stać na innym porcie niż
 // aplikacja na urządzeniu: `adb reverse` na 47780 nie wstanie, bo ten port
 // jest już zajęty przez aplikację. Na fizycznym telefonie w tej samej sieci
-// Wi-Fi nic z tego nie jest potrzebne — tam działa discovery.
+// Wi-Fi nic z tego nie jest potrzebne, tam działa discovery.
 //
 // Wymagania: zainstalowana aplikacja na urządzeniu (`flutter install`) oraz
 // adb w PATH albo w zmiennej ADB. Test sam ją restartuje na starcie.
@@ -87,7 +87,7 @@ Future<void> restartApp() async {
       await response.drain<void>();
       if (response.statusCode == 200) return;
     } catch (_) {
-      // Jeszcze nie wstała — próbujemy dalej.
+      // Jeszcze nie wstała, próbujemy dalej.
     } finally {
       client.close(force: true);
     }
@@ -99,7 +99,7 @@ Future<void> restartApp() async {
 
 /// Zawartość pliku inna przy każdym uruchomieniu testu. Urządzenie trzyma
 /// odebrane pliki między przebiegami, a zapowiedź wykrywa duplikat po sumie
-/// kontrolnej — przy stałej treści drugi przebieg dostawałby „już to mam"
+/// kontrolnej, bo przy stałej treści drugi przebieg dostawałby „już to mam"
 /// i nikt by o nic nie pytał.
 List<int> swiezaTresc(int rozmiar) {
   final bajty = List<int>.generate(rozmiar, (i) => i % 251);
@@ -135,7 +135,7 @@ Future<(int, int)?> findWidget(
   return null;
 }
 
-/// Etykiety widoczne na ekranie — do komunikatu błędu, żeby nie trzeba było
+/// Etykiety widoczne na ekranie, do komunikatu błędu, żeby nie trzeba było
 /// zgadywać, na czym test się potknął.
 Future<String> widocznaTresc() async {
   const dump = '/sdcard/chatt_ui.xml';
@@ -209,7 +209,7 @@ Future<void> tapOfferButton({required bool accept}) async {
 
 /// Klik w cokolwiek podpisanego jedną z [etykiety]. Dwie, bo aplikacja na
 /// urządzeniu może być po polsku albo po angielsku, a test nie ma powodu tego
-/// wymuszać. [fragment] dopasowuje po kawałku opisu — Flutter potrafi scalić
+/// wymuszać. [fragment] dopasowuje po kawałku opisu, Flutter potrafi scalić
 /// całą kartę czy wiersz listy w jeden węzeł.
 Future<void> stuknijEtykiete(List<String> etykiety,
     {bool fragment = false, bool ostatni = false}) async {
@@ -297,7 +297,7 @@ void main() {
       nameOverride: 'Komputer PC',
       enableDiscovery: false,
       receivedDirOverride: p.join(work.path, 'received'),
-      // Host przyjmuje pliki bez pytania — pytanie o zgodę testujemy po
+      // Host przyjmuje pliki bez pytania, a pytanie o zgodę testujemy po
       // stronie telefonu, na żywym UI.
       fileOfferPolicy: acceptAllFileOffers,
     );
@@ -339,7 +339,7 @@ void main() {
     final source = File(p.join(work.path, 'raport-z-komputera.bin'));
     source.writeAsBytesSync(swiezaTresc(1200 * 1024));
 
-    // Wysyłka czeka na decyzję użytkownika — nie blokujemy się na niej.
+    // Wysyłka czeka na decyzję użytkownika, nie blokujemy się na niej.
     final sending = host.sendFile(conversation, source.path);
 
     // Prośba o zgodę powinna wyskoczyć na telefonie.
@@ -362,7 +362,7 @@ void main() {
       'com.mysttic.chatt',
       'ls',
       '-l',
-      // files/, nie app_flutter/ — tylko stamtąd FileProvider potrafi
+      // files/, nie app_flutter/, bo tylko stamtąd FileProvider potrafi
       // wypuścić plik do innej aplikacji.
       '/data/data/com.mysttic.chatt/files/Chatt/received',
     ]);
@@ -375,7 +375,7 @@ void main() {
   test('zapisanie obrazka wynosi go z katalogu aplikacji do Zdjęć', () async {
     const galeria = '/sdcard/Pictures/Chatt';
     const nazwa = 'zdjecie-do-zapisania.png';
-    // Po poprzednim przebiegu plik mógł zostać — inaczej test przeszedłby
+    // Po poprzednim przebiegu plik mógł zostać, inaczej test przeszedłby
     // na cudzym wyniku.
     await adb(['shell', 'rm', '-f', '$galeria/$nazwa']);
 
@@ -394,7 +394,7 @@ void main() {
     // w jeden węzeł razem z podglądem i godziną, więc szukamy po fragmencie.
     await stuknijEtykiete(['Komputer PC'], fragment: true);
     await Future<void>.delayed(const Duration(seconds: 2));
-    // Przycisków zapisu jest w rozmowie tyle, ile plików — bierzemy ten przy
+    // Przycisków zapisu jest w rozmowie tyle, ile plików, bierzemy ten przy
     // najnowszej wiadomości, czyli przy obrazku.
     await stuknijEtykiete(['Zapisz na urządzeniu', 'Save to device'],
         ostatni: true);

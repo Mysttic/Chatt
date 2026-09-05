@@ -22,6 +22,12 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   bool _scanning = false;
   int _foundInLastScan = 0;
 
+  /// Guidy urządzeń z ostatniego skanu. `null` znaczy „jeszcze nie szukałem",
+  /// wtedy ekran nie pokazuje listy. Baza pamięta wszystkich, których
+  /// kiedykolwiek widziała, a lista z poprzedniego wejścia wygląda jak wynik
+  /// skanu, którego nie było.
+  Set<String>? _znalezione;
+
   Future<void> _scan() async {
     setState(() {
       _scanning = true;
@@ -34,6 +40,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     setState(() {
       _scanning = false;
       _foundInLastScan = found.length;
+      _znalezione = found.map((p) => p.guid).toSet();
     });
     showToast(found.isEmpty
         ? context.l10n.scanNothingFound
@@ -52,7 +59,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   }
 
   /// Ręczne usunięcie wpisu. Urządzenia, które przewinęły się przez sieć
-  /// i nic nie napisały, znikają same po tygodniu — ale rozmowy trzeba
+  /// i nic nie napisały, znikają same po tygodniu, ale rozmowy trzeba
   /// kasować świadomie, bo idą z nimi wiadomości.
   Future<void> _forget(Peer peer) async {
     final confirmed = await showDialog<bool>(
@@ -94,6 +101,9 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     if (peer == null) {
       showToast(context.l10n.noChattAtAddress(host, port));
     } else {
+      // Dopisany ręcznie ma być widoczny na liście po powrocie z rozmowy,
+      // choć żaden skan go nie zwrócił.
+      setState(() => _znalezione = {...?_znalezione, peer.guid});
       await _openChat(peer);
     }
   }
@@ -139,16 +149,19 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) =>
                   Center(child: Text(context.l10n.errorWithDetails('$error'))),
-              data: (items) {
+              data: (all) {
+                final znalezione = _znalezione;
+                if (znalezione == null) {
+                  return _Podpowiedz(context.l10n.nearbyBeforeScan);
+                }
+                // Wpisy z bazy, bo tylko one wiedzą o potwierdzeniu
+                // tożsamości i o własnej nazwie, zawężone do tego,
+                // co odpowiedziało na ostatni skan.
+                final items = all
+                    .where((peer) => znalezione.contains(peer.guid))
+                    .toList();
                 if (items.isEmpty) {
-                  return Center(
-                    child: Text(
-                      context.l10n.noKnownDevices,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
+                  return _Podpowiedz(context.l10n.scanNothingFound);
                 }
                 return Column(
                   children: [
@@ -172,24 +185,9 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                           final peer = items[index];
                           return ListTile(
                             leading: InitialsAvatar(name: peer.displayName),
-                            title: Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    peer.displayName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (peer.verified) ...[
-                                  const SizedBox(width: 6),
-                                  const Icon(
-                                    Icons.verified_user,
-                                    size: 16,
-                                    color: Colors.green,
-                                  ),
-                                ],
-                              ],
+                            title: PeerName(
+                              name: peer.displayName,
+                              verified: peer.verified,
                             ),
                             subtitle: Text(
                               peer.welcomeMessage.isEmpty
@@ -218,6 +216,27 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
       ),
     );
   }
+}
+
+/// Miejsce po liście: zaproszenie do skanu albo wynik skanu bez znalezisk.
+class _Podpowiedz extends StatelessWidget {
+  final String text;
+
+  const _Podpowiedz(this.text);
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
 }
 
 class _ManualAddDialog extends StatefulWidget {

@@ -52,7 +52,7 @@ DiscoveredPeer? _peerFromPacket(Map<String, Object?> packet, String host) {
 }
 
 /// Nasłuchuje na [discoveryPort] i odpowiada na zapytania discovery własną
-/// tożsamością. Dodatkowo zgłasza nadawcę zapytania przez [onPeerSeen] —
+/// tożsamością. Dodatkowo zgłasza nadawcę zapytania przez [onPeerSeen]:
 /// dzięki temu jeden skan uczy obie strony nawzajem.
 class DiscoveryResponder {
   final DeviceIdentity Function() identity;
@@ -128,7 +128,7 @@ class DiscoveryScanner {
   /// wołane na żywo (do UI), wynik zawiera komplet bez duplikatów.
   ///
   /// [accept] dostaje znalezione urządzenie i podpis z jego odpowiedzi.
-  /// Zwrócenie false wyrzuca wpis z wyniku — tak odsiewamy podszywanie się
+  /// Zwrócenie false wyrzuca wpis z wyniku: tak odsiewamy podszywanie się
   /// pod sparowane urządzenia (patrz `AppServices`).
   static Future<List<DiscoveredPeer>> scan(
     DeviceIdentity me, {
@@ -174,7 +174,7 @@ class DiscoveryScanner {
       try {
         socket.send(payload, target, discoveryPort);
       } on SocketException {
-        // np. interfejs bez uprawnień do broadcastu — pomijamy
+        // np. interfejs bez uprawnień do broadcastu, pomijamy
       }
     }
     // Powtórka po chwili: pojedynczy datagram UDP w Wi-Fi łatwo ginie.
@@ -195,14 +195,14 @@ class DiscoveryScanner {
     });
     await done.future;
     socket.close();
-    // Sprawdzanie podpisów jest asynchroniczne — czekamy, aż wszystkie
+    // Sprawdzanie podpisów jest asynchroniczne, więc czekamy, aż wszystkie
     // odpowiedzi przejdą przez sito, zanim oddamy listę.
     await Future.wait(pending);
     return found.values.toList();
   }
 
   /// Adresy broadcast: globalny 255.255.255.255 plus kierowane per interfejs.
-  /// dart:io nie zdradza maski podsieci, więc zakładamy /24 — to pokrywa
+  /// dart:io nie zdradza maski podsieci, więc zakładamy /24, to pokrywa
   /// typowe sieci domowe; globalny broadcast łapie resztę przypadków.
   static Future<List<InternetAddress>> _broadcastTargets() async {
     final targets = <String>{'255.255.255.255'};

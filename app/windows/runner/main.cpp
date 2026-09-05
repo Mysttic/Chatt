@@ -41,7 +41,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // Zostaje true, ale zamknięcie okna i tak nie dochodzi do skutku:
   // lib/core/tray.dart przechwytuje je i chowa aplikację do zasobnika.
   // Proces kończy dopiero "Zamknij" z menu ikony, które to przechwytywanie
-  // wyłącza — wtedy zamknięcie okna kończy program jak zwykle.
+  // wyłącza, wtedy zamknięcie okna kończy program jak zwykle.
   window.SetQuitOnClose(true);
 
   ::MSG msg;

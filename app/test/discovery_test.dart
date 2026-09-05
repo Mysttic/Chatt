@@ -42,7 +42,7 @@ void main() {
     });
 
     // W kontenerze CI mogą chodzić równolegle inne testy na tym samym porcie
-    // discovery — dlatego filtrujemy wyniki po GUID-ach, nie po liczbie.
+    // discovery, dlatego filtrujemy wyniki po GUID-ach, nie po liczbie.
     final found = await alice.scan();
     expect(found.map((p) => p.guid), contains(bob.identity.guid));
     expect(found.map((p) => p.guid), isNot(contains(alice.identity.guid)),
@@ -99,7 +99,7 @@ void main() {
         reason: 'znajomy podpisuje odpowiedź kluczem z uzgodnienia statycznych');
 
     // Podmieniamy u Alicji przypięty klucz Bartka. Od tej chwili jego podpis
-    // przestaje pasować — dokładnie tak wygląda ktoś, kto zna sam GUID
+    // przestaje pasować, a dokładnie tak wygląda ktoś, kto zna sam GUID
     // i odpowiada spod swojego adresu, nie mając klucza prywatnego.
     await alice.db.setPeerKey(
       (await alice.db.peerByGuid(bob.identity.guid))!.id,
@@ -127,7 +127,7 @@ void main() {
       await bob.dispose();
     });
 
-    // Alicja ma zapisany nieaktualny adres Bartka — tak wygląda sytuacja po
+    // Alicja ma zapisany nieaktualny adres Bartka, tak wygląda sytuacja po
     // restarcie routera, gdy DHCP rozda adresy na nowo. GUID się nie zmienia.
     await alice.db.upsertPeer(
       guid: bob.identity.guid,

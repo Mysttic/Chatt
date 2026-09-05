@@ -155,7 +155,7 @@ class _PairingCardState extends State<_PairingCard> {
               ],
             ),
             // Ponowne parowanie znaczy nowy klucz, a prośbę mógł przysłać
-            // ktokolwiek — sama nazwa niczego nie dowodzi.
+            // ktokolwiek, sama nazwa niczego nie dowodzi.
             if (widget.pairing.alreadyPaired) ...[
               const SizedBox(height: 8),
               Text(

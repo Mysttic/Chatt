@@ -271,7 +271,7 @@ class _AutoAccept extends ConsumerWidget {
   }
 }
 
-/// Odcisk w jednym wierszu z możliwością skopiowania — łatwiej przedyktować
+/// Odcisk w jednym wierszu z możliwością skopiowania, łatwiej przedyktować
 /// przez telefon niż przepisywać z ekranu.
 class _Odcisk extends StatelessWidget {
   final String etykieta;

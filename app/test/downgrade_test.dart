@@ -13,7 +13,7 @@ import 'package:chatt/services/app_services.dart';
 
 /// Próba obejścia szyfrowania: napastnik zna publiczny GUID sparowanego
 /// urządzenia (leci w discovery i w nagłówkach), ale nie zna klucza sesji.
-/// Od sparowanego rozmówcy wolno przyjmować wyłącznie zaszyfrowaną treść —
+/// Od sparowanego rozmówcy wolno przyjmować wyłącznie zaszyfrowaną treść:
 /// inaczej zielona tarcza obiecywałaby coś, czego nie ma.
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;

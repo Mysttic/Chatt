@@ -8,7 +8,7 @@ Rysuje dwa dymki rozmowy na fiolecie z motywu (#512BD4) i zapisuje:
 Uruchomienie (z katalogu app/):
     python tool/make_icons.py
 
-Rysujemy w czterokrotnym powiększeniu i zmniejszamy filtrem LANCZOS — inaczej
+Rysujemy w czterokrotnym powiększeniu i zmniejszamy filtrem LANCZOS, inaczej
 krawędzie dymków byłyby poszarpane.
 """
 
@@ -112,7 +112,7 @@ def ikona_launchera(size):
 
 
 def ikona_foreground(size):
-    """Sama warstwa z dymkami — tło rysuje system z koloru."""
+    """Sama warstwa z dymkami, tło rysuje system z koloru."""
     duzy = size * SUPERSAMPLING
     # Widoczne jest środkowe 66% płótna, więc dymki muszą się w nim zmieścić.
     warstwa = dymki(duzy, skala=0.60)

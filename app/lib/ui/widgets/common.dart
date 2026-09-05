@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
 
+import '../l10n_context.dart';
+
 /// Kółko z inicjałem rozmówcy: awatar na liście rozmów i w nagłówku.
+///
+/// [online] to obecność w sieci: `true` dokłada zieloną kropkę w rogu.
+/// `false` i `null` nie rysują nic: kropka mówi „urządzenie odpowiada",
+/// a jej brak zostawia sprawę otwartą.
 class InitialsAvatar extends StatelessWidget {
   final String name;
   final double radius;
+  final bool? online;
 
-  const InitialsAvatar({super.key, required this.name, this.radius = 22});
+  const InitialsAvatar({
+    super.key,
+    required this.name,
+    this.radius = 22,
+    this.online,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    return CircleAvatar(
+    final avatar = CircleAvatar(
       radius: radius,
       backgroundColor: scheme.primaryContainer,
       child: Text(
@@ -23,7 +35,61 @@ class InitialsAvatar extends StatelessWidget {
         ),
       ),
     );
+    if (online != true) return avatar;
+
+    // Obwódka w kolorze tła listy odcina kropkę od awatara, więc widać ją
+    // tak samo na jasnym i na ciemnym motywie.
+    final srednica = radius * 0.5;
+    return Semantics(
+      label: context.l10n.peerOnline,
+      child: Stack(
+        children: [
+          avatar,
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              width: srednica,
+              height: srednica,
+              decoration: BoxDecoration(
+                color: Colors.green,
+                shape: BoxShape.circle,
+                border: Border.all(color: scheme.surface, width: radius * 0.09),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
+
+/// Nazwa rozmówcy z zieloną tarczą, gdy jego tożsamość jest potwierdzona.
+///
+/// Ta sama para na liście rozmów i na liście urządzeń: tarcza ma wszędzie
+/// znaczyć to samo co zielona tarcza w nagłówku rozmowy.
+class PeerName extends StatelessWidget {
+  final String name;
+  final bool verified;
+
+  const PeerName({super.key, required this.name, required this.verified});
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Flexible(
+            child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          if (verified) ...[
+            const SizedBox(width: 6),
+            Tooltip(
+              message: context.l10n.shieldVerified,
+              child: const Icon(Icons.verified_user,
+                  size: 16, color: Colors.green),
+            ),
+          ],
+        ],
+      );
 }
 
 /// Zwięzły czas dla list: dziś -> HH:mm, ten rok -> d.MM, starsze -> d.MM.rrrr.

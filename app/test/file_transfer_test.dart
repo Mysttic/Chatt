@@ -73,7 +73,7 @@ void main() {
   /// już zamknąć (odbiorca odrzucił plik, test zerwał kabel), zgłasza błąd
   /// przez `done`, a nieobsłużony wywraca cały test. Na Windowsie domknięcie
   /// przychodzi zwykle za późno, żeby to zobaczyć; na Linuksie leci
-  /// „Broken pipe" i test się sypie mimo poprawnych asercji — tak wyszło
+  /// „Broken pipe" i test się sypie mimo poprawnych asercji, tak wyszło
   /// dopiero na CI. Atrapa ma ten błąd pochłonąć: sprawdzamy zachowanie
   /// aplikacji, a nie to, które gniazdo zamknęło się pierwsze.
   void pochlonBledyZapisu(Socket socket) {
@@ -94,7 +94,7 @@ void main() {
       [pierwszy.path, drugi.path, trzeci.path],
     );
 
-    // Osobna zgoda na każdy plik, w kolejności wysyłania — tego wymaga model
+    // Osobna zgoda na każdy plik, w kolejności wysyłania, tego wymaga model
     // „odbiorca widzi nazwę i rozmiar, zanim polecą bajty".
     expect(bobOffers.map((o) => o.fileName),
         ['pierwszy.bin', 'drugi.bin', 'trzeci.bin']);
@@ -327,7 +327,7 @@ void main() {
 
     // Obie strony zaczynają od nowa: klucz pliku wisi na kluczu sesji, więc
     // po jej wymianie stara część jest zaszyfrowana czymś innym. Dopisanie do
-    // niej dałoby plik, którego nie da się odszyfrować w całości — dlatego
+    // niej dałoby plik, którego nie da się odszyfrować w całości, dlatego
     // zapowiedź niesie znacznik klucza, a odbiorca każe zacząć od zera.
     await alice.dispose();
     alice = await AppServices.start(

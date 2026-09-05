@@ -46,8 +46,8 @@
   starszych niż wybrana liczba dni.
 - **Nasłuch w tle na Androidzie**: wiadomości dochodzą przy zamkniętym oknie
   i zgaszonym ekranie, z powiadomieniem.
-- **Na Windowsie ikona w zasobniku**: krzyżyk chowa okno zamiast kończyć
-  nasłuch, a aplikacja może wstawać razem z systemem.
+- **Na Windowsie ikona w zasobniku**: krzyżyk chowa okno, nasłuch działa
+  dalej, a aplikacja może wstawać razem z systemem.
 - **Wygoda**: wiele plików naraz (także przeciągniętych na okno), miniatury
   obrazków, zapisanie odebranego pliku do Zdjęć/Pobranych jednym dotknięciem,
   szukanie w rozmowach, kasowanie pojedynczych wiadomości.
@@ -111,4 +111,4 @@ Apache License 2.0, patrz [LICENSE](LICENSE) i [NOTICE](NOTICE). Komponenty,
 które jadą razem z aplikacją, wymienia [lista licencji](docs/THIRD-PARTY-NOTICES.md).
 
 Znalazłeś błąd bezpieczeństwa? Najpierw przeczytaj [SECURITY.md](docs/SECURITY.md);
-prosi o zgłoszenie prywatne, nie przez publiczne issue.
+prosi o zgłoszenie prywatne.

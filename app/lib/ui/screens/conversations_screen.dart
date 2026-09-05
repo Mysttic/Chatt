@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/search.dart';
+import '../../core/version.dart';
 import '../../data/db.dart';
+import '../../services/presence.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
@@ -11,7 +13,7 @@ import 'nearby_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/toasts.dart';
 
-/// Usunięcie rozmowy kasuje też urządzenie z listy znanych — jedno bez
+/// Usunięcie rozmowy kasuje też urządzenie z listy znanych, jedno bez
 /// drugiego nie ma sensu, bo rozmowa i tak odtworzyłaby się przy pierwszym
 /// kontakcie. Pytamy, bo idą z tym wiadomości.
 Future<void> _confirmDelete(
@@ -54,7 +56,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
   final _search = TextEditingController();
   bool _searching = false;
 
-  /// Rozmowa otwarta w prawym panelu. Ma sens tylko na szerokim oknie —
+  /// Rozmowa otwarta w prawym panelu. Ma sens tylko na szerokim oknie:
   /// na wąskim rozmowa jest osobnym ekranem na stosie nawigacji.
   int? _wybranaRozmowa;
   Peer? _wybranyRozmowca;
@@ -93,7 +95,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
     final lista = _lista(context);
     if (!czyDwupanel(context)) return lista;
 
-    // Wybrana rozmowa mogła zniknąć (usunięcie rozmówcy) — wtedy wracamy
+    // Wybrana rozmowa mogła zniknąć (usunięcie rozmówcy), wtedy wracamy
     // do pustego panelu zamiast trzymać wpis, którego już nie ma.
     final rozmowa = _wybranaRozmowa;
     final rozmowca = _wybranyRozmowca;
@@ -120,6 +122,8 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
 
   Widget _lista(BuildContext context) {
     final summaries = ref.watch(conversationSummariesProvider);
+    // Obecność odpytuje sieć tylko dopóki ktoś patrzy na listę.
+    final presence = ref.watch(presenceProvider).value ?? const {};
     final query = _search.text.trim().toLowerCase();
 
     return Scaffold(
@@ -134,7 +138,23 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                   border: InputBorder.none,
                 ),
               )
-            : Text(context.l10n.appTitle),
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(context.l10n.appTitle),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: Text(
+                      appVersion,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
         actions: [
           IconButton(
             tooltip: _searching
@@ -191,9 +211,14 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
             itemBuilder: (context, index) {
               final item = items[index];
               return ListTile(
-                leading: InitialsAvatar(name: item.peer.displayName),
-                title: Text(item.peer.displayName,
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                leading: InitialsAvatar(
+                  name: item.peer.displayName,
+                  online: presence[item.peer.guid],
+                ),
+                title: PeerName(
+                  name: item.peer.displayName,
+                  verified: item.peer.verified,
+                ),
                 subtitle: Text(
                   item.lastBody ?? item.peer.welcomeMessage,
                   maxLines: 1,

@@ -17,7 +17,7 @@ Future<void> main() async {
   // Musi być przed pierwszą klatką, bo od niej można już kliknąć krzyżyk.
   await TrayIcon.instance.attach();
 
-  // Cały stos (baza, serwer, discovery) startuje przed pierwszą klatką —
+  // Cały stos (baza, serwer, discovery) startuje przed pierwszą klatką:
   // od tego momentu urządzenie jest widoczne w sieci i przyjmuje wiadomości.
   final services = await AppServices.start(
     // Wiadomość, która przyszła przy zamkniętym oknie, ma dać znać

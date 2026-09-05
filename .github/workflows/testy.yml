@@ -1,7 +1,7 @@
 name: Testy
 
 # Bramka przed wpuszczeniem zmian do master: analiza statyczna i cały zestaw
-# testów. Odpala się **wyłącznie** przy pull requeście do master — zwykłe
+# testów. Odpala się **wyłącznie** przy pull requeście do master, zwykłe
 # pchnięcia na develop i gałęzie robocze nie uruchamiają niczego.
 #
 # Domyślne `types` (opened, reopened, synchronize) zostawiamy świadomie:
@@ -47,6 +47,6 @@ jobs:
 
       # Testy podnoszą po dwie pełne instancje aplikacji w jednym procesie
       # i każą im rozmawiać po prawdziwym gnieździe TCP, a discovery działa
-      # na rozgłoszeniach UDP — dlatego biegną na maszynie, a nie w atrapach.
+      # na rozgłoszeniach UDP, dlatego biegną na maszynie, a nie w atrapach.
       - name: Testy
         run: flutter test --reporter expanded

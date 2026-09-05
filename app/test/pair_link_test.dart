@@ -24,7 +24,7 @@ void main() {
     expect(odczytany.port, 47780);
     expect(odczytany.name, 'Komputer w biurze');
     expect(odczytany.guid, ja.guid,
-        reason: 'identyfikatora nie ma w kodzie — liczy się z klucza');
+        reason: 'identyfikatora nie ma w kodzie, liczy się z klucza');
   });
 
   test('śmieci i cudze kody odpadają', () {
@@ -52,7 +52,7 @@ void main() {
       publicKey: klucz,
     );
 
-    // Część czytników obcina znaki wyrównania — kod ma się wtedy nadal czytać.
+    // Część czytników obcina znaki wyrównania, kod ma się wtedy nadal czytać.
     final kod = PairLink.encode(identity: ja, address: '10.0.0.5')
         .replaceAll('%3D', '');
     expect(PairLink.decode(kod)?.publicKey, klucz);

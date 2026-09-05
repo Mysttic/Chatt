@@ -9,7 +9,7 @@ import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// E2E logiki: dwie pełne instancje aplikacji (bez UI) w jednym procesie,
-/// każda z własną bazą i serwerem na osobnym porcie — jak dwa urządzenia.
+/// każda z własną bazą i serwerem na osobnym porcie, jak dwa urządzenia.
 /// Discovery jest tu wyłączone (ma własny test), parujemy ręcznie po adresie.
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -64,7 +64,7 @@ void main() {
     expect(atBob.single.body, 'Cześć Bartek!');
     expect(atBob.single.direction, MessageDirection.incoming);
 
-    // Bartek odpisuje — adres Alicji zna już z jej wiadomości.
+    // Bartek odpisuje, adres Alicji zna już z jej wiadomości.
     await bob.sendText(conversationAtBob, 'No cześć!');
     final aliceInbox = await alice.db.watchMessages(conversationAtAlice).first;
     expect(aliceInbox, hasLength(2));
@@ -110,7 +110,7 @@ void main() {
       () async {
     // Tunel (emulator za NAT-em, przekierowanie portu na routerze): Bartek
     // jest osiągalny pod innym portem, niż sam rozgłasza. Zapisać trzeba ten
-    // osiągalny — inaczej wiadomości polecą w próżnię (albo do nas samych).
+    // osiągalny: inaczej wiadomości polecą w próżnię (albo do nas samych).
     final tunnel = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     tunnel.listen((incoming) async {
       final target = await Socket.connect('127.0.0.1', bob.server.port!);

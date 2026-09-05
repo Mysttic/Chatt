@@ -47,8 +47,8 @@ object ChattNotifications {
             .build()
 
         try {
-            // Bez zgody na powiadomienia (Android 13+) system to zignoruje —
-            // aplikacja ma działać dalej, tylko po cichu.
+            // Bez zgody na powiadomienia (Android 13+) system to zignoruje,
+            // a aplikacja ma działać dalej, tylko po cichu.
             NotificationManagerCompat.from(context).notify(id, notification)
         } catch (error: SecurityException) {
             // brak uprawnienia POST_NOTIFICATIONS

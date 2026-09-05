@@ -10,7 +10,7 @@ enum AppTheme { system, light, dark }
 /// Język interfejsu. `system` idzie za ustawieniem systemu.
 enum AppLanguage { system, polish, english }
 
-/// Ustawienia lokalnej instancji — zawsze dokładnie jeden wiersz (id = 1).
+/// Ustawienia lokalnej instancji: zawsze dokładnie jeden wiersz (id = 1).
 class Settings extends Table {
   IntColumn get id => integer()();
 
@@ -34,7 +34,7 @@ class Settings extends Table {
       intEnum<AppLanguage>().withDefault(Constant(AppLanguage.english.index))();
 
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest
-  /// zajęty — patrz DeviceIdentity.tcpPort.
+  /// zajęty (patrz DeviceIdentity.tcpPort).
   IntColumn get tcpPort =>
       integer().withDefault(const Constant(defaultTcpPort))();
 
@@ -49,7 +49,7 @@ class Settings extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Znane urządzenia (rozmówcy). Klucz logiczny to [guid] — host i port są
+/// Znane urządzenia (rozmówcy). Klucz logiczny to [guid], host i port są
 /// tylko ostatnim znanym adresem i są nadpisywane przy każdym kontakcie.
 class Peers extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -62,7 +62,7 @@ class Peers extends Table {
 
   /// Klucz publiczny rozmówcy (base64), przypięty przy pierwszym kontakcie.
   /// Jego zmiana znaczy albo reinstalację po drugiej stronie, albo próbę
-  /// podszycia się — w obu przypadkach użytkownik ma to zobaczyć.
+  /// podszycia się, w obu przypadkach użytkownik ma to zobaczyć.
   TextColumn get publicKey => text().nullable()();
 
   /// Ślad po parowaniu z protokołu 4 (klucz sesji na zawsze). Od protokołu 5
@@ -78,7 +78,7 @@ class Peers extends Table {
 
   /// Przyjmuj pliki od tego rozmówcy bez pytania. Ma sens wyłącznie przy
   /// potwierdzonej tożsamości, więc [setPeerVerified] gasi tę flagę razem
-  /// z tarczą — inaczej przetrwałaby unieważnienie potwierdzenia.
+  /// z tarczą: inaczej przetrwałaby unieważnienie potwierdzenia.
   BoolColumn get autoAccept => boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get firstSeen => dateTime()();
@@ -114,7 +114,7 @@ enum MessageKind { text, file }
 class Messages extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  /// Globalny identyfikator wiadomości — dzięki UNIQUE ponowne dostarczenie
+  /// Globalny identyfikator wiadomości, dzięki UNIQUE ponowne dostarczenie
   /// tej samej wiadomości (retry po zgubionym ACK-u) nie tworzy duplikatu.
   TextColumn get messageGuid => text().unique()();
   IntColumn get conversationId => integer().references(Conversations, #id)();
@@ -172,7 +172,7 @@ class ChattDb extends _$ChattDb {
       if (from < 3) {
         // v3: klucz sesji z parowania. Wcześniejsze parowania nie miały
         // klucza, więc zielona tarcza obiecywałaby szyfrowanie, którego nie
-        // ma — kasujemy je i prosimy o sparowanie jeszcze raz.
+        // ma, kasujemy je i prosimy o sparowanie jeszcze raz.
         await m.addColumn(peers, peers.sessionKey);
         await m.database.customStatement('UPDATE peers SET verified = 0');
       }
@@ -189,7 +189,7 @@ class ChattDb extends _$ChattDb {
         // być liczona z klucza publicznego. Wszystkie urządzenia dostają
         // przez to nowe identyfikatory, więc zapisani rozmówcy przestają
         // pasować do czegokolwiek w sieci. Zostawienie ich znaczyłoby listę
-        // wpisów, do których nie da się już napisać — czyścimy je razem
+        // wpisów, do których nie da się już napisać, czyścimy je razem
         // z historią i prosimy o znalezienie się od nowa.
         await m.addColumn(settings, settings.identityKey);
         await m.addColumn(peers, peers.publicKey);
@@ -198,7 +198,7 @@ class ChattDb extends _$ChattDb {
         await m.database.customStatement('DELETE FROM peers');
       }
       if (from < 7) {
-        // v7: samoczynne kasowanie starych wiadomości. Domyślnie wyłączone —
+        // v7: samoczynne kasowanie starych wiadomości. Domyślnie wyłączone:
         // włączenie go za kogoś skasowałoby historię bez pytania.
         await m.addColumn(settings, settings.retentionDays);
       }
@@ -229,7 +229,7 @@ class ChattDb extends _$ChattDb {
   /// policzony). Wołamy je leniwie, bo losowanie klucza kosztuje, a przy
   /// kolejnych startach nie ma czego losować.
   ///
-  /// Wiersz sprzed schematu v6 ma pusty klucz i losowy identyfikator —
+  /// Wiersz sprzed schematu v6 ma pusty klucz i losowy identyfikator,
   /// dorabiamy mu tożsamość tutaj, przy pierwszym starcie po aktualizacji.
   Future<Setting> ensureSettings({
     required Future<(String, String)> Function() identityFactory,
@@ -277,7 +277,7 @@ class ChattDb extends _$ChattDb {
   /// Motyw i język zapisujemy osobno: zmieniają się jednym kliknięciem,
   /// bez formularza i bez przycisku „zapisz".
   /// Przypięcie klucza publicznego rozmówcy. Robimy to przy pierwszym
-  /// kontakcie — od tej chwili wiadomo, z czyim kluczem rozmawiamy.
+  /// kontakcie, od tej chwili wiadomo, z czyim kluczem rozmawiamy.
   Future<void> setPeerKey(int peerId, String publicKey) =>
       (update(peers)..where((p) => p.id.equals(peerId)))
           .write(PeersCompanion(publicKey: Value(publicKey)));
@@ -301,7 +301,7 @@ class ChattDb extends _$ChattDb {
   // --- Historia -------------------------------------------------------------
 
   /// Kasuje całą historię rozmów: wiadomości i same rozmowy. Urządzenia
-  /// zostają razem z potwierdzoną tożsamością — inaczej trzeba by parować
+  /// zostają razem z potwierdzoną tożsamością: inaczej trzeba by parować
   /// wszystko od nowa tylko dlatego, że ktoś chciał wyczyścić treści.
   /// Odebrane pliki zostają na dysku. Zwraca liczbę usuniętych wiadomości.
   Future<int> clearHistory() => transaction(() async {
@@ -311,7 +311,7 @@ class ChattDb extends _$ChattDb {
   });
 
   /// Kasuje wiadomości starsze niż [age]. Rozmowy zostają, bo pusta rozmowa
-  /// to nadal rozmowa — po prostu bez treści sprzed granicy.
+  /// to nadal rozmowa, po prostu bez treści sprzed granicy.
   /// Zwraca liczbę usuniętych wiadomości.
   Future<int> deleteMessagesOlderThan(Duration age) {
     final cutoff = DateTime.now().subtract(age);
@@ -328,7 +328,7 @@ class ChattDb extends _$ChattDb {
       (select(peers)..where((p) => p.id.equals(id))).getSingleOrNull();
 
   /// Usuwa rozmówcę razem z rozmową i jej wiadomościami. Odebrane pliki
-  /// zostają na dysku — kasujemy własne wpisy, nie cudzą zawartość.
+  /// zostają na dysku: kasujemy własne wpisy, nie cudzą zawartość.
   Future<void> deletePeer(int peerId) => transaction(() async {
     final conversation = await (select(
       conversations,
@@ -346,7 +346,7 @@ class ChattDb extends _$ChattDb {
 
   /// Sprząta po urządzeniach, które przewinęły się przez sieć i zniknęły:
   /// takich, z którymi nie ma ani jednej wiadomości i których dawno nie
-  /// widać. Sparowanych nie ruszamy — te użytkownik potwierdził świadomie.
+  /// widać. Sparowanych nie ruszamy, te użytkownik potwierdził świadomie.
   /// Zwraca liczbę usuniętych wpisów.
   Future<int> sweepStalePeers({
     Duration keepFor = const Duration(days: 7),
@@ -398,7 +398,7 @@ class ChattDb extends _$ChattDb {
   }
 
   /// Przyjmowanie plików bez pytania. Włączyć da się tylko przy potwierdzonej
-  /// tożsamości — sprawdzamy to tutaj, a nie w UI, bo to jest granica zgody
+  /// tożsamości, sprawdzamy to tutaj, a nie w UI, bo to jest granica zgody
   /// użytkownika, a nie kwestia wyglądu ekranu. Zwraca stan po zapisie.
   Future<bool> setPeerAutoAccept(int id, bool value) async {
     final peer =
@@ -420,11 +420,17 @@ class ChattDb extends _$ChattDb {
         ),
       );
 
-  Stream<List<Peer>> watchPeers() =>
-      (select(peers)..orderBy([(p) => OrderingTerm.desc(p.lastSeen)])).watch();
+  Stream<List<Peer>> watchPeers() => _peersByLastSeen().watch();
+
+  /// To samo, ale raz: sprawdzanie obecności pyta o listę co pół minuty
+  /// i nie potrzebuje strumienia.
+  Future<List<Peer>> allPeers() => _peersByLastSeen().get();
+
+  SimpleSelectStatement<$PeersTable, Peer> _peersByLastSeen() =>
+      select(peers)..orderBy([(p) => OrderingTerm.desc(p.lastSeen)]);
 
   /// Wstawia lub aktualizuje rozmówcę po [guid], zawsze odświeżając ostatni
-  /// znany adres i czas kontaktu. Pojedynczy atomowy UPSERT — discovery
+  /// znany adres i czas kontaktu. Pojedynczy atomowy UPSERT, bo discovery
   /// potrafi zgłosić to samo urządzenie kilka razy równolegle (powtórzone
   /// broadcasty) i sprawdź-i-wstaw kończyłoby się wyścigiem na UNIQUE(guid).
   Future<Peer> upsertPeer({
@@ -579,7 +585,7 @@ class ChattDb extends _$ChattDb {
   }
 
   /// Zwraca false, gdy wiadomość o tym [messageGuid] już była (duplikat po
-  /// ponowieniu) — wtedy niczego nie dopisujemy, ale nadawca i tak dostaje ACK.
+  /// ponowieniu), wtedy niczego nie dopisujemy, ale nadawca i tak dostaje ACK.
   Future<bool> insertIncoming({
     required int conversationId,
     required String messageGuid,
@@ -626,7 +632,7 @@ class ChattDb extends _$ChattDb {
         ),
       );
 
-  /// Kasuje jedną wiadomość. Tylko u siebie — protokół nie ma jak kazać
+  /// Kasuje jedną wiadomość. Tylko u siebie: protokół nie ma jak kazać
   /// drugiej stronie zapomnieć czegoś, co już dostała. Plik na dysku zostaje.
   Future<void> deleteMessage(int id) =>
       (delete(messages)..where((m) => m.id.equals(id))).go();

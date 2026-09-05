@@ -10,17 +10,17 @@ import 'package:path/path.dart' as p;
 /// Kanał robi jedno: owija i odwija bajty kluczem, którego aplikacja nigdy nie
 /// widzi. Na Androidzie leży on w Keystore (sprzętowym, jeśli urządzenie ma
 /// TEE), na Windowsie owijaniem zajmuje się DPAPI kluczem konta użytkownika.
-/// Gdzie zapisać wynik, decyduje już Dart — patrz [DatabaseKey].
+/// Gdzie zapisać wynik, decyduje już Dart (patrz [DatabaseKey]).
 class SecretStore {
   static const _channel = MethodChannel('chatt/sekrety');
 
   /// Owija [data] kluczem systemowym. `null` znaczy „ta platforma nie ma
-  /// schowka albo schowek odmówił" — wywołujący ma wtedy zdecydować, czy to
+  /// schowka albo schowek odmówił", a wywołujący ma wtedy zdecydować, czy to
   /// błąd, czy praca dalej bez ochrony.
   static Future<Uint8List?> protect(List<int> data) =>
       _call('protect', data);
 
-  /// Odwraca [protect]. `null` znaczy, że blobu nie da się odwinąć — klucz
+  /// Odwraca [protect]. `null` znaczy, że blobu nie da się odwinąć, klucz
   /// systemowy zniknął (reinstalacja, przywrócenie kopii na inne urządzenie,
   /// wyczyszczenie Keystore) albo blob jest uszkodzony.
   static Future<Uint8List?> unprotect(List<int> data) =>
@@ -51,7 +51,7 @@ class DatabaseKey {
   final String passphrase;
 
   /// Czy hasło leży na dysku owinięte kluczem systemowym. `false` znaczy, że
-  /// baza jest zaszyfrowana, ale klucz do niej leży obok niej jawnie — czyli
+  /// baza jest zaszyfrowana, ale klucz do niej leży obok niej jawnie, czyli
   /// chroni przed podejrzeniem pliku bazy, a nie przed kimś, kto skopiuje
   /// cały katalog aplikacji. Użytkownik ma to zobaczyć w ustawieniach.
   final bool protected;

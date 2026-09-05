@@ -49,7 +49,7 @@ void main() {
     expect(code!.length, pairingCodeDigits);
     expect(int.tryParse(code), isNotNull, reason: 'same cyfry do porównania');
 
-    // Kod widać po obu stronach i jest ten sam — to jest cały dowód, że
+    // Kod widać po obu stronach i jest ten sam: to jest cały dowód, że
     // nikt nie siedzi w środku uzgodnienia.
     expect(alice.pendingPairings.value.single.code, code);
     expect(bob.pendingPairings.value.single.code, code,
@@ -134,7 +134,7 @@ void main() {
     expect((await bob.db.peerByGuid(alice.identity.guid))!.verified, isTrue);
 
     // Druga prośba o parowanie z tego samego guid-a. `POST /pair` nie jest
-    // uwierzytelniony, więc mógł ją przysłać ktokolwiek pod tą nazwą —
+    // uwierzytelniony, więc mógł ją przysłać ktokolwiek pod tą nazwą:
     // użytkownik musi zobaczyć, że to nie jest pierwsze parowanie.
     expect(await alice.startPairing(bobAtAlice), isNotNull);
     expect(bob.pendingPairings.value.single.alreadyPaired, isTrue,

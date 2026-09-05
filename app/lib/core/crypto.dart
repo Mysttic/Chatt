@@ -63,7 +63,7 @@ class ChattCrypto {
 
   /// Identyfikator urządzenia liczony z jego klucza publicznego, a nie
   /// losowany. Dzięki temu nie da się podać cudzego identyfikatora bez jego
-  /// klucza prywatnego — podszycie się przestaje być kwestią wpisania cudzego
+  /// klucza prywatnego: podszycie się przestaje być kwestią wpisania cudzego
   /// napisu. Kształt zostaje UUID-owy, żeby nic w bazie, logach i testach nie
   /// musiało się zmieniać.
   static String guidFromPublicKey(List<int> publicKey) {
@@ -101,11 +101,11 @@ class ChattCrypto {
   /// efemeryczne, ważne tylko na tę jedną sesję.
   ///
   /// Co daje który człon:
-  /// - `ee` (efemeryczny × efemeryczny) — **forward secrecy**: po skasowaniu
+  /// - `ee` (efemeryczny × efemeryczny) daje **forward secrecy**: po skasowaniu
   ///   kluczy efemerycznych nagrany ruch nie odszyfruje się nawet komuś, kto
   ///   później wykradnie klucze statyczne obu stron,
-  /// - `ss` (statyczny × statyczny) — wiąże sesję z tożsamościami,
-  /// - `es` i `se` — wiążą każdy klucz efemeryczny z tożsamością drugiej
+  /// - `ss` (statyczny × statyczny) wiąże sesję z tożsamościami,
+  /// - `es` i `se` wiążą każdy klucz efemeryczny z tożsamością drugiej
   ///   strony, więc napastnik bez klucza prywatnego nie podstawi swojego.
   ///
   /// Do `info` wchodzi cały zapis rozmowy (oba klucze statyczne i oba
@@ -131,7 +131,7 @@ class ChattCrypto {
     final ee = await dh(myEphemeral, theirEphemeral);
     final ss = await dh(myStatic, theirStatic);
     // Kolejność es/se musi być ta sama po obu stronach, a każda strona liczy
-    // je innym kluczem — stąd rozróżnienie ról.
+    // je innym kluczem, stąd rozróżnienie ról.
     final es = initiator
         ? await dh(myEphemeral, theirStatic)
         : await dh(myStatic, theirEphemeral);
@@ -155,7 +155,7 @@ class ChattCrypto {
 
   /// Klucz na jeden plik, wyprowadzony z klucza sesji w chwili zapowiedzi.
   /// Zapisujemy go obok części transferu, więc wznowienie działa nawet wtedy,
-  /// gdy sesja dawno wygasła — bez tego strumień AES-CTR nie miałby czym
+  /// gdy sesja dawno wygasła: bez tego strumień AES-CTR nie miałby czym
   /// dokończyć.
   static Future<List<int>> fileKey({
     required List<int> sessionKey,
@@ -169,7 +169,7 @@ class ChattCrypto {
     return derived.extractBytes();
   }
 
-  /// Znacznik klucza pliku do zapowiedzi. Sam klucz nigdzie nie idzie —
+  /// Znacznik klucza pliku do zapowiedzi. Sam klucz nigdzie nie idzie:
   /// odbiorca porównuje tylko, czy jego część transferu była szyfrowana tym
   /// samym, czym nadawca szyfruje teraz.
   static String keyEpoch(List<int> fileKey) => base64.encode(
@@ -187,15 +187,15 @@ class ChattCrypto {
             .bytes,
       );
 
-  /// Uzgodnienie: z jednego sekretu X25519 wychodzą dwie niezależne rzeczy —
+  /// Uzgodnienie: z jednego sekretu X25519 wychodzą dwie niezależne rzeczy:
   /// klucz sesji do szyfrowania ruchu i kod do porównania na ekranach.
   /// Do kodu wchodzą oba klucze publiczne w ustalonej kolejności, więc
   /// napastnik nie przełoży kodu z jednej sesji na drugą.
   /// Do kodu wchodzą oba klucze **statyczne** (tożsamości), więc zgodny kod
   /// dowodzi nie tylko braku kogoś w środku, ale też tego, że po drugiej
   /// stronie siedzi właściciel klucza prywatnego od tej tożsamości. Od
-  /// protokołu 5 nic tu już nie ustala klucza do szyfrowania ruchu — ten
-  /// bierze się z sesji — więc wynikiem jest sam kod do porównania.
+  /// protokołu 5 nic tu już nie ustala klucza do szyfrowania ruchu (ten
+  /// bierze się z sesji), więc wynikiem jest sam kod do porównania.
   static Future<String> agreeCode({
     required SimpleKeyPair mine,
     required List<int> theirPublicKey,
@@ -249,7 +249,7 @@ class ChattCrypto {
     return base64.encode(mac.bytes);
   }
 
-  /// Porównanie w stałym czasie — przy skrótach to darmowa ostrożność.
+  /// Porównanie w stałym czasie, przy skrótach to darmowa ostrożność.
   static bool sameTag(String a, String b) {
     if (a.length != b.length) return false;
     var diff = 0;
@@ -264,7 +264,7 @@ class ChattCrypto {
   static bool isEnvelope(Map<String, Object?> json) =>
       isEncryptedEnvelope(json);
 
-  /// Pakuje [payload] w kopertę AES-GCM. Jawny zostaje sam numer sesji —
+  /// Pakuje [payload] w kopertę AES-GCM. Jawny zostaje sam numer sesji:
   /// po nim odbiorca znajduje klucz. Guid nadawcy z koperty zniknął, więc
   /// podsłuchujący nie ma po czym rozpoznać, kto z kim rozmawia.
   static Future<Map<String, Object?>> seal({
@@ -305,7 +305,7 @@ class ChattCrypto {
   }
 
   /// Klucz do podpisywania odpowiedzi discovery. Wychodzi z uzgodnienia
-  /// samych kluczy statycznych, więc obie strony policzą go bez żywej sesji —
+  /// samych kluczy statycznych, więc obie strony policzą go bez żywej sesji:
   /// discovery dzieje się, zanim jakakolwiek sesja powstanie.
   static Future<List<int>> discoveryKey({
     required SimpleKeyPair myStatic,
@@ -326,7 +326,7 @@ class ChattCrypto {
   // --- Strumień pliku ------------------------------------------------------
 
   /// Nonce dla pliku: guid wiadomości ORAZ suma kontrolna treści. Sam guid
-  /// nie wystarcza — ponowienie wysyłki tej samej wiadomości po podmianie
+  /// nie wystarcza: ponowienie wysyłki tej samej wiadomości po podmianie
   /// pliku pod tą samą ścieżką użyłoby drugi raz tego samego strumienia
   /// klucza, a to przy AES-CTR wystawia różnicę obu treści. Obie strony
   /// liczą to samo: suma przychodzi w zapowiedzi chronionej AES-GCM.
@@ -337,7 +337,7 @@ class ChattCrypto {
           .sublist(0, 12));
 
   /// AES-CTR w obie strony (szyfrowanie i odszyfrowanie to ta sama operacja).
-  /// [startOffset] to numer bajtu, od którego zaczyna się [data] — dzięki temu
+  /// [startOffset] to numer bajtu, od którego zaczyna się [data], dzięki temu
   /// wznowiony transfer trafia w to samo miejsce strumienia klucza.
   static Stream<List<int>> crypt(
     Stream<List<int>> data, {

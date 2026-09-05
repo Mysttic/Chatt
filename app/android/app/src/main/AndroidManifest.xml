@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Sieć: serwer wiadomości + discovery UDP w sieci lokalnej.
          CHANGE_WIFI_MULTICAST_STATE jest potrzebne do MulticastLock, który
-         bierze ChattService — bez niego układ Wi-Fi odsiewa broadcasty. -->
+         bierze ChattService, bez niego układ Wi-Fi odsiewa broadcasty. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>

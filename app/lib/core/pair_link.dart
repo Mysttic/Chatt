@@ -6,7 +6,7 @@ import 'identity.dart';
 /// Treść kodu QR do potwierdzenia tożsamości.
 ///
 /// Nie ma tu żadnego sekretu: klucz publiczny i adres są jawne. Wartość tego
-/// kodu bierze się z **kanału**, a nie z zawartości — kto go zeskanował, ten
+/// kodu bierze się z **kanału**, a nie z zawartości: kto go zeskanował, ten
 /// widział ekran drugiego urządzenia, więc wie, że dostał klucz od niego,
 /// a nie od kogoś po drodze.
 ///
@@ -32,7 +32,7 @@ class PairLink {
   static const String _host = 'pair';
 
   /// Kod dla tego urządzenia. [address] to adres, pod którym jest osiągalne
-  /// w tej sieci — bierzemy pierwszy sensowny z listy interfejsów.
+  /// w tej sieci, bierzemy pierwszy sensowny z listy interfejsów.
   static String encode({
     required DeviceIdentity identity,
     required String address,
@@ -48,7 +48,7 @@ class PairLink {
         },
       ).toString();
 
-  /// Zwraca null dla wszystkiego, co nie jest naszym kodem — aparat widzi
+  /// Zwraca null dla wszystkiego, co nie jest naszym kodem, aparat widzi
   /// mnóstwo kodów, które nas nie dotyczą.
   static PairLink? decode(String raw) {
     final uri = Uri.tryParse(raw.trim());
@@ -75,7 +75,7 @@ class PairLink {
     );
   }
 
-  /// base64url bez wyrównania też przyjmujemy — różne czytniki potrafią je
+  /// base64url bez wyrównania też przyjmujemy, różne czytniki potrafią je
   /// obciąć, a X25519 i tak ma zawsze 32 bajty, więc długość sprawdzamy sami.
   static List<int>? _decodeKey(String? value) {
     if (value == null || value.isEmpty) return null;

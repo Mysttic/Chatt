@@ -8,7 +8,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../core/identity.dart';
 import 'protocol.dart';
 
-/// Serwer HTTP tej instancji — to przez niego przychodzą wiadomości od
+/// Serwer HTTP tej instancji: to przez niego przychodzą wiadomości od
 /// innych urządzeń. Działa identycznie na Windows, Linuksie i Androidzie
 /// (dart:io), więc każde urządzenie jest równorzędnym "peerem".
 class ChattServer {
@@ -17,7 +17,7 @@ class ChattServer {
   /// Wołane po zdekodowaniu poprawnej wiadomości; [fromHost] to adres IP,
   /// z którego przyszło połączenie (bo nadawca zna swój port serwera, ale
   /// nie musi znać swojego IP w naszej sieci). [session] to numer sesji,
-  /// z której przyszła koperta — po nim rozpoznajemy nadawcę.
+  /// z której przyszła koperta: po nim rozpoznajemy nadawcę.
   final Future<bool> Function(
       IncomingMessage message, String fromHost, String session) onMessage;
 
@@ -62,7 +62,7 @@ class ChattServer {
 
   /// Zamienia kopertę na jej zawartość. Od protokołu 5 **wszystko** musi
   /// przyjść zaszyfrowane: jawny JSON to albo starsza wersja po drugiej
-  /// stronie, albo ktoś, kto próbuje ominąć szyfrowanie — w obu przypadkach
+  /// stronie, albo ktoś, kto próbuje ominąć szyfrowanie, w obu przypadkach
   /// nie ma czego przyjmować.
   ///
   /// `sesja == null` znaczy „nie znam takiej sesji" i kończy się 409, żeby
@@ -107,7 +107,7 @@ class ChattServer {
         );
         return _server!.port;
       } on SocketException catch (e) {
-        lastError = e; // port zajęty — próbujemy następny
+        lastError = e; // port zajęty, próbujemy następny
       }
     }
     throw StateError('Nie udało się otworzyć portu serwera: $lastError');
@@ -118,11 +118,11 @@ class ChattServer {
     _server = null;
   }
 
-  /// Górna granica ciała zapytania. Wiadomości i zapowiedzi plików to metadane
-  /// — megabajt to i tak wielokrotność tego, co potrzebne. Bez tej granicy
+  /// Górna granica ciała zapytania. Wiadomości i zapowiedzi plików to metadane:
+  /// megabajt to i tak wielokrotność tego, co potrzebne. Bez tej granicy
   /// ktokolwiek w sieci mógł wysłać wielogigabajtowy JSON i wywrócić aplikację
   /// na braku pamięci: ciało czytamy do końca, **zanim** w ogóle wiadomo, czy
-  /// nadawca ma sesję. Sama treść pliku tędy nie idzie — ta leci strumieniowo
+  /// nadawca ma sesję. Sama treść pliku tędy nie idzie, ta leci strumieniowo
   /// przez `/file` prosto na dysk.
   static const int _maxBodyBytes = 1024 * 1024;
 
@@ -236,7 +236,7 @@ class ChattServer {
     );
   }
 
-  /// Zapowiedź pliku — pytamy użytkownika, zanim przyjmiemy choć bajt.
+  /// Zapowiedź pliku: pytamy użytkownika, zanim przyjmiemy choć bajt.
   Future<Response> _handleFileOffer(Request request) async {
     final handler = onFileOffer;
     if (handler == null) {

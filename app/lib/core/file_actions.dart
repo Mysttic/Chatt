@@ -40,7 +40,7 @@ enum SaveResult {
 /// zostają tylko formaty, które Flutter obsługuje sam.
 const _imageExtensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'};
 
-/// Czy pod tą nazwą kryje się obrazek. Decyduje samo rozszerzenie — zawartość
+/// Czy pod tą nazwą kryje się obrazek. Decyduje samo rozszerzenie, zawartość
 /// czyta dopiero dekoder, i to wyłącznie dla plików, które użytkownik już
 /// przyjął i ma na dysku.
 bool isImageFile(String? name) =>
@@ -66,7 +66,7 @@ class FileActions {
     return FileActionResult.unsupported;
   }
 
-  /// Desktop: pokazuje plik w menedżerze plików (otwieramy jego katalog —
+  /// Desktop: pokazuje plik w menedżerze plików (otwieramy jego katalog, bo
   /// `explorer /select,` psuje się na ścieżkach ze spacjami).
   /// Android: nie ma menedżera plików do pokazania, więc udostępniamy plik
   /// dalej (share sheet).
@@ -83,8 +83,8 @@ class FileActions {
   /// Zapisuje kopię odebranego pliku tam, gdzie użytkownik będzie go szukał.
   ///
   /// Odebrane pliki leżą w katalogu aplikacji: żadna galeria ich nie widzi,
-  /// a po odinstalowaniu znikają. Tutaj robimy z nich zwykły plik użytkownika
-  /// — na Androidzie przez MediaStore (obrazki do Zdjęć, reszta do Pobranych,
+  /// a po odinstalowaniu znikają. Tutaj robimy z nich zwykły plik użytkownika:
+  /// na Androidzie przez MediaStore (obrazki do Zdjęć, reszta do Pobranych,
   /// bez uprawnień od Androida 10), na pulpicie przez systemowe okno zapisu.
   ///
   /// [where] to miejsce do pokazania w komunikacie.

@@ -8,7 +8,7 @@ import 'dart:convert';
 /// może się zmieniać (DHCP), tożsamość nie.
 ///
 /// [tcpPort] to FAKTYCZNY port, na którym nasłuchuje serwer tej instancji (może
-/// różnić się od preferowanego z ustawień, gdy tamten był zajęty — np. dwie
+/// różnić się od preferowanego z ustawień, gdy tamten był zajęty, np. dwie
 /// instancje na jednym komputerze).
 class DeviceIdentity {
   final String guid;
