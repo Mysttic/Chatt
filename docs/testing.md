@@ -57,15 +57,14 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 - from a known device we accept only a signed answer (an impersonation drops
   out of the scan results)
 - a peer whose address changed is found again by GUID
-- the responder reports whether it is actually listening. A swallowed
-  `SocketException` at bind time means a device nobody can find with a
-  scan, and there used to be no way to see that
+- the responder reports whether it is actually listening, because a bind that
+  fails means a device nobody can find with a scan
 
 ### Messages (`test/messaging_e2e_test.dart`, 5 tests)
 - pairing by address, exchanging messages both ways, dedupe
 - recipient offline: failed, and after it comes back a retry delivers
-- adding by hand records the address the device **answered from** (not the one
-  it announces, which was a real bug, found only on a device behind NAT)
+- adding by hand records the address the device **answered from**, not the one
+  it announces
 - we do not talk to ourselves (a loop onto our own address)
 - the server rejects garbage without falling over
 
@@ -108,16 +107,15 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 - an identity survives writing and reading the private key
 - both sides of the handshake compute the same session key
 - **different ephemeral keys give a different session key**, which is forward
-  secrecy written down as an assertion instead of a promise in a comment
+  secrecy as an assertion
 - a swapped static key breaks the agreement
 - the file key hangs off the session key and the message guid
 - a device broadcasts its key, and its identifier follows from it
 
 ### Encryption (`test/encryption_test.dart`, 4 tests)
-- paired: message content does not travel in plaintext (checked with a wiretap
-  on the link, not by trusting the code)
-- **unpaired: the content does not travel in plaintext either**, the thesis of
-  release 0.2.0
+- paired: message content does not travel in plaintext, checked with a wiretap
+  on the link
+- **unpaired: the content does not travel in plaintext either**
 - paired: a file travels encrypted and comes together byte for byte
 - paired: resuming an encrypted file sends only the remainder
 
@@ -169,7 +167,6 @@ The file is separate on purpose: one `testWidgets` anywhere in a file installs
 instances talk to each other over a real socket.
 
 ### An attacker on the wire (`test/security_test.dart`, 8 tests)
-Tests from the 0.3.0 security review. Every one of them was red before the fix:
 - a message identifier carrying a path (`../../../../evil`, `..\..\evil`,
   `/etc/chatt`) is rejected in a file announcement, in a message and in the
   transfer headers; an ordinary UUID passes
@@ -186,10 +183,8 @@ The attacker knows a peer's identifier but not its private key:
 - a plaintext file announcement from a known peer is rejected
 - a plaintext transfer will not replace a file announced under encryption
 
-These three tests came out of a code review that found exactly those holes in
-the first version of the encryption. Since protocol 5 the protocol itself
-defends against them (there is no plaintext), but they stay as witnesses: if a
-fallback unencrypted mode ever came back, these tests would go red.
+The protocol itself defends against all three, because there is no plaintext in
+it. The tests stay as a guard: a fallback unencrypted mode would turn them red.
 
 ## Scenarios on live hardware
 
@@ -204,11 +199,14 @@ adb reverse tcp:47790 tcp:47790    device -> the host instance
 
 Four tests: `/info` with a message and its confirmation; a file with the
 acceptance tapped on screen and the checksum verified; saving an image on the
-device (checked with `ls /sdcard/Pictures/Chatt`, not by trusting a message in
-the app); a refusal ending in a "not delivered" status. The test restarts the
-app itself at the start, taps buttons found by label in the accessibility tree
-and sends files with fresh content on every run, because otherwise later runs
-kept hitting the state left by the previous one.
+device, checked with `ls /sdcard/Pictures/Chatt`; a refusal ending in a "not
+delivered" status. The test restarts the app at the start, taps buttons found
+by label in the accessibility tree and sends files with fresh content on every
+run.
+
+`CHATT_PROXY_PORT` moves the `adb forward` port when the default one is taken,
+for example by an ordinary Chatt running on the same desktop. The tunnel is
+asserted: without it the test would talk to whatever else holds the port.
 
 ### `tool/wifi_discovery_check.dart`
 Broadcasts a discovery query on a real network and prints who answered. This
@@ -230,11 +228,8 @@ the screenshots, and the result is the same on every machine.
 (`HttpOverrides.global = null`).
 
 ### `tool/store_assets.py`
-The README banner (`docs/promo.png`, in the repository) plus assets in store
-sizes: a 512 icon, a 1024x500 promotional graphic in two languages, phone
-screenshots fitted into 1080x1920, desktop screenshots with a 1366x768 minimum
-check. The latter land in `docs/publishing/assets/`, outside the repository,
-because the stores are parked (`docs/publishing/README.md`).
+Draws the README banner (`docs/promo.png`), the only graphic in the repository
+that comes out of code.
 
 ### `tool/zrzut_okna.ps1`
 A screenshot of **the app window alone** on Windows (not the whole desktop),
@@ -247,12 +242,7 @@ powershell -ExecutionPolicy Bypass -File tool/zrzut_okna.ps1 -Plik okno.png -Sze
 
 ### `tool/podglad_bazy.dart`
 Says how much of what is in the database, and whether the file can be opened at
-all without a password. Since release 0.2.0 it answers "cannot be read" on an
-encrypted database, which is the point.
-
-### `tool/ui_e2e.sh`
-A Linux scenario with two instances under Xvfb driven by xdotool, used in
-containers where there is no Android.
+all without a password. On an encrypted database it answers "cannot be read".
 
 ## What the tests will not check
 
@@ -262,8 +252,8 @@ Deliberate holes in coverage, to be checked by hand at release time:
   the 2.4 and 5 GHz bands, masks other than /24 (the scanner computes the
   broadcast address as if for a /24 and adds the global 255.255.255.255).
 - **Manufacturer app killing** on Android outside stock systems.
-- **Doze mode**, checked by hand on a phone (messages arrive, because the
-  foreground service overrides the network block), but with no automated test.
+- **Doze mode**: the foreground service overrides the network block, but there
+  is no automated test for it.
 - **The UI on Windows**: there are no widget tests; it is checked by clicking.
 - **Very large files and weak links**: the tests run over loopback, so they do
   not catch the timeouts typical of distant Wi-Fi.

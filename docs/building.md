@@ -66,9 +66,9 @@ takes **the whole directory** (the exe plus the DLLs and the `data` directory),
 and the target machine needs the "Microsoft Visual C++ Redistributable".
 
 A common error when rebuilding is `LNK1168: cannot open chatt.exe`, which means
-the previous instance is still running. Close it and repeat the build. Note
-that since 0.3.0 closing the window **hides the app in the tray**, so "close
-it" means "Close Chatt" from the icon menu, or `Stop-Process -Name chatt`.
+the previous instance is still running. Closing the window only **hides the app
+in the tray**, so "close it" means "Close Chatt" from the icon menu, or
+`Stop-Process -Name chatt`.
 
 ### Installer
 
@@ -78,10 +78,10 @@ from outside, to keep it out of a third place:
 
 ```
 choco install innosetup -y
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DWersja=0.3.1 app\windows\installer\chatt.iss
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DWersja=0.5.0 app\windows\installer\chatt.iss
 ```
 
-Output: `dist\chatt-0.3.1-instalator.exe` (the `dist/` directory is in
+Output: `dist\chatt-0.5.0-instalator.exe` (the `dist/` directory is in
 `.gitignore`). The script takes the **whole** `Release` directory, because the
 `.exe` alone, without the libraries and the `data` directory, will not start.
 The installation is per user (`PrivilegesRequired=lowest`), so there is no UAC
@@ -148,8 +148,8 @@ It should print `CN=Chatt, O=Mysttic, C=PL` and "Verifies". The signature uses
 scheme v2; v1 (JAR signing) is off, because `minSdk` is 24 and v1 is about
 older systems.
 
-When `key.properties` or the keystore is missing (a fresh clone, a cloud
-session), the release build **still passes**, only signed with the debug key,
+When `key.properties` or the keystore is missing (a fresh clone, CI without
+the secrets), the release build **still passes**, only signed with the debug key,
 and Gradle prints a warning. Such an APK is fine for testing but not for
 handing out.
 
@@ -184,7 +184,7 @@ Both files have to say the same thing, so they are bumped with one command:
 
 ```
 cd app
-python tool/wersja.py 0.3.1
+python tool/wersja.py 0.5.0
 ```
 
 The script raises the number in `VERSION.md` and in `pubspec.yaml`, and
@@ -238,7 +238,7 @@ When both gates let it through: the Windows build and a signed APK, a tag and a
 Release with three files, `chatt-<version>-android.apk`,
 `chatt-<version>-windows.zip` and `chatt-<version>-windows-instalator.exe`.
 
-In practice a release looks like this: `python tool/wersja.py 0.3.1` on
+In practice a release looks like this: `python tool/wersja.py 0.5.0` on
 `develop`, a PR to `master`, a merge.
 
 ### Secrets for signing the APK
@@ -285,7 +285,7 @@ bumped, it has to change in both files under `.github/workflows/`.
 CI takes care of the build and the tag; the rest is on your side:
 
 1. Raise the number on the `develop` branch: `cd app && python tool/wersja.py
-   0.3.1`.
+   0.5.0`.
 2. Refresh the documentation screenshots if the UI changed:
    `flutter test tool/product_shots.dart` (needs a running emulator).
 3. Open a PR from `develop` to `master` and wait for the tests to go green.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Kółko z inicjałem rozmówcy — odpowiednik makiety z Prototype/.
+/// Kółko z inicjałem rozmówcy: awatar na liście rozmów i w nagłówku.
 class InitialsAvatar extends StatelessWidget {
   final String name;
   final double radius;
