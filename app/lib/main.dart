@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/background_service.dart';
 import 'core/languages.dart';
+import 'core/startup_error.dart';
 import 'core/tray.dart';
 import 'data/db.dart';
 import 'l10n/app_localizations.dart';
@@ -12,7 +13,17 @@ import 'services/providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await _start();
+  } catch (blad, slad) {
+    // Wszystko poniżej dzieje się przed pierwszą klatką, a okno pokazuje się
+    // dopiero po niej. Bez tego przechwycenia proces zostawał żywy i niewidoczny.
+    final plik = await saveStartupError(blad, slad);
+    runApp(StartupErrorApp(error: blad, logPath: plik));
+  }
+}
 
+Future<void> _start() async {
   // Windows: krzyżyk ma chować okno do zasobnika, a nie kończyć nasłuchu.
   // Musi być przed pierwszą klatką, bo od niej można już kliknąć krzyżyk.
   await TrayIcon.instance.attach();

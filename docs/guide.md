@@ -222,6 +222,11 @@ Uninstalling removes the autostart entry but **does not touch the conversation
 history**: the database lives in Documents and is still there after a
 reinstall. To really get rid of it, use "Clear history" before uninstalling.
 
+If something goes wrong before the window opens, Chatt says so on a screen of
+its own and writes `chatt-startup-error.txt` next to the database in Documents.
+Conversation history and received files are left alone; the text in that file
+is what to attach to a report.
+
 The installer is not signed with a certificate, so SmartScreen shows a
 "Windows protected your PC" warning. "More info", then "Run anyway". A
 code-signing certificate costs a few hundred zloty a year and would change

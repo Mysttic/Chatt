@@ -152,6 +152,27 @@ class ConversationSummary {
   });
 }
 
+/// Dokłada kolumnę tylko wtedy, gdy tabela jeszcze jej nie ma.
+///
+/// Numer schematu i faktyczny układ tabel potrafią się rozjechać. Wystarczy,
+/// że proces zginie między wykonaniem ALTER TABLE a zapisem `user_version`:
+/// kolumna zostaje w pliku, licznik wersji nie, i przy kolejnym starcie
+/// migracja rusza od początku, żeby wywalić się na „duplicate column name".
+/// Bez tego sprawdzenia taka baza zabija aplikację raz na zawsze, bo ten sam
+/// błąd wraca przy każdym uruchomieniu, a wyjątek leci przed pierwszą klatką,
+/// więc nie ma nawet gdzie go zobaczyć.
+Future<void> _dodajKolumneJesliBrak(
+  Migrator m,
+  TableInfo table,
+  GeneratedColumn column,
+) async {
+  final opis = await m.database
+      .customSelect('PRAGMA table_info("${table.actualTableName}");')
+      .get();
+  final jest = opis.any((wiersz) => wiersz.read<String>('name') == column.name);
+  if (!jest) await m.addColumn(table, column);
+}
+
 @DriftDatabase(tables: [Settings, Peers, Conversations, Messages])
 class ChattDb extends _$ChattDb {
   ChattDb(super.e);
@@ -164,25 +185,25 @@ class ChattDb extends _$ChattDb {
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         // v2: wiadomości-pliki
-        await m.addColumn(messages, messages.kind);
-        await m.addColumn(messages, messages.fileName);
-        await m.addColumn(messages, messages.fileSize);
-        await m.addColumn(messages, messages.filePath);
+        await _dodajKolumneJesliBrak(m, messages, messages.kind);
+        await _dodajKolumneJesliBrak(m, messages, messages.fileName);
+        await _dodajKolumneJesliBrak(m, messages, messages.fileSize);
+        await _dodajKolumneJesliBrak(m, messages, messages.filePath);
       }
       if (from < 3) {
         // v3: klucz sesji z parowania. Wcześniejsze parowania nie miały
         // klucza, więc zielona tarcza obiecywałaby szyfrowanie, którego nie
         // ma, kasujemy je i prosimy o sparowanie jeszcze raz.
-        await m.addColumn(peers, peers.sessionKey);
+        await _dodajKolumneJesliBrak(m, peers, peers.sessionKey);
         await m.database.customStatement('UPDATE peers SET verified = 0');
       }
       if (from < 4) {
         // v4: wybór motywu
-        await m.addColumn(settings, settings.theme);
+        await _dodajKolumneJesliBrak(m, settings, settings.theme);
       }
       if (from < 5) {
         // v5: wybór języka
-        await m.addColumn(settings, settings.language);
+        await _dodajKolumneJesliBrak(m, settings, settings.language);
       }
       if (from < 6) {
         // v6: tożsamość urządzenia przestaje być losowym GUID-em i zaczyna
@@ -191,8 +212,8 @@ class ChattDb extends _$ChattDb {
         // pasować do czegokolwiek w sieci. Zostawienie ich znaczyłoby listę
         // wpisów, do których nie da się już napisać, czyścimy je razem
         // z historią i prosimy o znalezienie się od nowa.
-        await m.addColumn(settings, settings.identityKey);
-        await m.addColumn(peers, peers.publicKey);
+        await _dodajKolumneJesliBrak(m, settings, settings.identityKey);
+        await _dodajKolumneJesliBrak(m, peers, peers.publicKey);
         await m.database.customStatement('DELETE FROM messages');
         await m.database.customStatement('DELETE FROM conversations');
         await m.database.customStatement('DELETE FROM peers');
@@ -200,18 +221,18 @@ class ChattDb extends _$ChattDb {
       if (from < 7) {
         // v7: samoczynne kasowanie starych wiadomości. Domyślnie wyłączone:
         // włączenie go za kogoś skasowałoby historię bez pytania.
-        await m.addColumn(settings, settings.retentionDays);
+        await _dodajKolumneJesliBrak(m, settings, settings.retentionDays);
       }
       if (from < 8) {
         // v8: tło do wyboru. Domyślnie zero, czyli wygląd sprzed zmiany.
-        await m.addColumn(settings, settings.background);
+        await _dodajKolumneJesliBrak(m, settings, settings.background);
       }
       if (from < 9) {
         // v9: własna nazwa rozmówcy i przyjmowanie plików bez pytania.
         // Obie puste na starcie: nikt nie nadał jeszcze żadnej nazwy, a zgoda
         // na pliki bez pytania musi być świadoma, nie odziedziczona.
-        await m.addColumn(peers, peers.alias);
-        await m.addColumn(peers, peers.autoAccept);
+        await _dodajKolumneJesliBrak(m, peers, peers.alias);
+        await _dodajKolumneJesliBrak(m, peers, peers.autoAccept);
       }
     },
   );
