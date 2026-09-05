@@ -23,7 +23,7 @@ import '../network/discovery.dart';
 import '../network/protocol.dart';
 import '../network/server.dart';
 
-/// Prośba o zgodę na odbiór pliku — czeka na decyzję użytkownika.
+/// Prośba o zgodę na odbiór pliku: czeka na decyzję użytkownika.
 class PendingFileOffer {
   final String messageGuid;
   final String peerName;
@@ -35,7 +35,7 @@ class PendingFileOffer {
   final int conversationId;
 
   /// Czy nadawca jest sparowany kodem. Nazwa urządzenia to tylko napis,
-  /// który każdy może sobie ustawić — przy niesparowanym warto ostrzec.
+  /// który każdy może sobie ustawić, więc przy niesparowanym warto ostrzec.
   final bool fromVerifiedPeer;
 
   const PendingFileOffer({
@@ -54,14 +54,14 @@ class PendingFileOffer {
 typedef FileOfferPolicy = Future<bool> Function(PendingFileOffer offer);
 
 /// Wołane po zapisaniu wiadomości od rozmówcy (bez duplikatów). Warstwa UI
-/// decyduje, co z tym zrobić — np. powiadomienie, gdy okno jest zamknięte.
+/// decyduje, co z tym zrobić, np. powiadomienie, gdy okno jest zamknięte.
 typedef IncomingMessageHook = void Function(
     Peer peer, String preview, int conversationId);
 
-/// Zgoda przyjmuje wszystko bez pytania — dla testów i trybu bezobsługowego.
+/// Zgoda przyjmuje wszystko bez pytania (dla testów i trybu bezobsługowego).
 Future<bool> acceptAllFileOffers(PendingFileOffer offer) async => true;
 
-/// Odmowa dla wszystkiego — dla testów.
+/// Odmowa dla wszystkiego (dla testów).
 Future<bool> rejectAllFileOffers(PendingFileOffer offer) async => false;
 
 /// Parowanie czekające na to, aż użytkownik porówna kod z drugim ekranem.
@@ -71,7 +71,7 @@ class PendingPairing {
 
   /// Kod do porównania. Ten sam po obu stronach, o ile nikt nie siedzi
   /// w środku rozmowy. Przy [fromScan] jest to odcisk klucza tego, kto
-  /// zeskanował — do porównania z jego ekranem, gdyby ktoś chciał sprawdzić.
+  /// zeskanował, do porównania z jego ekranem, gdyby ktoś chciał sprawdzić.
   final String code;
 
   /// Druga strona zeskanowała nasz kod QR i prosi o potwierdzenie z tej
@@ -142,7 +142,7 @@ class _Session {
   void touch() => lastUsed = DateTime.now();
 }
 
-/// Trwający odbiór pliku (po akceptacji) — do paska postępu w czacie.
+/// Trwający odbiór pliku (po akceptacji), do paska postępu w czacie.
 class IncomingTransfer {
   final String messageGuid;
   final int conversationId;
@@ -167,7 +167,7 @@ class _AcceptedOffer {
   final int conversationId;
 
   /// Sesja, w której przyszła zapowiedź. Treść pliku musi przyjść w tej
-  /// samej — inaczej ktoś inny skonsumowałby cudzą zgodę.
+  /// samej: inaczej ktoś inny skonsumowałby cudzą zgodę.
   final String session;
 
   const _AcceptedOffer(this.offer, this.conversationId, this.session);
@@ -194,7 +194,7 @@ class AppServices {
   ValueListenable<double>? progressOf(int messageId) => _transferProgress[messageId];
 
   /// Zmienia się przy każdym starcie i końcu wysyłki. UI czatu się tym
-  /// odświeża — bez tego pasek postępu potrafił się nie pojawić, bo dymek
+  /// odświeża. Bez tego pasek postępu potrafił się nie pojawić, bo dymek
   /// zbudował się chwilę przed rejestracją transferu.
   final ValueNotifier<int> transfersRevision = ValueNotifier(0);
 
@@ -221,7 +221,7 @@ class AppServices {
   static String _offerKey(String senderGuid, String messageGuid) =>
       '$senderGuid|$messageGuid';
 
-  /// Pliki właśnie odbierane — po jednym transferze na guid.
+  /// Pliki właśnie odbierane: po jednym transferze na guid.
   final Set<String> _receivingFiles = {};
 
   /// Prośby o sparowanie, na które czeka użytkownik tego urządzenia.
@@ -243,13 +243,13 @@ class AppServices {
   /// Para kluczy tożsamości tego urządzenia (patrz [DeviceIdentity]).
   late final SimpleKeyPair _identityKeys;
 
-  /// sha256 wysyłanych plików — liczone raz na sesję, żeby ponowienie
+  /// sha256 wysyłanych plików, liczone raz na sesję, żeby ponowienie
   /// dużego transferu nie czytało pliku drugi raz tylko po to.
   final Map<String, String> _sentFileHashes = {};
 
   /// Czy klucz zaszyfrowanej bazy leży na dysku owinięty przez system
   /// (Android Keystore, Windows DPAPI). `false` znaczy, że schowek systemowy
-  /// odmówił i klucz leży obok bazy jawnie — patrz [DatabaseKey].
+  /// odmówił i klucz leży obok bazy jawnie (patrz [DatabaseKey]).
   bool keyProtected = true;
 
   /// Czy responder discovery nasłuchuje. `false` znaczy, że to urządzenie nie
@@ -364,7 +364,7 @@ class AppServices {
   }
 
   /// Nick przy pierwszym starcie. Android zwraca z `localHostname` po prostu
-  /// "localhost", co na liście urządzeń wygląda jak błąd — tam lepszy jest
+  /// "localhost", co na liście urządzeń wygląda jak błąd, więc tam lepszy jest
   /// czytelny domyślny nick (użytkownik i tak zmieni go w ustawieniach).
   static String _defaultDeviceName() {
     if (Platform.isAndroid || Platform.isIOS) return 'Telefon';
@@ -376,7 +376,7 @@ class AppServices {
     final envDir = ChattEnv.dataDir;
     if (envDir != null) return p.join(envDir, 'received');
     try {
-      // Android: katalog `files/` aplikacji — to jedyne miejsce, które
+      // Android: katalog `files/` aplikacji: to jedyne miejsce, które
       // FileProvider potrafi wypuścić na zewnątrz jako content:// (patrz
       // android/app/src/main/res/xml/file_paths.xml), więc odebrany plik da
       // się otworzyć w innej aplikacji. Desktop: katalog dokumentów, bo tam
@@ -387,7 +387,7 @@ class AppServices {
       return p.join(base.path, 'Chatt', 'received');
     } catch (_) {
       // path_provider wymaga kanału platformy; w testach bez bindingu rzuca
-      // Error (nie Exception) — tam wystarczy katalog tymczasowy.
+      // Error (nie Exception), a tam wystarczy katalog tymczasowy.
       return p.join(Directory.systemTemp.path, 'chatt', 'received');
     }
   }
@@ -415,7 +415,7 @@ class AppServices {
     final ichKlucz = _peerStaticKey(peer);
     if (ichKlucz == null) return null;
     // Klucz podpisowy wychodzi z samych kluczy statycznych, więc liczy się
-    // bez żywej sesji — discovery dzieje się, zanim jakakolwiek powstanie.
+    // bez żywej sesji: discovery dzieje się, zanim jakakolwiek powstanie.
     final podpisowy = await ChattCrypto.discoveryKey(
         myStatic: _identityKeys, theirStatic: ichKlucz);
     return ChattCrypto.discoveryTag(
@@ -429,7 +429,7 @@ class AppServices {
   /// Czy wierzymy w tę odpowiedź. Od sparowanego urządzenia wymagamy podpisu:
   /// bez tego ktoś mógłby odpowiedzieć jego guid-em spod swojego adresu
   /// i przejąć jego miejsce w naszej liście (a stamtąd bierzemy adres, gdy
-  /// rozmówcy zmieni się IP). Nieznajomych przyjmujemy jak dotąd — z nimi nie
+  /// rozmówcy zmieni się IP). Nieznajomych przyjmujemy jak dotąd, z nimi nie
   /// mamy wspólnego sekretu i sama obecność na liście niczego nie obiecuje.
   Future<bool> _trustDiscovered(
       DiscoveredPeer found, String? tag, String nonce) async {
@@ -448,7 +448,7 @@ class AppServices {
     return ChattCrypto.sameTag(expected, tag);
   }
 
-  /// Ręczne dodanie urządzenia po adresie — fallback, gdy broadcast nie
+  /// Ręczne dodanie urządzenia po adresie: fallback, gdy broadcast nie
   /// przechodzi (izolacja AP, emulator Androida za NAT-em).
   ///
   /// Zapisujemy adres, pod którym urządzenie FAKTYCZNIE odpowiedziało, a nie
@@ -487,7 +487,7 @@ class AppServices {
 
   /// Zaczyna parowanie: wysyłamy zobowiązanie do własnego klucza publicznego,
   /// dostajemy w odpowiedzi klucz drugiej strony, dopiero wtedy odsłaniamy
-  /// swój. Na koniec obie strony mają ten sam kod do porównania — nasz ląduje
+  /// swój. Na koniec obie strony mają ten sam kod do porównania, nasz ląduje
   /// w [pendingPairings], żeby pokazać go na ekranie.
   /// Zwraca null, gdy druga strona nie odpowiada albo zerwała rozmowę.
   Future<String?> startPairing(Peer peer) async {
@@ -537,7 +537,7 @@ class AppServices {
   }
 
   /// „Kody się zgadzają" na tym urządzeniu. Klucz zapisujemy dopiero, gdy
-  /// potwierdzą oba końce — inaczej jedna strona uznałaby się za sparowaną,
+  /// potwierdzą oba końce: inaczej jedna strona uznałaby się za sparowaną,
   /// a druga nie i cały ruch by się odbijał.
   Future<PairOutcome> confirmPairing(String peerGuid) async {
     final peer = await db.peerByGuid(peerGuid);
@@ -597,7 +597,7 @@ class AppServices {
     switch (message.action) {
       case pairScanned:
         // Ktoś twierdzi, że zeskanował nasz kod. Sam fakt niczego nie
-        // dowodzi (kod z ekranu jest jawny), więc pytamy użytkownika —
+        // dowodzi (kod z ekranu jest jawny), więc pytamy użytkownika:
         // to on wie, czy właśnie patrzył, jak jego telefon skanuje.
         if (!_identityMatchesKey(message.from)) {
           return const PairReply(PairOutcome.rejected);
@@ -675,7 +675,7 @@ class AppServices {
     }
   }
 
-  /// Od protokołu 5 parowanie nie ustala klucza do szyfrowania — ten bierze
+  /// Od protokołu 5 parowanie nie ustala klucza do szyfrowania: ten bierze
   /// się z sesji i zmienia co godzinę. Parowanie odpowiada wyłącznie na
   /// pytanie „czy ten klucz należy do osoby, o której myślę", więc jego
   /// wynikiem jest sama zielona tarcza.
@@ -704,7 +704,7 @@ class AppServices {
   ///
   /// Skanujący widział jego ekran, więc **z jego strony** sprawa jest
   /// zamknięta: klucz na pewno pochodzi od tamtego urządzenia i tarcza robi
-  /// się zielona od razu. Drugiej stronie wysyłamy tylko powiadomienie —
+  /// się zielona od razu. Drugiej stronie wysyłamy tylko powiadomienie:
   /// tam potwierdza człowiek, bo kod z ekranu mógł zobaczyć ktoś jeszcze.
   ///
   /// Zwraca rozmówcę albo null, gdy pod adresem z kodu nikt nie odpowiada
@@ -714,7 +714,7 @@ class AppServices {
 
     final info = await client.fetchInfo(link.host, link.port);
     if (info == null || !_identityMatchesKey(info) || info.guid != link.guid) {
-      // Pod tym adresem nie ma urządzenia z tym kluczem — kod jest stary
+      // Pod tym adresem nie ma urządzenia z tym kluczem: kod jest stary
       // (zmienił się adres) albo ktoś podstawił swój ekran.
       return null;
     }
@@ -759,7 +759,7 @@ class AppServices {
   }
 
   /// Klucz statyczny rozmówcy: z bazy, a jak go tam nie ma, to z `GET /info`.
-  /// Przy okazji przypinamy go do wpisu — od tej chwili wiadomo, z czyim
+  /// Przy okazji przypinamy go do wpisu, od tej chwili wiadomo, z czyim
   /// kluczem rozmawiamy.
   Future<List<int>?> _staticKeyOf(Peer peer) async {
     final zapisany = _peerStaticKey(peer);
@@ -773,7 +773,7 @@ class AppServices {
   }
 
   /// Sesja do rozmowy z tym urządzeniem. Żywą oddajemy od ręki, brakującą
-  /// nawiązujemy — jeden uścisk dłoni na rozmówcę, nawet gdy w tej samej
+  /// nawiązujemy: jeden uścisk dłoni na rozmówcę, nawet gdy w tej samej
   /// chwili leci kilka wiadomości.
   Future<_Session?> _sessionFor(Peer peer) {
     final istniejaca = _sessionsByPeer[peer.guid];
@@ -875,7 +875,7 @@ class AppServices {
   }
 
   /// Koperta: klucz znajdujemy po numerze sesji. Treść musi jeszcze mówić, że
-  /// pisze właściciel tej sesji — inaczej rozmówca mógłby podszyć się pod
+  /// pisze właściciel tej sesji: inaczej rozmówca mógłby podszyć się pod
   /// kogoś innego w swojej własnej, poprawnie zaszyfrowanej wiadomości.
   Future<Map<String, Object?>?> _openEnvelope(
       String sessionId, Map<String, Object?> envelope) async {
@@ -897,7 +897,7 @@ class AppServices {
   }
 
   /// Pakuje treść do koperty tej sesji. null = nie ma jak nawiązać sesji
-  /// (rozmówca offline albo bez klucza, czyli w starszej wersji) — a jawnym
+  /// (rozmówca offline albo bez klucza, czyli w starszej wersji), a jawnym
   /// tekstem od protokołu 5 nie wysyłamy niczego.
   Future<Map<String, Object?>?> _sealFor(
       Peer peer, Map<String, Object?> payload) async {
@@ -928,7 +928,7 @@ class AppServices {
   Future<int> openConversationWith(Peer peer) => db.ensureConversation(peer.id);
 
   /// Wysyłka: najpierw zapis lokalny (pending), potem dostarczenie i zmiana
-  /// statusu. Dzięki temu wiadomość nigdy nie ginie — najwyżej zostaje
+  /// statusu. Dzięki temu wiadomość nigdy nie ginie, najwyżej zostaje
   /// oznaczona jako niedostarczona, z możliwością ponowienia.
   Future<void> sendText(int conversationId, String text) async {
     final trimmed = text.trim();
@@ -966,7 +966,7 @@ class AppServices {
   }
 
   /// Wysyłka wielu plików naraz (wybór z okna albo przeciągnięcie na okno).
-  /// Idą po kolei, bo każdy z osobna pyta odbiorcę o zgodę — równoległe
+  /// Idą po kolei, bo każdy z osobna pyta odbiorcę o zgodę, a równoległe
   /// zapowiedzi znaczyłyby kilka pytań naraz i kilka strumieni w tej samej
   /// sesji. Katalogi odpadają same, bo [sendFile] sprawdza, czy to plik.
   Future<void> sendFiles(int conversationId, Iterable<String> paths) async {
@@ -1002,7 +1002,7 @@ class AppServices {
     var wynik = await _sendSealed(peer, payload);
 
     if (!wynik.delivered) {
-      // Rozmówca mógł dostać nowy adres z DHCP — szukamy go po GUID.
+      // Rozmówca mógł dostać nowy adres z DHCP, więc szukamy go po GUID.
       final moved = await _relocate(peer);
       if (moved != null) wynik = await _sendSealed(moved, payload);
     }
@@ -1012,7 +1012,7 @@ class AppServices {
   }
 
   /// Wysyłka w kopercie. Gdy odbiorca odpowie, że nie zna tej sesji (restart
-  /// albo wygasła), kasujemy ją u siebie i próbujemy raz jeszcze — z punktu
+  /// albo wygasła), kasujemy ją u siebie i próbujemy raz jeszcze, z punktu
   /// widzenia użytkownika nic się nie wydarzyło.
   Future<Delivery> _sendSealed(Peer peer, Map<String, Object?> payload) async {
     for (var proba = 0; proba < 2; proba++) {
@@ -1027,7 +1027,7 @@ class AppServices {
   }
 
   /// Rozmówca pod zapisanym adresem nie odpowiada. Adres IP w sieci domowej
-  /// zmienia się po restarcie routera, GUID nie — więc skanujemy sieć i jeśli
+  /// zmienia się po restarcie routera, GUID nie, więc skanujemy sieć i jeśli
   /// znajdziemy to samo urządzenie gdzie indziej, zapisujemy nowy adres.
   /// Zwraca rozmówcę z aktualnym adresem albo null, gdy naprawdę go nie ma.
   Future<Peer?> _relocate(Peer peer) async {
@@ -1057,8 +1057,8 @@ class AppServices {
 
   /// Wysyłka pliku: najpierw zapowiedź (odbiorca decyduje, czy chce go
   /// przyjąć i od którego bajtu), potem dopiero bajty. Odmowa i zerwany
-  /// transfer kończą się statusem "niedostarczone" z możliwością ponowienia
-  /// — wznowienie dokłada tylko brakującą część.
+  /// transfer kończą się statusem "niedostarczone" z możliwością ponowienia:
+  /// wznowienie dokłada tylko brakującą część.
   Future<void> _deliverFile(int messageId, Peer peer) async {
     final message = await db.messageById(messageId);
     final path = message?.filePath;
@@ -1078,7 +1078,7 @@ class AppServices {
       var target = peer;
       var sesja = await _sessionFor(target);
       if (sesja == null) {
-        // Bez sesji nie ma jak wysłać — może rozmówca dostał nowy adres.
+        // Bez sesji nie ma jak wysłać, może rozmówca dostał nowy adres.
         final moved = await _relocate(target);
         if (moved == null) {
           await db.setMessageStatus(messageId, MessageStatus.failed);
@@ -1092,7 +1092,7 @@ class AppServices {
         }
       }
 
-      // Klucz pliku wychodzi z klucza sesji, a ta wygasa — stąd znacznik
+      // Klucz pliku wychodzi z klucza sesji, a ta wygasa, stąd znacznik
       // w zapowiedzi, po którym odbiorca pozna, czy jego część transferu
       // pasuje jeszcze do tego, czym teraz szyfrujemy.
       var fileKey = await ChattCrypto.fileKey(
@@ -1139,7 +1139,7 @@ class AppServices {
         return;
       }
       if (reply != null && reply.alreadyHave) {
-        // Odbiorca ma już ten plik (zgubiony ACK) — nic nie wysyłamy.
+        // Odbiorca ma już ten plik (zgubiony ACK), nic nie wysyłamy.
         await db.setMessageStatus(messageId, MessageStatus.delivered);
         return;
       }
@@ -1154,7 +1154,7 @@ class AppServices {
 
       if (!delivered && resumeFrom > 0) {
         // Wznowienie nie weszło (odbiorca ma inną część, niż sądziliśmy).
-        // Pytamy go jeszcze raz, ile faktycznie ma — sama zapowiedź odtwarza
+        // Pytamy go jeszcze raz, ile faktycznie ma: sama zapowiedź odtwarza
         // też jego zgodę. Ślepe wysłanie całości od zera skończyłoby się
         // drugim monitem u odbiorcy i skasowaniem tego, co już dostał.
         offerPayload = await _sealFor(target, zapowiedz());
@@ -1201,7 +1201,7 @@ class AppServices {
         headers: {
           headerMessageGuid: message.messageGuid,
           headerFrom: encodeIdentityHeader(identity),
-          // Nazwa i suma kontrolna nie idą w nagłówkach — odbiorca ma je
+          // Nazwa i suma kontrolna nie idą w nagłówkach, odbiorca ma je
           // z zaszyfrowanej zapowiedzi, więc nikt ich po drodze nie podmieni.
           headerFileName: Uri.encodeComponent(encryptedFilePlaceholder),
           headerFileSize: '$total',
@@ -1232,7 +1232,7 @@ class AppServices {
     return _sentFileHashes[key] ??= await _sha256OfFile(file);
   }
 
-  /// sha256 liczone strumieniowo — plik nigdy nie ląduje w pamięci w całości.
+  /// sha256 liczone strumieniowo, plik nigdy nie ląduje w pamięci w całości.
   static Future<String> _sha256OfFile(File file) async =>
       (await sha256.bind(file.openRead()).first).toString();
 
@@ -1264,7 +1264,7 @@ class AppServices {
 
   /// Ruch "od" sparowanego urządzenia musi przyjść zaszyfrowany. Inaczej
   /// ktokolwiek w sieci, znając publiczny GUID (leci w discovery), mógłby
-  /// wstrzykiwać wiadomości do rozmowy oznaczonej zieloną tarczą — i przy
+  /// wstrzykiwać wiadomości do rozmowy oznaczonej zieloną tarczą, i przy
   /// okazji podmienić zapisany adres rozmówcy na swój.
 
   // --- Odbiór plików --------------------------------------------------------
@@ -1290,7 +1290,7 @@ class AppServices {
     final conversationId = await db.ensureConversation(peer.id);
 
     if (await db.messageByGuid(offer.messageGuid) != null) {
-      // Ten plik już mamy — nadawca nie musi przesyłać ani bajtu.
+      // Ten plik już mamy, nadawca nie musi przesyłać ani bajtu.
       return const FileOfferReply(accepted: true, alreadyHave: true);
     }
 
@@ -1322,13 +1322,13 @@ class AppServices {
 
   /// Plik przychodzący: streaming na dysk do pliku częściowego (dopisywanie
   /// przy wznowieniu), po komplecie weryfikacja rozmiaru i sumy kontrolnej,
-  /// dopiero potem rename do [receivedDir] i wpis w bazie — w katalogu
+  /// dopiero potem rename do [receivedDir] i wpis w bazie, w katalogu
   /// odebranych nigdy nie leży połowa pliku. Zerwany transfer zostawia część
   /// do dokończenia; duplikat (retry po zgubionym ACK-u) kwitujemy bez zapisu.
   Future<FileReceiveResult> _handleIncomingFile(IncomingFileMeta meta,
       Stream<List<int>> data, String fromHost, String session) async {
     // Treść pliku to surowe bajty, więc nadawcę rozpoznajemy po sesji
-    // z nagłówka. Nie nasza sesja albo cudza — nie ma czego przyjmować.
+    // z nagłówka. Nie nasza sesja albo cudza, nie ma czego przyjmować.
     final sesja = _sessionsById[session];
     if (sesja == null || sesja.peerGuid != meta.from.guid || !meta.encrypted) {
       return FileReceiveResult.rejected;
@@ -1349,7 +1349,7 @@ class AppServices {
     }
 
     // Dwa równoległe transfery tego samego pliku pisałyby do jednego pliku
-    // częściowego naraz — drugi odsyłamy z 409, nadawca ponowi.
+    // częściowego naraz, drugi odsyłamy z 409, nadawca ponowi.
     if (!_receivingFiles.add(meta.messageGuid)) {
       return FileReceiveResult.offsetMismatch;
     }
@@ -1366,13 +1366,13 @@ class AppServices {
     final part = _partFile(meta.messageGuid);
     var alreadyOnDisk = part.existsSync() ? part.lengthSync() : 0;
 
-    // Stan uzgadniamy PRZED pytaniem użytkownika — inaczej pytalibyśmy
+    // Stan uzgadniamy PRZED pytaniem użytkownika: inaczej pytalibyśmy
     // o plik, którego i tak nie przyjmiemy w tym zapytaniu.
     if (meta.offset != alreadyOnDisk) {
       // Nadawca chce dopisać od innego miejsca, niż mamy: część zostaje na
       // dysku (kolejna zapowiedź powie mu, ile jej jest).
       if (meta.offset != 0) return FileReceiveResult.offsetMismatch;
-      // Nadawca leci od zera — nadpisujemy to, co było.
+      // Nadawca leci od zera, nadpisujemy to, co było.
       alreadyOnDisk = 0;
     }
 
@@ -1432,7 +1432,7 @@ class AppServices {
       }
       await sink.flush();
     } catch (_) {
-      // Zerwane połączenie — to, co doszło, zostaje na dysku do wznowienia.
+      // Zerwane połączenie: to, co doszło, zostaje na dysku do wznowienia.
       return FileReceiveResult.incomplete;
     } finally {
       try {
@@ -1468,7 +1468,7 @@ class AppServices {
       return FileReceiveResult.incomplete;
     }
     // Duplikat (ten sam guid) trafia w tę samą ścieżkę, więc rename tylko
-    // podmienia identyczny plik — wtedy zostaje sam wpis z bazy.
+    // podmienia identyczny plik, wtedy zostaje sam wpis z bazy.
     final inserted = await db.insertIncoming(
       conversationId: conversationId,
       messageGuid: meta.messageGuid,
@@ -1527,7 +1527,7 @@ class AppServices {
 
   /// Ile bajtów tego pliku mamy już z poprzedniej próby. Część liczy się
   /// tylko wtedy, gdy opis obok niej zgadza się co do nazwy, rozmiaru i sumy
-  /// kontrolnej — inaczej to inny plik pod tym samym guid-em i idzie do kosza.
+  /// kontrolnej: inaczej to inny plik pod tym samym guid-em i idzie do kosza.
   int _resumableBytes(FileOffer offer) {
     final part = _partFile(offer.messageGuid);
     if (!part.existsSync()) return 0;
@@ -1644,7 +1644,7 @@ class AppServices {
     return portChanged;
   }
 
-  /// Lokalne adresy IPv4 — pokazywane w ustawieniach, żeby dało się ręcznie
+  /// Lokalne adresy IPv4, pokazywane w ustawieniach, żeby dało się ręcznie
   /// sparować urządzenia, gdy discovery nie działa.
   Future<List<String>> localAddresses() async {
     try {
@@ -1686,7 +1686,7 @@ class AppServices {
       days <= 0 ? Future.value(0) : db.deleteMessagesOlderThan(Duration(days: days));
 
   Future<void> dispose() async {
-    // Nikt już nie odpowie na wiszące prośby o zgodę — odmawiamy, żeby
+    // Nikt już nie odpowie na wiszące prośby o zgodę: odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {
       _resolveOffer(guid, false);

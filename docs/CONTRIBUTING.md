@@ -65,7 +65,7 @@ scenarios that need a real device, are described in [testing.md](testing.md).
 
 ## Documentation images
 
-The screenshots in `docs/screenshots/` are generated, not taken by hand:
+The screenshots in `docs/screenshots/` are generated:
 
 ```
 cd app
@@ -87,8 +87,8 @@ A pull request **into `master`** runs `flutter analyze` and the whole test
 suite. Please describe what changes and how it was verified; the template asks
 for both.
 
-A release is a separate pull request. It raises the number in `VERSION.md` and
-`app/pubspec.yaml` with one command:
+A release is a separate pull request. It raises the number in `VERSION.md`,
+`app/pubspec.yaml` and `app/lib/core/version.dart` with one command:
 
 ```
 cd app

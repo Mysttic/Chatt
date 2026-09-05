@@ -34,6 +34,7 @@ import 'package:chatt/app.dart';
 import 'package:chatt/data/db.dart';
 import 'package:chatt/network/protocol.dart' show defaultTcpPort;
 import 'package:chatt/services/app_services.dart';
+import 'package:chatt/services/presence.dart';
 import 'package:chatt/services/providers.dart';
 
 const Map<String, String> _pl = {
@@ -81,7 +82,7 @@ Future<void> odczekaj(WidgetTester tester,
 Future<void> zrzut(WidgetTester tester, GlobalKey klucz, String nazwa) async {
   await odczekaj(tester);
   // Bez myszy i bez dotyku harness trzyma fokus klawiatury na pierwszym
-  // przycisku i obrysowuje go — zdejmujemy fokus przed zrzutem.
+  // przycisku i obrysowuje go, zdejmujemy fokus przed zrzutem.
   tester.binding.focusManager.primaryFocus?.unfocus();
   await tester.pump();
 
@@ -89,7 +90,7 @@ Future<void> zrzut(WidgetTester tester, GlobalKey klucz, String nazwa) async {
       tester.renderObject<RenderRepaintBoundary>(find.byKey(klucz));
   // Cienie tylko na czas zrzutu. W testach są wyłączone, a uniesione
   // powierzchnie (karty, przycisk pływający) dostają zamiast nich grubą
-  // ciemną obwódkę — zrzut ma wyglądać jak aplikacja. Flagę oddajemy od razu,
+  // ciemną obwódkę, a zrzut ma wyglądać jak aplikacja. Flagę oddajemy od razu,
   // bo framework sprawdza jej stan po ciele testu, jeszcze przed tearDown.
   ByteData? bajty;
   try {
@@ -200,7 +201,7 @@ void main() {
           jezyk == 'en' ? AppLanguage.english : AppLanguage.polish);
       await ja.db.saveTheme(AppTheme.light);
       // Stos stoi na porcie losowym (portOverride: 0), a pole w ustawieniach
-      // pokazuje to, co w bazie — na zrzucie do sklepu „0" wyglądałoby jak
+      // pokazuje to, co w bazie, a na zrzucie do sklepu „0" wyglądałoby jak
       // usterka, więc wpisujemy port domyślny.
       await ja.db.saveSettings(
         nickname: t['ja']!,
@@ -222,7 +223,7 @@ void main() {
 
       // Odpowiedź z komputera tutaj, zanim harness zacznie pompować klatki:
       // wysyłka wołana po `pumpWidget` trwała 30 s (limit klienta), choć
-      // w zwykłych testach ta sama droga zajmuje milisekundy — udawany zegar
+      // w zwykłych testach ta sama droga zajmuje milisekundy: udawany zegar
       // harnessu i prawdziwe gniazda nie lubią się w jednej ścieżce.
       final annaUMnie = await ja.db.peerByGuid(anna.identity.guid);
       final rozmowaZAnna = await ja.db.ensureConversation(annaUMnie!.id);
@@ -234,7 +235,17 @@ void main() {
     await tester.pumpWidget(RepaintBoundary(
       key: klucz,
       child: ProviderScope(
-        overrides: [appServicesProvider.overrideWithValue(ja)],
+        overrides: [
+          appServicesProvider.overrideWithValue(ja),
+          // Obecność wpisana z ręki. Zwykle bierze się z odpytania sieci, ale
+          // ta droga pod udawanym zegarem harnessu wisi do limitu klienta
+          // (patrz uwaga wyżej). Oba komputery naprawdę tu nasłuchują, więc
+          // zielona kropka na zrzucie mówi to samo, co powiedziałaby sonda.
+          presenceProvider.overrideWith((ref) => Stream.value({
+                anna.identity.guid: true,
+                biuro.identity.guid: true,
+              })),
+        ],
         child: const ChattApp(),
       ),
     ));

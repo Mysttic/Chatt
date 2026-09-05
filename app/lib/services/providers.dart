@@ -4,7 +4,7 @@ import '../data/db.dart';
 import 'app_services.dart';
 
 /// Uruchomiony stos aplikacji. Wartość jest wstrzykiwana w main() przez
-/// override — dzięki temu testy mogą podstawić własną instancję.
+/// override: dzięki temu testy mogą podstawić własną instancję.
 final appServicesProvider = Provider<AppServices>(
   (ref) => throw UnimplementedError('appServicesProvider nadpisywany w main()'),
 );

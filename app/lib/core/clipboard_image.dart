@@ -20,7 +20,7 @@ bool get canCopyImage => Platform.isWindows;
 
 /// Kopiuje obrazek spod [path] do schowka. `false` znaczy, że się nie udało:
 /// schowek zajęty przez inny proces, nieczytelny plik albo platforma bez
-/// implementacji kanału. Wywołanie nigdy nie rzuca — komunikat dla użytkownika
+/// implementacji kanału. Wywołanie nigdy nie rzuca, komunikat dla użytkownika
 /// wychodzi z wyniku, a nie z wyjątku w środku menu.
 Future<bool> copyImageToClipboard(String path) async {
   if (!canCopyImage) return false;

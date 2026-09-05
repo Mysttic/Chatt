@@ -92,7 +92,7 @@ final String jezyk = Platform.environment['CHATT_SHOTS_LANG'] ?? 'pl';
 final Map<String, String> t = jezyk == 'en' ? _en : _pl;
 
 Future<void> zrzut(String nazwa) async {
-  // Chwila na dokończenie animacji — inaczej łapiemy przejście w połowie.
+  // Chwila na dokończenie animacji, inaczej łapiemy przejście w połowie.
   await Future<void>.delayed(const Duration(milliseconds: 700));
   final wynik = await Process.run(
     _adb,
@@ -115,7 +115,7 @@ Future<String> drzewo() async {
 /// jako `content-desc` i potrafi scalić całą kartę w jeden węzeł, więc
 /// dopasowujemy po fragmencie, a nie po całości.
 /// [wystapienie] rozstrzyga, gdy ta sama etykieta jest na ekranie kilka razy
-/// (np. „System" i przy motywie, i przy języku) — liczone od góry drzewa.
+/// (np. „System" i przy motywie, i przy języku), liczone od góry drzewa.
 Future<(int, int)?> znajdz(
   String etykieta, {
   Duration timeout = const Duration(seconds: 10),
@@ -147,7 +147,7 @@ Future<(int, int)?> znajdz(
 
 /// Pisze wiadomość w otwartej rozmowie i wysyła ją. `adb shell input text`
 /// nie umie polskich znaków (rzuca wyjątkiem), więc teksty wpisywane tą drogą
-/// są bez diakrytyków — to widać tylko w zrzutach, aplikacji nie dotyczy.
+/// są bez diakrytyków, to widać tylko w zrzutach, aplikacji nie dotyczy.
 Future<void> napisz(String tekst) async {
   // Pole tekstowe nie ma opisu w drzewie (Flutter wystawia sam podpowiedź),
   // więc szukamy po klasie widoku.
@@ -159,7 +159,7 @@ Future<void> napisz(String tekst) async {
   // trafień bierzemy najwyższe na ekranie: klawiatura ekranowa też ma klawisz
   // z opisem „Send" (system emulatora jest angielski), a drzewo widoków
   // obejmuje wszystkie okna. Klawisz klawiatury wysyła przez akcję IME, która
-  // przy okazji zabiera fokus polu — potem BACK cofał cały ekran rozmowy.
+  // przy okazji zabiera fokus polu, a potem BACK cofał cały ekran rozmowy.
   final przycisk = await znajdzNajwyzszy(t['wyslij']!);
   if (przycisk == null) throw StateError('Nie ma przycisku ${t['wyslij']}');
   print('napisz: przycisk ${t['wyslij']} w $przycisk; wszystkie: '
@@ -173,7 +173,7 @@ Future<void> napisz(String tekst) async {
 }
 
 /// Wpisuje tekst w pierwsze pole edycji na ekranie. W trybie szukania jest
-/// nim pole w pasku u góry — leży w drzewie wyżej niż pole wiadomości.
+/// nim pole w pasku u góry, leży w drzewie wyżej niż pole wiadomości.
 Future<void> wpisz(String tekst) async {
   final pole = await znajdzKlase('android.widget.EditText');
   if (pole == null) throw StateError('Nie ma pola do wpisania');
@@ -212,7 +212,7 @@ Future<(int, int, int, int)?> ramka(String etykieta,
 ///    `input swipe` wstrzykuje całą gestykulację na raz i licznik
 ///    przytrzymania po stronie Fluttera (zwykły Timer) nie zdąży się odpalić.
 /// 2. [poziom] zamiast środka węzła. Dymek własnej wiadomości jest dosunięty
-///    do prawej, a semantyka Fluttera obejmuje cały wiersz listy — środek
+///    do prawej, a semantyka Fluttera obejmuje cały wiersz listy, a środek
 ///    takiego węzła wypada w pustym miejscu obok dymka.
 Future<void> przytrzymaj(String etykieta, {double poziom = 0.5}) async {
   // Układ musi się uspokoić: współrzędne z drzewa sprzed animacji trafiają
@@ -229,7 +229,7 @@ Future<void> przytrzymaj(String etykieta, {double poziom = 0.5}) async {
   await Future<void>.delayed(const Duration(seconds: 1));
 }
 
-/// Obrazek na demo miniatury. Rysowany, a nie dołączany do repozytorium —
+/// Obrazek na demo miniatury. Rysowany, a nie dołączany do repozytorium:
 /// zrzuty mają dać się odtworzyć bez wlekania za sobą cudzych zdjęć.
 Future<List<int>> demoObrazek() async {
   const szerokosc = 720.0;
@@ -293,7 +293,7 @@ Future<void> schowajKlawiature() async {
 }
 
 /// Wraca do rozmowy z [rozmowca], jeśli coś nas z niej wyrzuciło. Ekran
-/// rozmowy poznajemy po lupie w pasku — na liście rozmów lupa ma inny opis.
+/// rozmowy poznajemy po lupie w pasku, na liście rozmów lupa ma inny opis.
 Future<void> upewnijSieWRozmowie(String rozmowca) async {
   final wRozmowie = await znajdz(t['szukaj']!,
       timeout: const Duration(seconds: 2), dokladnie: true);
@@ -381,7 +381,7 @@ void main() {
 
     // Czysta aplikacja: zrzuty mają pokazywać demo, a nie czyjeś dane.
     // `pm clear` kasuje też zgodę na powiadomienia, a systemowe okienko
-    // z pytaniem zasłoniłoby pierwszy ekran — dlatego przyznajemy ją z góry.
+    // z pytaniem zasłoniłoby pierwszy ekran, dlatego przyznajemy ją z góry.
     await adb(['shell', 'pm', 'clear', appPackage]);
     await adb([
       'shell',

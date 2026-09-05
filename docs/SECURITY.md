@@ -7,7 +7,7 @@ reach users with the next release.
 
 ## Reporting a vulnerability
 
-Please report security issues privately, not as a public issue:
+Please report security issues privately:
 
 - open a [private security advisory](https://github.com/Mysttic/Chatt/security/advisories/new)
   on GitHub (preferred), or
@@ -36,7 +36,7 @@ together with what it deliberately does not cover.
 
 ## Things that are known and intended
 
-These are design decisions, not vulnerabilities:
+These are design decisions:
 
 - **Discovery is in the clear.** The device name and port are visible to
   everyone on the network. A broadcast goes out to somebody you do not know
@@ -50,7 +50,7 @@ These are design decisions, not vulnerabilities:
   history; file content stays where the user opens it with other applications.
 - **The database key can be read by a process running as the same system
   user.** On Windows DPAPI unwraps it for any such process; on Android the app
-  sandbox is what protects it. Protection is against a copied disk or a copied
-  file, not against code already running as you.
+  sandbox is what protects it. Protection covers a copied disk or a copied
+  file; code already running as you can read the key.
 - **Nothing leaves the local network.** There is no server, no telemetry and no
   crash reporting, so there is no reporting channel to abuse either.

@@ -22,7 +22,7 @@ import androidx.core.app.NotificationCompat
  * wystarczy: bez MulticastLock układ Wi-Fi odsiewa pakiety rozgłoszeniowe
  * zanim dojdą do aplikacji, czyli ginie discovery. WifiLock ma trzymać radio
  * z dala od głębokiego oszczędzania przy zgaszonym ekranie, ale od Androida 13
- * jest bezużyteczny (szczegóły przy [acquireWifiLocks]) — tam broni nas już
+ * jest bezużyteczny (szczegóły przy [acquireWifiLocks]), tam broni nas już
  * tylko wyjątek od optymalizacji baterii, o który prosimy z ustawień.
  */
 class ChattService : Service() {
@@ -55,7 +55,7 @@ class ChattService : Service() {
     }
 
     /**
-     * Obie blokady biorą kontekst aplikacji, a nie usługi — usługa może
+     * Obie blokady biorą kontekst aplikacji, a nie usługi, bo usługa może
      * zniknąć wcześniej niż blokada, a wtedy trzymanie referencji do niej
      * byłoby wyciekiem. Bez zliczania referencji: bierzemy raz i oddajemy raz.
      */
@@ -70,7 +70,7 @@ class ChattService : Service() {
             // działający przy zgaszonym ekranie to HIGH_PERF, a od Androida 13
             // system przyjmuje go i ignoruje (sprawdzone: `dumpsys wifi`
             // pokazuje wtedy „0 full high perf"). LOW_LATENCY nie zastępuje go
-            // wcale — jest aktywny wyłącznie dla aplikacji na wierzchu.
+            // wcale, jest aktywny wyłącznie dla aplikacji na wierzchu.
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                 @Suppress("DEPRECATION")
                 wifiLock = wifi.createWifiLock(
@@ -83,7 +83,7 @@ class ChattService : Service() {
             }
         } catch (error: Exception) {
             // Brak Wi-Fi (np. tylko sieć komórkowa) albo producent zabrał
-            // blokady — aplikacja ma działać dalej, tylko gorzej w tle.
+            // blokady, aplikacja ma działać dalej, tylko gorzej w tle.
         }
     }
 
@@ -92,7 +92,7 @@ class ChattService : Service() {
             multicastLock?.takeIf { it.isHeld }?.release()
             wifiLock?.takeIf { it.isHeld }?.release()
         } catch (error: Exception) {
-            // Zwolnienie już zwolnionej blokady — nie ma czym się przejmować.
+            // Zwolnienie już zwolnionej blokady, nie ma czym się przejmować.
         }
         multicastLock = null
         wifiLock = null
@@ -146,7 +146,7 @@ class ChattService : Service() {
             }
             true
         } catch (error: Exception) {
-            // Np. limity startu usług w tle — aplikacja ma działać dalej.
+            // Np. limity startu usług w tle, aplikacja ma działać dalej.
             false
         }
 

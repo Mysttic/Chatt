@@ -29,7 +29,7 @@ void main() {
 
     final db = raw.sqlite3.open(path);
     expect(db.select('PRAGMA cipher;'), isNotEmpty,
-        reason: 'build bez sqlite3mc — PRAGMA key nic by nie robił');
+        reason: 'build bez sqlite3mc, PRAGMA key nic by nie robił');
     db.execute("PRAGMA key = 'haslo';");
     db.execute('CREATE TABLE t (v TEXT);');
     db.execute("INSERT INTO t VALUES ('$_sekret');");

@@ -63,8 +63,7 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 ### Messages (`test/messaging_e2e_test.dart`, 5 tests)
 - pairing by address, exchanging messages both ways, dedupe
 - recipient offline: failed, and after it comes back a retry delivers
-- adding by hand records the address the device **answered from**, not the one
-  it announces
+- adding by hand records the address the device **answered from**
 - we do not talk to ourselves (a loop onto our own address)
 - the server rejects garbage without falling over
 
@@ -125,8 +124,8 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 - the conversation list filters by peer name and last message, and a
   conversation with no messages at all does not break filtering
 - only images by extension get a thumbnail, `photo.png.exe` does not
-- a background number outside the list falls back to "no background" instead of
-  crashing on the index (the database may hold a number from a newer version)
+- a background number outside the list falls back to "no background" (the
+  database may hold a number from a newer version)
 - every background set has colours for the light and the dark theme
 
 ### The database on disk (`test/encrypted_db_test.dart`, 9 tests)
@@ -139,8 +138,7 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   nothing left to rewrite
 - the database key: with no system keystore it is written in the clear but does
   not change between starts; with a keystore something other than the password
-  lands on disk; a keystore that stopped unwrapping the key is an error, not a
-  silent empty database
+  lands on disk; a keystore that stopped unwrapping the key is an error
 - "clear history" leaves devices together with their confirmation
 - the age limit deletes only messages older than itself, and turned off
   (0 days) it deletes nothing
@@ -151,10 +149,19 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   broadcast name back
 - taking files without asking cannot be turned on for a peer whose identity is
   unconfirmed, and removing the confirmation turns it off. The database guards
-  that, not the screen, because it is the boundary of the user's consent
+  that, because it is the boundary of the user's consent
 - three live transfers between two instances: a confirmed peer with consent
   gets the file through with no question asked; the same peer without consent
   still raises one; and the flag alone, with the shield gone, raises one too
+
+### Presence on the list (`test/presence_test.dart`, 1 test)
+- two live instances and one entry pointing at an address where nothing
+  listens; the provider that feeds the green dot answers `true` for the first
+  and `false` for the second
+
+### The version number (`test/version_test.dart`, 1 test)
+- the constant in `lib/core/version.dart` agrees with `pubspec.yaml` and
+  `VERSION.md`, which catches a file left behind when the number was raised
 
 ### Messages in the corner (`test/toasts_test.dart`, 4 tests)
 - the queue keeps its order, a message goes away by its id, and the oldest
@@ -178,7 +185,7 @@ instances talk to each other over a real socket.
   afterwards
 
 ### Resistance to a security downgrade (`test/downgrade_test.dart`, 3 tests)
-The attacker knows a peer's identifier but not its private key:
+The attacker knows a peer's identifier and has no private key for it:
 - a plaintext message impersonating a known peer is rejected
 - a plaintext file announcement from a known peer is rejected
 - a plaintext transfer will not replace a file announced under encryption

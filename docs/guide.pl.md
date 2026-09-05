@@ -16,11 +16,17 @@ wiadomości i pliki idą prosto z jednego urządzenia do drugiego.
 3. Wejdź w **Ustawienia** i ustaw nick, po którym rozpoznasz to urządzenie
    na liście u rozmówcy.
 
+Numer wersji stoi w pasku nad listą rozmów, a Ustawienia powtarzają go
+w sekcji „To urządzenie". Przydaje się przy zgłaszaniu problemu.
+
 ## Znajdowanie drugiego urządzenia
 
 Przycisk **W pobliżu** → **Szukaj urządzeń w sieci**. Skan rozsyła po sieci
 jedno zapytanie i zbiera odpowiedzi przez dwie sekundy. Jeden skan uczy obie
 strony nawzajem: urządzenie, które odpowiedziało, też zapamiętuje szukającego.
+
+Ekran otwiera się bez listy. Pojawia się na nim to, co odpowiedziało na
+ostatni skan, więc opisuje sieć taką, jaka jest w tej chwili.
 
 <img src="screenshots/produkt/android_urzadzenia_w_poblizu.png" alt="Urządzenia w pobliżu" width="260">
 
@@ -41,6 +47,11 @@ i których nie widać od godziny.
 Kliknięcie urządzenia otwiera rozmowę. Pod nazwą rozmówcy widać, czy jest
 w tej chwili dostępny.
 
+Wpisy na liście rozmów niosą dwa znaki: zieloną kropkę na awatarze, dopóki
+urządzenie odpowiada w sieci, i zieloną tarczę przy nazwie, gdy jego tożsamość
+jest potwierdzona. Lista pyta każde znane urządzenie co 30 sekund, tylko przy
+otwartym ekranie.
+
 <img src="screenshots/produkt/android_rozmowa_z_plikiem.png" alt="Rozmowa" width="260">
 
 Statusy przy wysłanej wiadomości:
@@ -49,7 +60,7 @@ Statusy przy wysłanej wiadomości:
 |---|---|
 | zegarek | zapisana u Ciebie, jeszcze niedostarczona |
 | podwójny check | rozmówca potwierdził odbiór |
-| „Nie dostarczono — ponów" | próba się nie udała, kliknij, żeby powtórzyć |
+| „Nie dostarczono, ponów" | próba się nie udała, kliknij, żeby powtórzyć |
 
 Wiadomość nigdy nie ginie po drodze: najpierw zapisuje się lokalnie, a dopiero
 potem leci do rozmówcy. Jeśli w międzyczasie zmienił mu się adres IP,
@@ -64,8 +75,7 @@ tekst".
 **Przytrzymanie dymka** daje menu: skopiowanie całej treści, zaznaczenie
 fragmentu i skasowanie wiadomości. Na komputerze to samo menu otwiera prawy
 przycisk myszy. Kasowanie działa tylko u Ciebie: protokół nie ma jak kazać drugiej stronie
-zapomnieć czegoś, co już dostała, i aplikacja mówi to wprost zamiast obiecywać
-„usuń u wszystkich".
+zapomnieć czegoś, co już dostała, i aplikacja mówi to wprost.
 
 <img src="screenshots/produkt/android_menu_wiadomosci.png" alt="Menu wiadomości" width="260">
 
@@ -91,7 +101,7 @@ dla każdego, po kolei.
 - Przerwany transfer (zerwane Wi‑Fi, uśpiony telefon) zostaje na dysku jako
   część. Kolejna próba **dokłada tylko brakujący kawałek**, a po złożeniu
   całości aplikacja sprawdza sumę kontrolną. Gdy coś się nie zgadza, plik
-  jest odrzucany zamiast trafić do Ciebie po cichu uszkodzony.
+  jest odrzucany.
 - Ponowienie po zgubionym potwierdzeniu nie pyta o zgodę drugi raz i nie
   przesyła ani bajtu: odbiorca odpowiada „już to mam".
 
@@ -116,9 +126,9 @@ wyłącznie to, na co sam się zgodziłeś i co już leży na dysku.
 ## Szyfrowanie i potwierdzanie tożsamości
 
 **Rozmowa jest szyfrowana od pierwszej wiadomości**, także z urządzeniem,
-którego jeszcze nie potwierdziłeś. Potwierdzenie odpowiada na inne pytanie:
-nie „czy ktoś to przeczyta" (nie przeczyta), tylko „czy po drugiej stronie
-jest ta osoba, o której myślę".
+którego jeszcze nie potwierdziłeś. Potwierdzenie odpowiada na jedno pytanie:
+czy po drugiej stronie jest ta osoba, o której myślę. Treści i tak nikt inny
+nie przeczyta.
 
 Tarcza w nagłówku rozmowy otwiera panel bezpieczeństwa: stan szyfrowania
 i odciski obu kluczy. Odcisk wynika z klucza urządzenia i nigdy się nie
@@ -150,8 +160,7 @@ Do potwierdzenia tożsamości są dwie drogi:
   ostrzeżenie, a prośba o ponowne potwierdzenie znanego już urządzenia jest
   oznaczona na czerwono.
 
-W tym samym panelu siedzą dwie rzeczy, które należą do rozmówcy, a nie do
-pojedynczej wiadomości:
+W tym samym panelu siedzą dwie rzeczy, które należą do rozmówcy:
 
 - **Zmień nazwę.** Urządzenie rozgłasza własną nazwę, więc komputer trafia na
   listę jako coś w rodzaju `DESKTOP-8F2A1C`. Nadaj mu swoją i to ją zobaczysz
@@ -161,7 +170,7 @@ pojedynczej wiadomości:
 - **Przyjmuj pliki bez pytania.** Pliki od tego urządzenia trafiają wtedy prosto
   do rozmowy, bez karty z pytaniem. Przełącznik działa wyłącznie przy zielonej
   tarczy i gaśnie sam, gdy potwierdzenie zniknie: zgoda dotyczyła potwierdzonej
-  tożsamości, a nie nazwy, którą każdy może sobie wpisać.
+  tożsamości.
 
 ## Nasłuch w tle na Androidzie
 
@@ -179,8 +188,8 @@ producentów dokłada własne mechanizmy ubijania aplikacji.
 
 ## Nasłuch w tle na Windowsie
 
-Zamknięcie okna krzyżykiem **chowa Chatta do zasobnika** zamiast kończyć
-program: nasłuch działa dalej, a okno wraca kliknięciem ikony. Wyjście
+Zamknięcie okna krzyżykiem **chowa Chatta do zasobnika**: nasłuch działa
+dalej, a okno wraca kliknięciem ikony. Wyjście
 z programu jest w menu tej ikony (prawy przycisk → „Zamknij Chatt").
 
 Windows 11 chowa nowe ikony pod strzałkę „pokaż ukryte ikony". Żeby Chatt
@@ -234,13 +243,13 @@ o jedno dotknięcie dalej.
 
 Krótkie komunikaty („Skopiowano", „Usunięto rozmowę") pokazują się w prawym
 górnym rogu, z paskiem odliczającym czas do zniknięcia. Kliknięcie zamyka je od
-razu. Są na górze, a nie na dole, żeby nie zasłaniały przycisku ani pola
-tekstowego, którego przed chwilą użyłeś.
+razu. Na górze nie zasłaniają przycisku ani pola tekstowego, którego przed
+chwilą użyłeś.
 
 Tła to gotowe zestawy: „Bez tła" (zwykły kolor motywu), Zmierzch, Ocean,
 Las i Piasek. Każdy ma osobne kolory na motyw jasny i ciemny, a wszystkie są
 celowo przygaszone: na tle leżą dymki i karty, które muszą zostać czytelne.
-Powiadomienia usługi w tle też idą za językiem aplikacji, a nie systemu.
+Powiadomienia usługi w tle też idą za językiem aplikacji.
 
 <img src="screenshots/produkt/android_lista_rozmow_ciemny.png" alt="Tryb ciemny" width="260">
 
@@ -265,7 +274,7 @@ Tam samym są dwie rzeczy do zrobienia ręcznie:
 <img src="screenshots/android/and21_wyczysc_historie.png" alt="Wyczyść historię" width="260">
 
 W obu przypadkach **odebrane pliki zostają na dysku**. Aplikacja kasuje własne
-wpisy, a nie zawartość, którą użytkownik otwiera innymi programami.
+wpisy; pliki, które otwierasz innymi programami, zostają.
 
 ## Dwie instancje na jednym komputerze
 

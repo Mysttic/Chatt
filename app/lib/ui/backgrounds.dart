@@ -10,7 +10,7 @@ import '../l10n/app_localizations.dart';
 /// i ciemnego, bo ten sam gradient nie działa w obu.
 ///
 /// Kolory są celowo przygaszone. Tło ma być tłem, a nie konkurencją dla
-/// treści — na nim leżą karty i dymki, które muszą zostać czytelne.
+/// treści: na nim leżą karty i dymki, które muszą zostać czytelne.
 class ChattBackground {
   final String id;
 
@@ -39,7 +39,7 @@ class ChattBackground {
 }
 
 /// Kolejność decyduje o numerze zapisanym w bazie, więc nowe zestawy
-/// dokłada się **na koniec** — inaczej komuś zmieni się tło po aktualizacji.
+/// dokłada się **na koniec**: inaczej komuś zmieni się tło po aktualizacji.
 const chattBackgrounds = <ChattBackground>[
   ChattBackground(id: 'brak'),
   ChattBackground(

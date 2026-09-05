@@ -1,6 +1,6 @@
 ; Instalator Windows dla Chatta (Inno Setup 6).
 ;
-; Wersja przenośna (zip) zostaje obok — nie każdy chce cokolwiek instalować.
+; Wersja przenośna (zip) zostaje obok, nie każdy chce cokolwiek instalować.
 ; Instalator dokłada to, czego zip nie daje: skrót w menu Start, odinstalowanie
 ; z ustawień systemu i jedno miejsce, w które trafia aktualizacja.
 ;
@@ -27,7 +27,7 @@ DefaultDirName={autopf}\Chatt
 DefaultGroupName=Chatt
 ; Bez pytania o katalog menu Start: aplikacja ma jeden skrót i nic więcej.
 DisableProgramGroupPage=yes
-; Instalacja dla użytkownika, nie dla całego komputera — dzięki temu nie ma
+; Instalacja dla użytkownika, nie dla całego komputera, dzięki temu nie ma
 ; okna UAC, a autostart (wpis w HKCU) i tak dotyczy tylko tego konta.
 PrivilegesRequired=lowest
 OutputDir=..\..\..\dist
@@ -63,7 +63,7 @@ Filename: "{app}\chatt.exe"; Description: "{cm:LaunchProgram,Chatt}"; Flags: now
 
 [Code]
 // Wpis autostartu zakłada sama aplikacja (HKCU\...\Run), więc przy
-// odinstalowaniu trzeba go sprzątnąć — inaczej Windows przy każdym starcie
+// odinstalowaniu trzeba go sprzątnąć: inaczej Windows przy każdym starcie
 // próbowałby uruchomić coś, czego już nie ma. Robimy to dopiero przy
 // odinstalowaniu: instalacja nie ma prawa wyłączyć komuś autostartu.
 //

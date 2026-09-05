@@ -1,6 +1,6 @@
 name: Wydanie
 
-# Wydanie powstaje, gdy PR z develop do master zostanie scalony — ale tylko
+# Wydanie powstaje, gdy PR z develop do master zostanie scalony, ale tylko
 # wtedy, gdy w scalanych zmianach był VERSION.md. Scalenie samej poprawki do
 # kodu czy dokumentacji nie uruchamia więc niczego.
 #
@@ -38,7 +38,7 @@ jobs:
         name: Wersja z VERSION.md
         run: |
           set -euo pipefail
-          # Pierwsza linia, która jest samym numerem — reszta pliku to opis.
+          # Pierwsza linia, która jest samym numerem, reszta pliku to opis.
           wersja=$(grep -m1 -E '^[0-9]+\.[0-9]+\.[0-9]+$' VERSION.md || true)
           if [ -z "$wersja" ]; then
             echo "::error file=VERSION.md::Nie znalazłem numeru wersji (oczekiwany format: 1.2.3)"
@@ -59,7 +59,7 @@ jobs:
           echo "wersja=$wersja" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-            echo "Tag $tag już istnieje — nie wydajemy drugi raz." >> "$GITHUB_STEP_SUMMARY"
+            echo "Tag $tag już istnieje, nie wydajemy drugi raz." >> "$GITHUB_STEP_SUMMARY"
             echo "wydajemy=false" >> "$GITHUB_OUTPUT"
           else
             echo "Wydanie $tag" >> "$GITHUB_STEP_SUMMARY"
@@ -87,7 +87,7 @@ jobs:
           cache: true
 
       # Bez klucza powstałby APK podpisany kluczem debug (tak działa awaryjna
-      # ścieżka w build.gradle.kts) — a taki nie ma prawa trafić do wydania,
+      # ścieżka w build.gradle.kts), a taki nie ma prawa trafić do wydania,
       # więc lepiej zatrzymać się tutaj z czytelnym komunikatem.
       - name: Klucz do podpisu
         env:
@@ -151,6 +151,18 @@ jobs:
       - name: Build Windows
         working-directory: app
         run: flutter build windows --release
+
+      # Brak runtime'u MSVC widać dopiero na cudzym komputerze: aplikacja nie
+      # pokazuje okna i nie zostawia śladu w dzienniku zdarzeń. Tutaj widać go
+      # od razu, więc taka paczka nie ma prawa wyjść.
+      - name: Runtime MSVC jest w paczce
+        shell: pwsh
+        run: |
+          $katalog = 'app/build/windows/x64/runner/Release'
+          $wymagane = 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll'
+          $brakuje = $wymagane | Where-Object { -not (Test-Path (Join-Path $katalog $_)) }
+          if ($brakuje) { throw "Brak w katalogu Release: $($brakuje -join ', ')" }
+          Get-ChildItem $katalog -Filter *.dll | Select-Object -ExpandProperty Name
 
       - name: Spakuj
         shell: pwsh

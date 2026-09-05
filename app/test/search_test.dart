@@ -81,7 +81,7 @@ void main() {
   group('tła', () {
     test('numer spoza listy wraca do „bez tła”', () {
       // W bazie może zostać numer z nowszej wersji (ktoś wrócił do starszej)
-      // albo śmieć — aplikacja ma wtedy wyglądać zwyczajnie, a nie wywalić się
+      // albo śmieć, aplikacja ma wtedy wyglądać zwyczajnie, a nie wywalić się
       // na indeksie poza zakresem.
       expect(backgroundAt(-1).plain, isTrue);
       expect(backgroundAt(999).plain, isTrue);

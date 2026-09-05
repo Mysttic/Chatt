@@ -25,7 +25,7 @@ import javax.crypto.spec.GCMParameterSpec
 
 /**
  * Kanały platformowe aplikacji. Instalowane na silniku Fluttera trzymanym
- * w cache'u ([ChattApplication]), a nie w aktywności — dzięki temu działają
+ * w cache'u ([ChattApplication]), a nie w aktywności, dzięki czemu działają
  * także wtedy, gdy okno aplikacji jest zamknięte, a proces trzyma usługa
  * pierwszoplanowa.
  */
@@ -155,7 +155,7 @@ object ChattChannels {
 
     /**
      * Czy system nadal usypia aplikację. Usługa pierwszoplanowa broni proces
-     * przed ubiciem, ale w trybie Doze i tak potrafi zabrać mu sieć —
+     * przed ubiciem, ale w trybie Doze i tak potrafi zabrać mu sieć:
      * dopiero wyjątek od optymalizacji baterii to wyłącza.
      */
     private fun batteryOptimized(context: Context): Boolean = try {
@@ -166,7 +166,7 @@ object ChattChannels {
     }
 
     // BatteryLife: Google odradza to okienko w aplikacjach ze Sklepu Play,
-    // ale tu jest uzasadnione — aplikacja nasłuchuje w sieci lokalnej i nie
+    // ale tu jest uzasadnione: aplikacja nasłuchuje w sieci lokalnej i nie
     // ma żadnego serwera push, który mógłby ją obudzić.
     @SuppressLint("BatteryLife")
     private fun requestBatteryExemption(context: Context): Boolean = try {
@@ -177,7 +177,7 @@ object ChattChannels {
         )
         true
     } catch (error: Exception) {
-        // Producent wyciął ekran optymalizacji — użytkownikowi zostaje
+        // Producent wyciął ekran optymalizacji, użytkownikowi zostaje
         // ustawienie systemowe znalezione ręcznie.
         false
     }
@@ -247,7 +247,7 @@ object ChattChannels {
             put(MediaStore.MediaColumns.MIME_TYPE, type)
             put(MediaStore.MediaColumns.RELATIVE_PATH, katalog)
             // Wpis niegotowy jest niewidoczny dla galerii, dopóki nie skończymy
-            // kopiowania — inaczej dałoby się zobaczyć plik w połowie.
+            // kopiowania: inaczej dałoby się zobaczyć plik w połowie.
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
 

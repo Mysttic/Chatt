@@ -33,12 +33,12 @@ class BackgroundService {
     try {
       await _channel.invokeMethod<void>('stop');
     } catch (_) {
-      // Brak kanału (testy, desktop) — nie ma czego zatrzymywać.
+      // Brak kanału (testy, desktop), nie ma czego zatrzymywać.
     }
   }
 
   /// Czy Android nadal usypia aplikację. Usługa pierwszoplanowa chroni proces
-  /// przed ubiciem, ale w trybie Doze system potrafi mimo to odciąć jej sieć —
+  /// przed ubiciem, ale w trybie Doze system potrafi mimo to odciąć jej sieć:
   /// dopiero wyjątek od optymalizacji baterii to zdejmuje. Poza Androidem
   /// nie ma czego usypiać, więc false.
   static Future<bool> batteryOptimized() async {
@@ -51,7 +51,7 @@ class BackgroundService {
   }
 
   /// Otwiera systemowe okienko z pytaniem o wyjątek. Zwraca tylko tyle, czy
-  /// okienko w ogóle się pokazało — odpowiedź użytkownika czytamy potem
+  /// okienko w ogóle się pokazało. Odpowiedź użytkownika czytamy potem
   /// przez [batteryOptimized].
   static Future<bool> requestBatteryExemption() async {
     if (!Platform.isAndroid) return false;
@@ -79,7 +79,7 @@ class BackgroundService {
         'id': id,
       });
     } catch (_) {
-      // Brak kanału albo zgody na powiadomienia — trudno, wiadomość i tak
+      // Brak kanału albo zgody na powiadomienia: trudno, wiadomość i tak
       // jest już zapisana.
     }
   }

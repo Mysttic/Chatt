@@ -86,7 +86,8 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get noKnownDevices => 'Nie znasz jeszcze żadnych urządzeń.';
+  String get nearbyBeforeScan =>
+      'Wyszukaj urządzenia, żeby zobaczyć, które odpowiadają w tej chwili.';
 
   @override
   String get longPressToDelete => 'Przytrzymaj urządzenie, żeby je usunąć';
@@ -145,7 +146,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get securityEncryptedBody =>
-      'Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz — nazwę urządzenia każdy może sobie ustawić dowolnie.';
+      'Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz: nazwę urządzenia każdy może sobie ustawić dowolnie.';
 
   @override
   String get securityVerifiedTitle => 'Szyfrowane i potwierdzone';
@@ -164,7 +165,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get fingerprintHelp =>
-      'Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo — jeśli tak, nikt nie siedzi w środku rozmowy.';
+      'Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo. Jeśli tak, nikt nie siedzi w środku rozmowy.';
 
   @override
   String get peerOnline => 'dostępny';
@@ -174,7 +175,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get shieldNoEncryption =>
-      'Bez szyfrowania — druga strona ma starszą wersję';
+      'Bez szyfrowania: druga strona ma starszą wersję';
 
   @override
   String get shieldEncrypted =>
@@ -196,7 +197,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get messageHint => 'Napisz wiadomość…';
 
   @override
-  String get notDeliveredRetry => 'Nie dostarczono — ponów';
+  String get notDeliveredRetry => 'Nie dostarczono, ponów';
 
   @override
   String get fileFallbackName => 'plik';
@@ -261,7 +262,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get qrShowBody =>
-      'Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego — liczy się to, że drugie urządzenie widziało go na tym ekranie.';
+      'Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego. Liczy się to, że drugie urządzenie widziało go na tym ekranie.';
 
   @override
   String get qrOtherAddress => 'Inny adres';
@@ -274,7 +275,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get qrScanFailed =>
-      'Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny — pokaż go jeszcze raz.';
+      'Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny, pokaż go jeszcze raz.';
 
   @override
   String pairScannedTitle(Object name) {
@@ -354,12 +355,12 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String fileOfferResume(Object size, Object have) {
-    return '$size — wznowienie, masz już $have';
+    return '$size, wznowienie: masz już $have';
   }
 
   @override
   String get unpairedWarning =>
-      'Tożsamość niepotwierdzona — nazwę można sobie ustawić dowolną';
+      'Tożsamość niepotwierdzona: nazwę można sobie ustawić dowolną';
 
   @override
   String moreFilesWaiting(int count) {
@@ -491,7 +492,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get dbKeyUnprotected =>
-      'Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to przed podejrzeniem samego pliku, nie przed kopią całego katalogu aplikacji.';
+      'Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to sam plik bazy; kopia całego katalogu aplikacji zawiera też klucz.';
 
   @override
   String get retentionLabel => 'Kasuj wiadomości starsze niż';
@@ -535,6 +536,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get thisDevice => 'To urządzenie';
 
   @override
+  String get version => 'Wersja';
+
+  @override
   String get listeningOn => 'Nasłuch';
 
   @override
@@ -567,7 +571,7 @@ class AppLocalizationsPl extends AppLocalizations {
       'Zamknięcie okna chowa Chatt do zasobnika i nie przerywa nasłuchu. Wyjście z programu jest w menu ikony.';
 
   @override
-  String get trayTooltip => 'Chatt — nasłuchuje w sieci lokalnej';
+  String get trayTooltip => 'Chatt: nasłuchuje w sieci lokalnej';
 
   @override
   String get trayShow => 'Pokaż Chatt';

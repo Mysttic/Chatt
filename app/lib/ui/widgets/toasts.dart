@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 
 /// Jeden komunikat w kolejce.
 class ToastMessage {
-  /// Rośnie, nigdy się nie powtarza — służy tylko za klucz widgetu.
+  /// Rośnie, nigdy się nie powtarza, służy tylko za klucz widgetu.
   final int id;
   final String text;
 
@@ -69,7 +69,7 @@ class ToastController extends ValueNotifier<List<ToastMessage>> {
     value = value.where((m) => m.id != id).toList(growable: false);
   }
 
-  /// Czyszczenie między testami — bez tego kolejka przeciekałaby z testu
+  /// Czyszczenie między testami: bez tego kolejka przeciekałaby z testu
   /// do testu, bo kontroler jest globalny.
   void clear() => value = const [];
 }

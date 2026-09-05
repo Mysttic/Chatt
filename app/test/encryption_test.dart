@@ -113,7 +113,7 @@ void main() {
     final bobAsPeer = await pair();
     expect(bobAsPeer.verified, isTrue,
         reason: 'parowanie od protokołu 5 nie zapisuje klucza, tylko '
-            'potwierdza tożsamość — klucz sesji jest efemeryczny');
+            'potwierdza tożsamość, klucz sesji jest efemeryczny');
 
     sniffed.clear();
     final conversation = await alice.openConversationWith(bobAsPeer);

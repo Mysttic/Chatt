@@ -8,9 +8,32 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.5.1] - 2026-09-05
+
+A package that starts on a computer which has never had Visual Studio on it,
+and marks on the conversation list that say who is confirmed and who is
+answering right now. The licence and the files a public repository needs land
+here as well.
+
+### Fixed
+- **The Windows release starts on a computer that has never seen Visual
+  Studio.** `chatt.exe` and two of the plugins link against the MSVC runtime
+  (`MSVCP140.dll`, `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`), and neither the
+  zip nor the installer carried it. Without those libraries the process ends
+  before it draws a window: no error dialog, nothing in the event log, the same
+  silence from both packages. The build now puts them next to the executable,
+  and the release workflow refuses to publish a package without them.
 
 ### Added
+- **The version number is visible in the app**: next to the name in the
+  conversation-list bar, and in Settings under "This device". One constant in
+  `lib/core/version.dart`, raised together with `VERSION.md` and `pubspec.yaml`
+  by `tool/wersja.py`, with a test that catches a file left behind.
+- **A green shield on the conversation list** for a device whose identity you
+  confirmed, the same mark the device list and the conversation header use.
+- **A green dot on the avatar** for a device that is answering right now. The
+  list asks every known device every 30 seconds, and only while it is on
+  screen.
 - **A licence.** Apache 2.0, in [LICENSE](LICENSE) and [NOTICE](NOTICE), the
   same one the other Mysttic project uses. Until now the repository had none,
   which means nobody was allowed to use any of it.
@@ -33,6 +56,12 @@ into `master`.
 ### Changed
 - Both READMEs open with the banner, the one-line pitch and three badges
   (licence, latest release, tests), and close with the licence.
+- **The device list starts empty.** It used to open with everything the app had
+  ever seen on the network, which reads like the result of a scan that never
+  ran. Now it shows what the last scan answered, plus anything added by
+  address.
+- Nine interface strings in each language lost the em dash they were written
+  with: a colon, a comma or a full stop carries the same sentence.
 
 ### Removed
 - The store materials (`docs/publishing/`): finished Google Play and Microsoft
@@ -46,7 +75,7 @@ into `master`.
   assets went with the rest.
 
 ### Changed
-- The documentation describes what the app does, not how it got there. Gone:
+- The documentation describes what the app does. Gone:
   the claim that Linux desktop and web are targets, the history of the .NET
   MAUI prototype, and the release-by-release narrative in `architecture.md`
   and `testing.md`. The rationale that would let somebody undo a deliberate
@@ -68,8 +97,8 @@ rest of it on a device.
   (schema v9, `peers.alias`).
 - **Accepting files without asking**, per peer, off by default (schema v9,
   `peers.autoAccept`). It can only be turned on with a confirmed identity, and
-  removing the confirmation turns it off. The database enforces both, not the
-  screen, because this is the boundary of the user's consent: the flag alone,
+  removing the confirmation turns it off. The database enforces both, because
+  this is the boundary of the user's consent: the flag alone,
   without a green shield, would mean "take files from anyone claiming that
   name".
 - **Copy image** on Windows for received pictures. Flutter's `Clipboard` only
@@ -82,7 +111,7 @@ rest of it on a device.
   `SelectionArea`, so the cursor selects across several bubbles at once and
   Ctrl+C copies. On a phone the same gesture belongs to the bubble menu, which
   is the only way to delete a message, so selection is a "Select text" entry
-  inside that menu instead of a fight in the gesture arena.
+  inside that menu.
 - On the desktop the bubble menu also opens with a right click, which is the
   gesture people actually reach for there.
 
@@ -96,8 +125,8 @@ rest of it on a device.
   `reusePort not supported on this platform` line is gone from the log.
 - A failed `adb forward` in `tool/android_e2e_test.dart` was silent. With the
   port already taken, by an ordinary Chatt running on the same desktop for
-  example, the test connected to **that** instead of the phone and every
-  assertion passed while the device was never touched. The tunnel is now
+  example, the test connected to **that** Chatt, every assertion passed, and
+  the phone was never touched. The tunnel is now
   asserted, and `CHATT_PROXY_PORT` moves it out of the way.
 
 ### Changed
@@ -117,15 +146,15 @@ fresh installation starts in English. No change to the protocol, the database
 schema or the way the app behaves once it is running.
 
 ### Added
-- `docs/guide.pl.md`, the user guide in Polish. It is the one document an end
-  user reads rather than a developer, so it is worth having in both languages.
+- `docs/guide.pl.md`, the user guide in Polish. It is the one document written
+  for an end user, so it is worth having in both languages.
   It carries three screenshots the English guide does not, because those exist
   only with a Polish interface.
 
 ### Changed
 - The documentation is English, in one version, with two exceptions:
-  `README.pl.md` and the user guide, both of which face readers rather than
-  developers. `docs/instrukcja.md`, `architektura.md`, `budowanie.md` and
+  `README.pl.md` and the user guide, both written for end users.
+  `docs/instrukcja.md`, `architektura.md`, `budowanie.md` and
   `testy.md` became `guide.md`, `architecture.md`, `building.md` and
   `testing.md`; `docs/publikacja/` became `docs/publishing/` and
   `docs/makiety/` became `docs/mockups/`. The code comments stay in Polish.
@@ -142,8 +171,7 @@ schema or the way the app behaves once it is running.
 
 ### Fixed
 - The headline on the README banner no longer runs off the right edge:
-  `tool/store_assets.py` now fits the font to the available width instead of
-  using a fixed size.
+  `tool/store_assets.py` now fits the font to the available width.
 
 ### Removed
 - `.claude/` is out of the repository, and local machine paths are out of the
@@ -168,8 +196,8 @@ publish in the stores after all.
 ### Changed
 - Store packages (an AAB next to the APK, an MSIX for the Store) were built,
   verified and then removed together with the `msix` dependency. Both stores
-  require an account to be maintained rather than a one-off upload, which for a
-  showcase app is a cost with no return. A release gives three files again: the
+  require the account to be maintained over time, which for a showcase app is
+  a cost with no return. A release gives three files again: the
   APK, the Windows installer and the portable zip.
 
 ### Fixed
@@ -240,13 +268,13 @@ red before the fix.
 whether or not the devices have managed to pair.
 
 ### Changed (breaking)
-- **A device's identity is its key, not a random GUID.** The identifier is now
+- **A device's identity is its key.** The identifier is now
   derived from the public key (`sha256(key)`, the first 16 bytes, formatted
   like a UUID), so nobody can claim another device's identifier without its
   private key. The cost, accepted deliberately: every device gets a new
   identifier, so the migration to schema v6 clears the device list and the
-  history rather than leaving entries nobody can talk to. Conversations and
-  pairings have to be set up again.
+  history, because the old entries would match nothing on the network.
+  Conversations and pairings have to be set up again.
 - Pairing changed role. It no longer establishes the encryption key, which is
   now ephemeral; it only confirms an identity, and its result is the green
   shield.
@@ -263,7 +291,7 @@ whether or not the devices have managed to pair.
   that you scanning", because somebody else could have seen the code. Comparing
   six digits stays as the fallback where there is no camera.
 - **A security panel** under the shield: the encryption state in words plus the
-  fingerprints of both keys, openable at any time rather than once.
+  fingerprints of both keys, openable at any time.
 - **An encrypted database on disk** (SQLite3MultipleCiphers). The 32 byte key
   sits in `chatt.key` wrapped by the system keystore: AES-GCM under Android
   Keystore, DPAPI on Windows. A plaintext database from an older version is
@@ -271,7 +299,7 @@ whether or not the devices have managed to pair.
 - **Clear history** and automatic deletion of messages older than 7, 30, 90 or
   365 days, off by default (schema v7).
 - **Windows: a tray icon, starting minimised and autostart.** The X hides the
-  window instead of ending the listening; quitting is in the icon menu.
+  window and listening continues; quitting is in the icon menu.
   Autostart is a user registry entry with a `--minimized` argument, with no
   administrator rights.
 - Sending several files at once and dragging them onto the window on the
@@ -284,14 +312,13 @@ whether or not the devices have managed to pair.
 ### Security
 - **Plaintext is gone from the protocol** (version 5). An unpaired peer is
   encrypted exactly like a paired one, and a request without an envelope bound
-  to a live session gets a 409 instead of an answer.
+  to a live session gets a 409.
 - The sender's guid left the clear part of the envelope. Only the session
   number remains, changed at every handshake, so an eavesdropper cannot even
   see who is talking to whom.
 - The file key is derived from the session key, and its tag travels in the
-  announcement and is stored next to the partial transfer. A mismatch forces
-  the transfer to start from zero instead of decrypting garbage with a new key
-  over old bytes.
+  announcement and is stored next to the partial transfer. A mismatch starts
+  the transfer from zero.
 
 ### Known cost
 A restart on either side during a transfer loses the progress, because the file
@@ -342,7 +369,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.5.0...develop
+[0.5.1]: https://github.com/Mysttic/Chatt/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Mysttic/Chatt/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Mysttic/Chatt/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/Mysttic/Chatt/compare/v0.3.0...v0.3.1

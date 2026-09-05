@@ -35,7 +35,7 @@ Future<OpenedDatabase> openAppDatabase() async {
 
   // Dwie nazwy, bo tak było przed szyfrowaniem: `driftDatabase(name: 'chatt')`
   // zakładał `chatt.sqlite` w dokumentach, a tryb testowy z `ChattEnv.dataDir`
-  // — `chatt.db`. Zmiana nazwy zgubiłaby istniejącą historię.
+  // zakładał `chatt.db`. Zmiana nazwy zgubiłaby istniejącą historię.
   final file = File(
     p.join(dir, ChattEnv.dataDir != null ? 'chatt.db' : 'chatt.sqlite'),
   );
@@ -72,7 +72,7 @@ void Function(raw.Database) setupKey(DatabaseKey key) {
 ///
 /// Szyfrowanie działa na stronach pliku, więc istniejącej bazy nie da się
 /// „dokluczyć" w miejscu: trzeba założyć nową i przenieść wiersze. Kopia
-/// powstaje obok, a oryginał znika dopiero po jej domknięciu — przerwanie
+/// powstaje obok, a oryginał znika dopiero po jej domknięciu, przerwanie
 /// prądu w połowie zostawia więc albo starą bazę, albo nową, nigdy pół.
 Future<bool> migrateToEncrypted(File file, DatabaseKey key) async {
   if (!file.existsSync() || file.lengthSync() == 0) return false;

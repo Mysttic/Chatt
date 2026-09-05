@@ -14,7 +14,7 @@ class PeerClient {
   PeerClient([http.Client? client]) : _http = client ?? http.Client();
 
   /// Pobiera tożsamość urządzenia pod host:port. Zwraca null, gdy nie
-  /// odpowiada albo to nie jest Chatt — służy też jako test obecności
+  /// odpowiada albo to nie jest Chatt, służy też jako test obecności
   /// i jako "ręczne dodanie po IP".
   Future<DeviceIdentity?> fetchInfo(
     String host,
@@ -106,7 +106,7 @@ class PeerClient {
   }
 
   /// Zapowiada plik i czeka na decyzję odbiorcy. Zwraca null, gdy odbiorca
-  /// nie odpowiada albo nie zna `/file-offer` (protokół 1) — wtedy nadawca
+  /// nie odpowiada albo nie zna `/file-offer` (protokół 1), wtedy nadawca
   /// wysyła plik po staremu, bez pytania o zgodę.
   Future<FileOfferReply?> offerFile({
     required String host,
@@ -149,7 +149,7 @@ class PeerClient {
         transform,
   }) async {
     // Czytanie pliku żyje własnym życiem obok zapytania. Gdy odbiorca zerwie
-    // połączenie w połowie, `send` wraca od razu — a reader leciałby dalej
+    // połączenie w połowie, `send` wraca od razu, a reader leciałby dalej
     // i wołał [onProgress] po tym, jak wołający posprzątał swój stan.
     // Stąd subskrypcja: w `finally` ją kasujemy i wyciszamy postęp.
     http.StreamedRequest? request;
@@ -175,7 +175,7 @@ class PeerClient {
       // Treść idzie przez addStream, bo tylko on hamuje czytanie pliku, gdy
       // sieć nie nadąża (ręczne `sink.add` w pętli buforowało cały plik
       // w pamięci). Pośredni kontroler jest po to, żeby dało się to czytanie
-      // anulować, gdy odbiorca zerwie połączenie — inaczej zostaje otwarty
+      // anulować, gdy odbiorca zerwie połączenie: inaczej zostaje otwarty
       // uchwyt do pliku i strumień pompujący w próżnię.
       final pump = StreamController<List<int>>();
       reader = source.listen(

@@ -169,7 +169,7 @@ void main() {
             await client.post('127.0.0.1', bob.server.port!, '/message');
         request.headers.contentType = ContentType.json;
         // Osiem megabajtów śmieci. Bez granicy serwer wczytałby to w całości
-        // do pamięci, zanim w ogóle sprawdzi, czy nadawca ma sesję — a takich
+        // do pamięci, zanim w ogóle sprawdzi, czy nadawca ma sesję, a takich
         // zapytań można wysłać ile się chce.
         final kawalek = List<int>.filled(64 * 1024, 65);
         for (var i = 0; i < 128; i++) {
@@ -179,7 +179,7 @@ void main() {
         await response.drain<void>();
         status = response.statusCode;
       } on SocketException {
-        // Serwer przerwał połączenie w trakcie wysyłania — też dobrze,
+        // Serwer przerwał połączenie w trakcie wysyłania, też dobrze,
         // bo znaczy, że przestał czytać. Który wariant wyjdzie, zależy od
         // buforów gniazda, więc test nie wymaga konkretnego.
       }

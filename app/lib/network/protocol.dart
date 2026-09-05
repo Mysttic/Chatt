@@ -22,7 +22,7 @@ const int defaultTcpPort = 47780;
 /// To nie jest kosmetyka. Identyfikator trafia do **nazw plików na dysku**
 /// (część transferu i jej opis w `.incomplete/`), więc napis w rodzaju
 /// `../../../cokolwiek` znaczyłby zapis albo skasowanie pliku poza katalogiem
-/// aplikacji — na pulpicie wszędzie tam, gdzie sięga użytkownik. Nasz nadawca
+/// aplikacji, na pulpicie wszędzie tam, gdzie sięga użytkownik. Nasz nadawca
 /// wysyła UUID, więc przyjmujemy tylko litery, cyfry i myślnik.
 final RegExp _messageGuidShape = RegExp(r'^[A-Za-z0-9-]{1,64}$');
 
@@ -36,7 +36,7 @@ const int tcpPortAttempts = 10;
 const String typeDiscover = 'chatt_discover';
 const String typeHere = 'chatt_here';
 
-/// Wersja protokołu — podbijamy przy niekompatybilnych zmianach.
+/// Wersja protokołu, podbijamy ją przy niekompatybilnych zmianach.
 /// 2: pliki wysyłane po akceptacji odbiorcy (POST /file-offer), ze wznawianiem
 ///    i sumą kontrolną.
 /// 3: parowanie z uzgodnieniem klucza (POST /pair) i szyfrowanie ruchu między
@@ -62,7 +62,7 @@ Map<String, Object?> discoverPacket(DeviceIdentity me, String nonce) => {
     };
 
 /// [tag] jest tylko dla sparowanych: skrót HMAC kluczem sesji, którym
-/// odpowiadający dowodzi, że to naprawdę on. Dla nieznajomych zostaje null —
+/// odpowiadający dowodzi, że to naprawdę on. Dla nieznajomych zostaje null:
 /// nie mamy z nimi żadnego wspólnego sekretu.
 Map<String, Object?> herePacket(DeviceIdentity me, {String? tag}) => {
       'type': typeHere,
@@ -78,7 +78,7 @@ String newDiscoveryNonce() {
 }
 
 /// Znacznik koperty z zaszyfrowaną treścią (szczegóły w core/crypto.dart).
-/// Jawny zostaje tylko identyfikator sesji — po nim odbiorca znajduje klucz.
+/// Jawny zostaje tylko identyfikator sesji: po nim odbiorca znajduje klucz.
 /// Od protokołu 5 nie ma tu guid-a nadawcy, więc podsłuchujący nie widzi
 /// nawet tego, kto z kim rozmawia: numer sesji zmienia się z każdym uściskiem.
 const String envelopeMarker = 'enc';
@@ -103,7 +103,7 @@ String? sessionOfEnvelope(Map<String, Object?> json) {
 //   A <- B   { sessionId: ..., e: <klucz efemeryczny B>, from: <tożsamość B> }
 //
 // Sesja żyje wyłącznie w pamięci obu stron. Restart albo bezczynność ją kasuje
-// i przy kolejnej wysyłce powstaje nowa — to jest cała mechanika forward
+// i przy kolejnej wysyłce powstaje nowa. To jest cała mechanika forward
 // secrecy: nie ma czego wykraść z dysku po fakcie.
 
 /// Jak długo żyje sesja bez ruchu.
@@ -114,7 +114,7 @@ const Duration sessionLifetime = Duration(hours: 1);
 const String errorNoSession = 'no_session';
 
 /// Wynik próby dostarczenia. [noSession] jest osobno od [failed], bo to nie
-/// jest błąd do pokazania użytkownikowi — to prośba o powtórzenie uścisku
+/// jest błąd do pokazania użytkownikowi: to prośba o powtórzenie uścisku
 /// dłoni i jeszcze jedną próbę.
 enum Delivery {
   ok,
@@ -230,13 +230,13 @@ Map<String, Object?> messagePacket({
 
 // --- Pliki: POST /file-offer, POST /file ---------------------------------
 // Transfer jest dwuetapowy:
-//   1. POST /file-offer — JSON z metadanymi (nazwa, rozmiar, sha256).
+//   1. POST /file-offer: JSON z metadanymi (nazwa, rozmiar, sha256).
 //      Odbiorca pyta użytkownika i odpowiada [FileOfferReply]: zgoda albo
 //      odmowa, "już to mam" (dedupe bez przesyłania bajtów) oraz offset,
 //      od którego można wznowić wcześniej przerwany transfer.
-//   2. POST /file — surowe bajty od tego offsetu (streaming w obie strony,
+//   2. POST /file: surowe bajty od tego offsetu (streaming w obie strony,
 //      żeby duże pliki nie przechodziły przez pamięć). Metadane jadą
-//      w nagłówkach — muszą być ASCII, stąd base64/percent-encoding.
+//      w nagłówkach, muszą być ASCII, stąd base64/percent-encoding.
 
 const String headerMessageGuid = 'x-chatt-message-guid';
 const String headerFrom = 'x-chatt-from';
@@ -245,7 +245,7 @@ const String headerFileSize = 'x-chatt-file-size';
 const String headerSentAt = 'x-chatt-sent-at';
 
 /// sha256 całego pliku (hex). Odbiorca weryfikuje po złożeniu wszystkich
-/// części — chroni przed cichym uszkodzeniem przy wznawianiu transferu.
+/// części, chroni przed cichym uszkodzeniem przy wznawianiu transferu.
 const String headerFileSha256 = 'x-chatt-file-sha256';
 
 /// Od którego bajtu nadawca wysyła treść (0 = całość, >0 = wznowienie).
@@ -259,7 +259,7 @@ const String headerEncrypted = 'x-chatt-encrypted';
 /// odbiorca musi mieć gdzieś napisane, czyj to strumień.
 const String headerSession = 'x-chatt-session';
 
-/// Nazwa zastępcza w nagłówku zaszyfrowanego transferu — prawdziwa jest
+/// Nazwa zastępcza w nagłówku zaszyfrowanego transferu, prawdziwa jest
 /// w zapowiedzi, żeby nie wyciekała jawnym tekstem.
 const String encryptedFilePlaceholder = 'zaszyfrowany-plik';
 
@@ -283,7 +283,7 @@ class IncomingFileMeta {
   final int fileSize;
   final DateTime sentAt;
 
-  /// Suma kontrolna całego pliku (hex) — null u nadawcy w protokole 1.
+  /// Suma kontrolna całego pliku (hex), null u nadawcy w protokole 1.
   final String? sha256;
 
   /// Bajt, od którego zaczyna się treść tego zapytania.
@@ -339,7 +339,7 @@ class IncomingFileMeta {
   }
 }
 
-/// Zapowiedź pliku (POST /file-offer) — to na jej podstawie odbiorca decyduje,
+/// Zapowiedź pliku (POST /file-offer): to na jej podstawie odbiorca decyduje,
 /// czy w ogóle chce ten plik odebrać.
 class FileOffer {
   final String messageGuid;
@@ -350,7 +350,7 @@ class FileOffer {
   final DateTime sentAt;
 
   /// Skrót klucza, którym poleci treść pliku. Klucz wisi na kluczu sesji,
-  /// a ta wygasa — odbiorca porównuje ten znacznik z zapisanym obok części
+  /// a ta wygasa, odbiorca porównuje ten znacznik z zapisanym obok części
   /// transferu i przy niezgodności każe zacząć od zera, zamiast cicho
   /// odszyfrować śmieci nowym kluczem na starych bajtach.
   final String? keyEpoch;
@@ -408,12 +408,12 @@ class FileOffer {
 class FileOfferReply {
   final bool accepted;
 
-  /// Odbiorca ma już tę wiadomość — nadawca może od razu uznać ją za
+  /// Odbiorca ma już tę wiadomość, nadawca może od razu uznać ją za
   /// dostarczoną i nie przesyłać ani bajtu (dedupe po zgubionym ACK-u).
   final bool alreadyHave;
 
   /// Ile bajtów odbiorca ma już zapisanych z poprzedniego, przerwanego
-  /// transferu tego samego pliku — nadawca wysyła treść od tego miejsca.
+  /// transferu tego samego pliku, nadawca wysyła treść od tego miejsca.
   final int resumeFrom;
 
   /// Powód odmowy (dla logów/UI), np. 'rejected', 'timeout'.
@@ -461,13 +461,13 @@ class FileOfferReply {
 //
 // Po co zobowiązanie: bez niego ktoś w środku mógłby dobierać swoje klucze
 // tak długo, aż kody po obu stronach wyjdą takie same. Skrót wysłany przed
-// poznaniem klucza drugiej strony to uniemożliwia — napastnikowi zostaje
+// poznaniem klucza drugiej strony to uniemożliwia, napastnikowi zostaje
 // jedno losowe trafienie na milion, w dodatku widoczne od razu, bo kody się
 // nie zgodzą. Kod nie jest sekretem i nie idzie przez sieć, więc nie ma tu
 // czego łamać offline (poprzedni schemat, z kodem jako solą HKDF, na to
 // pozwalał).
 
-/// „Zeskanowałem twój kod QR". Nie daje sama z siebie zielonej tarczy —
+/// „Zeskanowałem twój kod QR". Nie daje sama z siebie zielonej tarczy:
 /// drugie urządzenie pyta jeszcze swojego użytkownika, bo kod z ekranu mógł
 /// zobaczyć ktoś jeszcze. Człowiek potwierdza to, czego maszyna nie wie:
 /// że skanowanie właśnie się odbyło i to on je zrobił.
@@ -539,10 +539,10 @@ class PairMessage {
   final String action;
   final DeviceIdentity from;
 
-  /// Skrót klucza publicznego (base64) — przy [pairCommit].
+  /// Skrót klucza publicznego (base64), przy [pairCommit].
   final String? commit;
 
-  /// Klucz publiczny X25519 (base64) — przy [pairReveal].
+  /// Klucz publiczny X25519 (base64), przy [pairReveal].
   final String? publicKey;
 
   const PairMessage({
@@ -584,22 +584,22 @@ class PairMessage {
   }
 }
 
-/// Wynik zapisu pliku po stronie odbiorcy — mapowany na kod HTTP w server.dart.
+/// Wynik zapisu pliku po stronie odbiorcy, mapowany na kod HTTP w server.dart.
 enum FileReceiveResult {
   /// Komplet zapisany i zweryfikowany (200).
   ok,
 
-  /// Użytkownik odmówił odbioru (403) — nadawca nie ponawia automatycznie.
+  /// Użytkownik odmówił odbioru (403), nadawca nie ponawia automatycznie.
   rejected,
 
-  /// Nadawca zaczął od innego bajtu, niż odbiorca ma zapisane (409) —
+  /// Nadawca zaczął od innego bajtu, niż odbiorca ma zapisane (409):
   /// część została skasowana, ponowienie pójdzie od zera.
   offsetMismatch,
 
-  /// Transfer się urwał albo rozmiar się nie zgadza (409) — część zostaje
+  /// Transfer się urwał albo rozmiar się nie zgadza (409), część zostaje
   /// na dysku, kolejna próba wznowi od tego miejsca.
   incomplete,
 
-  /// Suma kontrolna złożonego pliku się nie zgadza (422) — część skasowana.
+  /// Suma kontrolna złożonego pliku się nie zgadza (422), część skasowana.
   checksumMismatch,
 }

@@ -15,11 +15,17 @@ files go straight from one device to the other.
 3. Open **Settings** and set the nickname that identifies this device in the
    other side's list.
 
+The bar over the conversation list carries the version number, and Settings
+repeats it under "This device". Worth having at hand when reporting a problem.
+
 ## Finding the other device
 
 **Nearby** button, then **Search for devices on the network**. A scan sends one
 query across the network and collects answers for two seconds. One scan teaches
 both sides: the device that answered also remembers the one that asked.
+
+The screen opens with no list. What appears is what the last scan answered, so
+it describes the network as it is right now.
 
 <img src="screenshots/produkt/en/android_urzadzenia_w_poblizu.png" alt="Nearby devices" width="260">
 
@@ -41,15 +47,20 @@ not been seen for an hour.
 Tapping a device opens the conversation. Under the name you can see whether it
 is reachable right now.
 
+Entries on the conversation list carry two marks: a green dot on the avatar
+while the device is answering on the network, and a green shield next to the
+name once its identity has been confirmed. The list asks every known device
+every 30 seconds, and only while it is on screen.
+
 <img src="screenshots/produkt/en/android_rozmowa_z_plikiem.png" alt="Conversation" width="260">
 
 Status shown on a sent message:
 
 | Icon | Meaning |
 |---|---|
-| clock | saved on your side, not delivered yet |
+| clock | saved on your side, still on the way |
 | double check | the other side confirmed receipt |
-| "Not delivered — retry" | the attempt failed, tap to try again |
+| "Not delivered, retry" | the attempt failed, tap to try again |
 
 A message is never lost on the way: it is saved locally first and only then
 sent. If the other device changed its IP in the meantime, the app searches the
@@ -62,8 +73,7 @@ menu, so selection lives inside it: long-press a bubble, then "Select text".
 **Long-press a bubble** for a menu: copy the whole message, select part of it,
 delete it. On a PC the same menu also opens with a right click. Deleting
 works on your side only. The protocol has no way to make the other side forget
-something it already received, and the app says that outright instead of
-promising "delete for everyone".
+something it already received, and the app says so.
 
 <img src="screenshots/produkt/en/android_menu_wiadomosci.png" alt="Message menu" width="260">
 
@@ -89,7 +99,7 @@ comes separately for each one, in turn.
 - An interrupted transfer (Wi-Fi dropped, phone asleep) stays on disk as a
   part file. The next attempt **sends only the missing piece**, and once the
   whole file is together the app checks the checksum. If anything does not
-  match, the file is rejected instead of landing quietly corrupted.
+  match, the file is rejected.
 - A retry after a lost confirmation does not ask a second time and does not
   transfer a single byte: the recipient answers "already have it".
 
@@ -114,9 +124,9 @@ only ever sees what you agreed to and what already lies on disk.
 ## Encryption and identity confirmation
 
 **A conversation is encrypted from the first message**, including with a device
-you have not confirmed yet. Confirmation answers a different question: not "can
-anyone read this" (nobody can), but "is the person on the other side who I
-think it is".
+you have not confirmed yet. Confirmation answers one question: is the person
+on the other side who I think it is. Nobody else can read the conversation
+either way.
 
 The shield in the conversation header opens the security panel: encryption
 state and both key fingerprints. A fingerprint follows from the device key and
@@ -133,8 +143,8 @@ There are two ways to confirm an identity:
   devices show the same six-digit code.** Compare them by eye and tap "They
   match" on both.
 
-- The code is not a password and does not travel over the network: it comes out
-  of the key agreement the two devices run between themselves. There is nothing
+- The code comes out of the key agreement the two devices run between
+  themselves; it never travels over the network. There is nothing
   secret in the QR code either. What counts is that the other device saw it on
   your screen.
 - If the codes **differ**, someone is sitting in the middle of the connection.
@@ -145,7 +155,7 @@ There are two ways to confirm an identity:
   a file request from a device with an unconfirmed identity carries a warning,
   and a request to confirm an already known device again is marked in red.
 
-The same panel holds two things that belong to a peer rather than to a message:
+The same panel holds two things that belong to a peer:
 
 - **Rename.** A device announces its own name, so a PC often arrives as
   something like `DESKTOP-8F2A1C`. Give it a name of your own and that is what
@@ -155,7 +165,7 @@ The same panel holds two things that belong to a peer rather than to a message:
 - **Accept files without asking.** Files from that device then land in the
   conversation with no consent card. The switch only works with a green shield,
   and it goes off by itself if the confirmation ever goes away: the consent was
-  given to a confirmed identity, not to a name anybody can type.
+  given to a confirmed identity.
 
 ## Background listening on Android
 
@@ -172,8 +182,8 @@ add their own app killing on top.
 
 ## Background listening on Windows
 
-Closing the window with the X **hides Chatt in the tray** instead of ending the
-program: listening keeps working and the window comes back with a click on the
+Closing the window with the X **hides Chatt in the tray**: listening keeps
+working and the window comes back with a click on the
 icon. Quitting is in that icon's menu (right click, then "Close Chatt").
 
 Windows 11 hides new icons behind the "show hidden icons" arrow. To keep Chatt
@@ -225,14 +235,14 @@ so it survives a restart.
 
 Short messages ("Copied", "Deleted the conversation") appear in the top right
 corner with a bar counting down to when they go away. A tap closes one straight
-away. They are up there rather than at the bottom so that they never cover the
-button or the text field you have just used.
+away. Up there they never cover the button or the text field you have just
+used.
 
 Backgrounds are ready-made sets: "No background" (the plain theme colour),
 Dusk, Ocean, Forest and Sand. Each has separate colours for the light and dark
 theme, and all of them are deliberately muted: cards and bubbles sit on top and
 have to stay readable. Background service notifications follow the app
-language, not the system one.
+language.
 
 <img src="screenshots/produkt/en/android_lista_rozmow_ciemny.png" alt="Dark mode" width="260">
 

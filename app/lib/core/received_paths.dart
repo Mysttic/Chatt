@@ -6,14 +6,14 @@ import 'package:path/path.dart' as p;
 /// Ścieżki plików odebranych i częściowych.
 ///
 /// Wydzielone z [AppServices], bo to jedyne miejsce, gdzie napis **z sieci**
-/// staje się nazwą pliku na dysku — a to jest miejsce, w którym łatwo zrobić
+/// staje się nazwą pliku na dysku, a to jest miejsce, w którym łatwo zrobić
 /// dziurę. Identyfikator wiadomości i nazwa pliku przychodzą od nadawcy;
 /// „../../../cokolwiek" znaczyłoby zapis albo skasowanie pliku poza katalogiem
 /// aplikacji, na pulpicie wszędzie tam, gdzie sięga użytkownik.
 ///
 /// Dwie zapory: protokół odsiewa identyfikatory nie w kształcie UUID
 /// (`isSafeMessageGuid`), a tutaj i tak nie używamy identyfikatora wprost,
-/// tylko jego skrótu — ze skrótu nie da się zrobić ścieżki.
+/// tylko jego skrótu: ze skrótu nie da się zrobić ścieżki.
 
 /// Podkatalog na transfery w trakcie.
 const String incompleteSubdir = '.incomplete';

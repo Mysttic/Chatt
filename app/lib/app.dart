@@ -31,7 +31,7 @@ class ChattApp extends ConsumerWidget {
     final locale = settings?.language.locale;
     // Wybrane tło leży pod całą aplikacją, więc powierzchnie, które je
     // zasłaniały (tło ekranu i pasek u góry), muszą zrobić się przezroczyste.
-    // Karty i dymki zostają nieprzezroczyste — na nich stoi czytelność.
+    // Karty i dymki zostają nieprzezroczyste, na nich stoi czytelność.
     final tlo = backgroundAt(settings?.background ?? 0);
 
     ThemeData theme(Brightness brightness) => ThemeData(

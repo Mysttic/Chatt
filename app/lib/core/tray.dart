@@ -7,7 +7,7 @@ import 'package:window_manager/window_manager.dart';
 /// chowa aplikację zamiast ją kończyć, a nasłuch chodzi dalej.
 ///
 /// Bez tego Chatt na pulpicie nasłuchuje wyłącznie z otwartym oknem, czyli
-/// w praktyce rzadko — na Androidzie tę rolę pełni usługa pierwszoplanowa.
+/// w praktyce rzadko, a na Androidzie tę rolę pełni usługa pierwszoplanowa.
 class TrayIcon with TrayListener, WindowListener {
   TrayIcon._();
 
@@ -60,7 +60,7 @@ class TrayIcon with TrayListener, WindowListener {
 
   @override
   void onWindowClose() {
-    // Krzyżyk chowa okno. Wyjście z programu jest w menu ikony — inaczej
+    // Krzyżyk chowa okno. Wyjście z programu jest w menu ikony: inaczej
     // nasłuch kończyłby się przy pierwszym odruchowym zamknięciu.
     windowManager.hide();
   }

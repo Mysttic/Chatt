@@ -7,7 +7,7 @@
 //
 // Uruchomienie:
 //   flutter test tool/wifi_discovery_check.dart
-// Skrypt diagnostyczny — wynik czytamy z konsoli, stąd print.
+// Skrypt diagnostyczny, wynik czytamy z konsoli, stąd print.
 // ignore_for_file: avoid_print
 @Timeout(Duration(minutes: 3))
 library;
@@ -46,7 +46,7 @@ void main() {
           'guid=${peer.guid}');
     }
     expect(found, isNotEmpty,
-        reason: 'nikt nie odpowiedział na broadcast — sprawdź zaporę i to, '
+        reason: 'nikt nie odpowiedział na broadcast, sprawdź zaporę i to, '
             'czy oba urządzenia są w tej samej podsieci');
   });
 }

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 
 /// Uruchamianie aplikacji razem z systemem. Na Windowsie to wpis w rejestrze
 /// użytkownika (`HKCU\...\CurrentVersion\Run`), zakładany przez kanał
-/// `chatt/autostart` — patrz `windows/runner/chatt_autostart.cpp`.
+/// `chatt/autostart` (patrz `windows/runner/chatt_autostart.cpp`).
 ///
 /// Androida to nie dotyczy: tam ciągłość nasłuchu załatwia usługa
 /// pierwszoplanowa, a nie autostart.
@@ -14,7 +14,7 @@ class Autostart {
   static bool get supported => Platform.isWindows;
 
   /// Czy wpis autostartu istnieje. `false` także wtedy, gdy nie da się tego
-  /// sprawdzić — lepiej pokazać przełącznik wyłączony niż skłamać.
+  /// sprawdzić: lepiej pokazać przełącznik wyłączony niż skłamać.
   static Future<bool> enabled() async {
     if (!supported) return false;
     try {

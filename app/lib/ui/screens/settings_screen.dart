@@ -7,6 +7,7 @@ import '../../core/autostart.dart';
 import '../../core/background_service.dart';
 import '../../core/crypto.dart';
 import '../../core/languages.dart';
+import '../../core/version.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
 import '../backgrounds.dart';
@@ -65,7 +66,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   /// Odpowiedź na systemowe okienko przychodzi dopiero przy powrocie do
-  /// aplikacji — innego sygnału Android nie daje.
+  /// aplikacji, innego sygnału Android nie daje.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _checkBattery();
@@ -98,7 +99,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   }
 
   /// Ręczne sprzątanie listy. Automatyczne, przy starcie aplikacji, czeka
-  /// tydzień — tutaj użytkownik mówi wprost, że chce to teraz.
+  /// tydzień, a tutaj użytkownik mówi wprost, że chce to teraz.
   Future<void> _cleanUpPeers() async {
     final removed = await ref
         .read(appServicesProvider)
@@ -110,7 +111,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         : context.l10n.cleanedUp(removed));
   }
 
-  /// Zapis do rejestru może odmówić (polityka, zablokowany klucz) — wtedy
+  /// Zapis do rejestru może odmówić (polityka, zablokowany klucz), wtedy
   /// przełącznik wraca na swoje miejsce zamiast kłamać.
   Future<void> _setAutostart(bool value) async {
     final udalo = await Autostart.setEnabled(value);
@@ -463,6 +464,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _InfoRow(label: context.l10n.version, value: appVersion),
+                  const SizedBox(height: 8),
                   _InfoRow(
                     label: context.l10n.listeningOn,
                     value: _addresses.isEmpty

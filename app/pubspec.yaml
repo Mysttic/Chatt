@@ -1,12 +1,12 @@
 name: chatt
-description: "Komunikator P2P w sieci lokalnej — wiadomości i pliki bez serwera."
+description: "Komunikator P2P w sieci lokalnej: wiadomości i pliki bez serwera."
 publish_to: 'none'
-version: 0.5.0+6
+version: 0.5.1+7
 
 environment:
   sdk: ^3.13.2
 
-# Zamiast zwykłego SQLite dołączamy SQLite3MultipleCiphers — ten sam silnik
+# Zamiast zwykłego SQLite dołączamy SQLite3MultipleCiphers, ten sam silnik
 # z dołożonym szyfrowaniem stron. Bez tego `PRAGMA key` nic nie robi, a baza
 # leży na dysku jawnym tekstem. Działa na wszystkich platformach natywnych,
 # więc Windows i Android dostają to samo.

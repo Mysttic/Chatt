@@ -41,7 +41,7 @@ class MainActivity : FlutterActivity() {
     override fun shouldDestroyEngineWithHost(): Boolean = false
 
     /**
-     * Kanały i wtyczki są już podpięte przy tworzeniu silnika — domyślna
+     * Kanały i wtyczki są już podpięte przy tworzeniu silnika, domyślna
      * implementacja rejestrowałaby je drugi raz.
      */
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) = Unit

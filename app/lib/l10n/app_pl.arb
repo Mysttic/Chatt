@@ -40,7 +40,7 @@
   "@scanFound": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "noKnownDevices": "Nie znasz jeszcze żadnych urządzeń.",
+  "nearbyBeforeScan": "Wyszukaj urządzenia, żeby zobaczyć, które odpowiadają w tej chwili.",
   "longPressToDelete": "Przytrzymaj urządzenie, żeby je usunąć",
   "lastSeen": "widziano {when}",
   "@lastSeen": {
@@ -69,7 +69,7 @@
   "securityNoEncryptionTitle": "Bez szyfrowania",
   "securityNoEncryptionBody": "Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.",
   "securityEncryptedTitle": "Szyfrowane, tożsamość niepotwierdzona",
-  "securityEncryptedBody": "Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz — nazwę urządzenia każdy może sobie ustawić dowolnie.",
+  "securityEncryptedBody": "Nikt w sieci nie przeczyta tej rozmowy. Nie masz jeszcze potwierdzenia, że po drugiej stronie jest ta osoba, o której myślisz: nazwę urządzenia każdy może sobie ustawić dowolnie.",
   "securityVerifiedTitle": "Szyfrowane i potwierdzone",
   "securityVerifiedBody": "Porównaliście kod, więc wiadomo, do kogo należy klucz po drugiej stronie.",
   "fingerprintMine": "Odcisk tego urządzenia",
@@ -77,17 +77,17 @@
   "@fingerprintOf": {
     "placeholders": { "name": {} }
   },
-  "fingerprintHelp": "Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo — jeśli tak, nikt nie siedzi w środku rozmowy.",
+  "fingerprintHelp": "Odcisk wynika z klucza urządzenia i nigdy się nie zmienia. Odczytaj go na głos i sprawdź, czy druga strona widzi to samo. Jeśli tak, nikt nie siedzi w środku rozmowy.",
   "peerOnline": "dostępny",
   "peerOffline": "niedostępny",
-  "shieldNoEncryption": "Bez szyfrowania — druga strona ma starszą wersję",
+  "shieldNoEncryption": "Bez szyfrowania: druga strona ma starszą wersję",
   "shieldEncrypted": "Szyfrowane, ale tożsamość niepotwierdzona. Kliknij, żeby porównać kod",
   "shieldVerified": "Szyfrowane i potwierdzone",
   "pairTooltip": "Sparuj przez porównanie kodu",
   "sendFileTooltip": "Wyślij plik",
   "sendTooltip": "Wyślij",
   "messageHint": "Napisz wiadomość…",
-  "notDeliveredRetry": "Nie dostarczono — ponów",
+  "notDeliveredRetry": "Nie dostarczono, ponów",
   "fileFallbackName": "plik",
   "openFile": "Otwórz",
   "showFolder": "Pokaż folder",
@@ -115,11 +115,11 @@
     "placeholders": { "name": {} }
   },
   "qrShowTitle": "Pokaż kod QR",
-  "qrShowBody": "Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego — liczy się to, że drugie urządzenie widziało go na tym ekranie.",
+  "qrShowBody": "Zeskanuj ten kod drugim urządzeniem. Kod nie zawiera nic tajnego. Liczy się to, że drugie urządzenie widziało go na tym ekranie.",
   "qrOtherAddress": "Inny adres",
   "qrScanTitle": "Zeskanuj kod QR",
   "qrScanHint": "Wyceluj w kod pokazany na drugim urządzeniu",
-  "qrScanFailed": "Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny — pokaż go jeszcze raz.",
+  "qrScanFailed": "Pod adresem z kodu nie ma urządzenia z tym kluczem. Kod może być nieaktualny, pokaż go jeszcze raz.",
   "pairScannedTitle": "{name} zeskanował kod z tego ekranu",
   "@pairScannedTitle": {
     "placeholders": { "name": {} }
@@ -156,11 +156,11 @@
   "@fileOfferTitle": {
     "placeholders": { "name": {} }
   },
-  "fileOfferResume": "{size} — wznowienie, masz już {have}",
+  "fileOfferResume": "{size}, wznowienie: masz już {have}",
   "@fileOfferResume": {
     "placeholders": { "size": {}, "have": {} }
   },
-  "unpairedWarning": "Tożsamość niepotwierdzona — nazwę można sobie ustawić dowolną",
+  "unpairedWarning": "Tożsamość niepotwierdzona: nazwę można sobie ustawić dowolną",
   "moreFilesWaiting": "{count, plural, one{Czeka jeszcze {count} plik} few{Czekają jeszcze {count} pliki} other{Czeka jeszcze {count} plików}}",
   "@moreFilesWaiting": {
     "placeholders": { "count": { "type": "int" } }
@@ -205,7 +205,7 @@
   },
   "privacy": "Prywatność",
   "dbKeyProtected": "Historia leży na dysku zaszyfrowana, a klucz do niej trzyma schowek systemowy. Skopiowanie samego pliku bazy nic nie da.",
-  "dbKeyUnprotected": "Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to przed podejrzeniem samego pliku, nie przed kopią całego katalogu aplikacji.",
+  "dbKeyUnprotected": "Historia jest zaszyfrowana, ale schowek systemowy nie przyjął klucza, więc leży on obok bazy. Chroni to sam plik bazy; kopia całego katalogu aplikacji zawiera też klucz.",
   "retentionLabel": "Kasuj wiadomości starsze niż",
   "retentionNever": "Nie kasuj",
   "retentionDays": "{count, plural, one{{count} dzień} few{{count} dni} many{{count} dni} other{{count} dni}}",
@@ -221,6 +221,7 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "thisDevice": "To urządzenie",
+  "version": "Wersja",
   "listeningOn": "Nasłuch",
   "deviceIdentifier": "Identyfikator",
   "listeningPort": "port {port}",
@@ -234,7 +235,7 @@
   "startWithWindowsHelp": "Chatt wstaje po zalogowaniu i od razu siada w zasobniku, więc wiadomości dochodzą bez otwierania okna.",
   "startWithWindowsFailed": "Nie udało się zmienić autostartu.",
   "trayHint": "Zamknięcie okna chowa Chatt do zasobnika i nie przerywa nasłuchu. Wyjście z programu jest w menu ikony.",
-  "trayTooltip": "Chatt — nasłuchuje w sieci lokalnej",
+  "trayTooltip": "Chatt: nasłuchuje w sieci lokalnej",
   "trayShow": "Pokaż Chatt",
   "trayQuit": "Zamknij Chatt",
 
