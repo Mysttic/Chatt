@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Chatt">
+  <defs>
+    <linearGradient id="tlo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6B45E0"/>
+      <stop offset="1" stop-color="#512BD4"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" ry="112" fill="url(#tlo)"/>
+  <rect x="92.16" y="102.4" width="256" height="174.08" rx="43.52" ry="43.52" fill="#ffffff" fill-opacity="0.549"/>
+  <rect x="163.84" y="225.28" width="256" height="163.84" rx="43.52" ry="43.52" fill="#ffffff"/>
+  <polygon points="204.8,378.88 204.8,450.56 286.72,384" fill="#ffffff"/>
+</svg>

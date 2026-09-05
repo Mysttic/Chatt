@@ -1,12 +1,25 @@
-# Chatt
+<p align="center">
+  <img src="docs/promo.png" alt="Chatt" width="640">
+</p>
 
-![Chatt](docs/promo.png)
+<p align="center">
+  Your PC and your phone in one conversation. Messages and files go straight
+  from one device to the other over your local Wi-Fi.
+  <br>
+  <b>No server, no account, no cloud, always encrypted.</b>
+</p>
 
-*Wersja polska: [README.pl.md](README.pl.md)*
+<p align="center">
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <a href="https://github.com/Mysttic/Chatt/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mysttic/Chatt"></a>
+  <a href="https://github.com/Mysttic/Chatt/actions/workflows/testy.yml"><img alt="Tests" src="https://github.com/Mysttic/Chatt/actions/workflows/testy.yml/badge.svg"></a>
+</p>
 
-Chatt puts your PC and your phone in one conversation. Messages and files go
-straight from one device to the other over your local Wi‑Fi: **no server, no
-account, no cloud, always encrypted.**
+<p align="center">
+  <i>Wersja polska: <a href="README.pl.md">README.pl.md</a></i>
+</p>
+
+---
 
 | Conversation | File request | Nearby devices |
 |---|---|---|
@@ -82,13 +95,14 @@ The full threat model, protocol and decisions are in
 
 ## Documentation
 
-| Document | For whom |
-|---|---|
-| [docs/guide.md](docs/guide.md) | users: pairing, files, background listening, troubleshooting |
-| [docs/building.md](docs/building.md) | building for Windows and Android, signing, branches and releases |
-| [docs/testing.md](docs/testing.md) | what is tested, how to run it, what tests cannot catch |
-| [docs/architecture.md](docs/architecture.md) | protocol, database, threat model |
-| [CHANGELOG.md](CHANGELOG.md) | what changed in each release |
+Everything is in [docs/](docs/README.md), starting with the
+[user guide](docs/guide.md). For working on the code: how to build and release
+in [building.md](docs/building.md), the protocol and the threat model in
+[architecture.md](docs/architecture.md), the test suite in
+[testing.md](docs/testing.md), and how to send a change in
+[CONTRIBUTING.md](docs/CONTRIBUTING.md).
+
+The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
@@ -108,3 +122,12 @@ Layout of `app/lib/`:
 
 Device scenarios in `app/tool/` are described in
 [docs/testing.md](docs/testing.md).
+
+## Licence
+
+Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE). The components
+that ship inside the app are listed in
+[third-party notices](docs/THIRD-PARTY-NOTICES.md).
+
+Found a security issue? Please read [SECURITY.md](docs/SECURITY.md) first; it
+asks you to report it privately.
