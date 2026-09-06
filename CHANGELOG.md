@@ -8,6 +8,16 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Fixed
+- **The "Start over" button on the startup screen now opens its confirmation.**
+  It handed `showDialog` the state's context, which sits above `MaterialApp`
+  and therefore above the navigator the dialog needs. Every tap threw
+  `Null check operator used on a null value` into the log and left the screen
+  exactly as it was, so the one way out of an unreadable database did nothing.
+  Found on a phone with logcat open.
+
 ## [0.5.3] - 2026-09-06
 
 The Android side of the same story as 0.5.2: a phone that opened on a screen
@@ -410,6 +420,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.5.3...develop
 [0.5.3]: https://github.com/Mysttic/Chatt/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Mysttic/Chatt/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Mysttic/Chatt/compare/v0.5.0...v0.5.1
