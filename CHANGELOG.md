@@ -8,7 +8,10 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.6.0] - 2026-09-06
+
+The app can now tell you a newer release is out, and put it on the machine for
+you. It asks nothing until you let it.
 
 ### Added
 - **Updating from inside the app.** Settings gains an **Updates** section: a
@@ -453,7 +456,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.5.4...develop
+[0.6.0]: https://github.com/Mysttic/Chatt/compare/v0.5.4...v0.6.0
 [0.5.4]: https://github.com/Mysttic/Chatt/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Mysttic/Chatt/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Mysttic/Chatt/compare/v0.5.1...v0.5.2
