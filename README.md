@@ -39,8 +39,10 @@ gap between them:
   message to an unknown device is protected exactly like the hundredth to a
   paired one. Recorded traffic cannot be decrypted after a
   device is stolen (forward secrecy).
-- **Nothing leaves your network.** No server, no telemetry, no ads. The app
-  needs no internet at all.
+- **Nothing leaves your network by itself.** No server, no telemetry, no ads.
+  The app works with no internet at all. The one thing it can reach outside is
+  a question to GitHub about a newer release, and it stays switched off until
+  you switch it on.
 
 ## What it does
 

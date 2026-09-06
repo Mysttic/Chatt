@@ -54,6 +54,7 @@ object ChattChannels {
                 "open" -> result.success(sendFile(context, path, share = false))
                 "share" -> result.success(sendFile(context, path, share = true))
                 "save" -> result.success(saveToStore(context, path))
+                "installApk" -> result.success(installApk(context, path))
                 else -> result.notImplemented()
             }
         }
@@ -200,6 +201,32 @@ object ChattChannels {
      * leci FileUriExposedException), więc plik wychodzi jako content://
      * z FileProvidera, z jednorazowym prawem do odczytu.
      */
+    /**
+     * Oddaje pobrany APK systemowemu instalatorowi pakietów.
+     *
+     * Aplikacja nie podmienia się sama i nie ma jak: pokazuje się ekran
+     * systemu, a zgodę wydaje użytkownik. Przy pierwszym razie Android zapyta
+     * jeszcze o pozwolenie na instalowanie z tego źródła.
+     */
+    private fun installApk(context: Context, path: String): Boolean {
+        val file = File(path)
+        if (!file.exists()) return false
+        return try {
+            val uri = FileProvider.getUriForFile(
+                context, "${context.packageName}.fileprovider", file)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                // NEW_TASK, bo startujemy z kontekstu aplikacji, nie z aktywności.
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            true
+        } catch (error: Exception) {
+            false
+        }
+    }
+
     private fun sendFile(context: Context, path: String, share: Boolean): Boolean {
         val file = File(path)
         if (!file.exists()) return false

@@ -57,7 +57,8 @@
 
 Platformy: **Windows** i **Android**. Oba urządzenia muszą być w tej samej
 sieci. Trybu przez internet nie ma i nie będzie: cały sens polega na tym, że
-nic nie wychodzi poza Twoją sieć.
+nic samo nie wychodzi poza Twoją sieć. Jedyny wyjątek to pytanie do GitHuba
+o nowsze wydanie, wyłączone, dopóki sam go nie włączysz.
 
 ## Szybki start
 

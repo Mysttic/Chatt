@@ -115,7 +115,7 @@ computed. Abandoned parts are swept after seven days.
 
 ## Database
 
-`drift` (SQLite), schema version **9**. Tables: `settings`, `peers`,
+`drift` (SQLite), schema version **10**. Tables: `settings`, `peers`,
 `conversations`, `messages`.
 
 | Version | What was added |
@@ -128,9 +128,15 @@ computed. Abandoned parts are swept after seven days.
 | 7 | `settings.retentionDays` |
 | 8 | `settings.background` |
 | 9 | `peers.alias`, `peers.autoAccept` |
+| 10 | `settings.updateChecks`, `settings.lastUpdateCheck` |
 
 The wipe at v6 comes from identifiers becoming key-derived: every device got a
 new one, so saved contacts no longer matched anything on the network.
+
+Every migration step adds a column only when `PRAGMA table_info` says it is
+missing. A database whose layout runs ahead of its own `user_version`, which is
+what a process killed between an `ALTER TABLE` and the version write leaves
+behind, then opens and repairs itself instead of failing forever.
 
 After every change in `lib/data/db.dart` the code has to be regenerated
 (`build_runner`, see [building.md](building.md)) and **`schemaVersion` bumped
@@ -361,3 +367,35 @@ One set of screens serves a phone and a monitor:
 - **Selecting message text** is a `SelectionArea` around the conversation on
   the desktop, and a "Select text" entry in the bubble menu on a phone, where
   the long press already belongs to that menu.
+
+## Updates: the one call outside the local network
+
+Everything else in the app talks only to devices on the same Wi-Fi. Checking
+for a newer release is the exception, so it is fenced off:
+
+- **Off by default.** `settings.updateChecks` (schema v10) starts false. With
+  it off, the only way anything reaches `api.github.com` is the user pressing
+  "Check now".
+- **Once a day.** The timer in `AppServices` fires hourly but the question
+  goes out only when `settings.lastUpdateCheck` is older than 24 hours. The
+  stamp is written after a failed attempt too, so a dead connection does not
+  turn a daily check into hourly knocking.
+- **A public endpoint, nothing attached.** `GET /repos/Mysttic/Chatt/releases/latest`,
+  no token, no identifiers. GitHub sees an IP address and a timestamp, the
+  same as any HTTPS server.
+- **Failure is silence.** `fetchLatestRelease` never throws;
+  a timeout, a broken response or a missing network all come back as
+  `UpdateCheck.failed` and the app carries on.
+
+Installing is deliberately not automatic. The app downloads the release file
+for its platform and hands it over:
+
+| Platform | Handed to | Note |
+|---|---|---|
+| Windows | the Inno Setup installer with `/SILENT /CLOSEAPPLICATIONS` | `AppId` is fixed, so it lands in the same place and leaves the database in Documents |
+| Android | the system package installer through the FileProvider | needs `REQUEST_INSTALL_PACKAGES`; the user confirms on a system screen |
+
+The portable copy from the zip is left out: an installer would write a second
+copy somewhere else and the running directory would stay old. It is recognised
+by the absence of `unins000.exe` next to the executable, and it gets the
+release page address instead of a button.

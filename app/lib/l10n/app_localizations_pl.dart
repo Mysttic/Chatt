@@ -533,6 +533,61 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get updates => 'Aktualizacje';
+
+  @override
+  String get updateChecksLabel => 'Sprawdzaj aktualizacje automatycznie';
+
+  @override
+  String get updateChecksHelp =>
+      'Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.';
+
+  @override
+  String get updateCheckNow => 'Sprawdź teraz';
+
+  @override
+  String get updateChecking => 'Sprawdzam…';
+
+  @override
+  String get updateUpToDate => 'To najnowsze wydanie.';
+
+  @override
+  String updateAvailable(Object version) {
+    return 'Wyszła wersja $version';
+  }
+
+  @override
+  String get updateDownload => 'Pobierz i zainstaluj';
+
+  @override
+  String updateDownloading(int percent) {
+    return 'Pobieram… $percent%';
+  }
+
+  @override
+  String get updatePortableHint =>
+      'Ta kopia chodzi z zipa, więc nową trzeba rozpakować ręcznie. Strona wydania:';
+
+  @override
+  String get updateNoAsset =>
+      'To wydanie nie ma pliku dla tej platformy. Strona wydania:';
+
+  @override
+  String get updateInstallFailed => 'Nie udało się uruchomić instalatora.';
+
+  @override
+  String get updateDownloadFailed => 'Nie udało się pobrać pliku.';
+
+  @override
+  String get updateClosingForInstall =>
+      'Chatt zamyka się teraz, dalej pracuje instalator.';
+
+  @override
+  String updateLastChecked(Object when) {
+    return 'Ostatnio sprawdzano $when';
+  }
+
+  @override
   String get thisDevice => 'To urządzenie';
 
   @override

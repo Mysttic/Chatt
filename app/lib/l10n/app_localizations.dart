@@ -968,6 +968,96 @@ abstract class AppLocalizations {
   /// **'Usunięto wiadomości: {count}'**
   String historyCleared(int count);
 
+  /// No description provided for @updates.
+  ///
+  /// In pl, this message translates to:
+  /// **'Aktualizacje'**
+  String get updates;
+
+  /// No description provided for @updateChecksLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprawdzaj aktualizacje automatycznie'**
+  String get updateChecksLabel;
+
+  /// No description provided for @updateChecksHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.'**
+  String get updateChecksHelp;
+
+  /// No description provided for @updateCheckNow.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprawdź teraz'**
+  String get updateCheckNow;
+
+  /// No description provided for @updateChecking.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprawdzam…'**
+  String get updateChecking;
+
+  /// No description provided for @updateUpToDate.
+  ///
+  /// In pl, this message translates to:
+  /// **'To najnowsze wydanie.'**
+  String get updateUpToDate;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyszła wersja {version}'**
+  String updateAvailable(Object version);
+
+  /// No description provided for @updateDownload.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pobierz i zainstaluj'**
+  String get updateDownload;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pobieram… {percent}%'**
+  String updateDownloading(int percent);
+
+  /// No description provided for @updatePortableHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta kopia chodzi z zipa, więc nową trzeba rozpakować ręcznie. Strona wydania:'**
+  String get updatePortableHint;
+
+  /// No description provided for @updateNoAsset.
+  ///
+  /// In pl, this message translates to:
+  /// **'To wydanie nie ma pliku dla tej platformy. Strona wydania:'**
+  String get updateNoAsset;
+
+  /// No description provided for @updateInstallFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się uruchomić instalatora.'**
+  String get updateInstallFailed;
+
+  /// No description provided for @updateDownloadFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się pobrać pliku.'**
+  String get updateDownloadFailed;
+
+  /// No description provided for @updateClosingForInstall.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt zamyka się teraz, dalej pracuje instalator.'**
+  String get updateClosingForInstall;
+
+  /// No description provided for @updateLastChecked.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ostatnio sprawdzano {when}'**
+  String updateLastChecked(Object when);
+
   /// No description provided for @thisDevice.
   ///
   /// In pl, this message translates to:
