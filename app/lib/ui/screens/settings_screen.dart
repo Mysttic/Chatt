@@ -7,6 +7,9 @@ import '../../core/autostart.dart';
 import '../../core/background_service.dart';
 import '../../core/crypto.dart';
 import '../../core/languages.dart';
+import '../../core/tray.dart';
+import '../../core/update_install.dart';
+import '../../core/updates.dart';
 import '../../core/version.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
@@ -14,6 +17,7 @@ import '../backgrounds.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
 import '../widgets/toasts.dart';
+import '../widgets/update_card.dart';
 
 /// Ustawienia instancji (odpowiednik EditConfiguration.PNG) + informacje
 /// potrzebne do ręcznego parowania (adresy IP i faktyczny port nasłuchu).
@@ -370,6 +374,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
           const SizedBox(height: 32),
+          Text(context.l10n.updates,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          const _UpdatesSection(),
+          const SizedBox(height: 32),
           Text(context.l10n.privacy,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -495,6 +504,166 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
           ),
         ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Sekcja „Aktualizacje": przełącznik, sprawdzenie na żądanie i karta
+/// z nowym wydaniem, gdy jakieś jest.
+///
+/// Pobieranie i uruchomienie instalatora dzieje się tutaj, a nie w warstwie
+/// serwisów, bo to jedyne miejsce, w którym użytkownik o to prosi i w którym
+/// widzi postęp.
+class _UpdatesSection extends ConsumerStatefulWidget {
+  const _UpdatesSection();
+
+  @override
+  ConsumerState<_UpdatesSection> createState() => _UpdatesSectionState();
+}
+
+class _UpdatesSectionState extends ConsumerState<_UpdatesSection> {
+  /// Wynik ostatniego sprawdzenia zrobionego z tego ekranu. `null`, dopóki
+  /// nikt nie nacisnął przycisku: sam brak nowego wydania nie jest jeszcze
+  /// powodem, żeby cokolwiek pisać.
+  UpdateCheck? _ostatniWynik;
+
+  /// Ile procent pliku już jest. `null` znaczy „nie pobieram".
+  int? _postep;
+  String? _blad;
+
+  Future<void> _sprawdz() async {
+    setState(() {
+      _ostatniWynik = null;
+      _blad = null;
+    });
+    final wynik = await ref.read(appServicesProvider).checkForUpdate();
+    if (mounted) setState(() => _ostatniWynik = wynik.outcome);
+  }
+
+  Future<void> _pobierzIZainstaluj(Release wydanie) async {
+    final teksty = context.l10n;
+    setState(() {
+      _postep = 0;
+      _blad = null;
+    });
+    try {
+      final plik = await downloadRelease(
+        wydanie,
+        onProgress: (odebrane, razem) {
+          if (!mounted || razem == null || razem == 0) return;
+          setState(() => _postep = (odebrane * 100 ~/ razem));
+        },
+      );
+      final ruszyl = await launchInstaller(plik);
+      if (!mounted) return;
+      if (!ruszyl) {
+        setState(() {
+          _postep = null;
+          _blad = teksty.updateInstallFailed;
+        });
+        return;
+      }
+      setState(() => _postep = null);
+      // Windows: instalator wgrywa się w miejsce działającej aplikacji, więc
+      // ta musi zejść mu z drogi. Android zostaje otwarty, bo tam podmianą
+      // zajmuje się osobny ekran systemu.
+      if (Platform.isWindows) {
+        showToast(teksty.updateClosingForInstall);
+        await Future<void>.delayed(const Duration(seconds: 2));
+        await TrayIcon.instance.quit();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _postep = null;
+        _blad = teksty.updateDownloadFailed;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final services = ref.read(appServicesProvider);
+    final ustawienia = ref.watch(settingsProvider).value;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: ustawienia?.updateChecks ?? false,
+              title: Text(context.l10n.updateChecksLabel),
+              subtitle: Text(context.l10n.updateChecksHelp),
+              isThreeLine: true,
+              onChanged: ustawienia == null
+                  ? null
+                  : (wlaczone) async {
+                      await services.db.saveUpdateChecks(wlaczone);
+                      // Włączenie ma dać odpowiedź od razu, zamiast kazać
+                      // czekać do jutra na pierwsze pytanie.
+                      if (wlaczone) await _sprawdz();
+                    },
+            ),
+            const Divider(height: 24),
+            ValueListenableBuilder<bool>(
+              valueListenable: services.checkingForUpdate,
+              builder: (context, sprawdza, _) => Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: sprawdza || _postep != null ? null : _sprawdz,
+                    icon: sprawdza
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh),
+                    label: Text(sprawdza
+                        ? context.l10n.updateChecking
+                        : context.l10n.updateCheckNow),
+                  ),
+                  if (ustawienia?.lastUpdateCheck != null) ...[
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        context.l10n.updateLastChecked(
+                            formatWhen(ustawienia!.lastUpdateCheck)),
+                        style: TextStyle(
+                            color: scheme.onSurfaceVariant, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (_ostatniWynik == UpdateCheck.upToDate) ...[
+              const SizedBox(height: 12),
+              Text(context.l10n.updateUpToDate),
+            ],
+            if (_ostatniWynik == UpdateCheck.failed) ...[
+              const SizedBox(height: 12),
+              Text(context.l10n.updateDownloadFailed,
+                  style: TextStyle(color: scheme.error)),
+            ],
+            ValueListenableBuilder<Release?>(
+              valueListenable: services.availableRelease,
+              builder: (context, wydanie, _) => wydanie == null
+                  ? const SizedBox.shrink()
+                  : UpdateCard(
+                      release: wydanie,
+                      canInstall: canInstallUpdate(),
+                      progress: _postep,
+                      error: _blad,
+                      onInstall: () => _pobierzIZainstaluj(wydanie),
+                    ),
+            ),
+          ],
         ),
       ),
     );

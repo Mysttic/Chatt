@@ -8,6 +8,26 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Added
+- **Updating from inside the app.** Settings gains an **Updates** section: a
+  switch for a daily question to GitHub about a newer release, a **Check now**
+  button that asks regardless, and a card with the number, the release notes
+  and a **Download and install** button. On Windows the Inno Setup installer
+  runs with `/SILENT /CLOSEAPPLICATIONS` and the app steps aside; on Android
+  the download goes to the system package installer, which asks for
+  confirmation. The portable copy from the zip gets the release page address
+  instead, because an installer would leave the running directory untouched.
+- Schema v10: `settings.updateChecks` and `settings.lastUpdateCheck`.
+
+### Changed
+- **The promise about the local network now names its exception.** The switch
+  starts off, and with it off nothing reaches outside. Turned on, the app asks
+  `api.github.com` once a day with no token and no identifiers, and GitHub
+  sees what any HTTPS server sees. README, `SECURITY.md` and `architecture.md`
+  say so instead of claiming nothing ever leaves.
+
 ## [0.5.4] - 2026-09-06
 
 The one button that leads out of an unreadable database now does something
@@ -433,6 +453,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.5.4...develop
 [0.5.4]: https://github.com/Mysttic/Chatt/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Mysttic/Chatt/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Mysttic/Chatt/compare/v0.5.1...v0.5.2

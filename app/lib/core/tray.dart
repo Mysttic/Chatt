@@ -77,7 +77,7 @@ class TrayIcon with TrayListener, WindowListener {
       case _show:
         _showWindow();
       case _quit:
-        _quitApp();
+        quit();
     }
   }
 
@@ -86,7 +86,13 @@ class TrayIcon with TrayListener, WindowListener {
     await windowManager.focus();
   }
 
-  Future<void> _quitApp() async {
+  /// Kończy program.
+  ///
+  /// Woła to menu ikony w zasobniku, a przy aktualizacji także ekran ustawień:
+  /// instalator wgrywa się w miejsce działającej aplikacji, więc ta musi mu
+  /// zejść z drogi.
+  Future<void> quit() async {
+    if (!supported) return;
     // Zdjęcie blokady zamykania: dopiero teraz zamknięcie okna ma skończyć
     // proces, bo tego właśnie użytkownik chce.
     await windowManager.setPreventClose(false);

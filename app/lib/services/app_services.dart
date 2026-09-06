@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart' show sha256;
 import 'package:cryptography/cryptography.dart' show SimpleKeyPair;
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
+import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
@@ -16,6 +17,7 @@ import '../core/file_actions.dart';
 import '../core/identity.dart';
 import '../core/pair_link.dart';
 import '../core/received_paths.dart';
+import '../core/updates.dart';
 import '../data/db.dart';
 import '../data/db_open.dart';
 import '../network/client.dart';
@@ -340,6 +342,9 @@ class AppServices {
     services._onIncoming = onIncomingMessage;
     services._sweepStaleParts();
     services._startRetention();
+    // Pytanie o wydanie tylko wtedy, gdy discovery też jest włączone: testy
+    // stawiają po kilka instancji naraz i żadna nie ma po co wychodzić w sieć.
+    if (enableDiscovery) services._startUpdateChecks();
     // Urządzenia, które przewinęły się przez sieć i nigdy nic nie napisały,
     // nie mają po co zaśmiecać listy w nieskończoność.
     await db.sweepStalePeers();
@@ -1685,12 +1690,68 @@ class AppServices {
   Future<int> applyRetention(int days) =>
       days <= 0 ? Future.value(0) : db.deleteMessagesOlderThan(Duration(days: days));
 
+  // --- Sprawdzanie aktualizacji ---------------------------------------------
+
+  Timer? _updateTimer;
+
+  /// Wydanie nowsze niż to, które chodzi. `null` znaczy, że albo nikt jeszcze
+  /// nie pytał, albo nie ma nic nowego. Ustawienia patrzą tu na żywo.
+  final ValueNotifier<Release?> availableRelease = ValueNotifier(null);
+
+  /// Czy pytanie właśnie leci. Po tym przycisk wie, że ma być nieaktywny.
+  final ValueNotifier<bool> checkingForUpdate = ValueNotifier(false);
+
+  /// Pytanie o wydanie raz na dobę, i tylko przy włączonym przełączniku.
+  ///
+  /// Timer chodzi co godzinę, ale samo pytanie pada dopiero, gdy od ostatniego
+  /// minęła doba. Dzięki temu aplikacja chodząca tygodniami bez restartu pyta
+  /// tyle samo razy co taka, którą ktoś włącza raz dziennie.
+  void _startUpdateChecks() {
+    unawaited(_checkForUpdateIfDue());
+    _updateTimer = Timer.periodic(
+      const Duration(hours: 1),
+      (_) => unawaited(_checkForUpdateIfDue()),
+    );
+  }
+
+  Future<void> _checkForUpdateIfDue() async {
+    final ustawienia = await db.getSettings();
+    if (ustawienia == null || !ustawienia.updateChecks) return;
+    final ostatnie = ustawienia.lastUpdateCheck;
+    if (ostatnie != null &&
+        DateTime.now().difference(ostatnie) < updateCheckInterval) {
+      return;
+    }
+    await checkForUpdate();
+  }
+
+  /// Pyta GitHuba o najnowsze wydanie i zapisuje wynik w [availableRelease].
+  ///
+  /// Pyta zawsze, bez oglądania się na przełącznik: tędy wchodzi przycisk
+  /// „Sprawdź teraz", a ten ma działać także przy wyłączonym sprawdzaniu.
+  Future<UpdateResult> checkForUpdate({http.Client? client}) async {
+    checkingForUpdate.value = true;
+    try {
+      final wynik = await fetchLatestRelease(client: client);
+      availableRelease.value = wynik.release;
+      // Znacznik zapisujemy także po nieudanym pytaniu: brak sieci nie ma
+      // zamieniać sprawdzania co dobę w pukanie co godzinę.
+      await db.markUpdateCheck(DateTime.now());
+      return wynik;
+    } finally {
+      checkingForUpdate.value = false;
+    }
+  }
+
   Future<void> dispose() async {
     // Nikt już nie odpowie na wiszące prośby o zgodę: odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {
       _resolveOffer(guid, false);
     }
+    _updateTimer?.cancel();
+    availableRelease.dispose();
+    checkingForUpdate.dispose();
     _retentionTimer?.cancel();
     await _retentionWatch?.cancel();
     responder.stop();

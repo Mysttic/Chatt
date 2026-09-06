@@ -16,6 +16,11 @@
          aplikacjom bez wyjątku, a tu nie ma serwera push, który by ją obudził.
          O zgodę pyta użytkownik z ustawień, sami niczego nie wymuszamy. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- Aktualizacja z poziomu aplikacji: pobrany APK trafia do systemowego
+         instalatora, który pyta użytkownika o zgodę. Bez tego uprawnienia
+         ekran instalacji w ogóle się nie otworzy. Aplikacja niczego nie
+         podmienia sama i nie instaluje niczego po cichu. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <!-- Kopia zapasowa Androida wyłączona, z dwóch powodów naraz.
          Klucz bazy leży w Keystore i nigdy nie opuszcza urządzenia, więc
          przywrócona kopia przynosi z powrotem owinięty plik `chatt.key`,

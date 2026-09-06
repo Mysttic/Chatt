@@ -45,6 +45,14 @@ class Settings extends Table {
   /// Kasowanie dotyczy wpisów w bazie; odebrane pliki zostają na dysku.
   IntColumn get retentionDays => integer().withDefault(const Constant(0))();
 
+  /// Czy aplikacja sama pyta GitHuba o nowsze wydanie. Domyślnie nie:
+  /// to jedyny ruch poza sieć lokalną, więc włącza go użytkownik świadomie.
+  BoolColumn get updateChecks => boolean().withDefault(const Constant(false))();
+
+  /// Kiedy ostatnio padło pytanie o wydanie. Po tym poznajemy, że minęła doba
+  /// i wypada zapytać znowu.
+  DateTimeColumn get lastUpdateCheck => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -178,7 +186,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -233,6 +241,12 @@ class ChattDb extends _$ChattDb {
         // na pliki bez pytania musi być świadoma, nie odziedziczona.
         await _dodajKolumneJesliBrak(m, peers, peers.alias);
         await _dodajKolumneJesliBrak(m, peers, peers.autoAccept);
+      }
+      if (from < 10) {
+        // v10: pytanie o nowsze wydanie. Wyłączone, bo to jedyny ruch poza
+        // sieć lokalną i nikt nie ma się o nim dowiedzieć po fakcie.
+        await _dodajKolumneJesliBrak(m, settings, settings.updateChecks);
+        await _dodajKolumneJesliBrak(m, settings, settings.lastUpdateCheck);
       }
     },
   );
@@ -318,6 +332,17 @@ class ChattDb extends _$ChattDb {
   Future<void> saveRetentionDays(int days) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(retentionDays: Value(days)));
+
+  Future<void> saveUpdateChecks(bool enabled) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(updateChecks: Value(enabled)));
+
+  /// Znacznik ostatniego pytania o wydanie. Zapisujemy go po każdym pytaniu,
+  /// także nieudanym: brak sieci nie ma zamieniać sprawdzania co dobę
+  /// w pukanie przy każdym starcie.
+  Future<void> markUpdateCheck(DateTime when) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(lastUpdateCheck: Value(when)));
 
   // --- Historia -------------------------------------------------------------
 

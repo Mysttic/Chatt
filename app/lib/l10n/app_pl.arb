@@ -220,6 +220,31 @@
   "@historyCleared": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "updates": "Aktualizacje",
+  "updateChecksLabel": "Sprawdzaj aktualizacje automatycznie",
+  "updateChecksHelp": "Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.",
+  "updateCheckNow": "Sprawdź teraz",
+  "updateChecking": "Sprawdzam…",
+  "updateUpToDate": "To najnowsze wydanie.",
+  "updateAvailable": "Wyszła wersja {version}",
+  "@updateAvailable": {
+    "placeholders": { "version": {} }
+  },
+  "updateDownload": "Pobierz i zainstaluj",
+  "updateDownloading": "Pobieram… {percent}%",
+  "@updateDownloading": {
+    "placeholders": { "percent": { "type": "int" } }
+  },
+  "updatePortableHint": "Ta kopia chodzi z zipa, więc nową trzeba rozpakować ręcznie. Strona wydania:",
+  "updateNoAsset": "To wydanie nie ma pliku dla tej platformy. Strona wydania:",
+  "updateInstallFailed": "Nie udało się uruchomić instalatora.",
+  "updateDownloadFailed": "Nie udało się pobrać pliku.",
+  "updateClosingForInstall": "Chatt zamyka się teraz, dalej pracuje instalator.",
+  "updateLastChecked": "Ostatnio sprawdzano {when}",
+  "@updateLastChecked": {
+    "placeholders": { "when": {} }
+  },
+
   "thisDevice": "To urządzenie",
   "version": "Wersja",
   "listeningOn": "Nasłuch",

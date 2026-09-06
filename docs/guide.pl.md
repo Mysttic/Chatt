@@ -229,6 +229,22 @@ Odinstalowanie kasuje wpis autostartu, ale **nie rusza historii rozmów**:
 baza leży w Dokumentach i po ponownej instalacji jest na miejscu. Żeby
 naprawdę się jej pozbyć, użyj „Wyczyść historię" przed odinstalowaniem.
 
+## Nadążanie za wersjami
+
+W Ustawieniach jest sekcja **Aktualizacje**. Przy pierwszym wejściu stoi
+wyłączona i dopóki taka jest, aplikacja nie odzywa się nigdzie poza Twoją
+sieć. Włączona pyta GitHuba raz na dobę, czy wyszło nowsze wydanie, a przycisk
+**Sprawdź teraz** pyta od razu, niezależnie od przełącznika.
+
+Gdy coś nowszego jest, pokazuje się numer, opis wydania i przycisk **Pobierz
+i zainstaluj**. Na Windowsie rusza instalator, a Chatt zamyka się, żeby mu nie
+przeszkadzać, i wraca sam. Na Androidzie pobrany plik trafia do systemowego
+instalatora, który pyta o zgodę. Wersja przenośna z zipa dostaje zamiast
+przycisku adres strony wydania, bo instalator zostawiłby katalog, z którego
+właśnie chodzi, bez zmian.
+
+Historia rozmów i odebrane pliki zostają nietknięte w obu przypadkach.
+
 Gdy coś zawiedzie przed pokazaniem okna, Chatt mówi to na własnym ekranie
 i zapisuje `chatt-startup-error.txt` obok bazy w Dokumentach. Historia rozmów
 i odebrane pliki zostają nietknięte, a treść tego pliku jest tym, co warto

@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **94 `flutter test` tests** check everything that can be
+The split is simple: **116 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -164,6 +164,22 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
   `duplicate column name`
+
+### Checking for a newer release (`test/updates_test.dart`, 10 tests)
+- version comparison member by member, so 0.5.10 beats 0.5.4, with a leading
+  `v` and anything after `-` or `+` ignored
+- the asset name matches what the release workflow writes, per platform
+- a newer release comes back with its file; the same or an older one is
+  `upToDate`; a draft or a pre-release counts as nothing new
+- a non-200, a malformed body and a thrown exception all end as `failed`, and
+  the call never throws
+
+### The release card (`test/update_card_test.dart`, 5 tests)
+- an installable release shows the button and calls back when tapped
+- the portable copy and a release with no file for this platform get the page
+  address instead
+- while downloading, the progress bar replaces the button
+- an error sits under the button without taking it away
 
 ### Presence on the list (`test/presence_test.dart`, 1 test)
 - two live instances and one entry pointing at an address where nothing

@@ -119,6 +119,33 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _updateChecksMeta = const VerificationMeta(
+    'updateChecks',
+  );
+  @override
+  late final GeneratedColumn<bool> updateChecks = GeneratedColumn<bool>(
+    'update_checks',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("update_checks" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lastUpdateCheckMeta = const VerificationMeta(
+    'lastUpdateCheck',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUpdateCheck =
+      GeneratedColumn<DateTime>(
+        'last_update_check',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -131,6 +158,8 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     tcpPort,
     background,
     retentionDays,
+    updateChecks,
+    lastUpdateCheck,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -202,6 +231,24 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         ),
       );
     }
+    if (data.containsKey('update_checks')) {
+      context.handle(
+        _updateChecksMeta,
+        updateChecks.isAcceptableOrUnknown(
+          data['update_checks']!,
+          _updateChecksMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_update_check')) {
+      context.handle(
+        _lastUpdateCheckMeta,
+        lastUpdateCheck.isAcceptableOrUnknown(
+          data['last_update_check']!,
+          _lastUpdateCheckMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -255,6 +302,14 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.int,
         data['${effectivePrefix}retention_days'],
       )!,
+      updateChecks: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}update_checks'],
+      )!,
+      lastUpdateCheck: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_update_check'],
+      ),
     );
   }
 
@@ -289,7 +344,7 @@ class Setting extends DataClass implements Insertable<Setting> {
   final AppLanguage language;
 
   /// Preferowany port serwera. Faktyczny port może być inny, gdy ten jest
-  /// zajęty — patrz DeviceIdentity.tcpPort.
+  /// zajęty (patrz DeviceIdentity.tcpPort).
   final int tcpPort;
 
   /// Numer wybranego tła (patrz `ui/backgrounds.dart`). 0 znaczy „bez tła".
@@ -298,6 +353,14 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// Po ilu dniach kasować wiadomości. 0 znaczy „trzymaj bez końca".
   /// Kasowanie dotyczy wpisów w bazie; odebrane pliki zostają na dysku.
   final int retentionDays;
+
+  /// Czy aplikacja sama pyta GitHuba o nowsze wydanie. Domyślnie nie:
+  /// to jedyny ruch poza sieć lokalną, więc włącza go użytkownik świadomie.
+  final bool updateChecks;
+
+  /// Kiedy ostatnio padło pytanie o wydanie. Po tym poznajemy, że minęła doba
+  /// i wypada zapytać znowu.
+  final DateTime? lastUpdateCheck;
   const Setting({
     required this.id,
     required this.deviceGuid,
@@ -309,6 +372,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.tcpPort,
     required this.background,
     required this.retentionDays,
+    required this.updateChecks,
+    this.lastUpdateCheck,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -329,6 +394,10 @@ class Setting extends DataClass implements Insertable<Setting> {
     map['tcp_port'] = Variable<int>(tcpPort);
     map['background'] = Variable<int>(background);
     map['retention_days'] = Variable<int>(retentionDays);
+    map['update_checks'] = Variable<bool>(updateChecks);
+    if (!nullToAbsent || lastUpdateCheck != null) {
+      map['last_update_check'] = Variable<DateTime>(lastUpdateCheck);
+    }
     return map;
   }
 
@@ -344,6 +413,10 @@ class Setting extends DataClass implements Insertable<Setting> {
       tcpPort: Value(tcpPort),
       background: Value(background),
       retentionDays: Value(retentionDays),
+      updateChecks: Value(updateChecks),
+      lastUpdateCheck: lastUpdateCheck == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUpdateCheck),
     );
   }
 
@@ -367,6 +440,8 @@ class Setting extends DataClass implements Insertable<Setting> {
       tcpPort: serializer.fromJson<int>(json['tcpPort']),
       background: serializer.fromJson<int>(json['background']),
       retentionDays: serializer.fromJson<int>(json['retentionDays']),
+      updateChecks: serializer.fromJson<bool>(json['updateChecks']),
+      lastUpdateCheck: serializer.fromJson<DateTime?>(json['lastUpdateCheck']),
     );
   }
   @override
@@ -387,6 +462,8 @@ class Setting extends DataClass implements Insertable<Setting> {
       'tcpPort': serializer.toJson<int>(tcpPort),
       'background': serializer.toJson<int>(background),
       'retentionDays': serializer.toJson<int>(retentionDays),
+      'updateChecks': serializer.toJson<bool>(updateChecks),
+      'lastUpdateCheck': serializer.toJson<DateTime?>(lastUpdateCheck),
     };
   }
 
@@ -401,6 +478,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     int? tcpPort,
     int? background,
     int? retentionDays,
+    bool? updateChecks,
+    Value<DateTime?> lastUpdateCheck = const Value.absent(),
   }) => Setting(
     id: id ?? this.id,
     deviceGuid: deviceGuid ?? this.deviceGuid,
@@ -412,6 +491,10 @@ class Setting extends DataClass implements Insertable<Setting> {
     tcpPort: tcpPort ?? this.tcpPort,
     background: background ?? this.background,
     retentionDays: retentionDays ?? this.retentionDays,
+    updateChecks: updateChecks ?? this.updateChecks,
+    lastUpdateCheck: lastUpdateCheck.present
+        ? lastUpdateCheck.value
+        : this.lastUpdateCheck,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
     return Setting(
@@ -435,6 +518,12 @@ class Setting extends DataClass implements Insertable<Setting> {
       retentionDays: data.retentionDays.present
           ? data.retentionDays.value
           : this.retentionDays,
+      updateChecks: data.updateChecks.present
+          ? data.updateChecks.value
+          : this.updateChecks,
+      lastUpdateCheck: data.lastUpdateCheck.present
+          ? data.lastUpdateCheck.value
+          : this.lastUpdateCheck,
     );
   }
 
@@ -450,7 +539,9 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('language: $language, ')
           ..write('tcpPort: $tcpPort, ')
           ..write('background: $background, ')
-          ..write('retentionDays: $retentionDays')
+          ..write('retentionDays: $retentionDays, ')
+          ..write('updateChecks: $updateChecks, ')
+          ..write('lastUpdateCheck: $lastUpdateCheck')
           ..write(')'))
         .toString();
   }
@@ -467,6 +558,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     tcpPort,
     background,
     retentionDays,
+    updateChecks,
+    lastUpdateCheck,
   );
   @override
   bool operator ==(Object other) =>
@@ -481,7 +574,9 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.language == this.language &&
           other.tcpPort == this.tcpPort &&
           other.background == this.background &&
-          other.retentionDays == this.retentionDays);
+          other.retentionDays == this.retentionDays &&
+          other.updateChecks == this.updateChecks &&
+          other.lastUpdateCheck == this.lastUpdateCheck);
 }
 
 class SettingsCompanion extends UpdateCompanion<Setting> {
@@ -495,6 +590,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<int> tcpPort;
   final Value<int> background;
   final Value<int> retentionDays;
+  final Value<bool> updateChecks;
+  final Value<DateTime?> lastUpdateCheck;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.deviceGuid = const Value.absent(),
@@ -506,6 +603,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.tcpPort = const Value.absent(),
     this.background = const Value.absent(),
     this.retentionDays = const Value.absent(),
+    this.updateChecks = const Value.absent(),
+    this.lastUpdateCheck = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -518,6 +617,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.tcpPort = const Value.absent(),
     this.background = const Value.absent(),
     this.retentionDays = const Value.absent(),
+    this.updateChecks = const Value.absent(),
+    this.lastUpdateCheck = const Value.absent(),
   }) : deviceGuid = Value(deviceGuid),
        nickname = Value(nickname);
   static Insertable<Setting> custom({
@@ -531,6 +632,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<int>? tcpPort,
     Expression<int>? background,
     Expression<int>? retentionDays,
+    Expression<bool>? updateChecks,
+    Expression<DateTime>? lastUpdateCheck,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -543,6 +646,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (tcpPort != null) 'tcp_port': tcpPort,
       if (background != null) 'background': background,
       if (retentionDays != null) 'retention_days': retentionDays,
+      if (updateChecks != null) 'update_checks': updateChecks,
+      if (lastUpdateCheck != null) 'last_update_check': lastUpdateCheck,
     });
   }
 
@@ -557,6 +662,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<int>? tcpPort,
     Value<int>? background,
     Value<int>? retentionDays,
+    Value<bool>? updateChecks,
+    Value<DateTime?>? lastUpdateCheck,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
@@ -569,6 +676,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       tcpPort: tcpPort ?? this.tcpPort,
       background: background ?? this.background,
       retentionDays: retentionDays ?? this.retentionDays,
+      updateChecks: updateChecks ?? this.updateChecks,
+      lastUpdateCheck: lastUpdateCheck ?? this.lastUpdateCheck,
     );
   }
 
@@ -609,6 +718,12 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (retentionDays.present) {
       map['retention_days'] = Variable<int>(retentionDays.value);
     }
+    if (updateChecks.present) {
+      map['update_checks'] = Variable<bool>(updateChecks.value);
+    }
+    if (lastUpdateCheck.present) {
+      map['last_update_check'] = Variable<DateTime>(lastUpdateCheck.value);
+    }
     return map;
   }
 
@@ -624,7 +739,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('language: $language, ')
           ..write('tcpPort: $tcpPort, ')
           ..write('background: $background, ')
-          ..write('retentionDays: $retentionDays')
+          ..write('retentionDays: $retentionDays, ')
+          ..write('updateChecks: $updateChecks, ')
+          ..write('lastUpdateCheck: $lastUpdateCheck')
           ..write(')'))
         .toString();
   }
@@ -979,7 +1096,7 @@ class Peer extends DataClass implements Insertable<Peer> {
 
   /// Klucz publiczny rozmówcy (base64), przypięty przy pierwszym kontakcie.
   /// Jego zmiana znaczy albo reinstalację po drugiej stronie, albo próbę
-  /// podszycia się — w obu przypadkach użytkownik ma to zobaczyć.
+  /// podszycia się, w obu przypadkach użytkownik ma to zobaczyć.
   final String? publicKey;
 
   /// Ślad po parowaniu z protokołu 4 (klucz sesji na zawsze). Od protokołu 5
@@ -995,7 +1112,7 @@ class Peer extends DataClass implements Insertable<Peer> {
 
   /// Przyjmuj pliki od tego rozmówcy bez pytania. Ma sens wyłącznie przy
   /// potwierdzonej tożsamości, więc [setPeerVerified] gasi tę flagę razem
-  /// z tarczą — inaczej przetrwałaby unieważnienie potwierdzenia.
+  /// z tarczą: inaczej przetrwałaby unieważnienie potwierdzenia.
   final bool autoAccept;
   final DateTime firstSeen;
   final DateTime lastSeen;
@@ -2025,7 +2142,7 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
 class Message extends DataClass implements Insertable<Message> {
   final int id;
 
-  /// Globalny identyfikator wiadomości — dzięki UNIQUE ponowne dostarczenie
+  /// Globalny identyfikator wiadomości, dzięki UNIQUE ponowne dostarczenie
   /// tej samej wiadomości (retry po zgubionym ACK-u) nie tworzy duplikatu.
   final String messageGuid;
   final int conversationId;
@@ -2500,6 +2617,8 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<int> tcpPort,
   Value<int> background,
   Value<int> retentionDays,
+  Value<bool> updateChecks,
+  Value<DateTime?> lastUpdateCheck,
 });
 typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<int> id,
@@ -2512,6 +2631,8 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<int> tcpPort,
   Value<int> background,
   Value<int> retentionDays,
+  Value<bool> updateChecks,
+  Value<DateTime?> lastUpdateCheck,
 });
 
 class $$SettingsTableFilterComposer
@@ -2574,6 +2695,16 @@ class $$SettingsTableFilterComposer
     column: $table.retentionDays,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<bool> get updateChecks => $composableBuilder(
+    column: $table.updateChecks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUpdateCheck => $composableBuilder(
+    column: $table.lastUpdateCheck,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsTableOrderingComposer
@@ -2634,6 +2765,16 @@ class $$SettingsTableOrderingComposer
     column: $table.retentionDays,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get updateChecks => $composableBuilder(
+    column: $table.updateChecks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUpdateCheck => $composableBuilder(
+    column: $table.lastUpdateCheck,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableAnnotationComposer
@@ -2684,6 +2825,16 @@ class $$SettingsTableAnnotationComposer
     column: $table.retentionDays,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get updateChecks => $composableBuilder(
+    column: $table.updateChecks,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastUpdateCheck => $composableBuilder(
+    column: $table.lastUpdateCheck,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableManager
@@ -2724,6 +2875,8 @@ class $$SettingsTableTableManager
                 Value<int> tcpPort = const Value.absent(),
                 Value<int> background = const Value.absent(),
                 Value<int> retentionDays = const Value.absent(),
+                Value<bool> updateChecks = const Value.absent(),
+                Value<DateTime?> lastUpdateCheck = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 deviceGuid: deviceGuid,
@@ -2735,6 +2888,8 @@ class $$SettingsTableTableManager
                 tcpPort: tcpPort,
                 background: background,
                 retentionDays: retentionDays,
+                updateChecks: updateChecks,
+                lastUpdateCheck: lastUpdateCheck,
               ),
           createCompanionCallback:
               ({
@@ -2748,6 +2903,8 @@ class $$SettingsTableTableManager
                 Value<int> tcpPort = const Value.absent(),
                 Value<int> background = const Value.absent(),
                 Value<int> retentionDays = const Value.absent(),
+                Value<bool> updateChecks = const Value.absent(),
+                Value<DateTime?> lastUpdateCheck = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 deviceGuid: deviceGuid,
@@ -2759,6 +2916,8 @@ class $$SettingsTableTableManager
                 tcpPort: tcpPort,
                 background: background,
                 retentionDays: retentionDays,
+                updateChecks: updateChecks,
+                lastUpdateCheck: lastUpdateCheck,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

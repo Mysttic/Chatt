@@ -52,5 +52,10 @@ These are design decisions:
   user.** On Windows DPAPI unwraps it for any such process; on Android the app
   sandbox is what protects it. Protection covers a copied disk or a copied
   file; code already running as you can read the key.
-- **Nothing leaves the local network.** There is no server, no telemetry and no
-  crash reporting, so there is no reporting channel to abuse either.
+- **Nothing leaves the local network on its own.** There is no server, no
+  telemetry and no crash reporting, so there is no reporting channel to abuse
+  either. One exception, and it is off by default: with update checks turned
+  on, or when the button in Settings is pressed, the app asks
+  `api.github.com` about the newest release. GitHub sees what any HTTPS server
+  sees, an IP address and the time. Nothing about the conversations goes with
+  it.

@@ -222,6 +222,22 @@ Uninstalling removes the autostart entry but **does not touch the conversation
 history**: the database lives in Documents and is still there after a
 reinstall. To really get rid of it, use "Clear history" before uninstalling.
 
+## Staying up to date
+
+Settings has an **Updates** section. It is off when you first get there, and
+with it off the app never contacts anything outside your own network. Turned
+on, it asks GitHub once a day whether a newer release is out; the **Check now**
+button asks straight away either way.
+
+When something newer exists, its number and release notes appear with a
+**Download and install** button. On Windows the installer runs and Chatt closes
+to let it work, then it comes back on its own. On Android the download is
+handed to the system installer, which asks you to confirm. The portable copy
+from the zip gets the release page address instead of a button, because an
+installer would leave the running directory untouched.
+
+Conversation history and received files are not affected either way.
+
 If something goes wrong before the window opens, Chatt says so on a screen of
 its own and writes `chatt-startup-error.txt` next to the database in Documents.
 Conversation history and received files are left alone; the text in that file

@@ -530,6 +530,61 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get updates => 'Updates';
+
+  @override
+  String get updateChecksLabel => 'Check for updates automatically';
+
+  @override
+  String get updateChecksHelp =>
+      'Once a day Chatt asks GitHub whether a newer release is out. It is the only thing the app sends outside your own network, and it stays off until you turn it on.';
+
+  @override
+  String get updateCheckNow => 'Check now';
+
+  @override
+  String get updateChecking => 'Checking…';
+
+  @override
+  String get updateUpToDate => 'This is the newest release.';
+
+  @override
+  String updateAvailable(Object version) {
+    return 'Version $version is out';
+  }
+
+  @override
+  String get updateDownload => 'Download and install';
+
+  @override
+  String updateDownloading(int percent) {
+    return 'Downloading… $percent%';
+  }
+
+  @override
+  String get updatePortableHint =>
+      'This copy runs from the zip, so a new one has to be unpacked by hand. The release page:';
+
+  @override
+  String get updateNoAsset =>
+      'This release has no file for this platform. The release page:';
+
+  @override
+  String get updateInstallFailed => 'Could not start the installer.';
+
+  @override
+  String get updateDownloadFailed => 'Could not download the file.';
+
+  @override
+  String get updateClosingForInstall =>
+      'Chatt closes now and the installer takes over.';
+
+  @override
+  String updateLastChecked(Object when) {
+    return 'Last checked $when';
+  }
+
+  @override
   String get thisDevice => 'This device';
 
   @override

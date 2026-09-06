@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Co wolno wypuścić przez FileProvider: wyłącznie odebrane pliki
-     (files/Chatt/received), nic więcej z katalogu aplikacji. -->
+<!-- Co wolno wypuścić przez FileProvider: odebrane pliki i pobrane wydanie,
+     nic więcej z katalogu aplikacji. APK musi tędy przejść, bo systemowy
+     instalator dostaje content://, nie ścieżkę. -->
 <paths>
     <files-path name="odebrane" path="Chatt/received/" />
+    <files-path name="aktualizacje" path="Chatt/updates/" />
 </paths>
