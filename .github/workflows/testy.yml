@@ -13,6 +13,12 @@ on:
       - master
   workflow_dispatch:
 
+# Bieg tylko czyta kod, więc token dostaje tyle i nic więcej. W publicznym
+# repozytorium ten workflow odpala się na kodzie z cudzych forków, a domyślne
+# uprawnienia tokenu bywają szersze, niż potrzeba.
+permissions:
+  contents: read
+
 # Kolejny commit w otwartym PR anuluje poprzedni, jeszcze trwający bieg.
 concurrency:
   group: testy-${{ github.ref }}

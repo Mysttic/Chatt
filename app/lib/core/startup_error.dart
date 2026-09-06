@@ -102,7 +102,11 @@ class _StartupErrorAppState extends State<StartupErrorApp> {
   /// każdej innej awarii kasowanie bazy zabrałoby czytelną historię.
   bool get _doOdzyskania => error is DatabaseKeyUnavailable;
 
-  Future<void> _reset() async {
+  /// [context] musi pochodzić spod [MaterialApp], bo to ona zakłada nawigator,
+  /// a okno dialogowe wchodzi na jego stos. Kontekst samego stanu leży nad nią
+  /// i `showDialog` kończył się na nim wyjątkiem z `Navigator.of`, czyli
+  /// przycisk nie robił nic.
+  Future<void> _reset(BuildContext context) async {
     final zgoda = await showDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
@@ -191,10 +195,12 @@ class _StartupErrorAppState extends State<StartupErrorApp> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: _reset,
-                      icon: const Icon(Icons.restart_alt),
-                      label: const Text('Start over'),
+                    Builder(
+                      builder: (podNawigatorem) => FilledButton.icon(
+                        onPressed: () => _reset(podNawigatorem),
+                        icon: const Icon(Icons.restart_alt),
+                        label: const Text('Start over'),
+                      ),
                     ),
                   ] else
                     Text(

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:chatt/core/secret_store.dart';
 import 'package:chatt/core/startup_error.dart';
 
 /// Gdy schowek systemowy nie odwinie klucza, historia jest nie do odczytania
@@ -51,5 +52,40 @@ void main() {
     addTearDown(() => dir.deleteSync(recursive: true));
     await resetUnreadableDatabase(directory: dir.path);
     expect(dir.existsSync(), isTrue);
+  });
+
+  // Przycisk wołał `showDialog` z kontekstem stanu, czyli sponad MaterialApp,
+  // gdzie nie ma jeszcze nawigatora. Kliknięcie kończyło się wtedy wyjątkiem
+  // w logu i niczym na ekranie.
+  testWidgets('„Start over" otwiera pytanie o potwierdzenie', (tester) async {
+    await tester.pumpWidget(StartupErrorApp(
+      error: const DatabaseKeyUnavailable('/dane/chatt.key'),
+      logPath: '/dane/chatt-startup-error.txt',
+    ));
+    await tester.pump();
+
+    expect(find.text('Start over'), findsOneWidget);
+    await tester.tap(find.text('Start over'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Start over?'), findsOneWidget);
+    expect(find.text('Delete and start over'), findsOneWidget);
+
+    // Anulowanie zamyka okno i niczego nie kasuje.
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Start over?'), findsNothing);
+  });
+
+  testWidgets('przy innym błędzie nie ma czego resetować', (tester) async {
+    await tester.pumpWidget(
+      const StartupErrorApp(error: 'coś zupełnie innego'),
+    );
+    await tester.pump();
+
+    expect(find.text('Start over'), findsNothing);
+    expect(find.textContaining('Report this at'), findsOneWidget);
   });
 }
