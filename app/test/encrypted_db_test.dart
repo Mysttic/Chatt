@@ -174,7 +174,10 @@ void main() {
 
       // Klucz systemowy zniknął (reinstalacja, kopia na inne urządzenie).
       messenger.setMockMethodCallHandler(kanal, (_) async => null);
-      expect(() => DatabaseKey.load(dir.path), throwsA(isA<StateError>()));
+      // Osobny typ, bo ekran awarii startu tylko przy nim proponuje zaczęcie
+      // od nowa: przy każdym innym błędzie historia jest jeszcze do odczytania.
+      expect(() => DatabaseKey.load(dir.path),
+          throwsA(isA<DatabaseKeyUnavailable>()));
 
       messenger.setMockMethodCallHandler(kanal, null);
       dir.deleteSync(recursive: true);

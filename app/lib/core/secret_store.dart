@@ -5,6 +5,26 @@ import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
+/// Klucz bazy leży na dysku, ale systemowy schowek nie chce go odwinąć.
+///
+/// Materiał do odwijania nigdy nie opuszcza urządzenia, więc przywrócona kopia
+/// zapasowa, przenosiny na nowy telefon albo wyczyszczony Keystore zostawiają
+/// plik z kluczem bez niczego, czym dałoby się go otworzyć. Historii nie da
+/// się wtedy odzyskać żadnym sposobem i aplikacja ma to powiedzieć wprost,
+/// zamiast odmawiać startu w kółko.
+class DatabaseKeyUnavailable implements Exception {
+  final String keyPath;
+
+  const DatabaseKeyUnavailable(this.keyPath);
+
+  @override
+  String toString() =>
+      'The database key in $keyPath cannot be unwrapped: the system keystore '
+      'no longer holds the material it was wrapped with. This happens after '
+      'restoring a backup, moving to another device, or clearing the '
+      'keystore. The conversation history is unreadable from here on.';
+}
+
 /// Dostęp do systemowego schowka na sekrety: Android Keystore i Windows DPAPI.
 ///
 /// Kanał robi jedno: owija i odwija bajty kluczem, którego aplikacja nigdy nie
@@ -81,12 +101,7 @@ class DatabaseKey {
           );
         }
         final odwiniete = await SecretStore.unprotect(body);
-        if (odwiniete == null) {
-          throw StateError(
-            'Nie da się odczytać klucza bazy z ${file.path}. '
-            'Schowek systemowy nie odwinął go z powrotem.',
-          );
-        }
+        if (odwiniete == null) throw DatabaseKeyUnavailable(file.path);
         return DatabaseKey(passphrase: utf8.decode(odwiniete), protected: true);
       }
     }

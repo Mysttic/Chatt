@@ -156,8 +156,18 @@ channel:
 The first byte of `chatt.key` says whether the content is wrapped. When the
 keystore refuses, the key is written in the clear and Settings says so;
 encryption still protects the database file on its own; a copy of the whole
-app directory carries the key with it. When the system key **disappears**,
-`DatabaseKey.load` throws.
+app directory carries the key with it.
+
+Keystore material never leaves the device, so a wrapped `chatt.key` that
+travels somewhere else arrives useless. Android's backup would do exactly
+that, which is why `allowBackup` is off and `data_extraction_rules.xml`
+excludes both the cloud copy and the transfer to a new phone. It keeps the
+conversation database out of Google's hands at the same time.
+
+When the system key **disappears** anyway, `DatabaseKey.load` throws
+`DatabaseKeyUnavailable`. The history is unreadable from that point on with no
+way back, so the startup screen offers to delete the database and the key and
+begin again, asking first and leaving received files alone.
 
 A plaintext database left by an older version is rewritten on the first start
 (`migrateToEncrypted`). Encryption works on file pages, so a database cannot be

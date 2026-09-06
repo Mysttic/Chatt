@@ -8,6 +8,27 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.5.3] - 2026-09-06
+
+The Android side of the same story as 0.5.2: a phone that opened on a screen
+saying it could not read its own database, with nothing to do about it.
+
+### Fixed
+- **Android no longer ends up with a database it has no key to.** The system
+  backup was on (the default), so `chatt.key` travelled to the cloud and back
+  while the Keystore material that wraps it never leaves the device. A
+  restored phone woke up with a wrapped key nothing could unwrap. Both cloud
+  backup and device-to-device transfer are now off, which also settles the
+  older question of the conversation database quietly going to Google.
+- **An unwrappable key is now a dead end you can walk out of.** The startup
+  screen offers to start over: it deletes the database and the key, keeps
+  received files, and asks first, because the history is gone either way.
+  Until now the only way out was clearing the app's storage, which took the
+  received files with it.
+- The Keystore no longer mints a fresh key while unwrapping. A missing key
+  used to turn into a failed decryption, which reads like a corrupted file
+  rather than a missing key.
+
 ## [0.5.2] - 2026-09-06
 
 Two ways of not starting, one of which hid the other. Found on a real
@@ -389,6 +410,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.5.3]: https://github.com/Mysttic/Chatt/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Mysttic/Chatt/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Mysttic/Chatt/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/Mysttic/Chatt/compare/v0.4.0...v0.5.0

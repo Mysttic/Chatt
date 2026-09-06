@@ -16,10 +16,19 @@
          aplikacjom bez wyjątku, a tu nie ma serwera push, który by ją obudził.
          O zgodę pyta użytkownik z ustawień, sami niczego nie wymuszamy. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- Kopia zapasowa Androida wyłączona, z dwóch powodów naraz.
+         Klucz bazy leży w Keystore i nigdy nie opuszcza urządzenia, więc
+         przywrócona kopia przynosi z powrotem owinięty plik `chatt.key`,
+         którego nie ma już czym odwinąć: aplikacja wstaje wtedy z bazą,
+         do której nie ma klucza. Drugi powód jest wprost z opisu programu:
+         nic nie ma wychodzić z sieci lokalnej, a Auto Backup wysyła bazę
+         rozmów do chmury. -->
     <application
         android:label="Chatt"
         android:name=".ChattApplication"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
