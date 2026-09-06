@@ -8,7 +8,10 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.5.4] - 2026-09-06
+
+The one button that leads out of an unreadable database now does something
+when pressed, plus the housekeeping a repository needs before it goes public.
 
 ### Fixed
 - **The "Start over" button on the startup screen now opens its confirmation.**
@@ -430,7 +433,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.5.3...develop
+[0.5.4]: https://github.com/Mysttic/Chatt/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Mysttic/Chatt/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/Mysttic/Chatt/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/Mysttic/Chatt/compare/v0.5.0...v0.5.1
