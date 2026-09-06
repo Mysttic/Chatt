@@ -18,6 +18,16 @@ into `master`.
   exactly as it was, so the one way out of an unreadable database did nothing.
   Found on a phone with logcat open.
 
+### Changed
+- The test workflow asks for `contents: read` and nothing else. In a public
+  repository it runs on code from other people's forks, and the default token
+  is wider than a run that only reads the code needs.
+
+### Removed
+- Seven screenshots at the top of `docs/screenshots/`, left over from the
+  first pass at the documentation. No page linked them and no tool rebuilds
+  them.
+
 ## [0.5.3] - 2026-09-06
 
 The Android side of the same story as 0.5.2: a phone that opened on a screen
