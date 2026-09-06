@@ -113,16 +113,28 @@ object ChattChannels {
      */
     private fun protect(data: ByteArray): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, databaseKey())
+        cipher.init(Cipher.ENCRYPT_MODE, databaseKey(create = true))
         return cipher.iv + cipher.doFinal(data)
     }
 
+    /**
+     * Odwrotność [protect]. Brakujący klucz kończy się tutaj wyraźnym błędem,
+     * bo założenie nowego dałoby tylko nieudane odszyfrowanie i pytanie, czy
+     * zepsuł się plik, czy magazyn.
+     */
     private fun unprotect(data: ByteArray): ByteArray {
         require(data.size > ivLength) { "Blob za krótki" }
+        val key = databaseKey(create = false)
+            ?: throw IllegalStateException(
+                "Klucz $keystoreAlias zniknął z Keystore. Tak wygląda " +
+                    "przywrócona kopia zapasowa albo wyczyszczony magazyn: " +
+                    "plik z kluczem bazy został, a materiał do jego " +
+                    "odwinięcia nie."
+            )
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(
             Cipher.DECRYPT_MODE,
-            databaseKey(),
+            key,
             GCMParameterSpec(tagBits, data, 0, ivLength),
         )
         return cipher.doFinal(data, ivLength, data.size - ivLength)
@@ -133,10 +145,11 @@ object ChattChannels {
      * aplikacja musi otworzyć bazę także wtedy, gdy budzi ją wiadomość przy
      * zablokowanym ekranie.
      */
-    private fun databaseKey(): SecretKey {
+    private fun databaseKey(create: Boolean): SecretKey? {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (store.getEntry(keystoreAlias, null) as? KeyStore.SecretKeyEntry)
             ?.let { return it.secretKey }
+        if (!create) return null
 
         val generator = KeyGenerator.getInstance(
             KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")

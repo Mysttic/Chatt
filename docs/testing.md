@@ -154,6 +154,11 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   gets the file through with no question asked; the same peer without consent
   still raises one; and the flag alone, with the shield gone, raises one too
 
+### Starting over after a lost key (`test/startup_error_test.dart`, 2 tests)
+- the reset deletes the database, its journals and the key, and stops at the
+  received files and the failure report
+- it also survives a directory with none of those in it
+
 ### Migration ahead of its own version (`test/migration_test.dart`, 1 test)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
