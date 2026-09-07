@@ -250,6 +250,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HUB: Mysttic/Mysttic
+      STRONA: https://mysttic.github.io/Mysttic/chatt/
       WERSJA: ${{ needs.wersja.outputs.wersja }}
       TAG: ${{ needs.wersja.outputs.tag }}
       TAG_HUB: chatt-v${{ needs.wersja.outputs.wersja }}
@@ -283,20 +284,16 @@ jobs:
             exit 1
           fi
 
-      # Opis bierzemy z wydania w tym repozytorium, bo tam powstaje z historii
-      # scalonych zmian. W repozytorium z witryną nie ma z czego go zbudować.
+      # Opis zostaje przy numerze i adresie strony. Kod leży w prywatnym
+      # repozytorium, więc odnośniki do niego byłyby dla czytelnika ślepe,
+      # a opis wydania widać też na karcie aktualizacji w samej aplikacji.
       - name: Opis wydania
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           {
-            echo "Chatt $WERSJA."
+            echo "Chatt $WERSJA"
             echo
-            echo "Kod źródłowy i wszystkie starsze wydania:"
-            echo "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
-            echo
-            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body
+            echo "$STRONA"
           } > opis.md
           cat opis.md
 

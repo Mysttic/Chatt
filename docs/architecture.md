@@ -380,9 +380,15 @@ for a newer release is the exception, so it is fenced off:
   goes out only when `settings.lastUpdateCheck` is older than 24 hours. The
   stamp is written after a failed attempt too, so a dead connection does not
   turn a daily check into hourly knocking.
-- **A public endpoint, nothing attached.** `GET /repos/Mysttic/Chatt/releases/latest`,
+- **A public endpoint, nothing attached.** `GET /repos/Mysttic/Mysttic/releases`,
   no token, no identifiers. GitHub sees an IP address and a timestamp, the
-  same as any HTTPS server.
+  same as any HTTPS server. That repository is the one behind the
+  [download page][strona] and it holds releases of every project, so the app
+  takes the newest tag carrying the `chatt-v` prefix and skips drafts and
+  prereleases. The code lives in a private repository, which is why the
+  question goes here.
+
+[strona]: https://mysttic.github.io/Mysttic/chatt/
 - **Failure is silence.** `fetchLatestRelease` never throws;
   a timeout, a broken response or a missing network all come back as
   `UpdateCheck.failed` and the app carries on.

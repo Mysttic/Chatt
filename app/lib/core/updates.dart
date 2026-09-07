@@ -11,8 +11,19 @@ import 'version.dart';
 /// dzieje się to wyłącznie wtedy, gdy użytkownik włączy przełącznik albo sam
 /// naciśnie przycisk w ustawieniach. Pytanie idzie do publicznego API GitHuba
 /// i nie niesie ze sobą niczego poza tym, co widzi każdy serwer HTTPS.
+///
+/// Pliki do pobrania leżą w repozytorium, z którego korzysta strona
+/// https://mysttic.github.io/Mysttic/chatt/. Kod aplikacji jest prywatny,
+/// a wydania publiczne, więc pytanie ma dokąd trafić.
 const String releasesApi =
-    'https://api.github.com/repos/Mysttic/Chatt/releases/latest';
+    'https://api.github.com/repos/Mysttic/Mysttic/releases?per_page=30';
+
+/// Przedrostek tagów Chatta. W tamtym repozytorium leżą wydania wszystkich
+/// projektów naraz, więc samo „najnowsze" pokazałoby cudzy numer.
+const String releaseTagPrefix = 'chatt-v';
+
+/// Lista wydań w przeglądarce, dla wersji przenośnej i jako zapasowy adres.
+const String releasesPage = 'https://github.com/Mysttic/Mysttic/releases';
 
 /// Ile czekamy na odpowiedź. Sprawdzenie aktualizacji jest czynnością
 /// poboczną, więc lepiej odpuścić niż wisieć.
@@ -136,27 +147,36 @@ Future<UpdateResult> fetchLatestRelease({
     }
 
     final json = jsonDecode(odpowiedz.body);
-    if (json is! Map<String, dynamic>) {
+    if (json is! List) {
       return const UpdateResult(UpdateCheck.failed);
     }
-    // Szkic i wydanie kandydujące to nie jest coś, co ktoś ma dostać
-    // automatycznie, więc z punktu widzenia aplikacji nic nowego nie ma.
-    if (json['draft'] == true || json['prerelease'] == true) {
+
+    // Lista przychodzi od najnowszych. Bierzemy pierwsze wydanie Chatta:
+    // szkic i wydanie kandydujące to nie jest coś, co ktoś ma dostać
+    // automatycznie, a wydania pozostałych projektów zdradza przedrostek tagu.
+    Map<String, dynamic>? wydanie;
+    for (final w in json) {
+      if (w is! Map<String, dynamic>) continue;
+      if (w['draft'] == true || w['prerelease'] == true) continue;
+      final tag = w['tag_name'];
+      if (tag is! String || !tag.startsWith(releaseTagPrefix)) continue;
+      wydanie = w;
+      break;
+    }
+    // Wydania Chatta nie ma na liście, więc nie ma o czym mówić.
+    if (wydanie == null) {
       return const UpdateResult(UpdateCheck.upToDate);
     }
 
-    final tag = json['tag_name'];
-    if (tag is! String || tag.isEmpty) {
-      return const UpdateResult(UpdateCheck.failed);
-    }
-    final wersja = tag.startsWith('v') ? tag.substring(1) : tag;
-    if (compareVersions(biezaca, wersja) >= 0) {
+    final wersja = (wydanie['tag_name'] as String)
+        .substring(releaseTagPrefix.length);
+    if (wersja.isEmpty || compareVersions(biezaca, wersja) >= 0) {
       return const UpdateResult(UpdateCheck.upToDate);
     }
 
     final szukana = assetNameFor(wersja, platforma: platforma);
     Map<String, dynamic>? plik;
-    for (final a in (json['assets'] as List? ?? const [])) {
+    for (final a in (wydanie['assets'] as List? ?? const [])) {
       if (a is Map<String, dynamic> && a['name'] == szukana) {
         plik = a;
         break;
@@ -167,11 +187,11 @@ Future<UpdateResult> fetchLatestRelease({
       UpdateCheck.newer,
       Release(
         version: wersja,
-        notes: (json['body'] as String? ?? '').trim(),
-        publishedAt: DateTime.tryParse(json['published_at'] as String? ?? ''),
-        pageUrl:
-            json['html_url'] as String? ??
-            'https://github.com/Mysttic/Chatt/releases',
+        notes: (wydanie['body'] as String? ?? '').trim(),
+        publishedAt: DateTime.tryParse(
+          wydanie['published_at'] as String? ?? '',
+        ),
+        pageUrl: wydanie['html_url'] as String? ?? releasesPage,
         assetUrl: plik?['browser_download_url'] as String?,
         assetName: plik?['name'] as String?,
         assetSize: plik?['size'] as int?,
