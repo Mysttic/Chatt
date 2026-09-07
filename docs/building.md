@@ -262,8 +262,10 @@ Three things there are a contract:
   every project share that one repository;
 - the file names stay exactly as they are here, because the page matches assets
   by name and so does the in-app update;
-- the description is passed explicitly, copied from the release in this
-  repository, because the merge history it is generated from lives here.
+- the description is passed explicitly and stays at the version number and the
+  address of the page. This repository is private, so a link into it would be
+  blind for whoever reads the release, and that same text shows up on the
+  update card inside the app.
 
 The page shows one version, the newest. After a successful copy the job deletes
 older `chatt-v*` releases there along with their tags; the full history of
