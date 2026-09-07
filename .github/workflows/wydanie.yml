@@ -234,3 +234,102 @@ jobs:
             --title "Chatt $WERSJA" \
             --generate-notes \
             --target "$GITHUB_SHA"
+
+  # Te same trzy pliki idą jeszcze raz do repozytorium z witryną, bo stamtąd
+  # pobierają je ludzie: https://mysttic.github.io/Mysttic/chatt/. Strona czyta
+  # wydania przez API i sama się wypełnia, więc kopia wystarczy do jej
+  # odświeżenia.
+  #
+  # Tag ma przedrostek `chatt-v`, bo w tym repozytorium leżą wydania wszystkich
+  # projektów naraz. Nazwy plików zostają takie same jak tutaj: czyta je skrypt
+  # strony i aktualizacja w samej aplikacji.
+  witryna:
+    name: Kopia na stronę
+    needs: [wersja, wydanie]
+    if: needs.wersja.outputs.wydajemy == 'true'
+    runs-on: ubuntu-latest
+    env:
+      HUB: Mysttic/Mysttic
+      WERSJA: ${{ needs.wersja.outputs.wersja }}
+      TAG: ${{ needs.wersja.outputs.tag }}
+      TAG_HUB: chatt-v${{ needs.wersja.outputs.wersja }}
+    steps:
+      # Domyślny GITHUB_TOKEN sięga wyłącznie do tego repozytorium, więc kopia
+      # potrzebuje własnego poświadczenia. Szczegóły w docs/building.md.
+      - name: Poświadczenie do repozytorium z witryną
+        env:
+          HUB_TOKEN: ${{ secrets.HUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          if [ -z "${HUB_TOKEN:-}" ]; then
+            echo "::error::Brak sekretu HUB_TOKEN. Wydanie $TAG powstało, kopia na stronę nie."
+            echo "::error::Potrzebny token osobisty z uprawnieniem Contents: read and write do $HUB."
+            exit 1
+          fi
+
+      - name: Pliki z wydania
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p kopia
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --dir kopia --pattern 'chatt-*'
+          ls -la kopia
+          # Instalator, wersja przenośna i APK. Mniejsza liczba znaczy, że
+          # wydanie wyszło niekompletne i kopiowanie nie ma sensu.
+          if [ "$(ls -1 kopia | wc -l)" -ne 3 ]; then
+            echo "::error::Spodziewałem się trzech plików w wydaniu $TAG."
+            exit 1
+          fi
+
+      # Opis bierzemy z wydania w tym repozytorium, bo tam powstaje z historii
+      # scalonych zmian. W repozytorium z witryną nie ma z czego go zbudować.
+      - name: Opis wydania
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Chatt $WERSJA."
+            echo
+            echo "Kod źródłowy i wszystkie starsze wydania:"
+            echo "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+            echo
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body -q .body
+          } > opis.md
+          cat opis.md
+
+      - name: Wydanie na stronie
+        env:
+          GH_TOKEN: ${{ secrets.HUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Powtórzony bieg ma zastąpić poprzednią kopię, więc najpierw znika ta
+          # o tym samym numerze.
+          if gh release view "$TAG_HUB" --repo "$HUB" >/dev/null 2>&1; then
+            gh release delete "$TAG_HUB" --repo "$HUB" --cleanup-tag --yes
+          fi
+          gh release create "$TAG_HUB" kopia/* \
+            --repo "$HUB" \
+            --title "Chatt $WERSJA" \
+            --notes-file opis.md \
+            --target master
+
+      # Na stronie stoi jedna wersja, najnowsza. Starsze zostają w tym
+      # repozytorium, pod pełną historią wydań. Kasujemy razem z tagiem, żeby
+      # nie zbierały się puste znaczniki, i wyłącznie z przedrostkiem `chatt-v`,
+      # żeby wydania pozostałych projektów zostały nietknięte.
+      - name: Strona trzyma jedną wersję
+        env:
+          GH_TOKEN: ${{ secrets.HUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release list --repo "$HUB" --limit 100 --json tagName -q '.[].tagName' \
+            | { grep -E '^chatt-v' || true; } \
+            | { grep -vxF "$TAG_HUB" || true; } \
+            | while read -r stary; do
+                echo "Kasuję $stary"
+                gh release delete "$stary" --repo "$HUB" --cleanup-tag --yes
+              done
+          echo "Na stronie zostaje $TAG_HUB" >> "$GITHUB_STEP_SUMMARY"
