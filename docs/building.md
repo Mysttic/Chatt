@@ -243,9 +243,45 @@ Two gates, one after the other:
 When both gates let it through: the Windows build and a signed APK, a tag and a
 Release with three files, `chatt-<version>-android.apk`,
 `chatt-<version>-windows.zip` and `chatt-<version>-windows-instalator.exe`.
+The same three files are then copied to the download page (see below).
 
 In practice a release looks like this: `python tool/wersja.py 0.5.0` on
 `develop`, a PR to `master`, a merge.
+
+### The copy on the download page
+
+The `witryna` job repeats the release in [`Mysttic/Mysttic`][hub], the
+repository behind <https://mysttic.github.io/Mysttic/chatt/>. The page reads
+releases through the API, so the copy is all it takes to refresh it.
+
+[hub]: https://github.com/Mysttic/Mysttic
+
+Three things there are a contract:
+
+- the tag carries a project prefix, `chatt-v<version>`, because releases of
+  every project share that one repository;
+- the file names stay exactly as they are here, because the page matches assets
+  by name and so does the in-app update;
+- the description is passed explicitly, copied from the release in this
+  repository, because the merge history it is generated from lives here.
+
+The page shows one version, the newest. After a successful copy the job deletes
+older `chatt-v*` releases there along with their tags; the full history of
+releases stays in this repository. Releases of other projects keep the job away
+by having a different prefix.
+
+The copy needs a credential of its own, because the default `GITHUB_TOKEN`
+reaches only this repository. One secret in *Settings, Secrets and variables,
+Actions*:
+
+| Secret | Value |
+|---|---|
+| `HUB_TOKEN` | a fine-grained personal access token, repository `Mysttic/Mysttic`, permission *Contents: read and write* |
+
+When it is missing the job stops with an error while the release in this
+repository stays where it is. Add the secret and press *Re-run failed jobs* on
+that run; the copy then goes through on its own. A fresh *Run workflow* would
+stop at the second gate, because the tag already exists by then.
 
 ### Secrets for signing the APK
 
@@ -296,8 +332,9 @@ CI takes care of the build and the tag; the rest is on your side:
    `flutter test tool/product_shots.dart` (needs a running emulator).
 3. Open a PR from `develop` to `master` and wait for the tests to go green.
 4. Merge the PR. The release workflow builds a signed APK, the portable Windows
-   version (zip) and the installer (exe), creates the `v<version>` tag and
-   publishes a Release with those three files.
+   version (zip) and the installer (exe), creates the `v<version>` tag,
+   publishes a Release with those three files and copies them to the
+   [download page](#the-copy-on-the-download-page).
 5. Download the APK from the Release, install it on a phone and walk the
    [short checklist](#post-release-checklist).
 
