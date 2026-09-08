@@ -368,10 +368,11 @@ One set of screens serves a phone and a monitor:
   the desktop, and a "Select text" entry in the bubble menu on a phone, where
   the long press already belongs to that menu.
 
-## Updates: the one call outside the local network
+## Updates: a call outside the local network
 
 Everything else in the app talks only to devices on the same Wi-Fi. Checking
-for a newer release is the exception, so it is fenced off:
+for a newer release is one of two exceptions (the other is
+[link previews](#links-in-messages)), so it is fenced off:
 
 - **Off by default.** `settings.updateChecks` (schema v10) starts false. With
   it off, the only way anything reaches `api.github.com` is the user pressing
@@ -405,3 +406,76 @@ The portable copy from the zip is left out: an installer would write a second
 copy somewhere else and the running directory would stay old. It is recognised
 by the absence of `unins000.exe` next to the executable, and it gets the
 release page address instead of a button.
+
+## Links in messages
+
+A message body is plain text from someone else on the network, so a link in it
+is a **string from a stranger**. Two separate things happen to it, and they are
+gated separately.
+
+### Clicking a link always asks first
+
+[`core/links.dart`](../app/lib/core/links.dart) finds addresses in the body and
+[`ui/widgets/linked_text.dart`](../app/lib/ui/widgets/linked_text.dart) turns
+them into tappable spans, composed with the search highlight, so the two can
+overlap on the same characters.
+
+- **Only `http` and `https` become links.** `javascript:`, `data:`, `file:`,
+  `intent:` and `content:` stay plain text, because tapping them would mean
+  "run something", not "show a page".
+- **An address carrying invisible characters is not linkified at all**: a
+  right-to-left override reverses the tail of a name, so `…exe` reads as
+  `…txt`, and there is no honest way to show where such a link goes.
+- **A host name with no dot is not a link** (`http://localhost:8080`), unless
+  it is a literal IP address, which is everyday life on a local network.
+- Tapping never opens anything. It raises the card in
+  [`ui/widgets/link_confirm.dart`](../app/lib/ui/widgets/link_confirm.dart),
+  which shows the **host on its own line** and the full address below it, plus
+  a warning for each of: an `@` before the host name (`https://bank@evil.example`),
+  non-ASCII letters in the host name, no encryption, and an address on the
+  local network. Only "Open" hands it to the system browser.
+- `openExternalLink` checks the scheme once more immediately before starting a
+  process, and passes the address as a **list argument, never through a
+  shell**. On Android it goes through the `chatt/files` channel, where
+  `ChattChannels.openUrl` checks the scheme a third time and adds
+  `CATEGORY_BROWSABLE`.
+- Links also appear as entries in the bubble's long-press menu. That is the
+  reliable path on the desktop, where `SelectionArea` owns the tap.
+
+### The preview fetches, so it is off by default
+
+[`core/link_preview.dart`](../app/lib/core/link_preview.dart) is the second
+place the app reaches outside the local network, and unlike the update check
+the address is chosen by **the sender of the message**, not by the user. Hence
+`settings.linkPreviews` (schema v11), false until switched on, live: turning it
+off stops the fetches and drops what was already fetched.
+
+- **Nothing from the page is executed.** There is no WebView, no browser and no
+  HTML tree. The code reads `<meta>` tags and `<title>` with a regular
+  expression, keeps the text and hands the image bytes to Flutter's own
+  decoder, the same one the received-file thumbnails use. `image/svg+xml` is
+  excluded on purpose: SVG is a document that can carry scripts.
+- **Never into the local network.** `hostAllowsPreview` refuses loopback,
+  private, CGNAT, link-local and unique-local addresses, and names that look
+  local (`.local`, `.lan`, `.internal`, no dot at all). Every DNS answer is
+  checked, not just the first, so a name pointing at both a public and a
+  private address is refused whole. Without this, a message saying
+  `http://192.168.0.1/reboot` would make the app visit the router, and a series
+  of addresses would turn response times into a scan of the network.
+- **Redirects are followed by hand**, at most three, with the scheme and host
+  checked again at every hop, because a redirect is the simplest way to turn a
+  public address into a local one.
+- **Hard limits**: 8 s, 512 KB of HTML, 2 MB of image, `identity` encoding, and
+  a content type that has to match. Going past the byte limit tears the
+  connection down rather than reading the rest into the bin.
+- **What is drawn is scrubbed**: entities decoded, whitespace collapsed,
+  control and bidi characters removed, title clipped at 140 characters and
+  description at 300, so a foreign title cannot rearrange the rest of the card.
+- Answers are cached in memory, sixty-four of them, failures included, so
+  scrolling a conversation back and forth does not question anyone's server
+  twice. Only the **first** link in a message gets a card.
+
+What stays open: between our DNS question and the one the HTTP client asks
+itself, the record can change ("DNS rebinding"). The cost of losing that race
+is one empty GET to a local address; the answer still cannot run anything,
+because all the app takes from it is text and image bytes.

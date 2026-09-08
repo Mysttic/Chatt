@@ -83,6 +83,38 @@ conversation list filters it by name and last message.
 
 <img src="screenshots/produkt/en/android_szukanie_w_rozmowie.png" alt="Search in a conversation" width="260">
 
+## Links in messages
+
+An address in a message becomes a **link you can tap**, but nothing opens on
+its own. A tap raises a card asking whether you really want to go there, and
+that card shows the **server name on its own line**, above the full address,
+because that name is the only part that decides whose page it is. Below it come
+warnings where they apply: an `@` in the address (what you see before it is not
+the server name), letters from outside the Latin alphabet in the server name,
+a connection with no encryption, and an address on your own local network.
+"Copy address" is there too, for when you would rather look at it first.
+
+Only `http` and `https` addresses become links. Anything else — `javascript:`,
+`data:`, `file:` — stays plain text, because tapping it would mean "run
+something" rather than "show a page". The same links also appear in the bubble
+menu (long press, or right click on a PC), which is the reliable route on a PC,
+where the tap belongs to text selection.
+
+**Link previews** are separate, and off by default. Turned on in Settings under
+**Links**, a card appears under the message with the page's title, description
+and image, the way other messengers do it. Two things are worth knowing:
+
+- Fetching a preview means **connecting to that page**, so its server sees this
+  device's IP address and the moment the message arrived. The address is chosen
+  by whoever sent the message, not by you. That is why the switch starts off.
+- A preview is **text and one image, nothing more**. The app does not open the
+  page, does not run any script from it, and never fetches previews from
+  addresses on your local network, so a message cannot make Chatt visit your
+  router. Only the first link in a message gets a card.
+
+Turning the switch back off stops the fetching at once and drops the previews
+already fetched.
+
 ## Files
 
 The paperclip next to the text field opens the system file picker, and

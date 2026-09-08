@@ -374,6 +374,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
           const SizedBox(height: 32),
+          Text(context.l10n.links,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          const _LinkPreviewsSection(),
+          const SizedBox(height: 32),
           Text(context.l10n.updates,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -504,6 +509,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
           ),
         ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Przełącznik podglądów stron pod odnośnikami.
+///
+/// Osobna sekcja, a nie wiersz w „Prywatności", bo to zgoda tego samego
+/// rodzaju co pytanie o aktualizacje: włączenie jej wypuszcza aplikację poza
+/// sieć lokalną, i to pod adresy, których nie wybiera użytkownik, tylko
+/// nadawca wiadomości. Dlatego pod przełącznikiem stoi wprost napisane, co
+/// zobaczy serwer po drugiej stronie i czego podgląd nie robi.
+class _LinkPreviewsSection extends ConsumerWidget {
+  const _LinkPreviewsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final services = ref.read(appServicesProvider);
+    final ustawienia = ref.watch(settingsProvider).value;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: ustawienia?.linkPreviews ?? false,
+              secondary: const Icon(Icons.link),
+              title: Text(context.l10n.linkPreviewsLabel),
+              subtitle: Text(context.l10n.linkPreviewsHelp),
+              isThreeLine: true,
+              onChanged: ustawienia == null
+                  ? null
+                  : (wlaczone) => services.db.saveLinkPreviews(wlaczone),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.shield_outlined,
+                    size: 18, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.l10n.linkPreviewsSafety,
+                    style: TextStyle(
+                        color: scheme.onSurfaceVariant, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

@@ -220,6 +220,27 @@
   "@historyCleared": {
     "placeholders": { "count": { "type": "int" } }
   },
+  "links": "Odnośniki",
+  "linkPreviewsLabel": "Pokazuj podglądy stron",
+  "linkPreviewsHelp": "Pod odnośnikiem w rozmowie pojawia się karta z tytułem, opisem i obrazkiem strony. Żeby ją pobrać, aplikacja łączy się z tą stroną, więc jej serwer zobaczy adres IP tego urządzenia i moment, w którym wiadomość dotarła. Domyślnie wyłączone.",
+  "linkPreviewsSafety": "Podgląd to sam tekst i obrazek. Aplikacja nie otwiera strony, nie uruchamia żadnych skryptów z niej i nie pobiera podglądów spod adresów w Twojej sieci lokalnej. Kliknięcie w odnośnik zawsze najpierw pyta o potwierdzenie.",
+  "linkPreviewOf": "Podgląd strony: {site}",
+  "@linkPreviewOf": {
+    "placeholders": { "site": {} }
+  },
+  "linkConfirmTitle": "Czy na pewno chcesz przejść do tej strony?",
+  "linkConfirmHost": "Adres prowadzi do serwera",
+  "linkConfirmFull": "Pełny adres",
+  "linkOpen": "Otwórz",
+  "linkOpenTitle": "Otwórz odnośnik",
+  "linkCopy": "Kopiuj adres",
+  "linkCopied": "Skopiowano adres.",
+  "linkOpenFailed": "Nie udało się otworzyć przeglądarki.",
+  "linkWarnUserInfo": "W adresie stoi znak @: to, co widać przed nim, nie jest nazwą serwera. Liczy się nazwa pokazana wyżej.",
+  "linkWarnNonAscii": "Nazwa serwera zawiera litery spoza alfabetu łacińskiego. Bywają nie do odróżnienia od zwykłych, a prowadzą gdzie indziej.",
+  "linkWarnInsecure": "Połączenie bez szyfrowania (http). Ktoś w tej samej sieci może podejrzeć i podmienić treść strony.",
+  "linkWarnLocal": "Adres wskazuje na urządzenie w Twojej sieci lokalnej, na przykład na router.",
+
   "updates": "Aktualizacje",
   "updateChecksLabel": "Sprawdzaj aktualizacje automatycznie",
   "updateChecksHelp": "Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.",

@@ -53,6 +53,12 @@ class Settings extends Table {
   /// i wypada zapytać znowu.
   DateTimeColumn get lastUpdateCheck => dateTime().nullable()();
 
+  /// Czy aplikacja pobiera podglądy stron dla odnośników w wiadomościach.
+  /// Domyślnie nie: adres w cudzej wiadomości zamieniłby się wtedy sam
+  /// z siebie w połączenie do obcego serwera, a ten zobaczyłby adres IP tego
+  /// urządzenia i moment, w którym wiadomość dotarła.
+  BoolColumn get linkPreviews => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -186,7 +192,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -247,6 +253,12 @@ class ChattDb extends _$ChattDb {
         // sieć lokalną i nikt nie ma się o nim dowiedzieć po fakcie.
         await _dodajKolumneJesliBrak(m, settings, settings.updateChecks);
         await _dodajKolumneJesliBrak(m, settings, settings.lastUpdateCheck);
+      }
+      if (from < 11) {
+        // v11: podglądy stron pod odnośnikami. Wyłączone, bo to drugi rodzaj
+        // ruchu poza sieć lokalną i ma go włączyć użytkownik, a nie
+        // aktualizacja aplikacji.
+        await _dodajKolumneJesliBrak(m, settings, settings.linkPreviews);
       }
     },
   );
@@ -336,6 +348,10 @@ class ChattDb extends _$ChattDb {
   Future<void> saveUpdateChecks(bool enabled) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(updateChecks: Value(enabled)));
+
+  Future<void> saveLinkPreviews(bool enabled) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(linkPreviews: Value(enabled)));
 
   /// Znacznik ostatniego pytania o wydanie. Zapisujemy go po każdym pytaniu,
   /// także nieudanym: brak sieci nie ma zamieniać sprawdzania co dobę

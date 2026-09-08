@@ -52,13 +52,20 @@
   obrazków, zapisanie odebranego pliku do Zdjęć/Pobranych jednym dotknięciem,
   szukanie w rozmowach, kasowanie pojedynczych wiadomości.
 - **Dwa panele na szerokim oknie** (lista obok rozmowy) i tła do wyboru.
+- **Odnośniki z podglądem**: pod adresem w wiadomości pojawia się karta
+  z tytułem, opisem i obrazkiem strony, a kliknięcie w odnośnik zawsze pyta
+  i pokazuje, do jakiego serwera naprawdę prowadzi. Podgląd to sam tekst
+  i obrazek: żadna strona się nie otwiera i żaden skrypt z niej nie działa.
+  Domyślnie wyłączone, bo pobranie podglądu znaczy połączenie pod adres
+  wybrany przez kogoś innego.
 - **Polski i angielski**, motyw jasny/ciemny/systemowy, jedno i drugie zapisane
   w bazie.
 
 Platformy: **Windows** i **Android**. Oba urządzenia muszą być w tej samej
 sieci. Trybu przez internet nie ma i nie będzie: cały sens polega na tym, że
-nic samo nie wychodzi poza Twoją sieć. Jedyny wyjątek to pytanie do GitHuba
-o nowsze wydanie, wyłączone, dopóki sam go nie włączysz.
+nic samo nie wychodzi poza Twoją sieć. Wyjątki są dwa i oba stoją wyłączone,
+dopóki sam ich nie włączysz: pytanie do GitHuba o nowsze wydanie i podglądy
+stron pod odnośnikami w wiadomościach.
 
 ## Szybki start
 

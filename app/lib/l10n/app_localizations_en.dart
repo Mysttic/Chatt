@@ -530,6 +530,65 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get links => 'Links';
+
+  @override
+  String get linkPreviewsLabel => 'Show link previews';
+
+  @override
+  String get linkPreviewsHelp =>
+      'A card with the page\'s title, description and image appears under a link in the conversation. To fetch it the app connects to that page, so its server sees this device\'s IP address and the moment the message arrived. Off by default.';
+
+  @override
+  String get linkPreviewsSafety =>
+      'A preview is text and one image, nothing more. The app does not open the page, runs no scripts from it, and fetches no previews from addresses on your local network. Tapping a link always asks first.';
+
+  @override
+  String linkPreviewOf(Object site) {
+    return 'Page preview: $site';
+  }
+
+  @override
+  String get linkConfirmTitle => 'Are you sure you want to go to this page?';
+
+  @override
+  String get linkConfirmHost => 'This link goes to';
+
+  @override
+  String get linkConfirmFull => 'Full address';
+
+  @override
+  String get linkOpen => 'Open';
+
+  @override
+  String get linkOpenTitle => 'Open link';
+
+  @override
+  String get linkCopy => 'Copy address';
+
+  @override
+  String get linkCopied => 'Address copied.';
+
+  @override
+  String get linkOpenFailed => 'Could not open the browser.';
+
+  @override
+  String get linkWarnUserInfo =>
+      'There is an @ in the address: what you see before it is not the server name. The name shown above is the one that counts.';
+
+  @override
+  String get linkWarnNonAscii =>
+      'The server name contains letters from outside the Latin alphabet. They can be indistinguishable from ordinary ones and lead somewhere else.';
+
+  @override
+  String get linkWarnInsecure =>
+      'Unencrypted connection (http). Anyone on the same network can read the page and alter it.';
+
+  @override
+  String get linkWarnLocal =>
+      'The address points to a device on your local network, a router for instance.';
+
+  @override
   String get updates => 'Updates';
 
   @override
