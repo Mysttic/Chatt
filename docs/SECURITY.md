@@ -29,7 +29,11 @@ same Wi-Fi can send it:
   on disk there,
 - **the database key** (`app/lib/core/secret_store.dart` and the platform
   channels in `app/android/` and `app/windows/`),
-- **the identity confirmation flow**, including the QR code.
+- **the identity confirmation flow**, including the QR code,
+- **links in messages** (`app/lib/core/links.dart` and
+  `app/lib/core/link_preview.dart`): the sender picks the address, so what
+  becomes a link, what the confirmation card shows before anything opens, and
+  where a preview is allowed to connect all belong here.
 
 The threat model is written down in [architecture.md](architecture.md),
 together with what it deliberately does not cover.
@@ -54,8 +58,17 @@ These are design decisions:
   file; code already running as you can read the key.
 - **Nothing leaves the local network on its own.** There is no server, no
   telemetry and no crash reporting, so there is no reporting channel to abuse
-  either. One exception, and it is off by default: with update checks turned
-  on, or when the button in Settings is pressed, the app asks
-  `api.github.com` about the newest release. GitHub sees what any HTTPS server
-  sees, an IP address and the time. Nothing about the conversations goes with
-  it.
+  either. Two exceptions, both off by default:
+  - with update checks turned on, or when the button in Settings is pressed,
+    the app asks `api.github.com` about the newest release. GitHub sees what
+    any HTTPS server sees, an IP address and the time. Nothing about the
+    conversations goes with it.
+  - with link previews turned on, a link in a received message makes the app
+    fetch that page's `<meta>` tags and image, so the server behind the link
+    learns an IP address, a time and which link it was. The address is chosen
+    by the sender, which is why the switch starts off. Nothing from the page
+    is executed, and previews are never fetched from local-network addresses.
+- **A preview loses one race by design.** Between our DNS check and the one
+  the HTTP client makes, the record can change ("DNS rebinding"). The cost is
+  one empty GET to a local address; the answer still cannot run anything,
+  because all the app takes from it is text and image bytes.

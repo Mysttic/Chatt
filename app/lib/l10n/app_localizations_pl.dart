@@ -533,6 +533,65 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
+  String get links => 'Odnośniki';
+
+  @override
+  String get linkPreviewsLabel => 'Pokazuj podglądy stron';
+
+  @override
+  String get linkPreviewsHelp =>
+      'Pod odnośnikiem w rozmowie pojawia się karta z tytułem, opisem i obrazkiem strony. Żeby ją pobrać, aplikacja łączy się z tą stroną, więc jej serwer zobaczy adres IP tego urządzenia i moment, w którym wiadomość dotarła. Domyślnie wyłączone.';
+
+  @override
+  String get linkPreviewsSafety =>
+      'Podgląd to sam tekst i obrazek. Aplikacja nie otwiera strony, nie uruchamia żadnych skryptów z niej i nie pobiera podglądów spod adresów w Twojej sieci lokalnej. Kliknięcie w odnośnik zawsze najpierw pyta o potwierdzenie.';
+
+  @override
+  String linkPreviewOf(Object site) {
+    return 'Podgląd strony: $site';
+  }
+
+  @override
+  String get linkConfirmTitle => 'Czy na pewno chcesz przejść do tej strony?';
+
+  @override
+  String get linkConfirmHost => 'Adres prowadzi do serwera';
+
+  @override
+  String get linkConfirmFull => 'Pełny adres';
+
+  @override
+  String get linkOpen => 'Otwórz';
+
+  @override
+  String get linkOpenTitle => 'Otwórz odnośnik';
+
+  @override
+  String get linkCopy => 'Kopiuj adres';
+
+  @override
+  String get linkCopied => 'Skopiowano adres.';
+
+  @override
+  String get linkOpenFailed => 'Nie udało się otworzyć przeglądarki.';
+
+  @override
+  String get linkWarnUserInfo =>
+      'W adresie stoi znak @: to, co widać przed nim, nie jest nazwą serwera. Liczy się nazwa pokazana wyżej.';
+
+  @override
+  String get linkWarnNonAscii =>
+      'Nazwa serwera zawiera litery spoza alfabetu łacińskiego. Bywają nie do odróżnienia od zwykłych, a prowadzą gdzie indziej.';
+
+  @override
+  String get linkWarnInsecure =>
+      'Połączenie bez szyfrowania (http). Ktoś w tej samej sieci może podejrzeć i podmienić treść strony.';
+
+  @override
+  String get linkWarnLocal =>
+      'Adres wskazuje na urządzenie w Twojej sieci lokalnej, na przykład na router.';
+
+  @override
   String get updates => 'Aktualizacje';
 
   @override

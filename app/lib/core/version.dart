@@ -3,4 +3,4 @@
 /// Ten plik pisze `tool/wersja.py` razem z VERSION.md i pubspec.yaml, a
 /// `test/version_test.dart` pilnuje, żeby wszystkie trzy miejsca mówiły to
 /// samo. Ręczna zmiana tutaj rozjedzie się z resztą przy pierwszym teście.
-const String appVersion = '0.6.2';
+const String appVersion = '0.7.0';

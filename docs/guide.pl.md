@@ -85,6 +85,39 @@ filtruje ją po nazwie rozmówcy i ostatniej wiadomości.
 
 <img src="screenshots/produkt/android_szukanie_w_rozmowie.png" alt="Szukanie" width="260">
 
+## Odnośniki w wiadomościach
+
+Adres w wiadomości staje się **klikalnym odnośnikiem**, ale nic nie otwiera się
+samo. Kliknięcie podnosi kartę z pytaniem, czy na pewno chcesz tam przejść, a
+na tej karcie **nazwa serwera stoi osobno**, nad pełnym adresem, bo to ona
+jedna decyduje, czyja to strona. Niżej dochodzą ostrzeżenia, gdy jest o czym
+mówić: znak `@` w adresie (to, co widać przed nim, nie jest nazwą serwera),
+litery spoza alfabetu łacińskiego w nazwie serwera, połączenie bez szyfrowania
+oraz adres w Twojej własnej sieci lokalnej. Jest też „Kopiuj adres", gdy wolisz
+najpierw mu się przyjrzeć.
+
+Odnośnikiem stają się wyłącznie adresy `http` i `https`. Wszystko inne —
+`javascript:`, `data:`, `file:` — zostaje zwykłym tekstem, bo kliknięcie w to
+znaczyłoby „uruchom coś", a nie „pokaż stronę". Te same odnośniki pojawiają się
+w menu dymka (przytrzymanie, na komputerze prawy przycisk); to pewniejsza droga
+na komputerze, gdzie kliknięcie należy do zaznaczania tekstu.
+
+**Podglądy stron** to osobna sprawa i domyślnie są wyłączone. Po włączeniu ich
+w Ustawieniach, w sekcji **Odnośniki**, pod wiadomością pojawia się karta
+z tytułem, opisem i obrazkiem strony, tak jak w innych komunikatorach. Warto
+wiedzieć o dwóch rzeczach:
+
+- Pobranie podglądu znaczy **połączenie z tą stroną**, więc jej serwer zobaczy
+  adres IP tego urządzenia i moment, w którym wiadomość dotarła. Adres wybiera
+  nadawca wiadomości, nie Ty. Dlatego przełącznik stoi wyłączony.
+- Podgląd to **sam tekst i jeden obrazek**. Aplikacja nie otwiera strony, nie
+  uruchamia z niej żadnych skryptów i nigdy nie pobiera podglądów spod adresów
+  w Twojej sieci lokalnej, więc wiadomością nie da się wysłać Chatta na Twój
+  router. Kartę dostaje tylko pierwszy odnośnik w wiadomości.
+
+Wyłączenie przełącznika zatrzymuje pobieranie od razu i wyrzuca podglądy, które
+zdążyły przyjść.
+
 ## Pliki
 
 Spinacz przy polu tekstowym otwiera systemowy wybór pliku; **można zaznaczyć

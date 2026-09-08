@@ -40,9 +40,9 @@ gap between them:
   paired one. Recorded traffic cannot be decrypted after a
   device is stolen (forward secrecy).
 - **Nothing leaves your network by itself.** No server, no telemetry, no ads.
-  The app works with no internet at all. The one thing it can reach outside is
-  a question to GitHub about a newer release, and it stays switched off until
-  you switch it on.
+  The app works with no internet at all. Exactly two things can reach outside,
+  and both stay switched off until you switch them on: a question to GitHub
+  about a newer release, and previews for links in messages.
 
 ## What it does
 
@@ -63,6 +63,11 @@ gap between them:
 - **Works in the background**: the phone receives with the window closed and
   the screen off; on Windows the app sits in the tray and can start with the
   system.
+- **Links with a preview**: a link in a message shows a card with the page's
+  title, description and image, and clicking one always asks first, showing
+  which server it really goes to. The preview is text and an image, nothing
+  else: no page is opened and no script from it runs. It is off by default,
+  because fetching it means connecting to an address someone else chose.
 - **Comfort**: image thumbnails, one‑tap save to Pictures/Downloads, search,
   per‑message delete, two‑pane layout on wide windows, backgrounds, light and
   dark themes, English and Polish.

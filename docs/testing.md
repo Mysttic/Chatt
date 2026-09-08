@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **116 `flutter test` tests** check everything that can be
+The split is simple: **178 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -164,6 +164,45 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
   `duplicate column name`
+
+### Links in messages (`test/links_test.dart`, 23 tests)
+- `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
+  `file:`, `mailto:`, `intent:` and `content:` stay plain text
+- the full stop ending a sentence is not part of the address, a bracket that
+  belongs to the address stays and one that belongs to the sentence goes
+- an address carrying invisible or direction-changing characters is not a link
+  at all, and a host name with no dot is not one either unless it is a literal
+  IP address
+- the warnings the confirmation card shows: an `@` before the host, non-ASCII
+  letters in the host, no encryption, an address on the local network
+- what counts as local: loopback, `10/8`, `172.16/12`, `192.168/16`,
+  `169.254/16`, CGNAT, `198.18/15`, multicast and reserved, `::1`, `fe80::/10`,
+  `fc00::/7`, an IPv4 address mapped into IPv6, and names like `.local`,
+  `.lan`, `.internal`; `172.32.0.1` and `192.169.0.1` are not local, which is
+  where an off-by-one in the ranges would show
+- `openExternalLink` refuses a scheme other than `http`/`https` before it
+  starts any process
+
+### Link previews (`test/link_preview_test.dart`, 37 tests)
+- the card is built from `og:`, then `twitter:`, then `<title>` and
+  `description`; attribute order and quoting do not matter, and a `<meta>`
+  after `</head>` cannot override the real title
+- what is drawn is scrubbed: entities decoded, whitespace collapsed, control
+  and direction-changing characters removed, a long title clipped
+- the switch decides: with previews off nothing reaches the network at all
+- the fence around the address: a local address, a name that resolves to one,
+  a DNS answer mixing a public and a local address, an empty answer and a
+  failed lookup are all refused, and a literal local address is refused before
+  DNS is even asked
+- a redirect is followed and re-checked, one into the local network or onto
+  another scheme ends it, and a chain cannot run past the limit
+- a non-HTML type, a non-200, an announced length over the limit and a body
+  that runs past it while streaming all end with no card; the oversized body
+  is cut off rather than read to the end
+- the image comes in a second request, `image/svg+xml` is refused, and an
+  image address in the local network is not fetched
+- answers are cached, two questions at once become one connection, turning the
+  switch off drops what was fetched, and a thrown socket error ends as no card
 
 ### Checking for a newer release (`test/updates_test.dart`, 10 tests)
 - version comparison member by member, so 0.5.10 beats 0.5.4, with a leading

@@ -1,6 +1,6 @@
 # Chatt Privacy Policy
 
-Last updated: 4 September 2026.
+Last updated: 8 September 2026.
 
 ## In short
 
@@ -20,7 +20,8 @@ devices.
 | Local network IP address | visible to the devices you talk to | devices on the same network |
 
 None of the above is sent to the app's author or to anyone outside your local
-network.
+network. See "Connections outside your network" below for the two things the
+app can reach outside, both of which are off until you turn them on.
 
 ## Encryption
 
@@ -37,7 +38,7 @@ network.
 
 | Permission (Android) | Purpose |
 |---|---|
-| Internet, network state, Wi-Fi state, multicast | talking to and discovering devices on the local network; the app does not connect to the internet |
+| Internet, network state, Wi-Fi state, multicast | talking to and discovering devices on the local network, and the two optional calls described below |
 | Camera | scanning a QR code shown by the other device, only when you ask; the image never leaves the device |
 | Notifications | new message alerts and the persistent "listening" notice |
 | Foreground service | receiving messages while the window is closed |
@@ -45,6 +46,34 @@ network.
 
 On Windows the app asks the system firewall to allow incoming connections on
 private networks; it needs no other permissions.
+
+## Connections outside your network
+
+Two features, both **off until you turn them on** in Settings, make the app
+connect to a server outside your local network. Neither carries an account, a
+token or an identifier: the other side sees an IP address and a timestamp, the
+same as any HTTPS server does.
+
+| Feature | What it contacts | What the other side learns |
+|---|---|---|
+| Update check | `api.github.com`, once a day | your IP address and the time of the question |
+| Link previews | the page behind a link in a message | your IP address, the time, and which link it was |
+
+Link previews are worth spelling out, because the address is chosen by
+**whoever sent you the message**, not by you. With them on, receiving a message
+with a link makes the app fetch that page's title, description and image so it
+can draw a card. That fetch tells the server that someone opened a conversation
+containing its address, and when.
+
+Everything the app does with the answer is drawing: it reads a few `<meta>`
+tags as text and hands the image bytes to the system image decoder. There is no
+browser and no WebView, no script from the page is executed, no cookies are
+stored or sent, and previews are never fetched from addresses on your own local
+network. Answers are kept in memory only and disappear when the app closes or
+when you turn the switch off.
+
+Clicking a link is separate again: it always asks first, and shows which server
+the address really leads to before anything opens.
 
 ## Third-party services
 

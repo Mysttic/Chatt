@@ -45,6 +45,12 @@ object ChattChannels {
         val messenger = engine.dartExecutor.binaryMessenger
 
         MethodChannel(messenger, filesChannel).setMethodCallHandler { call, result ->
+            // Otwieranie odnośnika nie dotyczy pliku, więc idzie przed
+            // sprawdzeniem ścieżki.
+            if (call.method == "openUrl") {
+                result.success(openUrl(context, call.argument<String>("url")))
+                return@setMethodCallHandler
+            }
             val path = call.argument<String>("path")
             if (path == null) {
                 result.error("no_path", "Brak ścieżki pliku", null)
@@ -201,6 +207,40 @@ object ChattChannels {
      * leci FileUriExposedException), więc plik wychodzi jako content://
      * z FileProvidera, z jednorazowym prawem do odczytu.
      */
+    /**
+     * Otwiera adres w przeglądarce.
+     *
+     * Schemat jest sprawdzany jeszcze raz tutaj, mimo że strona Dartowa już
+     * to zrobiła: `Intent.ACTION_VIEW` z adresem `intent:` albo `file:`
+     * potrafi uruchomić cudzą aktywność albo wystawić plik, a adres bierze
+     * się z wiadomości od obcego. Dochodzi kategoria BROWSABLE, żeby cel
+     * ograniczyć do tego, co obsługuje zwykłe strony.
+     */
+    private fun openUrl(context: Context, url: String?): Boolean {
+        if (url == null) return false
+        val uri = try {
+            Uri.parse(url)
+        } catch (error: Exception) {
+            return false
+        }
+        val scheme = uri.scheme?.lowercase()
+        if (scheme != "http" && scheme != "https") return false
+        return try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, uri)
+                    .addCategory(Intent.CATEGORY_BROWSABLE)
+                    // NEW_TASK, bo startujemy z kontekstu aplikacji, nie
+                    // z aktywności.
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+            true
+        } catch (error: Exception) {
+            // Brak przeglądarki albo odmowa systemu. Strona Dartowa pokaże
+            // wtedy adres do skopiowania.
+            false
+        }
+    }
+
     /**
      * Oddaje pobrany APK systemowemu instalatorowi pakietów.
      *

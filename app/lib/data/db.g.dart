@@ -146,6 +146,21 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _linkPreviewsMeta = const VerificationMeta(
+    'linkPreviews',
+  );
+  @override
+  late final GeneratedColumn<bool> linkPreviews = GeneratedColumn<bool>(
+    'link_previews',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("link_previews" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -160,6 +175,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     retentionDays,
     updateChecks,
     lastUpdateCheck,
+    linkPreviews,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -249,6 +265,15 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         ),
       );
     }
+    if (data.containsKey('link_previews')) {
+      context.handle(
+        _linkPreviewsMeta,
+        linkPreviews.isAcceptableOrUnknown(
+          data['link_previews']!,
+          _linkPreviewsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -310,6 +335,10 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_update_check'],
       ),
+      linkPreviews: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}link_previews'],
+      )!,
     );
   }
 
@@ -361,6 +390,12 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// Kiedy ostatnio padło pytanie o wydanie. Po tym poznajemy, że minęła doba
   /// i wypada zapytać znowu.
   final DateTime? lastUpdateCheck;
+
+  /// Czy aplikacja pobiera podglądy stron dla odnośników w wiadomościach.
+  /// Domyślnie nie: adres w cudzej wiadomości zamieniłby się wtedy sam
+  /// z siebie w połączenie do obcego serwera, a ten zobaczyłby adres IP tego
+  /// urządzenia i moment, w którym wiadomość dotarła.
+  final bool linkPreviews;
   const Setting({
     required this.id,
     required this.deviceGuid,
@@ -374,6 +409,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.retentionDays,
     required this.updateChecks,
     this.lastUpdateCheck,
+    required this.linkPreviews,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -398,6 +434,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     if (!nullToAbsent || lastUpdateCheck != null) {
       map['last_update_check'] = Variable<DateTime>(lastUpdateCheck);
     }
+    map['link_previews'] = Variable<bool>(linkPreviews);
     return map;
   }
 
@@ -417,6 +454,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       lastUpdateCheck: lastUpdateCheck == null && nullToAbsent
           ? const Value.absent()
           : Value(lastUpdateCheck),
+      linkPreviews: Value(linkPreviews),
     );
   }
 
@@ -442,6 +480,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       retentionDays: serializer.fromJson<int>(json['retentionDays']),
       updateChecks: serializer.fromJson<bool>(json['updateChecks']),
       lastUpdateCheck: serializer.fromJson<DateTime?>(json['lastUpdateCheck']),
+      linkPreviews: serializer.fromJson<bool>(json['linkPreviews']),
     );
   }
   @override
@@ -464,6 +503,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       'retentionDays': serializer.toJson<int>(retentionDays),
       'updateChecks': serializer.toJson<bool>(updateChecks),
       'lastUpdateCheck': serializer.toJson<DateTime?>(lastUpdateCheck),
+      'linkPreviews': serializer.toJson<bool>(linkPreviews),
     };
   }
 
@@ -480,6 +520,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     int? retentionDays,
     bool? updateChecks,
     Value<DateTime?> lastUpdateCheck = const Value.absent(),
+    bool? linkPreviews,
   }) => Setting(
     id: id ?? this.id,
     deviceGuid: deviceGuid ?? this.deviceGuid,
@@ -495,6 +536,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     lastUpdateCheck: lastUpdateCheck.present
         ? lastUpdateCheck.value
         : this.lastUpdateCheck,
+    linkPreviews: linkPreviews ?? this.linkPreviews,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
     return Setting(
@@ -524,6 +566,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       lastUpdateCheck: data.lastUpdateCheck.present
           ? data.lastUpdateCheck.value
           : this.lastUpdateCheck,
+      linkPreviews: data.linkPreviews.present
+          ? data.linkPreviews.value
+          : this.linkPreviews,
     );
   }
 
@@ -541,7 +586,8 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('background: $background, ')
           ..write('retentionDays: $retentionDays, ')
           ..write('updateChecks: $updateChecks, ')
-          ..write('lastUpdateCheck: $lastUpdateCheck')
+          ..write('lastUpdateCheck: $lastUpdateCheck, ')
+          ..write('linkPreviews: $linkPreviews')
           ..write(')'))
         .toString();
   }
@@ -560,6 +606,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     retentionDays,
     updateChecks,
     lastUpdateCheck,
+    linkPreviews,
   );
   @override
   bool operator ==(Object other) =>
@@ -576,7 +623,8 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.background == this.background &&
           other.retentionDays == this.retentionDays &&
           other.updateChecks == this.updateChecks &&
-          other.lastUpdateCheck == this.lastUpdateCheck);
+          other.lastUpdateCheck == this.lastUpdateCheck &&
+          other.linkPreviews == this.linkPreviews);
 }
 
 class SettingsCompanion extends UpdateCompanion<Setting> {
@@ -592,6 +640,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<int> retentionDays;
   final Value<bool> updateChecks;
   final Value<DateTime?> lastUpdateCheck;
+  final Value<bool> linkPreviews;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.deviceGuid = const Value.absent(),
@@ -605,6 +654,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.retentionDays = const Value.absent(),
     this.updateChecks = const Value.absent(),
     this.lastUpdateCheck = const Value.absent(),
+    this.linkPreviews = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -619,6 +669,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.retentionDays = const Value.absent(),
     this.updateChecks = const Value.absent(),
     this.lastUpdateCheck = const Value.absent(),
+    this.linkPreviews = const Value.absent(),
   }) : deviceGuid = Value(deviceGuid),
        nickname = Value(nickname);
   static Insertable<Setting> custom({
@@ -634,6 +685,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<int>? retentionDays,
     Expression<bool>? updateChecks,
     Expression<DateTime>? lastUpdateCheck,
+    Expression<bool>? linkPreviews,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -648,6 +700,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (retentionDays != null) 'retention_days': retentionDays,
       if (updateChecks != null) 'update_checks': updateChecks,
       if (lastUpdateCheck != null) 'last_update_check': lastUpdateCheck,
+      if (linkPreviews != null) 'link_previews': linkPreviews,
     });
   }
 
@@ -664,6 +717,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<int>? retentionDays,
     Value<bool>? updateChecks,
     Value<DateTime?>? lastUpdateCheck,
+    Value<bool>? linkPreviews,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
@@ -678,6 +732,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       retentionDays: retentionDays ?? this.retentionDays,
       updateChecks: updateChecks ?? this.updateChecks,
       lastUpdateCheck: lastUpdateCheck ?? this.lastUpdateCheck,
+      linkPreviews: linkPreviews ?? this.linkPreviews,
     );
   }
 
@@ -724,6 +779,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (lastUpdateCheck.present) {
       map['last_update_check'] = Variable<DateTime>(lastUpdateCheck.value);
     }
+    if (linkPreviews.present) {
+      map['link_previews'] = Variable<bool>(linkPreviews.value);
+    }
     return map;
   }
 
@@ -741,7 +799,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('background: $background, ')
           ..write('retentionDays: $retentionDays, ')
           ..write('updateChecks: $updateChecks, ')
-          ..write('lastUpdateCheck: $lastUpdateCheck')
+          ..write('lastUpdateCheck: $lastUpdateCheck, ')
+          ..write('linkPreviews: $linkPreviews')
           ..write(')'))
         .toString();
   }
@@ -2619,6 +2678,7 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<int> retentionDays,
   Value<bool> updateChecks,
   Value<DateTime?> lastUpdateCheck,
+  Value<bool> linkPreviews,
 });
 typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<int> id,
@@ -2633,6 +2693,7 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<int> retentionDays,
   Value<bool> updateChecks,
   Value<DateTime?> lastUpdateCheck,
+  Value<bool> linkPreviews,
 });
 
 class $$SettingsTableFilterComposer
@@ -2705,6 +2766,11 @@ class $$SettingsTableFilterComposer
     column: $table.lastUpdateCheck,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<bool> get linkPreviews => $composableBuilder(
+    column: $table.linkPreviews,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsTableOrderingComposer
@@ -2775,6 +2841,11 @@ class $$SettingsTableOrderingComposer
     column: $table.lastUpdateCheck,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get linkPreviews => $composableBuilder(
+    column: $table.linkPreviews,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableAnnotationComposer
@@ -2835,6 +2906,11 @@ class $$SettingsTableAnnotationComposer
     column: $table.lastUpdateCheck,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get linkPreviews => $composableBuilder(
+    column: $table.linkPreviews,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableManager
@@ -2877,6 +2953,7 @@ class $$SettingsTableTableManager
                 Value<int> retentionDays = const Value.absent(),
                 Value<bool> updateChecks = const Value.absent(),
                 Value<DateTime?> lastUpdateCheck = const Value.absent(),
+                Value<bool> linkPreviews = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 deviceGuid: deviceGuid,
@@ -2890,6 +2967,7 @@ class $$SettingsTableTableManager
                 retentionDays: retentionDays,
                 updateChecks: updateChecks,
                 lastUpdateCheck: lastUpdateCheck,
+                linkPreviews: linkPreviews,
               ),
           createCompanionCallback:
               ({
@@ -2905,6 +2983,7 @@ class $$SettingsTableTableManager
                 Value<int> retentionDays = const Value.absent(),
                 Value<bool> updateChecks = const Value.absent(),
                 Value<DateTime?> lastUpdateCheck = const Value.absent(),
+                Value<bool> linkPreviews = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 deviceGuid: deviceGuid,
@@ -2918,6 +2997,7 @@ class $$SettingsTableTableManager
                 retentionDays: retentionDays,
                 updateChecks: updateChecks,
                 lastUpdateCheck: lastUpdateCheck,
+                linkPreviews: linkPreviews,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

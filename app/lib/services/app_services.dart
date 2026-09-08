@@ -15,6 +15,7 @@ import '../core/crypto.dart';
 import '../core/env.dart';
 import '../core/file_actions.dart';
 import '../core/identity.dart';
+import '../core/link_preview.dart';
 import '../core/pair_link.dart';
 import '../core/received_paths.dart';
 import '../core/updates.dart';
@@ -342,6 +343,7 @@ class AppServices {
     services._onIncoming = onIncomingMessage;
     services._sweepStaleParts();
     services._startRetention();
+    services._startLinkPreviews();
     // Pytanie o wydanie tylko wtedy, gdy discovery też jest włączone: testy
     // stawiają po kilka instancji naraz i żadna nie ma po co wychodzić w sieć.
     if (enableDiscovery) services._startUpdateChecks();
@@ -1690,6 +1692,29 @@ class AppServices {
   Future<int> applyRetention(int days) =>
       days <= 0 ? Future.value(0) : db.deleteMessagesOlderThan(Duration(days: days));
 
+  // --- Podglądy odnośników --------------------------------------------------
+
+  /// Pobieranie podglądów stron dla odnośników w wiadomościach. Stoi
+  /// wyłączone, dopóki użytkownik nie włączy przełącznika w Ustawieniach:
+  /// to drugi (po pytaniu o wydanie) rodzaj ruchu poza sieć lokalną.
+  final LinkPreviewService linkPreviews = LinkPreviewService();
+
+  StreamSubscription<Setting>? _linkPreviewWatch;
+
+  /// Przełącznik z ustawień trafia do serwisu na żywo. Wyłączenie ma
+  /// zatrzymać pytania od razu i wyrzucić to, co zdążyło przyjść, a nie
+  /// czekać na restart aplikacji.
+  void _startLinkPreviews() {
+    _linkPreviewWatch = db.watchSettings().listen(
+      (settings) {
+        if (linkPreviews.enabled == settings.linkPreviews) return;
+        linkPreviews.enabled = settings.linkPreviews;
+        if (!settings.linkPreviews) linkPreviews.clear();
+      },
+      onError: (_) {},
+    );
+  }
+
   // --- Sprawdzanie aktualizacji ---------------------------------------------
 
   Timer? _updateTimer;
@@ -1754,6 +1779,8 @@ class AppServices {
     checkingForUpdate.dispose();
     _retentionTimer?.cancel();
     await _retentionWatch?.cancel();
+    await _linkPreviewWatch?.cancel();
+    linkPreviews.dispose();
     responder.stop();
     await server.stop();
     client.dispose();

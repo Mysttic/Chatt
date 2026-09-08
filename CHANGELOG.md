@@ -8,6 +8,55 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.7.0] - 2026-09-08
+
+Links in messages look like links, ask before they lead anywhere, and can carry
+a preview card. The preview is text and an image, and it stays off until you
+turn it on.
+
+### Added
+- **Links in messages are tappable, and tapping one always asks first.** The
+  card shows the server name on a line of its own, above the full address,
+  because that name is the only part that decides whose page it is. Below it
+  come warnings where they apply: an `@` in the address, letters from outside
+  the Latin alphabet in the server name, no encryption, and an address on the
+  local network. "Copy address" sits next to "Open". The same links appear as
+  entries in the bubble's long-press menu, which is the reliable route on the
+  desktop, where the tap belongs to `SelectionArea`.
+- **Link previews**: a card under the message with the page's title,
+  description and image, the way other messengers do it. Settings gains a
+  **Links** section with the switch, off by default.
+- Schema v11: `settings.linkPreviews`. Turning the switch off stops the
+  fetching at once and drops what was already fetched.
+- `openUrl` on the `chatt/files` channel, so a link opens in the Android
+  browser without a plugin from pub.dev.
+
+### Security
+- **Only `http` and `https` become links.** `javascript:`, `data:`, `file:`,
+  `intent:` and `content:` stay plain text, an address carrying invisible or
+  direction-changing characters is not linkified at all, and the scheme is
+  checked once more immediately before the address is handed to the system —
+  a third time on the Android side.
+- **Nothing from a previewed page is executed.** No WebView, no browser, no
+  HTML tree: `<meta>` tags are read as text and the image bytes go to
+  Flutter's own decoder. `image/svg+xml` is refused, because SVG is a document
+  that can carry scripts. What is drawn has its entities decoded, whitespace
+  collapsed, and control and bidi characters removed.
+- **A preview is never fetched from the local network.** Loopback, private,
+  CGNAT, link-local and unique-local addresses are refused, as are names that
+  look local, and every DNS answer is checked rather than the first. Without
+  this, a message reading `http://192.168.0.1/reboot` would make the app visit
+  the router. Redirects are followed by hand, three at most, with the scheme
+  and host re-checked at every hop.
+- Hard limits on a preview: 8 s, 512 KB of HTML, 2 MB of image, a content type
+  that has to match, and at most one card per message.
+
+### Changed
+- **The promise about the local network now names both exceptions.** README,
+  the user guide, `architecture.md` and the privacy policy say that two things
+  can reach outside, the update check and link previews, and that both are off
+  until switched on.
+
 ## [0.6.0] - 2026-09-06
 
 The app can now tell you a newer release is out, and put it on the machine for
@@ -456,6 +505,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.7.0]: https://github.com/Mysttic/Chatt/compare/v0.6.2...v0.7.0
 [0.6.0]: https://github.com/Mysttic/Chatt/compare/v0.5.4...v0.6.0
 [0.5.4]: https://github.com/Mysttic/Chatt/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/Mysttic/Chatt/compare/v0.5.2...v0.5.3

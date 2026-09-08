@@ -968,6 +968,108 @@ abstract class AppLocalizations {
   /// **'Usunięto wiadomości: {count}'**
   String historyCleared(int count);
 
+  /// No description provided for @links.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odnośniki'**
+  String get links;
+
+  /// No description provided for @linkPreviewsLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokazuj podglądy stron'**
+  String get linkPreviewsLabel;
+
+  /// No description provided for @linkPreviewsHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pod odnośnikiem w rozmowie pojawia się karta z tytułem, opisem i obrazkiem strony. Żeby ją pobrać, aplikacja łączy się z tą stroną, więc jej serwer zobaczy adres IP tego urządzenia i moment, w którym wiadomość dotarła. Domyślnie wyłączone.'**
+  String get linkPreviewsHelp;
+
+  /// No description provided for @linkPreviewsSafety.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podgląd to sam tekst i obrazek. Aplikacja nie otwiera strony, nie uruchamia żadnych skryptów z niej i nie pobiera podglądów spod adresów w Twojej sieci lokalnej. Kliknięcie w odnośnik zawsze najpierw pyta o potwierdzenie.'**
+  String get linkPreviewsSafety;
+
+  /// No description provided for @linkPreviewOf.
+  ///
+  /// In pl, this message translates to:
+  /// **'Podgląd strony: {site}'**
+  String linkPreviewOf(Object site);
+
+  /// No description provided for @linkConfirmTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Czy na pewno chcesz przejść do tej strony?'**
+  String get linkConfirmTitle;
+
+  /// No description provided for @linkConfirmHost.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres prowadzi do serwera'**
+  String get linkConfirmHost;
+
+  /// No description provided for @linkConfirmFull.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pełny adres'**
+  String get linkConfirmFull;
+
+  /// No description provided for @linkOpen.
+  ///
+  /// In pl, this message translates to:
+  /// **'Otwórz'**
+  String get linkOpen;
+
+  /// No description provided for @linkOpenTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Otwórz odnośnik'**
+  String get linkOpenTitle;
+
+  /// No description provided for @linkCopy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kopiuj adres'**
+  String get linkCopy;
+
+  /// No description provided for @linkCopied.
+  ///
+  /// In pl, this message translates to:
+  /// **'Skopiowano adres.'**
+  String get linkCopied;
+
+  /// No description provided for @linkOpenFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się otworzyć przeglądarki.'**
+  String get linkOpenFailed;
+
+  /// No description provided for @linkWarnUserInfo.
+  ///
+  /// In pl, this message translates to:
+  /// **'W adresie stoi znak @: to, co widać przed nim, nie jest nazwą serwera. Liczy się nazwa pokazana wyżej.'**
+  String get linkWarnUserInfo;
+
+  /// No description provided for @linkWarnNonAscii.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nazwa serwera zawiera litery spoza alfabetu łacińskiego. Bywają nie do odróżnienia od zwykłych, a prowadzą gdzie indziej.'**
+  String get linkWarnNonAscii;
+
+  /// No description provided for @linkWarnInsecure.
+  ///
+  /// In pl, this message translates to:
+  /// **'Połączenie bez szyfrowania (http). Ktoś w tej samej sieci może podejrzeć i podmienić treść strony.'**
+  String get linkWarnInsecure;
+
+  /// No description provided for @linkWarnLocal.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres wskazuje na urządzenie w Twojej sieci lokalnej, na przykład na router.'**
+  String get linkWarnLocal;
+
   /// No description provided for @updates.
   ///
   /// In pl, this message translates to:

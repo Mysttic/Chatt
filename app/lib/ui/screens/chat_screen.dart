@@ -9,12 +9,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/clipboard_image.dart';
 import '../../core/file_actions.dart';
+import '../../core/links.dart';
 import '../../core/search.dart';
 import '../../data/db.dart';
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
+import '../widgets/link_confirm.dart';
+import '../widgets/link_preview_card.dart';
+import '../widgets/linked_text.dart';
 import '../widgets/security_sheet.dart';
 import '../widgets/toasts.dart';
 import 'scan_screen.dart';
@@ -124,6 +128,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Widget build(BuildContext context) {
     final services = ref.read(appServicesProvider);
     final messages = ref.watch(messagesProvider(widget.conversationId));
+    // Podglądy stron: czytamy na żywo, żeby przestawienie przełącznika
+    // w Ustawieniach było widać w otwartej rozmowie bez wchodzenia w nią
+    // od nowa.
+    final podgladyOdnosnikow =
+        ref.watch(settingsProvider).value?.linkPreviews ?? false;
     // Stan sparowania czytamy na żywo: może się zmienić w trakcie rozmowy.
     final peer = ref.watch(knownPeersProvider).value?.firstWhere(
               (p) => p.guid == widget.peer.guid,
@@ -279,6 +288,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       message: message,
                       services: ref.read(appServicesProvider),
                       query: query,
+                      linkPreviews: podgladyOdnosnikow,
                       onRetry: () => ref
                           .read(appServicesProvider)
                           .retryMessage(message.id),
@@ -402,11 +412,16 @@ class _MessageBubble extends StatelessWidget {
   /// Szukany napis do podświetlenia. Pusty znaczy „nikt nie szuka".
   final String query;
 
+  /// Czy pod dymkiem wolno pokazać kartę z podglądem strony. Bierze się
+  /// wprost z przełącznika w Ustawieniach, więc jego zmiana widać od razu.
+  final bool linkPreviews;
+
   const _MessageBubble({
     required this.message,
     required this.services,
     required this.onRetry,
     required this.onDelete,
+    required this.linkPreviews,
     this.query = '',
   });
 
@@ -538,11 +553,27 @@ class _MessageBubble extends StatelessWidget {
   /// Menu tekstowego dymka: skopiowanie treści, zaznaczenie fragmentu
   /// i skasowanie wpisu u siebie.
   void _textMenu(BuildContext context) {
+    // Odnośniki z treści dostają własne pozycje. To pewna droga do strony
+    // tam, gdzie dotknięcie samego napisu bywa przechwycone przez
+    // zaznaczanie tekstu (pulpit, `SelectionArea`).
+    final links = findLinks(message.body);
     showModalBottomSheet<void>(
       context: context,
       builder: (sheet) => SafeArea(
         child: Wrap(
           children: [
+            for (final link in links.take(5))
+              ListTile(
+                leading: const Icon(Icons.open_in_new),
+                title: Text(context.l10n.linkOpenTitle),
+                subtitle: Text(shortenLink(link.uri),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  confirmAndOpenLink(context, link.uri);
+                },
+              ),
+            if (links.isNotEmpty) const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.copy_outlined),
               title: Text(context.l10n.copyText),
@@ -622,33 +653,27 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
-  /// Treść z podświetlonym szukanym napisem. Kolor bierze się z palety, więc
-  /// czyta się i na własnym dymku, i na cudzym, w obu motywach.
-  Widget _highlighted(BuildContext context, String text, TextStyle style) {
-    if (query.isEmpty) return Text(text, style: style);
+  /// Treść z podświetlonym szukanym napisem i klikalnymi odnośnikami.
+  /// Kolor podświetlenia bierze się z palety, więc czyta się i na własnym
+  /// dymku, i na cudzym, w obu motywach.
+  ///
+  /// [linkify] gasimy dla nazwy pliku: „odnośnik" w nazwie pliku prowadziłby
+  /// donikąd i tylko mylił.
+  Widget _highlighted(BuildContext context, String text, TextStyle style,
+      {bool linkify = true}) {
     final scheme = Theme.of(context).colorScheme;
-    final lower = text.toLowerCase();
-    final needle = query.toLowerCase();
-    final spans = <TextSpan>[];
-    var start = 0;
-    while (true) {
-      final at = lower.indexOf(needle, start);
-      if (at < 0) {
-        spans.add(TextSpan(text: text.substring(start)));
-        break;
-      }
-      if (at > start) spans.add(TextSpan(text: text.substring(start, at)));
-      spans.add(TextSpan(
-        text: text.substring(at, at + needle.length),
-        style: TextStyle(
-          backgroundColor: scheme.tertiaryContainer,
-          color: scheme.onTertiaryContainer,
-          fontWeight: FontWeight.w700,
-        ),
-      ));
-      start = at + needle.length;
-    }
-    return Text.rich(TextSpan(children: spans), style: style);
+    return LinkedText(
+      text: text,
+      style: style,
+      query: query,
+      linkify: linkify,
+      highlightStyle: TextStyle(
+        backgroundColor: scheme.tertiaryContainer,
+        color: scheme.onTertiaryContainer,
+        fontWeight: FontWeight.w700,
+      ),
+      onTapLink: (uri) => confirmAndOpenLink(context, uri),
+    );
   }
 
   /// Treść dymka: tekst albo kafelek pliku (nazwa, rozmiar, pasek postępu
@@ -659,8 +684,25 @@ class _MessageBubble extends StatelessWidget {
     if (message.kind != MessageKind.file) {
       // Przytrzymanie łapie cały dymek (patrz `build`), a nie sam napis:
       // inaczej menu otwierałoby się tylko dokładnie na literach.
-      return _highlighted(
+      final tekst = _highlighted(
           context, message.body, TextStyle(color: textColor, fontSize: 15));
+      // Podgląd tylko dla pierwszego odnośnika w wiadomości. Karta pod każdym
+      // adresem z wklejonej listy zamieniłaby dymek w tablicę ogłoszeń,
+      // a każdy adres to osobne pytanie do obcego serwera.
+      final links = linkPreviews ? findLinks(message.body) : const <LinkSpan>[];
+      if (links.isEmpty) return tekst;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          tekst,
+          LinkPreviewCard(
+            url: links.first.uri,
+            service: services.linkPreviews,
+            mine: mine,
+          ),
+        ],
+      );
     }
     final progress = services.progressOf(message.id);
     final thumbnail = _thumbnail();
@@ -692,6 +734,7 @@ class _MessageBubble extends StatelessWidget {
                       color: textColor,
                       fontSize: 15,
                       fontWeight: FontWeight.w500),
+                  linkify: false,
                 ),
                 Text(formatFileSize(message.fileSize),
                     style: TextStyle(
