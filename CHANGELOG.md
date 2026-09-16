@@ -8,6 +8,19 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Changed
+- **The release workflow no longer goes through Actions artifacts.** The
+  first run of 0.7.1 built the APK and the installer and then died on
+  `upload-artifact` with "Artifact storage quota has been hit", which is a
+  limit shared by the whole account. Now the `wersja` job opens a draft
+  release, each build uploads its file straight into it with
+  `gh release upload`, and the `wydanie` job publishes the draft once all
+  three files are there. A draft is invisible to people and to the in-app
+  update check, and the tag appears only at publication, so a failed run
+  leaves nothing half-done behind; the next run deletes stale drafts first.
+
 ## [0.7.1] - 2026-09-16
 
 A phone handed a large file used to die on the spot. Now it sends it.
@@ -523,6 +536,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.7.1...develop
 [0.7.1]: https://github.com/Mysttic/Chatt/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Mysttic/Chatt/compare/v0.6.2...v0.7.0
 [0.6.0]: https://github.com/Mysttic/Chatt/compare/v0.5.4...v0.6.0

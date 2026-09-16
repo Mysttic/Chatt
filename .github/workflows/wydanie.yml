@@ -7,6 +7,14 @@ name: Wydanie
 # Druga bramka jest w jobie `wersja`: jeśli tag o tej wersji już istnieje,
 # bieg kończy się bez robienia niczego. Chroni to przed powtórnym wydaniem,
 # gdy ktoś ruszy w VERSION.md sam opis, nie zmieniając numeru.
+#
+# Pliki nie przechodzą przez artefakty Actions. Te mają wspólny limit miejsca
+# dla całego konta i po jego przekroczeniu `upload-artifact` odmawia, a bieg
+# z gotowym APK i instalatorem kończy się niczym. Zamiast tego job `wersja`
+# zakłada szkic wydania, każdy build wrzuca swój plik prosto do niego
+# (`gh release upload`), a job `wydanie` publikuje szkic, gdy są wszystkie
+# trzy. Szkic jest niewidoczny dla ludzi i dla aktualizacji w aplikacji, tag
+# powstaje dopiero przy publikacji, więc nieudany bieg niczego nie wystawia.
 on:
   push:
     branches: [master]
@@ -65,6 +73,29 @@ jobs:
             echo "Wydanie $tag" >> "$GITHUB_STEP_SUMMARY"
             echo "wydajemy=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Szkic po nieudanym biegu zostaje bez tagu, więc bramka wyżej go nie
+      # widzi. Nowy bieg kasuje takie szkice i zakłada świeży, żeby pliki
+      # z poprzedniej próby nie mieszały się z nowymi.
+      - name: Szkic wydania
+        if: steps.odczyt.outputs.wydajemy == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.odczyt.outputs.tag }}
+          WERSJA: ${{ steps.odczyt.outputs.wersja }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            -q ".[] | select(.draft and .tag_name == \"$TAG\") | .id" \
+            | while read -r stary; do
+                echo "Kasuję stary szkic $stary"
+                gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$stary"
+              done
+          gh release create "$TAG" \
+            --draft \
+            --title "Chatt $WERSJA" \
+            --generate-notes \
+            --target "$GITHUB_SHA"
 
   android:
     name: APK (podpisany)
@@ -127,11 +158,18 @@ jobs:
         if: always()
         run: rm -f app/android/key.properties "$RUNNER_TEMP/chatt-release.jks"
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android
-          path: app/build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error
+      # Prosto do szkicu wydania, pod nazwą z numerem wersji: tę nazwę czyta
+      # skrypt strony i aktualizacja w samej aplikacji.
+      - name: Do wydania
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.wersja.outputs.tag }}
+          WERSJA: ${{ needs.wersja.outputs.wersja }}
+        run: |
+          set -euo pipefail
+          plik="chatt-$WERSJA-android.apk"
+          mv app/build/app/outputs/flutter-apk/app-release.apk "$plik"
+          gh release upload "$TAG" "$plik" --clobber
 
   windows:
     name: Windows
@@ -187,53 +225,49 @@ jobs:
           Get-ChildItem dist
 
       # Aplikacja na Windows to nie sam exe: potrzebne są jeszcze biblioteki
-      # i katalog data obok niego, więc pakujemy cały katalog Release.
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows
-          path: |
-            chatt-windows.zip
-            dist/*.exe
-          if-no-files-found: error
+      # i katalog data obok niego, więc do wydania idzie cały katalog Release
+      # w zipie, obok instalatora. Instalator nazywa się już z numerem wersji
+      # (nadaje go Inno Setup), zip dostaje go tutaj.
+      - name: Do wydania
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.wersja.outputs.tag }}
+          WERSJA: ${{ needs.wersja.outputs.wersja }}
+        run: |
+          $zip = "chatt-${env:WERSJA}-windows.zip"
+          $instalator = "chatt-${env:WERSJA}-windows-instalator.exe"
+          Move-Item chatt-windows.zip $zip
+          Move-Item "dist/chatt-${env:WERSJA}-instalator.exe" $instalator
+          gh release upload $env:TAG $zip $instalator --clobber
+          if ($LASTEXITCODE -ne 0) { throw "gh release upload zwrocil $LASTEXITCODE" }
 
   wydanie:
     name: Wydanie na GitHubie
     needs: [wersja, android, windows]
     if: needs.wersja.outputs.wydajemy == 'true'
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.wersja.outputs.tag }}
+    # Bez checkoutu: wszystko, co tu potrzebne, leży już w szkicu wydania.
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/download-artifact@v4
-        with:
-          path: pliki
-
-      - name: Nazwy z numerem wersji
-        env:
-          WERSJA: ${{ needs.wersja.outputs.wersja }}
+      # Instalator, wersja przenośna i APK. Mniejsza liczba znaczy, że któryś
+      # build nie dowiózł pliku, a wydanie bez kompletu nie ma prawa wyjść.
+      - name: Trzy pliki w szkicu
         run: |
           set -euo pipefail
-          mkdir -p wydanie
-          mv pliki/android/app-release.apk "wydanie/chatt-$WERSJA-android.apk"
-          mv pliki/windows/chatt-windows.zip "wydanie/chatt-$WERSJA-windows.zip"
-          # Instalator nazywa się już z numerem wersji (nadaje go Inno Setup).
-          mv "pliki/windows/dist/chatt-$WERSJA-instalator.exe" \
-             "wydanie/chatt-$WERSJA-windows-instalator.exe"
-          ls -la wydanie
+          gh release view "$TAG" --json assets -q '.assets[].name' | tee pliki.txt
+          if [ "$(wc -l < pliki.txt)" -ne 3 ]; then
+            echo "::error::Spodziewałem się trzech plików w szkicu $TAG."
+            exit 1
+          fi
 
-      - name: Utwórz wydanie
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.wersja.outputs.tag }}
-          WERSJA: ${{ needs.wersja.outputs.wersja }}
-        run: |
-          set -euo pipefail
-          gh release create "$TAG" wydanie/* \
-            --title "Chatt $WERSJA" \
-            --generate-notes \
-            --target "$GITHUB_SHA"
+      # Publikacja zakłada tag i pokazuje wydanie ludziom oraz aktualizacji
+      # w aplikacji.
+      - name: Publikacja
+        run: gh release edit "$TAG" --draft=false
 
   # Te same trzy pliki idą jeszcze raz do repozytorium z witryną, bo stamtąd
   # pobierają je ludzie: https://mysttic.github.io/Mysttic/chatt/. Strona czyta
