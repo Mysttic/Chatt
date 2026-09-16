@@ -8,7 +8,9 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.7.1] - 2026-09-16
+
+A phone handed a large file used to die on the spot. Now it sends it.
 
 ### Fixed
 - **Attaching a large file on Android no longer kills the app.** The paperclip
@@ -20,7 +22,9 @@ into `master`.
   `chatt/files` channel (`ChattFilePicker.kt`): the system document picker,
   then a buffered copy of each file into the app cache on a worker thread, and
   only the paths cross to Dart. Desktop keeps `file_selector`, whose Windows
-  and Linux pickers return paths only. Found in logcat's crash buffer.
+  and Linux pickers return paths only. Found in logcat's crash buffer; tried
+  afterwards with a 1 GB file from an Android emulator with a 192 MB heap to
+  the Windows app, checksum intact, Java heap flat at 5 MB.
 
 ## [0.7.0] - 2026-09-08
 
@@ -519,7 +523,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.7.0...develop
+[0.7.1]: https://github.com/Mysttic/Chatt/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Mysttic/Chatt/compare/v0.6.2...v0.7.0
 [0.6.0]: https://github.com/Mysttic/Chatt/compare/v0.5.4...v0.6.0
 [0.5.4]: https://github.com/Mysttic/Chatt/compare/v0.5.3...v0.5.4
