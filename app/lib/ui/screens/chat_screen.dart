@@ -113,11 +113,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showToast(context.l10n.pairedWith(peer.displayName));
   }
 
-  /// Wybór plików: można zaznaczyć kilka naraz, wyślą się po kolei.
+  /// Wybór plików: można zaznaczyć kilka naraz, wyślą się po kolei. Android
+  /// ma własne okno przez kanał (patrz [FileActions.pickFiles]), pulpit
+  /// bierze systemowe z `file_selector`.
   Future<void> _attachFile() async {
-    final files = await openFiles();
-    if (files.isEmpty) return;
-    await _sendPaths(files.map((f) => f.path));
+    final paths = Platform.isAndroid
+        ? await FileActions.pickFiles()
+        : (await openFiles()).map((f) => f.path).toList();
+    if (paths.isEmpty) return;
+    await _sendPaths(paths);
   }
 
   Future<void> _sendPaths(Iterable<String> paths) => ref
