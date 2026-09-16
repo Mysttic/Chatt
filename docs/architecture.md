@@ -324,6 +324,14 @@ Files go out to other apps through FileProvider as `content://` (our own
 `chatt/files` channel), because from API 24 a plain path ends in
 `FileUriExposedException`.
 
+Files come in through the same channel: the paperclip opens the system
+document picker (`ACTION_OPEN_DOCUMENT`) from `ChattFilePicker`, which copies
+each chosen file into the app cache on a worker thread and hands Dart the
+paths. `file_selector`'s Android side reads every chosen file into a byte
+array and ships it over the channel, which for a 150 MB file ends in
+`OutOfMemoryError`; the desktop pickers return paths only, so `file_selector`
+stays there.
+
 ## Windows: tray and autostart
 
 A desktop process ends with its window, so:

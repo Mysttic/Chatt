@@ -51,6 +51,11 @@ object ChattChannels {
                 result.success(openUrl(context, call.argument<String>("url")))
                 return@setMethodCallHandler
             }
+            // Wybór plików do wysłania też obywa się bez ścieżki.
+            if (call.method == "pick") {
+                ChattFilePicker.pick(result)
+                return@setMethodCallHandler
+            }
             val path = call.argument<String>("path")
             if (path == null) {
                 result.error("no_path", "Brak ścieżki pliku", null)

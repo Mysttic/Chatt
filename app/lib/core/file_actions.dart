@@ -50,11 +50,33 @@ bool isImageFile(String? name) =>
 /// systemowy. Android: własny kanał do [MainActivity], która wystawia plik
 /// przez FileProvider jako content:// (zwykłej ścieżki od API 24 nie wolno
 /// podać innej aplikacji). Bez wtyczek z pub.dev.
+///
+/// Na Androidzie ten sam kanał obsługuje też wybór plików do wysłania
+/// ([pickFiles]).
 class FileActions {
   static const MethodChannel _android = MethodChannel('chatt/files');
 
   static bool get supported =>
       Platform.isWindows || Platform.isLinux || Platform.isMacOS || Platform.isAndroid;
+
+  /// Wybór plików do wysłania na Androidzie: systemowe okno, po nim kopia
+  /// każdego zaznaczonego pliku w katalogu cache aplikacji i lista ścieżek
+  /// do tych kopii. Pusta lista to anulowanie albo odmowa dostawcy treści.
+  ///
+  /// Własny kanał (`ChattFilePicker.kt` po stronie Kotlina), bo
+  /// `file_selector` na Androidzie wczytuje cały zaznaczony plik do pamięci
+  /// i przesyła bajty do Darta: przy 150 MB kończyło się to
+  /// `OutOfMemoryError` i zabiciem aplikacji. Pulpit dalej używa `openFiles`
+  /// z `file_selector`, tam okno zwraca same ścieżki.
+  static Future<List<String>> pickFiles() async {
+    try {
+      final paths = await _android.invokeListMethod<String>('pick');
+      return paths ?? const [];
+    } catch (_) {
+      // Brak kanału (test widgetowy), zamknięte okno albo wybór już otwarty.
+      return const [];
+    }
+  }
 
   /// Otwiera plik domyślną aplikacją systemu.
   static Future<FileActionResult> open(String path) async {

@@ -8,6 +8,20 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Fixed
+- **Attaching a large file on Android no longer kills the app.** The paperclip
+  went through `file_selector`, whose Android side reads the whole chosen file
+  into a byte array and ships it over the platform channel to Dart, which only
+  ever looked at the path. A 150 MB zip needed two copies of itself in a
+  256 MB Java heap and died with `OutOfMemoryError` in `onActivityResult`,
+  twice in a row on a Pixel 9 Pro. Android now has its own picker on the
+  `chatt/files` channel (`ChattFilePicker.kt`): the system document picker,
+  then a buffered copy of each file into the app cache on a worker thread, and
+  only the paths cross to Dart. Desktop keeps `file_selector`, whose Windows
+  and Linux pickers return paths only. Found in logcat's crash buffer.
+
 ## [0.7.0] - 2026-09-08
 
 Links in messages look like links, ask before they lead anywhere, and can carry
@@ -505,6 +519,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.7.0...develop
 [0.7.0]: https://github.com/Mysttic/Chatt/compare/v0.6.2...v0.7.0
 [0.6.0]: https://github.com/Mysttic/Chatt/compare/v0.5.4...v0.6.0
 [0.5.4]: https://github.com/Mysttic/Chatt/compare/v0.5.3...v0.5.4
