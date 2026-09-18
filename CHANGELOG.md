@@ -8,12 +8,17 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.8.0] - 2026-09-18
+
+What lies on the clipboard goes into a conversation without a detour through a
+folder.
 
 ### Added
 - **A file or an image goes from the clipboard straight into a conversation.**
-  On the desktop that is Ctrl+V anywhere on the conversation screen; the
-  paperclip also asks "a file from this device" or "paste from the clipboard",
+  On the desktop that is Ctrl+V on the conversation screen, wherever the focus
+  happens to be except somebody else's text field, where Ctrl+V already means
+  something; the paperclip also asks "a file from this device" or "paste from
+  the clipboard",
   but only when there is something to paste, so the ordinary path stays one
   click. Files copied in Explorer travel as they are, without a copy, exactly
   like files dragged onto the window. An image with no file behind it
@@ -571,7 +576,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.7.1...develop
+[0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/Mysttic/Chatt/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Mysttic/Chatt/compare/v0.6.2...v0.7.0
 [0.6.0]: https://github.com/Mysttic/Chatt/compare/v0.5.4...v0.6.0
