@@ -33,7 +33,15 @@ class PromptOverlay extends ConsumerWidget {
               // Na szerokim oknie karta rozciągnięta na cały monitor czyta
               // się jak baner; na telefonie granica i tak nie wchodzi w grę.
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
+                constraints: BoxConstraints(
+                  maxWidth: 560,
+                  // Spis nazw z paczki i dwucyfrowe powiększenie czcionki
+                  // potrafią urosnąć ponad wysokość ekranu, a wtedy przyciski
+                  // „Przyjmij wszystkie" i „Odrzuć" lądują poza nim i nie da
+                  // się już odpowiedzieć na nic.
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+                ),
+                child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -52,18 +60,31 @@ class PromptOverlay extends ConsumerWidget {
                     valueListenable: services.pendingOffers,
                     builder: (context, offers, _) {
                       if (offers.isEmpty) return const SizedBox.shrink();
-                      // Pytamy o jeden plik naraz: kolejka kart potrafiłaby
+                      // Pytamy o jedną prośbę naraz: kolejka kart potrafiłaby
                       // wyjść poza ekran (a wtedy nie da się już nic kliknąć).
+                      // Czekające liczymy w plikach, nie w prośbach: jedna
+                      // prośba bywa paczką kilkudziesięciu.
+                      final czeka = offers
+                          .skip(1)
+                          .fold(0, (suma, offer) => suma + offer.fileCount);
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _OfferCard(offer: offers.first, services: services),
-                          if (offers.length > 1)
+                          // Klucz po prośbie: bez niego Flutter podstawia
+                          // nową prośbę pod ten sam stan karty, a razem z nim
+                          // ognisko z przycisku poprzedniej. Enter wciśnięty
+                          // do przyjęcia jednego pliku przyjmowałby wtedy
+                          // paczkę, która właśnie weszła na jego miejsce.
+                          _OfferCard(
+                            key: ValueKey(offers.first.messageGuid),
+                            offer: offers.first,
+                            services: services,
+                          ),
+                          if (czeka > 0)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                context.l10n
-                                    .moreFilesWaiting(offers.length - 1),
+                                context.l10n.moreFilesWaiting(czeka),
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),
@@ -74,6 +95,7 @@ class PromptOverlay extends ConsumerWidget {
                 ],
               ),
             ),
+                ),
               ),
             ),
           ),
@@ -224,7 +246,8 @@ class _OfferCard extends StatefulWidget {
   final PendingFileOffer offer;
   final AppServices services;
 
-  const _OfferCard({required this.offer, required this.services});
+  const _OfferCard(
+      {super.key, required this.offer, required this.services});
 
   @override
   State<_OfferCard> createState() => _OfferCardState();
@@ -235,18 +258,26 @@ class _OfferCardState extends State<_OfferCard> {
   /// przez `MaterialApp.builder` (jest poza zakresem fokusu nawigatora),
   /// a bez fokusu Enter nie akceptuje pliku.
   final _acceptFocus = FocusNode(debugLabel: 'akceptuj plik');
+  final _rejectFocus = FocusNode(debugLabel: 'odrzuć plik');
 
   @override
   void initState() {
     super.initState();
+    // Karta wyskakuje nad całą aplikacją, poza zakresem tabulatora, więc bez
+    // ogniska nie da się jej odpowiedzieć z klawiatury w ogóle. Ognisko
+    // dostaje więc zawsze, tylko przy paczce nie „Przyjmij wszystkie", a
+    // „Odrzuć": Enter wciśnięty do wysłania wiadomości ma najwyżej odmówić,
+    // a nie przyjąć kilkadziesiąt plików naraz.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _acceptFocus.requestFocus();
+      if (!mounted) return;
+      (widget.offer.batch == null ? _acceptFocus : _rejectFocus).requestFocus();
     });
   }
 
   @override
   void dispose() {
     _acceptFocus.dispose();
+    _rejectFocus.dispose();
     super.dispose();
   }
 
@@ -256,6 +287,7 @@ class _OfferCardState extends State<_OfferCard> {
     final services = widget.services;
     final scheme = Theme.of(context).colorScheme;
     final resumed = offer.resumeFrom > 0;
+    final batch = offer.batch;
 
     return Card(
       elevation: 6,
@@ -276,22 +308,53 @@ class _OfferCardState extends State<_OfferCard> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        context.l10n.fileOfferTitle(offer.peerName),
+                        batch == null
+                            ? context.l10n.fileOfferTitle(offer.peerName)
+                            : context.l10n.fileOfferBatchTitle(
+                                offer.peerName, batch.count),
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 2),
+                      // Zgody na paczkę nie da się potem cofnąć, więc karta
+                      // wymienia, na co ona idzie. Spis jest przewijany, bo
+                      // sto nazw nie zmieści się na telefonie, a karta nie ma
+                      // zasłonić całego ekranu.
+                      if (batch == null)
+                        Text(
+                          offer.fileName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        )
+                      else
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 132),
+                          child: Scrollbar(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (final name in batch.names)
+                                    Text(
+                                      name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       Text(
-                        offer.fileName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        resumed
-                            ? context.l10n.fileOfferResume(
-                                formatFileSize(offer.fileSize),
-                                formatFileSize(offer.resumeFrom),
-                              )
-                            : formatFileSize(offer.fileSize),
+                        batch != null
+                            ? formatFileSize(batch.bytes)
+                            : resumed
+                                ? context.l10n.fileOfferResume(
+                                    formatFileSize(offer.fileSize),
+                                    formatFileSize(offer.resumeFrom),
+                                  )
+                                : formatFileSize(offer.fileSize),
                         style: TextStyle(
                           color: scheme.onSurfaceVariant,
                           fontSize: 12,
@@ -330,6 +393,7 @@ class _OfferCardState extends State<_OfferCard> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
+                  focusNode: _rejectFocus,
                   onPressed: () =>
                       services.respondToOffer(offer.messageGuid, accept: false),
                   child: Text(context.l10n.reject),
@@ -339,7 +403,9 @@ class _OfferCardState extends State<_OfferCard> {
                   focusNode: _acceptFocus,
                   onPressed: () =>
                       services.respondToOffer(offer.messageGuid, accept: true),
-                  child: Text(context.l10n.accept),
+                  child: Text(batch == null
+                      ? context.l10n.accept
+                      : context.l10n.acceptAll),
                 ),
               ],
             ),

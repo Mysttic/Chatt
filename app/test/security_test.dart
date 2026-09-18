@@ -103,6 +103,88 @@ void main() {
     });
   });
 
+  group('paczka plików: zgoda z góry ma granice', () {
+    Map<String, Object?> zapowiedz(Object? batchId, Object? batch) => {
+          'messageGuid': '2f1a9c74-0d3e-4f21-9a55-7b1d2c3e4f50',
+          'from': const DeviceIdentity(
+            guid: 'x',
+            name: 'Ktoś',
+            welcomeMessage: '',
+            tcpPort: 47780,
+            publicKey: <int>[],
+          ).toJson(),
+          'fileName': 'a.bin',
+          'fileSize': 10,
+          'sentAt': DateTime.now().toUtc().toIso8601String(),
+          'batchId': batchId,
+          'batch': batch,
+        };
+
+    Map<String, Object?> paczka({
+      Object? count = 2,
+      Object? bytes = 20,
+      Object? names = const ['a.bin', 'b.bin'],
+    }) =>
+        {'count': count, 'bytes': bytes, 'names': names};
+
+    test('identyfikator paczki trzyma ten sam kształt co identyfikator wiadomości',
+        () {
+      // Ten napis jest kluczem zapamiętanej zgody, więc przyjmujemy pod nim
+      // dokładnie tyle, co pod identyfikatorem wiadomości.
+      for (final zly in zlosliweGuidy) {
+        final offer = FileOffer.fromJson(zapowiedz(zly, paczka()));
+        expect(offer, isNotNull, reason: zly);
+        expect(offer!.batchId, isNull, reason: zly);
+        expect(offer.batch, isNull, reason: zly);
+      }
+    });
+
+    test('zepsuty opis paczki znaczy „nie ma paczki", a nie odmowa', () {
+      // Pytanie o każdy plik osobno jest gorsze, ale nigdy szkodliwe;
+      // odrzucenie zapowiedzi gubiłoby plik przez błąd nadawcy.
+      final zle = <Object?>[
+        null,
+        'nie mapa',
+        paczka(count: 1), // paczka z jednego pliku to nie paczka
+        paczka(count: 0),
+        paczka(count: maxBatchFiles + 1),
+        paczka(count: 'dużo'),
+        paczka(bytes: -1),
+        paczka(bytes: null),
+        paczka(names: const ['a.bin']), // spis krótszy niż liczba plików
+        paczka(names: const ['a.bin', '']),
+        paczka(names: const ['a.bin', 42]),
+        paczka(names: 'a.bin, b.bin'),
+        paczka(names: ['a.bin', 'x' * 256]),
+      ];
+      for (final batch in zle) {
+        final offer = FileOffer.fromJson(zapowiedz('paczka-1', batch));
+        expect(offer, isNotNull, reason: '$batch');
+        expect(offer!.batch, isNull, reason: '$batch');
+      }
+    });
+
+    test('poprawna paczka przechodzi w całości', () {
+      final offer = FileOffer.fromJson(zapowiedz('paczka-1', paczka()));
+      expect(offer?.batchId, 'paczka-1');
+      expect(offer?.batch?.count, 2);
+      expect(offer?.batch?.bytes, 20);
+      expect(offer?.batch?.names, ['a.bin', 'b.bin']);
+    });
+
+    test('zapowiedź bez paczki wygląda tak, jak wyglądała zawsze', () {
+      // Nadawca w starszej wersji nie wie o paczkach: jego zapowiedź ma
+      // przejść bez zmian i skończyć się pytaniem o ten jeden plik.
+      final json = zapowiedz(null, null)
+        ..remove('batchId')
+        ..remove('batch');
+      final offer = FileOffer.fromJson(json);
+      expect(offer, isNotNull);
+      expect(offer!.batchId, isNull);
+      expect(offer.batch, isNull);
+    });
+  });
+
   group('ścieżki plików nie wychodzą poza katalog aplikacji', () {
     final katalog = p.join('C:', 'dane', 'received');
 

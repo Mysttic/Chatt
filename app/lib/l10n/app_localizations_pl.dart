@@ -375,6 +375,21 @@ class AppLocalizationsPl extends AppLocalizations {
       'Tożsamość niepotwierdzona: nazwę można sobie ustawić dowolną';
 
   @override
+  String fileOfferBatchTitle(Object name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'chce wysłać $count plików',
+      few: 'chce wysłać $count pliki',
+      one: 'chce wysłać $count plik',
+    );
+    return '$name $_temp0';
+  }
+
+  @override
+  String get acceptAll => 'Przyjmij wszystkie';
+
+  @override
   String moreFilesWaiting(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

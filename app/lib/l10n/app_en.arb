@@ -111,6 +111,8 @@
   "fileOfferTitle": "{name} wants to send a file",
   "fileOfferResume": "{size}, resuming: you already have {have}",
   "unpairedWarning": "Identity unconfirmed: anyone can pick that name",
+  "fileOfferBatchTitle": "{name} {count, plural, one{wants to send {count} file} other{wants to send {count} files}}",
+  "acceptAll": "Accept all",
   "moreFilesWaiting": "{count, plural, one{{count} more file waiting} other{{count} more files waiting}}",
   "reject": "Reject",
   "accept": "Accept",

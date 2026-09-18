@@ -76,7 +76,7 @@ answer that claims to be a known device without a matching signature.
 | `POST /handshake` | opening a session |
 | `POST /message` | delivering a message; 200 = confirmed, 409 = renew the session |
 | `POST /pair` | identity confirmation |
-| `POST /file-offer` | file announcement: name, size, sha256, key tag |
+| `POST /file-offer` | file announcement: name, size, sha256, key tag, and the batch it belongs to |
 | `POST /file` | raw bytes from the given offset, with the session number in a header |
 
 ### Session
@@ -108,6 +108,40 @@ travels in `x-chatt-*` headers, which have to be ASCII, hence base64 and
 percent-encoding; the content streams both ways, so a large file never passes
 through memory.
 
+The size in the header is what bounds the write, so it is compared against the
+size in the announcement before a single byte is taken. Under encryption the
+headers are not authenticated and the announcement is: without that comparison
+a consent for one 100 kB file would let the sender push as much as it liked.
+
+Files sent together form a **batch** and cost one question. The first
+announcement carries the batch identifier, the count, the total size and every
+file name; the rest carry only the identifier, and the sender keeps repeating
+the description until the recipient actually accepts one, so a card nobody
+answered does not quietly break the batch into per-file questions.
+
+A description that does not describe its own announcement is dropped on arrival
+(`FileOffer.fromJson`): without that, a sender could attach the list of three
+innocent names to the announcement of something else entirely and the card would
+show the wrong thing. Because of that rule, the first file is always inside its
+own batch and always charged against it.
+
+The recipient remembers the decision per (sender, batch) and it is worth exactly
+what was announced: at most that many files, at most that many bytes, only those
+names. Re-announcing a file that was already let in (which is how a resumed
+transfer re-establishes consent) is free, but only when it is still the same
+name and the same size. Two clocks bound the consent: thirty minutes of silence,
+counted from the last file that actually used it, and six hours from the moment
+it was given, which nothing can push. Anything outside all that falls back to an
+ordinary per-file question, so a sender that announces three small files cannot
+use the same consent for a fourth large one.
+
+A refusal of any file of a known batch travels back as `batch-rejected`, which
+stops the sender from announcing the rest; silence (the two-minute timeout) is
+`no-answer`, decides nothing and leaves the batch open. The batch fields are
+optional, so a peer that knows nothing about them asks per file as before, and
+they deliberately stay out of the partial-transfer sidecar, which is compared
+field by field when a transfer resumes.
+
 Resuming: the partial transfer sits in `received/.incomplete/<guid>.part` with
 a description beside it. The next attempt sends `x-chatt-file-offset` and gets
 only the missing piece; once the whole thing is together the sha256 is
@@ -115,7 +149,7 @@ computed. Abandoned parts are swept after seven days.
 
 ## Database
 
-`drift` (SQLite), schema version **10**. Tables: `settings`, `peers`,
+`drift` (SQLite), schema version **11**. Tables: `settings`, `peers`,
 `conversations`, `messages`.
 
 | Version | What was added |
@@ -129,6 +163,7 @@ computed. Abandoned parts are swept after seven days.
 | 8 | `settings.background` |
 | 9 | `peers.alias`, `peers.autoAccept` |
 | 10 | `settings.updateChecks`, `settings.lastUpdateCheck` |
+| 11 | `settings.linkPreviews` |
 
 The wipe at v6 comes from identifiers becoming key-derived: every device got a
 new one, so saved contacts no longer matched anything on the network.

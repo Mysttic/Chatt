@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:cryptography/cryptography.dart' show SimpleKeyPair;
@@ -41,6 +42,12 @@ class PendingFileOffer {
   /// który każdy może sobie ustawić, więc przy niesparowanym warto ostrzec.
   final bool fromVerifiedPeer;
 
+  /// Reszta paczki, gdy pytanie dotyczy kilku plików naraz. `null` znaczy
+  /// „jeden plik", czyli tyle, co było zawsze. Zgoda obejmuje wtedy wszystkie
+  /// wymienione pliki i nie da się jej potem cofnąć, więc karta z pytaniem
+  /// musi je wymienić.
+  final FileBatch? batch;
+
   const PendingFileOffer({
     required this.messageGuid,
     required this.peerName,
@@ -49,12 +56,39 @@ class PendingFileOffer {
     required this.resumeFrom,
     required this.conversationId,
     this.fromVerifiedPeer = false,
+    this.batch,
   });
+
+  /// Ile plików obejmuje ta prośba: paczka tyle, ile zapowiedziała, a pytanie
+  /// o pojedynczy plik jeden.
+  int get fileCount => batch?.count ?? 1;
+
+  /// Łączny rozmiar tego, o co pyta prośba.
+  int get totalBytes => batch?.bytes ?? fileSize;
 }
+
+/// Co zapowiedź pliku załatwiła u odbiorcy.
+///
+/// [answered] mówi, że odbiorca w ogóle się odezwał, więc opis paczki do niego
+/// dotarł i nie trzeba go powtarzać przy następnym pliku. [batchRejected] to
+/// odmowa całej paczki: reszty nie ma po co zapowiadać.
+typedef OfferOutcome = ({bool answered, bool batchRejected});
+
+const OfferOutcome _bezOdpowiedzi = (answered: false, batchRejected: false);
+const OfferOutcome _odpowiedziano = (answered: true, batchRejected: false);
+const OfferOutcome _paczkaOdrzucona = (answered: true, batchRejected: true);
+
+/// Odpowiedź na prośbę o plik.
+///
+/// „Brak odpowiedzi" to nie to samo co odmowa, choć jedno i drugie kończy się
+/// nieprzyjęciem pliku: odmowa jest decyzją o całej paczce i zamyka ją na
+/// resztę plików, a cisza znaczy tylko tyle, że nikt nie patrzył na ekran,
+/// więc przy następnym pliku pytamy jeszcze raz.
+enum OfferDecision { accept, reject, noAnswer }
 
 /// Decyzja o odbiorze pliku. Domyślnie pyta użytkownika (patrz
 /// [AppServices.pendingOffers]); testy i skrypty podstawiają własną.
-typedef FileOfferPolicy = Future<bool> Function(PendingFileOffer offer);
+typedef FileOfferPolicy = Future<OfferDecision> Function(PendingFileOffer offer);
 
 /// Wołane po zapisaniu wiadomości od rozmówcy (bez duplikatów). Warstwa UI
 /// decyduje, co z tym zrobić, np. powiadomienie, gdy okno jest zamknięte.
@@ -62,10 +96,12 @@ typedef IncomingMessageHook = void Function(
     Peer peer, String preview, int conversationId);
 
 /// Zgoda przyjmuje wszystko bez pytania (dla testów i trybu bezobsługowego).
-Future<bool> acceptAllFileOffers(PendingFileOffer offer) async => true;
+Future<OfferDecision> acceptAllFileOffers(PendingFileOffer offer) async =>
+    OfferDecision.accept;
 
 /// Odmowa dla wszystkiego (dla testów).
-Future<bool> rejectAllFileOffers(PendingFileOffer offer) async => false;
+Future<OfferDecision> rejectAllFileOffers(PendingFileOffer offer) async =>
+    OfferDecision.reject;
 
 /// Parowanie czekające na to, aż użytkownik porówna kod z drugim ekranem.
 class PendingPairing {
@@ -176,6 +212,64 @@ class _AcceptedOffer {
   const _AcceptedOffer(this.offer, this.conversationId, this.session);
 }
 
+/// Jak długo zapamiętana decyzja o paczce jest jeszcze coś warta.
+///
+/// Zegar chodzi od ostatniego pliku tej paczki, bo pliki idą po kolei i jeden
+/// duży potrafi lecieć kwadrans. Trzydzieści minut ciszy znaczy, że nadawca
+/// dawno skończył albo odpadł, a zgoda nie ma wisieć otwarta do końca życia
+/// procesu.
+const Duration batchGrantLifetime = Duration(minutes: 30);
+
+/// Dokąd sięga zgoda, choćby pliki szły bez przerwy. Sto plików po gigabajcie
+/// zmieści się w tym z zapasem nawet na słabym Wi-Fi, a zgoda sprzed pół dnia
+/// nie jest już odpowiedzią na żadne pytanie, które ktoś pamięta.
+const Duration batchGrantMaxLife = Duration(hours: 6);
+
+/// Ile decyzji o paczkach trzymamy naraz. Sufit, nie pojemność: uczciwy
+/// nadawca ma jedną, a ktoś nieuczciwy nie ma jak zapchać nam pamięci.
+const int _maxBatchGrants = 64;
+
+/// Decyzja użytkownika o całej paczce plików.
+///
+/// Zgoda jest **z góry**, więc musi być ograniczona tym, co zapowiedziano:
+/// tyle plików, tyle bajtów i te nazwy, co na karcie z pytaniem. Plik poza tym
+/// spisem nie jest tym, na co ktoś się zgodził, więc wraca do zwykłego pytania.
+class _BatchGrant {
+  final bool accepted;
+
+  /// Nazwy z zapowiedzi. Plik spoza spisu nie korzysta z tej zgody.
+  final Set<String> names;
+
+  /// Ile jeszcze plików i bajtów mieści się w tym, co zapowiedziano.
+  int filesLeft;
+  int bytesLeft;
+
+  /// Pliki już wpuszczone tą zgodą, razem z tym, czym były. Ponowiona
+  /// zapowiedź (wznowienie transferu) nie ma płacić drugi raz za to samo,
+  /// ale też nie ma pod tym identyfikatorem przemycić innego pliku.
+  final Map<String, ({String name, int size})> admitted = {};
+
+  final DateTime createdAt = DateTime.now();
+  DateTime lastSeen = DateTime.now();
+
+  _BatchGrant({
+    required this.accepted,
+    required this.names,
+    required this.filesLeft,
+    required this.bytesLeft,
+  });
+
+  /// Dwa zegary. Bezczynność liczy się od ostatniego **wpuszczonego** pliku,
+  /// bo paczka idzie po kolei i jeden duży leci kwadrans. Twardy kres liczy
+  /// się od wydania zgody i nie da się go przesunąć niczym: zgoda sprzed
+  /// pół dnia nie jest już odpowiedzią na nic.
+  bool get expired {
+    final teraz = DateTime.now();
+    return teraz.difference(lastSeen) > batchGrantLifetime ||
+        teraz.difference(createdAt) > batchGrantMaxLife;
+  }
+}
+
 /// Korzeń aplikacji: łączy bazę, tożsamość, serwer wiadomości i discovery.
 /// Testy E2E tworzą dwie instancje AppServices w jednym procesie i każą im
 /// rozmawiać ze sobą jak dwóm osobnym urządzeniom.
@@ -217,8 +311,11 @@ class AppServices {
   /// Powiadomienie o nowej wiadomości (opcjonalne, ustawiane w [start]).
   IncomingMessageHook? _onIncoming;
 
-  final Map<String, Completer<bool>> _offerDecisions = {};
+  final Map<String, Completer<OfferDecision>> _offerDecisions = {};
   final Map<String, _AcceptedOffer> _acceptedOffers = {};
+
+  /// Zapamiętane decyzje o paczkach, po jednej na (nadawca, paczka).
+  final Map<String, _BatchGrant> _batchGrants = {};
 
   /// Klucz zgody na plik: nadawca + guid wiadomości.
   static String _offerKey(String senderGuid, String messageGuid) =>
@@ -954,10 +1051,15 @@ class AppServices {
   /// Wysyłka pliku: wiadomość-plik ląduje w bazie (pending), potem streaming
   /// do odbiorcy z raportowaniem postępu przez [progressOf].
   Future<void> sendFile(int conversationId, String sourcePath) async {
+    await _sendOneFile(conversationId, sourcePath);
+  }
+
+  Future<OfferOutcome> _sendOneFile(int conversationId, String sourcePath,
+      {String? batchId, FileBatch? batch}) async {
     final file = File(sourcePath);
-    if (!await file.exists()) return;
+    if (!await file.exists()) return _bezOdpowiedzi;
     final peer = await db.peerForConversation(conversationId);
-    if (peer == null) return;
+    if (peer == null) return _bezOdpowiedzi;
 
     final name = p.basename(sourcePath);
     final messageId = await db.insertOutgoing(
@@ -969,16 +1071,62 @@ class AppServices {
       fileSize: await file.length(),
       filePath: sourcePath,
     );
-    await _deliverFile(messageId, peer);
+    return _deliverFile(messageId, peer, batchId: batchId, batch: batch);
   }
 
-  /// Wysyłka wielu plików naraz (wybór z okna albo przeciągnięcie na okno).
-  /// Idą po kolei, bo każdy z osobna pyta odbiorcę o zgodę, a równoległe
-  /// zapowiedzi znaczyłyby kilka pytań naraz i kilka strumieni w tej samej
-  /// sesji. Katalogi odpadają same, bo [sendFile] sprawdza, czy to plik.
+  /// Wysyłka wielu plików naraz (wybór z okna, przeciągnięcie na okno albo
+  /// wklejenie ze schowka).
+  ///
+  /// Pliki idą po kolei, bo równoległe strumienie w jednej sesji tylko
+  /// odbierałyby sobie pasmo. Pytanie do odbiorcy idzie za to **raz na
+  /// paczkę**: pierwsza zapowiedź niesie spis nazw i łączny rozmiar, kolejne
+  /// powołują się na jej identyfikator. Odmowa dotyczy całej paczki, więc
+  /// reszty nawet nie zapowiadamy: każda zapowiedź to przeliczenie sumy
+  /// kontrolnej całego pliku, a to przy stu filmach z telefonu są minuty
+  /// czytania dysku na darmo.
+  ///
+  /// Paczka ma górną granicę ([maxBatchFiles]), bo spis nazw jedzie
+  /// w zapowiedzi, a jedna zgoda nie ma obejmować nie wiadomo czego. Większy
+  /// wybór idzie kolejnymi paczkami, każda z własnym pytaniem.
+  ///
+  /// Katalogi i ścieżki donikąd odpadają **przed** zapowiedzią, a nie w jej
+  /// trakcie: inaczej paczka obiecałaby pliki, których nigdy nie wyśle.
   Future<void> sendFiles(int conversationId, Iterable<String> paths) async {
+    final pliki = <File>[];
     for (final path in paths) {
-      await sendFile(conversationId, path);
+      final file = File(path);
+      if (await file.exists()) pliki.add(file);
+    }
+
+    for (var od = 0; od < pliki.length; od += maxBatchFiles) {
+      final czesc = pliki.sublist(
+          od, math.min(od + maxBatchFiles, pliki.length));
+      // Jeden plik to nie paczka: pytanie o niego wygląda jak zawsze.
+      if (czesc.length == 1) {
+        await _sendOneFile(conversationId, czesc.single.path);
+        continue;
+      }
+
+      final rozmiary = <int>[];
+      for (final file in czesc) {
+        rozmiary.add(await file.length());
+      }
+      final batchId = _uuid.v4();
+      final batch = FileBatch(
+        count: czesc.length,
+        bytes: rozmiary.fold(0, (suma, rozmiar) => suma + rozmiar),
+        names: czesc.map((f) => p.basename(f.path)).toList(growable: false),
+      );
+
+      // Opis paczki powtarzamy, dopóki odbiorca się nie odezwie: bez niego
+      // druga zapowiedź powołuje się na paczkę, o której tamten nic nie wie.
+      var opisDotarl = false;
+      for (final file in czesc) {
+        final wynik = await _sendOneFile(conversationId, file.path,
+            batchId: batchId, batch: opisDotarl ? null : batch);
+        if (wynik.batchRejected) return;
+        if (wynik.answered) opisDotarl = true;
+      }
     }
   }
 
@@ -1066,14 +1214,18 @@ class AppServices {
   /// przyjąć i od którego bajtu), potem dopiero bajty. Odmowa i zerwany
   /// transfer kończą się statusem "niedostarczone" z możliwością ponowienia:
   /// wznowienie dokłada tylko brakującą część.
-  Future<void> _deliverFile(int messageId, Peer peer) async {
+  /// Zapowiedź i wysyłka jednego pliku. [batchId] i [batch] są niepuste tylko
+  /// wtedy, gdy plik idzie w paczce (patrz [sendFiles]); opis paczki niesie
+  /// pierwsza zapowiedź, która do odbiorcy dotarła.
+  Future<OfferOutcome> _deliverFile(int messageId, Peer peer,
+      {String? batchId, FileBatch? batch}) async {
     final message = await db.messageById(messageId);
     final path = message?.filePath;
-    if (message == null || path == null) return;
+    if (message == null || path == null) return _bezOdpowiedzi;
     final file = File(path);
     if (!await file.exists()) {
       await db.setMessageStatus(messageId, MessageStatus.failed);
-      return;
+      return _bezOdpowiedzi;
     }
 
     final total = await file.length();
@@ -1089,13 +1241,13 @@ class AppServices {
         final moved = await _relocate(target);
         if (moved == null) {
           await db.setMessageStatus(messageId, MessageStatus.failed);
-          return;
+          return _bezOdpowiedzi;
         }
         target = moved;
         sesja = await _sessionFor(target);
         if (sesja == null) {
           await db.setMessageStatus(messageId, MessageStatus.failed);
-          return;
+          return _bezOdpowiedzi;
         }
       }
 
@@ -1112,12 +1264,14 @@ class AppServices {
             sha256: hash,
             keyEpoch: ChattCrypto.keyEpoch(fileKey),
             sentAt: message.createdAt,
+            batchId: batchId,
+            batch: batch,
           ).toJson();
 
       var offerPayload = await _sealFor(target, zapowiedz());
       if (offerPayload == null) {
         await db.setMessageStatus(messageId, MessageStatus.failed);
-        return;
+        return _bezOdpowiedzi;
       }
       var reply = await client.offerFile(
           host: target.host, port: target.port, payload: offerPayload);
@@ -1143,12 +1297,21 @@ class AppServices {
 
       if (reply != null && !reply.accepted) {
         await db.setMessageStatus(messageId, MessageStatus.failed);
-        return;
+        // Odmowa całej paczki, a nie tego jednego pliku: nadawca kończy
+        // wysyłkę, zamiast zapowiadać po kolei resztę, której i tak nikt nie
+        // przyjmie (a każda zapowiedź kosztuje przeliczenie sumy kontrolnej).
+        if (reply.reason == offerRejectedBatch) return _paczkaOdrzucona;
+        // Cisza na karcie: opis paczki do nikogo nie dotarł, bo nikt nie
+        // podjął decyzji. Gdyby liczyła się jak odpowiedź, jedna chwila
+        // nieuwagi rozbijała paczkę na tyle pytań, ile plików.
+        return reply.reason == offerNoAnswer ? _bezOdpowiedzi : _odpowiedziano;
       }
       if (reply != null && reply.alreadyHave) {
-        // Odbiorca ma już ten plik (zgubiony ACK), nic nie wysyłamy.
+        // Odbiorca ma już ten plik (zgubiony ACK), nic nie wysyłamy. Opisu
+        // paczki przy tym nie zapisał (wyszedł wcześniej), więc następna
+        // zapowiedź ma go powtórzyć.
         await db.setMessageStatus(messageId, MessageStatus.delivered);
-        return;
+        return _bezOdpowiedzi;
       }
 
       var resumeFrom =
@@ -1167,7 +1330,7 @@ class AppServices {
         offerPayload = await _sealFor(target, zapowiedz());
         if (offerPayload == null) {
           await db.setMessageStatus(messageId, MessageStatus.failed);
-          return;
+          return _bezOdpowiedzi;
         }
         reply = await client.offerFile(
             host: target.host, port: target.port, payload: offerPayload);
@@ -1183,6 +1346,11 @@ class AppServices {
       }
       await db.setMessageStatus(
           messageId, delivered ? MessageStatus.delivered : MessageStatus.failed);
+      // „Opis dotarł" znaczy: odbiorca go zapisał, czyli zgodził się na tę
+      // zapowiedź. Wszystko inne każe powtórzyć opis przy następnym pliku.
+      return reply != null && reply.accepted
+          ? _odpowiedziano
+          : _bezOdpowiedzi;
     } finally {
       _transferProgress.remove(messageId);
       transfersRevision.value++;
@@ -1302,23 +1470,61 @@ class AppServices {
     }
 
     final resumeFrom = _resumableBytes(offer);
+
     // Przyjmowanie bez pytania wymaga **obu** warunków naraz. Sama flaga bez
     // zielonej tarczy znaczyłaby „bierz pliki od każdego, kto poda się za tego
     // rozmówcę", a nazwę urządzenia każdy może sobie ustawić dowolnie.
     // Potwierdzenia nie da się podrobić bez klucza prywatnego.
-    final accepted = (peer.verified && peer.autoAccept) ||
-        await _offerPolicy(PendingFileOffer(
-          messageGuid: offer.messageGuid,
-          peerName: peer.displayName,
-          fileName: offer.fileName,
-          fileSize: offer.fileSize,
-          resumeFrom: resumeFrom,
-          conversationId: conversationId,
-          fromVerifiedPeer: peer.verified,
-        ));
+    var accepted = peer.verified && peer.autoAccept;
+
+    // Dalszy plik paczki, o którą już pytaliśmy: decyzja jest zapamiętana,
+    // ale obowiązuje tylko w granicach tego, co nadawca zapowiedział.
+    final zapamietana = accepted ? null : _batchDecision(offer);
+    if (zapamietana != null) {
+      accepted = zapamietana;
+      if (!accepted) {
+        _discardPart(offer.messageGuid);
+        return const FileOfferReply(
+            accepted: false, reason: offerRejectedBatch);
+      }
+    }
+
     if (!accepted) {
-      _discardPart(offer.messageGuid);
-      return const FileOfferReply(accepted: false, reason: 'rejected');
+      final decyzja = await _offerPolicy(PendingFileOffer(
+        messageGuid: offer.messageGuid,
+        peerName: peer.displayName,
+        fileName: offer.fileName,
+        fileSize: offer.fileSize,
+        resumeFrom: resumeFrom,
+        conversationId: conversationId,
+        fromVerifiedPeer: peer.verified,
+        batch: offer.batch,
+      ));
+      accepted = decyzja == OfferDecision.accept;
+      // Brak odpowiedzi to nie odmowa: zapamiętujemy tylko to, co ktoś
+      // naprawdę kliknął, więc po dwóch minutach ciszy następny plik paczki
+      // zapyta jeszcze raz, zamiast przepaść bez słowa.
+      if (decyzja != OfferDecision.noAnswer) _rememberBatch(offer, accepted);
+
+      if (!accepted) {
+        _discardPart(offer.messageGuid);
+        return FileOfferReply(
+          accepted: false,
+          // Odmowa paczki zatrzymuje nadawcę; odmowa pojedynczego pliku
+          // dotyczy tylko jego. Cisza nie zatrzymuje nic: nikt nie
+          // zdecydował, więc następny plik ma jeszcze raz zapytać.
+          // Odmowa dowolnego pliku ze znanej paczki zatrzymuje nadawcę,
+          // także wtedy, gdy ta zapowiedź nie niosła już opisu. Cisza nie
+          // zatrzymuje nic i **nie jest** odmową: nadawca ma po niej powtórzyć
+          // opis paczki, zamiast uznać, że tamten już go zna.
+          reason: switch (decyzja) {
+            OfferDecision.reject when offer.batchId != null =>
+              offerRejectedBatch,
+            OfferDecision.noAnswer => offerNoAnswer,
+            _ => 'rejected',
+          },
+        );
+      }
     }
 
     _acceptedOffers[_offerKey(offer.from.guid, offer.messageGuid)] =
@@ -1326,6 +1532,90 @@ class AppServices {
     _writePartMeta(offer);
     return FileOfferReply(accepted: true, resumeFrom: resumeFrom);
   }
+
+  static String _batchKey(String senderGuid, String batchId) =>
+      '$senderGuid|$batchId';
+
+  /// Decyzja zapamiętana dla paczki tej zapowiedzi albo `null`, gdy trzeba
+  /// zapytać: nie ma takiej paczki, wygasła albo ten plik się w niej nie
+  /// mieści.
+  ///
+  /// Zgoda z góry jest warta tyle, ile zapowiedź, na której ją wydano, więc
+  /// plik spoza spisu nazw, ponad zapowiedzianą liczbę albo ponad
+  /// zapowiedziane bajty wypada z paczki i wraca do zwykłego pytania. Odmowa
+  /// obowiązuje bez tych warunków: „nie" znaczy nie.
+  bool? _batchDecision(FileOffer offer) {
+    _pruneBatchGrants();
+    final batchId = offer.batchId;
+    if (batchId == null) return null;
+    final grant = _batchGrants[_batchKey(offer.from.guid, batchId)];
+    if (grant == null) return null;
+    if (!grant.accepted) return false;
+
+    // Ponowiona zapowiedź tego samego pliku (wznowienie przerwanego transferu)
+    // korzysta ze zgody, którą już raz zapłaciła, ale tylko wtedy, gdy to
+    // nadal ten sam plik. Bez porównania nazwy i rozmiaru wystarczyło wysłać
+    // zapowiedź czterech kilobajtów, a potem tę samą jeszcze raz z ośmioma
+    // gigabajtami: identyfikator był już wpuszczony, więc nikt by nie pytał.
+    final wpuszczony = grant.admitted[offer.messageGuid];
+    if (wpuszczony != null) {
+      if (wpuszczony.name != offer.fileName ||
+          wpuszczony.size != offer.fileSize) {
+        return null;
+      }
+      grant.lastSeen = DateTime.now();
+      return true;
+    }
+
+    if (grant.filesLeft <= 0 ||
+        offer.fileSize > grant.bytesLeft ||
+        !grant.names.contains(offer.fileName)) {
+      return null;
+    }
+    grant.filesLeft--;
+    grant.bytesLeft -= offer.fileSize;
+    grant.admitted[offer.messageGuid] =
+        (name: offer.fileName, size: offer.fileSize);
+    // Zegar przesuwa tylko plik, który naprawdę wszedł na tę zgodę: inaczej
+    // wystarczyłoby pukać w nią co pół godziny, żeby nie wygasła nigdy.
+    grant.lastSeen = DateTime.now();
+    return true;
+  }
+
+  /// Zapisuje decyzję o paczce. Pierwszy plik paczki niesie jej opis i to on
+  /// otwiera wpis; przy pojedynczym pliku nie ma czego zapamiętywać.
+  void _rememberBatch(FileOffer offer, bool accepted) {
+    final batchId = offer.batchId;
+    final batch = offer.batch;
+    if (batchId == null || batch == null) return;
+    if (_batchGrants.length >= _maxBatchGrants) {
+      // Miejsce robi najstarszy wpis. Uczciwy nadawca ma jedną paczkę naraz,
+      // więc do tego sufitu dochodzi się tylko z premedytacją.
+      final najstarszy = _batchGrants.entries
+          .reduce((a, b) => a.value.lastSeen.isBefore(b.value.lastSeen) ? a : b);
+      _batchGrants.remove(najstarszy.key);
+    }
+    final grant = _BatchGrant(
+      accepted: accepted,
+      names: batch.names.toSet(),
+      filesLeft: batch.count,
+      bytesLeft: batch.bytes,
+    );
+    // Plik, na którym padło pytanie, też liczy się do paczki. Bezwarunkowo:
+    // zapowiedź niosąca opis paczki, który jej nie opisuje, w ogóle nie dojdzie
+    // tutaj z paczką (patrz FileOffer.fromJson), więc nazwa i rozmiar mieszczą
+    // się w spisie. Bez tego pierwszy plik jechałby za darmo, poza budżetem.
+    if (accepted) {
+      grant.filesLeft--;
+      grant.bytesLeft -= offer.fileSize;
+      grant.admitted[offer.messageGuid] =
+          (name: offer.fileName, size: offer.fileSize);
+    }
+    _batchGrants[_batchKey(offer.from.guid, batchId)] = grant;
+  }
+
+  void _pruneBatchGrants() =>
+      _batchGrants.removeWhere((_, grant) => grant.expired);
 
   /// Plik przychodzący: streaming na dysk do pliku częściowego (dopisywanie
   /// przy wznowieniu), po komplecie weryfikacja rozmiaru i sumy kontrolnej,
@@ -1390,6 +1680,14 @@ class AppServices {
     // prawdziwą nazwę, sumę kontrolną i zgodę użytkownika. Bajty bez
     // zapowiedzi albo w innej sesji niż ta zgoda nie mają czego skonsumować.
     if (accepted == null || accepted.session != sesja.id) {
+      return FileReceiveResult.rejected;
+    }
+    // Rozmiar z nagłówka rządzi zapisem na dysku (pętla niżej przerywa po
+    // `meta.fileSize` bajtach), a nagłówki przy zaszyfrowanym transferze nie
+    // są uwierzytelnione: pod GCM przyszła zapowiedź, nie one. Bez tego
+    // porównania zgoda na jeden plik 100 kB pozwalała przysłać osiem
+    // gigabajtów, a przy paczce tyle razy, ile plików w zapowiedzi.
+    if (meta.fileSize != accepted.offer.fileSize) {
       return FileReceiveResult.rejected;
     }
     final fileKey = await ChattCrypto.fileKey(
@@ -1496,29 +1794,32 @@ class AppServices {
   /// Decyzja użytkownika: prośba ląduje w [pendingOffers], a my czekamy na
   /// [respondToOffer]. Bez odpowiedzi w 2 minuty traktujemy to jak odmowę
   /// (nadawca zobaczy "nie dostarczono" i będzie mógł ponowić).
-  Future<bool> _askUserAboutOffer(PendingFileOffer offer) {
-    final decision = Completer<bool>();
+  Future<OfferDecision> _askUserAboutOffer(PendingFileOffer offer) {
+    final decision = Completer<OfferDecision>();
     _offerDecisions[offer.messageGuid] = decision;
     pendingOffers.value = [...pendingOffers.value, offer];
     return decision.future.timeout(
       const Duration(minutes: 2),
       onTimeout: () {
-        _resolveOffer(offer.messageGuid, false);
-        return false;
+        // Cisza, a nie odmowa: przy paczce następny plik zapyta jeszcze raz,
+        // zamiast przepaść dlatego, że nikt nie patrzył na ekran.
+        _resolveOffer(offer.messageGuid, OfferDecision.noAnswer);
+        return OfferDecision.noAnswer;
       },
     );
   }
 
   /// Odpowiedź UI na prośbę z [pendingOffers].
   void respondToOffer(String messageGuid, {required bool accept}) =>
-      _resolveOffer(messageGuid, accept);
+      _resolveOffer(messageGuid,
+          accept ? OfferDecision.accept : OfferDecision.reject);
 
-  void _resolveOffer(String messageGuid, bool accept) {
+  void _resolveOffer(String messageGuid, OfferDecision decyzja) {
     pendingOffers.value = pendingOffers.value
         .where((offer) => offer.messageGuid != messageGuid)
         .toList(growable: false);
     final decision = _offerDecisions.remove(messageGuid);
-    if (decision != null && !decision.isCompleted) decision.complete(accept);
+    if (decision != null && !decision.isCompleted) decision.complete(decyzja);
   }
 
   // --- Pliki częściowe (wznawianie) ----------------------------------------
@@ -1772,7 +2073,9 @@ class AppServices {
     // Nikt już nie odpowie na wiszące prośby o zgodę: odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {
-      _resolveOffer(guid, false);
+      // Zamykana aplikacja to nie odmowa użytkownika: nadawca ma nie czekać
+      // do timeoutu, ale paczka zostaje bez zapamiętanej decyzji.
+      _resolveOffer(guid, OfferDecision.noAnswer);
     }
     _updateTimer?.cancel();
     availableRelease.dispose();

@@ -120,8 +120,17 @@ already fetched.
 The paperclip next to the text field opens the system file picker, and
 **several files can be selected at once**. On a PC you can also **drag files
 onto the conversation window**. The recipient **is asked first** whether to
-take the file; bytes flow only after that. With several files the question
-comes separately for each one, in turn.
+take the file; bytes flow only after that.
+
+**Several files are one question.** The card names every file in the batch and
+gives the total size, and one "Accept all" covers the lot; the files still
+travel one after another, each with its own progress. A refusal refuses the
+whole batch, and the rest is not even announced. Two things follow from that,
+and both are on purpose: the acceptance cannot be taken back once the files
+start arriving, and a file that turns out not to match what was announced (it
+grew in the meantime, or it was never on the list) is asked about separately.
+More than a hundred files at once arrive as batches of a hundred, each with its
+own question.
 
 **Pasting.** Whatever sits on the clipboard can go straight into the
 conversation, without picking it out of a folder first. On a PC that is
