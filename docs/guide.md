@@ -123,6 +123,27 @@ onto the conversation window**. The recipient **is asked first** whether to
 take the file; bytes flow only after that. With several files the question
 comes separately for each one, in turn.
 
+**Pasting.** Whatever sits on the clipboard can go straight into the
+conversation, without picking it out of a folder first. On a PC that is
+**Ctrl+V** on the conversation screen: a file copied in Explorer, a screenshot
+taken with Win+Shift+S, a picture copied on a web page. A file copied in
+Explorer goes exactly as it lies; an image that has no file of its own is
+written out as a PNG in the temporary folder, and that is the copy that
+travels.
+
+Text pastes into the message field as it always did, and text wins: a range of
+cells copied in Excel, or a paragraph from Word, carries a picture of itself
+on the clipboard as well, and Chatt leaves it alone rather than sending the
+other side a screenshot nobody asked for. Ctrl+V while you are typing in the
+search box is the search box's own, so it pastes text there and nothing else.
+
+When there is something to paste, the paperclip asks which of the two you
+meant; when there is not, it opens the file picker straight away, as before.
+
+On a phone there is no Ctrl+V, so the paperclip is the way in. The keyboard is
+the other one: Gboard's own picture and GIF buttons now send straight into the
+conversation.
+
 <img src="screenshots/produkt/en/android_prosba_o_plik.png" alt="File request" width="260">
 
 - A refusal means zero bytes transferred. The sender sees "not delivered" and

@@ -126,6 +126,25 @@ rozmowy**. Odbiorca **najpierw dostaje pytanie**, czy chce ten plik przyjąć,
 i dopiero po zgodzie lecą bajty. Przy kilku plikach pytanie przychodzi osobno
 dla każdego, po kolei.
 
+**Wklejanie.** To, co leży w schowku, trafia do rozmowy wprost, bez szukania
+tego wcześniej w katalogu. Na komputerze robi to **Ctrl+V** na ekranie
+rozmowy: plik skopiowany w Eksploratorze, zrzut ekranu zrobiony przez
+Win+Shift+S, obrazek skopiowany na stronie. Plik z Eksploratora idzie taki,
+jaki leży; obrazek bez własnego pliku zapisuje się najpierw jako PNG
+w katalogu tymczasowym i to ta kopia jedzie dalej.
+
+Tekst wkleja się do pola wiadomości tak jak zawsze i tekst wygrywa:
+zaznaczenie komórek w Excelu albo akapitu w Wordzie niesie w schowku także
+swój obrazek, a Chatt zostawia go w spokoju, zamiast wysyłać rozmówcy zrzut,
+o który nikt nie prosił. Ctrl+V w polu szukania należy do tego pola: wkleja
+się tam sam tekst.
+
+Gdy w schowku coś jest, spinacz pyta, o którą z dwóch dróg chodzi; gdy nie ma
+nic, otwiera wybór pliku od razu, tak jak wcześniej.
+
+Na telefonie nie ma Ctrl+V, więc zostaje spinacz. Drugą drogą jest klawiatura:
+przyciski od obrazków i GIF-ów w Gboardzie wysyłają teraz prosto do rozmowy.
+
 <img src="screenshots/produkt/android_prosba_o_plik.png" alt="Prośba o plik" width="260">
 
 - Odmowa oznacza zero przesłanych danych; nadawca widzi „nie dostarczono"

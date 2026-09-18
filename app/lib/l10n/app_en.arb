@@ -94,6 +94,10 @@
   "pairPeerUnreachable": "The other device is not answering",
 
   "dropFilesHint": "Drop the files to send them",
+  "attachFromDevice": "A file from this device",
+  "attachFromClipboard": "Paste from the clipboard",
+  "pasteNothing": "Nothing could be taken from the clipboard",
+  "pastedImageName": "image.png",
   "copyText": "Copy text",
   "deleteMessage": "Delete message",
   "deleteMessageHint": "It disappears from this device only",

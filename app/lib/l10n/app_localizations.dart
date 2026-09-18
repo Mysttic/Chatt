@@ -620,6 +620,30 @@ abstract class AppLocalizations {
   /// **'Upuść pliki, żeby je wysłać'**
   String get dropFilesHint;
 
+  /// No description provided for @attachFromDevice.
+  ///
+  /// In pl, this message translates to:
+  /// **'Plik z urządzenia'**
+  String get attachFromDevice;
+
+  /// No description provided for @attachFromClipboard.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wklej ze schowka'**
+  String get attachFromClipboard;
+
+  /// No description provided for @pasteNothing.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się nic wziąć ze schowka'**
+  String get pasteNothing;
+
+  /// Nazwa pliku dla obrazka wklejonego ze schowka, który nie ma swojego pliku na dysku (zrzut ekranu, „kopiuj obraz” w przeglądarce). Widzą ją obie strony rozmowy, w języku nadawcy. Rozszerzenie podmienia się, gdy obrazek nie jest PNG.
+  ///
+  /// In pl, this message translates to:
+  /// **'obraz.png'**
+  String get pastedImageName;
+
   /// No description provided for @copyText.
   ///
   /// In pl, this message translates to:

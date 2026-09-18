@@ -320,6 +320,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dropFilesHint => 'Drop the files to send them';
 
   @override
+  String get attachFromDevice => 'A file from this device';
+
+  @override
+  String get attachFromClipboard => 'Paste from the clipboard';
+
+  @override
+  String get pasteNothing => 'Nothing could be taken from the clipboard';
+
+  @override
+  String get pastedImageName => 'image.png';
+
+  @override
   String get copyText => 'Copy text';
 
   @override
