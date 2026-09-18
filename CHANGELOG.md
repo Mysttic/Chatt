@@ -8,7 +8,10 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.8.1] - 2026-09-18
+
+Sending someone a handful of files asked them a handful of times. Now it asks
+once, and the question says what it is asking about.
 
 ### Changed
 - **Several files sent together now cost one question, not one per file.** The
@@ -614,7 +617,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.8.0...develop
+[0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/Mysttic/Chatt/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Mysttic/Chatt/compare/v0.6.2...v0.7.0
