@@ -10,6 +10,41 @@ into `master`.
 
 ## [Unreleased]
 
+### Added
+- **A file or an image goes from the clipboard straight into a conversation.**
+  On the desktop that is Ctrl+V anywhere on the conversation screen; the
+  paperclip also asks "a file from this device" or "paste from the clipboard",
+  but only when there is something to paste, so the ordinary path stays one
+  click. Files copied in Explorer travel as they are, without a copy, exactly
+  like files dragged onto the window. An image with no file behind it
+  (Win+Shift+S, "copy image" in a browser) is written out as a PNG in the
+  temporary directory first, under a name that follows the app language.
+  Text on the clipboard wins over a picture: a range of cells copied in Excel
+  or a paragraph from Word carries a bitmap of itself, and Windows will even
+  synthesise one from a bare `CF_BITMAP`, so without that rule pasting a few
+  numbers into the message field would have sent the other side a screenshot
+  of them as well.
+- **The keyboard's own "insert image" button works on Android.** GIFs,
+  stickers and screenshots offered by Gboard used to end in "this field does
+  not accept that", because a Flutter text field declares no content types
+  unless it is told to. On a phone this is the shortest way to send a picture,
+  and the clipboard is not involved at all: the bytes arrive from the engine.
+- The `chatt/clipboard` channel grew the reading direction: `hasFiles` and
+  `pasteFiles`. On Windows (`windows/runner/chatt_clipboard.cpp`) `CF_HDROP`
+  gives the paths back untouched, the registered `PNG` format is written out
+  byte for byte, and only a bitmap goes through WIC. Two traps cost a while
+  each. The `CF_DIBV5` the system synthesises from a plain bitmap carries the
+  channel masks **twice**, in the header and again behind it, and a reader
+  that trusts `biSize` starts three pixels early and skews the whole image;
+  the pixels are now located by where they have to end, not by where the
+  header says they begin. And `GlobalSize` measures the memory block rather
+  than the data, so the `PNG` payload is cut at its `IEND` chunk instead of
+  carrying whatever lay past the end. On Android (`ChattClipboard.kt`) the
+  cheap question goes to `getPrimaryClipDescription`, the one read that
+  Android 12 does not announce with "app pasted from your clipboard", so the
+  paste entry can appear exactly when it is useful without the system
+  accusing Chatt of watching the clipboard.
+
 ### Changed
 - **The release workflow no longer goes through Actions artifacts.** The
   first run of 0.7.1 built the APK and the installer and then died on

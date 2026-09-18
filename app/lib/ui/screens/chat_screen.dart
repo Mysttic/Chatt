@@ -1,13 +1,15 @@
+import 'dart:async' show unawaited;
 import 'dart:io' show File, Platform;
 import 'dart:math' as math;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter/services.dart'
+    show Clipboard, ClipboardData, KeyboardInsertedContent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/clipboard_image.dart';
+import '../../core/clipboard.dart';
 import '../../core/file_actions.dart';
 import '../../core/links.dart';
 import '../../core/search.dart';
@@ -19,6 +21,7 @@ import '../widgets/common.dart';
 import '../widgets/link_confirm.dart';
 import '../widgets/link_preview_card.dart';
 import '../widgets/linked_text.dart';
+import '../widgets/paste_shortcut.dart';
 import '../widgets/security_sheet.dart';
 import '../widgets/toasts.dart';
 import 'scan_screen.dart';
@@ -113,15 +116,77 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showToast(context.l10n.pairedWith(peer.displayName));
   }
 
+  /// Spinacz. Gdy w schowku leży plik albo obrazek, najpierw pytamy, o którą
+  /// z dwóch dróg chodzi: na telefonie nie ma Ctrl+V, więc bez tego pytania
+  /// wklejanie nie miałoby się skąd wziąć.
+  Future<void> _attachFile() async {
+    if (await clipboardHasFiles()) {
+      if (!mounted) return;
+      final zeSchowka = await _askWhereFrom();
+      if (zeSchowka == null || !mounted) return;
+      if (zeSchowka) return _pasteFiles(report: true);
+    }
+    await _pickFiles();
+  }
+
+  /// Karta z dwiema drogami do pliku. `null` znaczy „zamknięta bez wyboru".
+  Future<bool?> _askWhereFrom() => showModalBottomSheet<bool>(
+        context: context,
+        builder: (sheet) => SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.content_paste),
+                title: Text(context.l10n.attachFromClipboard),
+                onTap: () => Navigator.pop(sheet, true),
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_file),
+                title: Text(context.l10n.attachFromDevice),
+                onTap: () => Navigator.pop(sheet, false),
+              ),
+            ],
+          ),
+        ),
+      );
+
   /// Wybór plików: można zaznaczyć kilka naraz, wyślą się po kolei. Android
   /// ma własne okno przez kanał (patrz [FileActions.pickFiles]), pulpit
   /// bierze systemowe z `file_selector`.
-  Future<void> _attachFile() async {
+  Future<void> _pickFiles() async {
     final paths = Platform.isAndroid
         ? await FileActions.pickFiles()
         : (await openFiles()).map((f) => f.path).toList();
     if (paths.isEmpty) return;
     await _sendPaths(paths);
+  }
+
+  /// Ze schowka wprost do rozmowy. [report] włącza komunikat „nic tam nie ma":
+  /// ma sens po wybraniu pozycji w karcie, nie ma po Ctrl+V, gdzie pustym
+  /// schowkiem plików zajmuje się zwykłe wklejanie tekstu.
+  Future<void> _pasteFiles({bool report = false}) async {
+    final teksty = context.l10n;
+    final paths = await pasteClipboardFiles(imageName: teksty.pastedImageName);
+    if (!mounted) return;
+    if (paths.isEmpty) {
+      if (report) showToast(teksty.pasteNothing);
+      return;
+    }
+    await _sendPaths(paths);
+  }
+
+  /// Obrazek, GIF albo naklejka wstawione z klawiatury. Na telefonie to jest
+  /// najkrótsza droga do wysłania obrazka, a bez tej obsługi Android odmawia
+  /// wstawienia i pokazuje, że pole nie przyjmuje takiej treści. Bajty
+  /// przynosi silnik Fluttera, więc nie ma tu dostawcy treści ani uprawnień.
+  Future<void> _insertFromKeyboard(KeyboardInsertedContent content) async {
+    final teksty = context.l10n;
+    final bytes = content.data;
+    if (bytes == null || bytes.isEmpty) return;
+    final path = await saveInsertedContent(bytes,
+        mimeType: content.mimeType, name: teksty.pastedImageName);
+    if (path == null || !mounted) return;
+    await _sendPaths([path]);
   }
 
   Future<void> _sendPaths(Iterable<String> paths) => ref
@@ -238,18 +303,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           }),
         ],
       ),
-      // Przeciągnięcie plików z pulpitu na okno wysyła je do tej rozmowy.
-      // Na Androidzie nie ma skąd ich przeciągnąć, więc nic się nie dzieje.
-      body: DropTarget(
-        onDragEntered: (_) => setState(() => _dragging = true),
-        onDragExited: (_) => setState(() => _dragging = false),
-        onDragDone: (detail) async {
-          setState(() => _dragging = false);
-          await _sendPaths(detail.files.map((f) => f.path));
-        },
-        child: Stack(
-          children: [
-            Column(
+      // Dwie drogi na skróty, obie omijają spinacz: przeciągnięcie plików
+      // z pulpitu na okno i Ctrl+V. Na Androidzie nie ma ani skąd przeciągać,
+      // ani czym wcisnąć Ctrl, więc tam zostaje spinacz i klawiatura.
+      body: PasteShortcut(
+        onPaste: () => unawaited(_pasteFiles()),
+        child: DropTarget(
+          onDragEntered: (_) => setState(() => _dragging = true),
+          onDragExited: (_) => setState(() => _dragging = false),
+          onDragDone: (detail) async {
+            setState(() => _dragging = false);
+            await _sendPaths(detail.files.map((f) => f.path));
+          },
+          child: Stack(
+            children: [
+              Column(
         children: [
           Expanded(
             // Start i koniec wysyłki muszą przerysować dymki, żeby pasek
@@ -342,6 +410,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       maxLines: 5,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
+                      // Przycisk „wstaw obrazek" na klawiaturze (GIF-y,
+                      // naklejki, zrzuty). Bez tego Android odmawia wstawienia,
+                      // bo domyślnie pole nie deklaruje żadnego typu treści.
+                      contentInsertionConfiguration:
+                          ContentInsertionConfiguration(
+                              onContentInserted: _insertFromKeyboard),
                       decoration: InputDecoration(
                         hintText: context.l10n.messageHint,
                         border: OutlineInputBorder(
@@ -363,9 +437,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ),
         ],
-            ),
-            if (_dragging) _DropHint(),
-          ],
+              ),
+              if (_dragging) _DropHint(),
+            ],
+          ),
         ),
       ),
     );

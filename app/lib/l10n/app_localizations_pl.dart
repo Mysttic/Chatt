@@ -320,6 +320,18 @@ class AppLocalizationsPl extends AppLocalizations {
   String get dropFilesHint => 'Upuść pliki, żeby je wysłać';
 
   @override
+  String get attachFromDevice => 'Plik z urządzenia';
+
+  @override
+  String get attachFromClipboard => 'Wklej ze schowka';
+
+  @override
+  String get pasteNothing => 'Nie udało się nic wziąć ze schowka';
+
+  @override
+  String get pastedImageName => 'obraz.png';
+
+  @override
   String get copyText => 'Kopiuj tekst';
 
   @override

@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **178 `flutter test` tests** check everything that can be
+The split is simple: **205 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -83,6 +83,48 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   remainder
 - broken metadata gives a 400 and the server stays alive
 
+### Choosing a file on Android (`test/file_actions_test.dart`, 4 tests)
+The `chatt/files` channel answers with the paths of the copies it made:
+- the list comes back as it is
+- a closed picker, an error from Android and a missing channel (the desktop,
+  a widget test) all give an empty list, so the paperclip never takes a screen
+  down with it
+
+### Pasting from the clipboard (`test/clipboard_test.dart`, 13 tests)
+The Dart side of the `chatt/clipboard` channel. Whatever the platform says,
+the conversation screen gets a list of paths or an empty list, never an
+exception, because this hangs off Ctrl+V and off an entry in a sheet:
+- `hasFiles` passes the platform's answer through; an error and a missing
+  channel (Linux, a widget test) both mean "nothing there"
+- `pasteFiles` returns the paths and passes the name for an image that has no
+  file of its own; the name is cut down to its last segment, so
+  `../../etc/passwd` reaches the platform as `passwd`
+- content inserted from the keyboard lands in the temporary directory, takes
+  its extension from the MIME type (`image/gif` turns `obraz.png` into
+  `obraz.gif`), keeps an unknown type's name as it came, and two insertions in
+  a row do not overwrite each other
+
+The platform halves of the channel are not here: they need a real clipboard,
+and that is `tool/schowek_check.dart`.
+
+### Ctrl+V on the conversation screen (`test/paste_shortcut_test.dart`, 10 tests)
+`PasteShortcut` listens for keys globally, because a freshly opened
+conversation has focus nowhere and a handler sitting in the widget tree would
+never hear the most common case: copy a file in Explorer, come back, Ctrl+V.
+Global also means it hears keys that are not its own, so what is tested is
+when it speaks and when it stays quiet:
+- nothing focused, or focus inside the screen: it pastes
+- focus on a button outside the screen (the file-offer card floats above the
+  whole app and takes focus so Enter accepts it): it still pastes
+- focus in a text field outside the screen (the search box in the bar): silence,
+  because that is the one place where Ctrl+V already means something
+- V alone, Ctrl alone, Ctrl+Shift+V: silence
+- a key going up does not count a second time
+- something on top of the screen (a sheet, a dialog), and the screen taken out
+  of the tree: silence
+- the event travels on, so Ctrl+V in the message field still pastes text **and**
+  asks about the clipboard; returning "handled" would have killed the first one
+
 ### QR code (`test/pair_link_test.dart`, 3 tests)
 - a code makes the whole round trip
 - garbage and other people's codes are dropped (a camera sees plenty of codes
@@ -154,10 +196,14 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   gets the file through with no question asked; the same peer without consent
   still raises one; and the flag alone, with the shield gone, raises one too
 
-### Starting over after a lost key (`test/startup_error_test.dart`, 2 tests)
+### Starting over after a lost key (`test/startup_error_test.dart`, 4 tests)
 - the reset deletes the database, its journals and the key, and stops at the
   received files and the failure report
 - it also survives a directory with none of those in it
+- "Start over" opens a confirmation first, because the button throws away every
+  conversation on the device
+- another kind of startup failure has nothing to reset, and the button is not
+  offered at all
 
 ### Migration ahead of its own version (`test/migration_test.dart`, 1 test)
 - a database with the current column layout and `user_version` rolled back to
@@ -204,12 +250,16 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 - answers are cached, two questions at once become one connection, turning the
   switch off drops what was fetched, and a thrown socket error ends as no card
 
-### Checking for a newer release (`test/updates_test.dart`, 10 tests)
+### Checking for a newer release (`test/updates_test.dart`, 12 tests)
 - version comparison member by member, so 0.5.10 beats 0.5.4, with a leading
-  `v` and anything after `-` or `+` ignored
-- the asset name matches what the release workflow writes, per platform
+  `v` and anything after `-` or `+` ignored, and a missing member counting as
+  zero
+- the asset name matches what the release workflow writes, per platform, and
+  on Android that is the APK
 - a newer release comes back with its file; the same or an older one is
-  `upToDate`; a draft or a pre-release counts as nothing new
+  `upToDate`; a draft or a pre-release counts as nothing new; somebody else's
+  release does not pass for ours, and a release with no file for this platform
+  still yields a number and a page
 - a non-200, a malformed body and a thrown exception all end as `failed`, and
   the call never throws
 
@@ -281,6 +331,39 @@ run.
 for example by an ordinary Chatt running on the same desktop. The tunnel is
 asserted: without it the test would talk to whatever else holds the port.
 
+### `tool/schowek_check.dart`
+The platform half of `chatt/clipboard` lives in the runner, so `flutter test`
+never sees it. This one raises the real app, asks the clipboard and prints what
+came out:
+
+```
+cd app
+%USERPROFILE%\dev\flutter\bin\flutter.bat run -d windows -t tool/schowek_check.dart
+%USERPROFILE%\dev\flutter\bin\flutter.bat run -d emulator-5554 -t tool/schowek_check.dart
+```
+
+Three lines come before the result, because "nothing to paste" has several very
+different causes that look identical from Dart: whether the channel answered at
+all, what plain text is on the clipboard (read through Flutter's own
+`Clipboard`, which on Android also proves the app has the window focus the
+system demands for a clipboard read), and only then the answer.
+
+Four cases on Windows, one run each, with the clipboard filled beforehand: a
+file copied in Explorer (the path has to come back as it is, with no copy
+made), a screen clipping from Win+Shift+S and "copy image" on a web page (both
+have to come out as a PNG in the temporary directory, and the script prints the
+size and the first bytes, so an empty file shows up at once), and a range of
+cells copied in Excel, which carries a bitmap alongside the text and has to
+come out as **nothing**: otherwise an ordinary Ctrl+V of some numbers would
+also send the other side a screenshot of them.
+
+On Android the negative cases run the same way. The positive one needs an app
+that puts a `content://` on the clipboard, and a stock emulator image has none:
+Files has no clipboard copy at all (only "Copy to…", which copies the file
+somewhere else), Chrome's "Copy image" leaves an empty text clip, the
+screenshot overlay has no Copy, and Photos wants a Google account. That case
+needs a real phone.
+
 ### `tool/wifi_discovery_check.dart`
 Broadcasts a discovery query on a real network and prints who answered. This
 one cannot be checked on an emulator.
@@ -330,3 +413,11 @@ Deliberate holes in coverage, to be checked by hand at release time:
 - **The UI on Windows**: there are no widget tests; it is checked by clicking.
 - **Very large files and weak links**: the tests run over loopback, so they do
   not catch the timeouts typical of distant Wi-Fi.
+- **Pasting a file on Android**: a stock emulator image has no app that puts a
+  `content://` on the clipboard, so the reading side of `ChattClipboard` is
+  checked on a real phone, with a file manager and with "copy image" in a
+  browser. The copy itself is shared with the file picker and does get
+  exercised on the emulator.
+- **The keyboard's "insert image"**: the emulator ships AOSP LatinIME, which
+  has no picture or GIF button, so `contentInsertionConfiguration` needs Gboard
+  on a real phone.

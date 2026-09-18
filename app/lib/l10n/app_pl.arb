@@ -139,6 +139,13 @@
   "pairPeerUnreachable": "Drugie urządzenie nie odpowiada",
 
   "dropFilesHint": "Upuść pliki, żeby je wysłać",
+  "attachFromDevice": "Plik z urządzenia",
+  "attachFromClipboard": "Wklej ze schowka",
+  "pasteNothing": "Nie udało się nic wziąć ze schowka",
+  "pastedImageName": "obraz.png",
+  "@pastedImageName": {
+    "description": "Nazwa pliku dla obrazka wklejonego ze schowka, który nie ma swojego pliku na dysku (zrzut ekranu, „kopiuj obraz” w przeglądarce). Widzą ją obie strony rozmowy, w języku nadawcy. Rozszerzenie podmienia się, gdy obrazek nie jest PNG."
+  },
   "copyText": "Kopiuj tekst",
   "deleteMessage": "Usuń wiadomość",
   "deleteMessageHint": "Zniknie tylko z tego urządzenia",

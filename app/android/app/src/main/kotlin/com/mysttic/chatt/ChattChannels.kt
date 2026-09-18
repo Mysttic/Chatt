@@ -33,6 +33,7 @@ object ChattChannels {
     private const val filesChannel = "chatt/files"
     private const val backgroundChannel = "chatt/background"
     private const val secretsChannel = "chatt/sekrety"
+    private const val clipboardChannel = "chatt/clipboard"
 
     /** Nazwa klucza w Keystore. Sam klucz nigdy nie opuszcza Keystore. */
     private const val keystoreAlias = "chatt-klucz-bazy"
@@ -66,6 +67,20 @@ object ChattChannels {
                 "share" -> result.success(sendFile(context, path, share = true))
                 "save" -> result.success(saveToStore(context, path))
                 "installApk" -> result.success(installApk(context, path))
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(messenger, clipboardChannel).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "hasFiles" -> result.success(ChattClipboard.hasFiles(context))
+                "pasteFiles" -> ChattClipboard.pasteFiles(
+                    context,
+                    call.argument<String>("name") ?: "obraz",
+                    result,
+                )
+                // "copyImage" jest tylko na Windowsie: na Androidzie od
+                // odebranego pliku jest „Udostępnij".
                 else -> result.notImplemented()
             }
         }

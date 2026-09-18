@@ -7,11 +7,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.provider.OpenableColumns
 import io.flutter.plugin.common.MethodChannel
-import java.io.File
 import java.lang.ref.WeakReference
-import java.util.UUID
 import kotlin.concurrent.thread
 
 /**
@@ -28,6 +25,7 @@ import kotlin.concurrent.thread
  *
  * Kopia jest konieczna: `content://` od innej aplikacji jest ważne krótko,
  * a wysyłka (także ponowiona po nieudanej próbie) czyta plik zwykłą ścieżką.
+ * Samo kopiowanie robi [ChattFileCache], wspólne z wklejaniem ze schowka.
  *
  * Stan ([activity], [pending]) żyje wyłącznie w wątku głównym: tam działa
  * kanał, cykl życia aktywności i jej `onActivityResult`.
@@ -38,9 +36,6 @@ object ChattFilePicker {
 
     /** Podkatalog cache na kopie, osobny, żeby dało się go kiedyś sprzątać. */
     private const val subdir = "wybrane"
-
-    /** Bufor kopiowania: 256 KB idzie szybko przy 150 MB i nic nie znaczy w pamięci. */
-    private const val bufferSize = 256 * 1024
 
     private var activity: WeakReference<Activity>? = null
     private var pending: MethodChannel.Result? = null
@@ -107,7 +102,7 @@ object ChattFilePicker {
         // Kopiowanie poza wątkiem głównym: 150 MB z karty SD potrafi zająć
         // sekundy, a ekran ma w tym czasie odpowiadać.
         thread(name = "chatt-wybor-plikow") {
-            val paths = uris.mapNotNull { copyToCache(app, it) }
+            val paths = uris.mapNotNull { ChattFileCache.copy(app, it, subdir, "plik") }
             // Wynik kanału wolno oddać tylko z wątku głównego.
             mainThread.post { result.success(paths) }
         }
@@ -122,48 +117,5 @@ object ChattFilePicker {
             return (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
         }
         return listOfNotNull(data.data)
-    }
-
-    /**
-     * Kopia pliku spod [uri] w `cache/wybrane/<uuid>/<nazwa>`. Losowy katalog
-     * pozwala wysłać dwa różne pliki o tej samej nazwie. Zwraca null, gdy
-     * dostawca treści odmówił; taki plik wypada z listy.
-     */
-    private fun copyToCache(context: Context, uri: Uri): String? {
-        val dir = File(File(context.cacheDir, subdir), UUID.randomUUID().toString())
-        return try {
-            dir.mkdirs()
-            check(dir.isDirectory) { "brak katalogu ${dir.path}" }
-            val target = File(dir, displayName(context, uri))
-            context.contentResolver.openInputStream(uri).use { input ->
-                checkNotNull(input) { "brak strumienia" }
-                target.outputStream().use { output -> input.copyTo(output, bufferSize) }
-            }
-            target.path
-        } catch (error: Exception) {
-            // Kopia w połowie nie ma prawa pójść do rozmówcy.
-            dir.deleteRecursively()
-            null
-        }
-    }
-
-    /**
-     * Nazwa pliku od dostawcy treści (`DISPLAY_NAME`). Dostawca może tam
-     * wpisać cokolwiek, także separator katalogu, więc zostaje ostatni człon;
-     * przy braku nazwy plik dostaje ogólną.
-     */
-    private fun displayName(context: Context, uri: Uri): String {
-        var name: String? = null
-        context.contentResolver
-            .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-            ?.use { cursor ->
-                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (column >= 0 && cursor.moveToFirst()) name = cursor.getString(column)
-            }
-        val clean = name.orEmpty()
-            .substringAfterLast('/')
-            .substringAfterLast('\\')
-            .trim()
-        return if (clean.isEmpty() || clean == "." || clean == "..") "plik" else clean
     }
 }
