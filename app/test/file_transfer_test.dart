@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -7,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:chatt/data/db.dart';
+import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// E2E transferu plików między dwiema pełnymi instancjami: zgoda odbiorcy,
@@ -23,10 +25,16 @@ void main() {
   late List<PendingFileOffer> bobOffers;
   late bool bobAccepts;
 
+  /// Hak odpalany, zanim Bartek odpowie. Testy zmieniają w nim świat pod
+  /// nadawcą (na przykład pozwalają plikowi urosnąć), żeby sprawdzić, co
+  /// zrobi zapowiedź, która przestała się zgadzać z paczką.
+  void Function(PendingFileOffer offer)? bobBeforeAnswer;
+
   setUp(() async {
     work = Directory.systemTemp.createTempSync('chatt_files');
     bobOffers = [];
     bobAccepts = true;
+    bobBeforeAnswer = null;
     alice = await AppServices.start(
       executor: NativeDatabase.memory(),
       portOverride: 0,
@@ -43,7 +51,8 @@ void main() {
       receivedDirOverride: p.join(work.path, 'bob_received'),
       fileOfferPolicy: (offer) async {
         bobOffers.add(offer);
-        return bobAccepts;
+        bobBeforeAnswer?.call(offer);
+        return bobAccepts ? OfferDecision.accept : OfferDecision.reject;
       },
     );
   });
@@ -80,7 +89,7 @@ void main() {
     socket.done.then((_) {}, onError: (Object _) {});
   }
 
-  test('kilka plików naraz idzie po kolei, każdy z własnym pytaniem o zgodę',
+  test('kilka plików naraz idzie po kolei, ale z jednym pytaniem o zgodę',
       () async {
     final pierwszy = makeRandomFile('pierwszy.bin', 64 * 1024);
     final drugi = makeRandomFile('drugi.bin', 32 * 1024);
@@ -88,16 +97,21 @@ void main() {
     final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
     final conversation = await alice.openConversationWith(bobAsPeer!);
 
-    // Tą drogą idzie i wybór kilku plików z okna, i przeciągnięcie ich na okno.
+    // Tą drogą idzie i wybór kilku plików z okna, i przeciągnięcie ich na okno,
+    // i wklejenie ze schowka.
     await alice.sendFiles(
       conversation,
       [pierwszy.path, drugi.path, trzeci.path],
     );
 
-    // Osobna zgoda na każdy plik, w kolejności wysyłania, tego wymaga model
-    // „odbiorca widzi nazwę i rozmiar, zanim polecą bajty".
-    expect(bobOffers.map((o) => o.fileName),
-        ['pierwszy.bin', 'drugi.bin', 'trzeci.bin']);
+    // Jedno pytanie na całą paczkę, i to pytanie musi wymienić, na co idzie
+    // zgoda: inaczej użytkownik godzi się na coś, czego nie widział.
+    expect(bobOffers, hasLength(1));
+    final paczka = bobOffers.single.batch;
+    expect(paczka, isNotNull);
+    expect(paczka!.count, 3);
+    expect(paczka.names, ['pierwszy.bin', 'drugi.bin', 'trzeci.bin']);
+    expect(paczka.bytes, (64 + 32 + 16) * 1024);
 
     final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
     final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
@@ -110,6 +124,108 @@ void main() {
 
     final uAlicji = await alice.db.watchMessages(conversation).first;
     expect(uAlicji.every((m) => m.status == MessageStatus.delivered), isTrue);
+  });
+
+  test('jeden plik to nie paczka: pytanie wygląda jak zawsze', () async {
+    final sam = makeRandomFile('sam.bin', 8 * 1024);
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+
+    await alice.sendFiles(conversation, [sam.path]);
+
+    expect(bobOffers, hasLength(1));
+    expect(bobOffers.single.batch, isNull);
+    expect(bobOffers.single.fileName, 'sam.bin');
+    expect(bobOffers.single.fileCount, 1);
+  });
+
+  test('odmowa dotyczy całej paczki i zatrzymuje nadawcę', () async {
+    bobAccepts = false;
+    final pliki = [
+      makeRandomFile('a.bin', 4 * 1024),
+      makeRandomFile('b.bin', 4 * 1024),
+      makeRandomFile('c.bin', 4 * 1024),
+    ];
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+
+    await alice.sendFiles(conversation, pliki.map((f) => f.path).toList());
+
+    // Jedno „nie" zamyka paczkę: drugi raz nikt nie pyta.
+    expect(bobOffers, hasLength(1));
+
+    // I nadawca przestaje zapowiadać resztę, zamiast liczyć sumy kontrolne
+    // stu plików, których nikt nie przyjmie.
+    final uAlicji = await alice.db.watchMessages(conversation).first;
+    expect(uAlicji, hasLength(1));
+    expect(uAlicji.single.status, MessageStatus.failed);
+
+    final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
+    final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
+    expect(await bob.db.watchMessages(convAtBob).first, isEmpty);
+  });
+
+  test('cisza na karcie to nie odmowa: następny plik pyta jeszcze raz',
+      () async {
+    // Brak odpowiedzi wygląda z zewnątrz jak odmowa (plik nie wchodzi), ale
+    // nie ma zamykać paczki: nikt nie podjął decyzji.
+    final pytania = <PendingFileOffer>[];
+    final milczek = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Milczek',
+      enableDiscovery: false,
+      receivedDirOverride: p.join(work.path, 'milczek_received'),
+      fileOfferPolicy: (offer) async {
+        pytania.add(offer);
+        return OfferDecision.noAnswer;
+      },
+    );
+    addTearDown(milczek.dispose);
+
+    final pliki = [
+      makeRandomFile('x.bin', 2 * 1024),
+      makeRandomFile('y.bin', 2 * 1024),
+    ];
+    final peer =
+        await alice.addPeerByAddress('127.0.0.1', milczek.server.port!);
+    final conversation = await alice.openConversationWith(peer!);
+
+    await alice.sendFiles(conversation, pliki.map((f) => f.path).toList());
+
+    expect(pytania, hasLength(2));
+    expect(pytania.map((o) => o.fileName), ['x.bin', 'y.bin']);
+    // I drugie pytanie nadal jest pytaniem o paczkę. Nadawca powtarza jej
+    // opis, dopóki ktoś nie odpowie: bez tego chwila nieuwagi rozbijała
+    // paczkę na tyle osobnych pytań, ile plików, i to nieodwracalnie.
+    expect(pytania.every((o) => o.batch != null), isTrue);
+    expect(pytania.last.batch!.names, ['x.bin', 'y.bin']);
+  });
+
+  test('plik ponad zapowiedziane bajty wypada z paczki i pyta osobno',
+      () async {
+    // Zgoda z góry jest warta tyle, ile zapowiedź, na której ją wydano.
+    // Plik, który po drodze urósł, nie jest już tym, na co ktoś się zgodził,
+    // więc wraca do zwykłego pytania zamiast wejść na cudzą zgodę.
+    final a = makeRandomFile('a.bin', 4 * 1024);
+    final b = makeRandomFile('b.bin', 4 * 1024);
+    final bobAsPeer = await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+
+    bobBeforeAnswer = (offer) {
+      // Paczkę zapowiedziano na osiem kilobajtów; b urasta do sześćdziesięciu
+      // czterech, zanim nadawca zdąży go zapowiedzieć.
+      if (offer.batch != null) makeRandomFile('b.bin', 64 * 1024);
+    };
+
+    await alice.sendFiles(conversation, [a.path, b.path]);
+
+    expect(bobOffers, hasLength(2));
+    expect(bobOffers.first.batch, isNotNull);
+    expect(bobOffers.last.fileName, 'b.bin');
+    expect(bobOffers.last.batch, isNull,
+        reason: 'drugie pytanie dotyczy już samego pliku, nie paczki');
+    expect(bobOffers.last.fileSize, 64 * 1024);
   });
 
   test('katalog podany razem z plikami jest pomijany bez wywrotki', () async {
@@ -276,6 +392,79 @@ void main() {
         Directory(p.join(work.path, 'bob_received')).listSync().whereType<File>(),
         isEmpty,
         reason: 'ani do katalogu odebranych');
+  });
+
+  test('rozmiar z nagłówka musi zgadzać się z zapowiedzią', () async {
+    // Nagłówki zaszyfrowanego transferu nie są uwierzytelnione, a to rozmiar
+    // z nagłówka rządzi zapisem na dysku. Bez porównania z zapowiedzią zgoda
+    // na jeden mały plik pozwalała przysłać dowolnie dużo, a przy paczce tyle
+    // razy, ile plików w spisie.
+    final source = makeRandomFile('maly.bin', 4 * 1024);
+    final igla = utf8.encode('$headerFileSize:');
+    var podmieniono = false;
+
+    int znajdz(List<int> gdzie, List<int> co) {
+      for (var i = 0; i + co.length <= gdzie.length; i++) {
+        var pasuje = true;
+        for (var j = 0; j < co.length && pasuje; j++) {
+          pasuje = gdzie[i + j] == co[j];
+        }
+        if (pasuje) return i;
+      }
+      return -1;
+    }
+
+    final klamliweLacze =
+        await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    klamliweLacze.listen((client) async {
+      final target = await Socket.connect('127.0.0.1', bob.server.port!);
+      pochlonBledyZapisu(client);
+      pochlonBledyZapisu(target);
+      client.listen(
+        (chunk) {
+          final at = podmieniono ? -1 : znajdz(chunk, igla);
+          if (at < 0) {
+            target.add(chunk);
+            return;
+          }
+          var od = at + igla.length;
+          while (od < chunk.length && chunk[od] == 0x20) {
+            od++;
+          }
+          var koniec = od;
+          while (koniec < chunk.length &&
+              chunk[koniec] >= 0x30 &&
+              chunk[koniec] <= 0x39) {
+            koniec++;
+          }
+          podmieniono = true;
+          target.add([
+            ...chunk.sublist(0, od),
+            ...utf8.encode('99999999'),
+            ...chunk.sublist(koniec),
+          ]);
+        },
+        onDone: () => target.close(),
+        onError: (Object _) => target.destroy(),
+      );
+      target.listen(client.add,
+          onDone: () => client.close(), onError: (Object _) => client.destroy());
+    });
+    addTearDown(() => klamliweLacze.close());
+
+    final bobAsPeer =
+        await alice.addPeerByAddress('127.0.0.1', klamliweLacze.port);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+    await alice.sendFile(conversation, source.path);
+
+    expect(podmieniono, isTrue, reason: 'test ma sens tylko, gdy coś skłamał');
+    final aliceAtBob = await bob.db.peerByGuid(alice.identity.guid);
+    final convAtBob = await bob.db.ensureConversation(aliceAtBob!.id);
+    expect(await bob.db.watchMessages(convAtBob).first, isEmpty);
+    expect(
+        Directory(p.join(work.path, 'bob_received')).listSync().whereType<File>(),
+        isEmpty,
+        reason: 'ani bajtu z transferu, który skłamał o swoim rozmiarze');
   });
 
   test('część z poprzedniej sesji nie jest dopisywana, transfer rusza od zera',

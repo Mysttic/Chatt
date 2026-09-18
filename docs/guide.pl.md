@@ -123,8 +123,16 @@ zdążyły przyjść.
 Spinacz przy polu tekstowym otwiera systemowy wybór pliku; **można zaznaczyć
 kilka naraz**. Na komputerze pliki da się też po prostu **przeciągnąć na okno
 rozmowy**. Odbiorca **najpierw dostaje pytanie**, czy chce ten plik przyjąć,
-i dopiero po zgodzie lecą bajty. Przy kilku plikach pytanie przychodzi osobno
-dla każdego, po kolei.
+i dopiero po zgodzie lecą bajty.
+
+**Kilka plików to jedno pytanie.** Karta wymienia wszystkie nazwy z paczki
+i podaje łączny rozmiar, a jedno „Przyjmij wszystkie" obejmuje całość; pliki
+i tak idą po kolei, każdy z własnym paskiem postępu. Odmowa dotyczy całej
+paczki, a reszty nadawca nawet nie zapowiada. Wynikają z tego dwie rzeczy, obie
+świadomie: zgody nie da się cofnąć, gdy pliki już idą, a plik, który przestał
+się zgadzać z zapowiedzią (urósł po drodze albo nie było go na liście), dostaje
+osobne pytanie. Więcej niż sto plików naraz przychodzi paczkami po sto, każda
+z własnym pytaniem.
 
 **Wklejanie.** To, co leży w schowku, trafia do rozmowy wprost, bez szukania
 tego wcześniej w katalogu. Na komputerze robi to **Ctrl+V** na ekranie

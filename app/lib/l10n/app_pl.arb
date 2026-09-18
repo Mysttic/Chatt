@@ -168,6 +168,12 @@
     "placeholders": { "size": {}, "have": {} }
   },
   "unpairedWarning": "Tożsamość niepotwierdzona: nazwę można sobie ustawić dowolną",
+  "fileOfferBatchTitle": "{name} {count, plural, one{chce wysłać {count} plik} few{chce wysłać {count} pliki} other{chce wysłać {count} plików}}",
+  "@fileOfferBatchTitle": {
+    "description": "Nagłówek karty, gdy jedna zgoda obejmuje całą paczkę plików. Pod nim idzie spis nazw i łączny rozmiar.",
+    "placeholders": { "name": {}, "count": { "type": "int" } }
+  },
+  "acceptAll": "Przyjmij wszystkie",
   "moreFilesWaiting": "{count, plural, one{Czeka jeszcze {count} plik} few{Czekają jeszcze {count} pliki} other{Czeka jeszcze {count} plików}}",
   "@moreFilesWaiting": {
     "placeholders": { "count": { "type": "int" } }

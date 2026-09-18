@@ -375,6 +375,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Identity unconfirmed: anyone can pick that name';
 
   @override
+  String fileOfferBatchTitle(Object name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'wants to send $count files',
+      one: 'wants to send $count file',
+    );
+    return '$name $_temp0';
+  }
+
+  @override
+  String get acceptAll => 'Accept all';
+
+  @override
   String moreFilesWaiting(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

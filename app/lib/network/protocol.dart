@@ -339,6 +339,73 @@ class IncomingFileMeta {
   }
 }
 
+/// Ile plików najwyżej wchodzi do jednej paczki.
+///
+/// Granica jest po to, żeby spis nazw zmieścił się w zapowiedzi (serwer tnie
+/// ciało zapytania na 1 MB) i żeby jedna zgoda nie obejmowała nie wiadomo
+/// czego. Wybór stu jeden plików wyjdzie dwiema paczkami i dwoma pytaniami.
+const int maxBatchFiles = 100;
+
+/// Powód odmowy, po którym nadawca wie, że odbiorca odrzucił **całą paczkę**,
+/// a nie ten jeden plik, więc nie ma po co zapowiadać reszty.
+const String offerRejectedBatch = 'batch-rejected';
+
+/// Powód odmowy, gdy nikt nie odpowiedział na kartę. Z zewnątrz wygląda jak
+/// odmowa (plik nie wchodzi), ale nadawca musi je rozróżniać: po ciszy opis
+/// paczki nadal do nikogo nie dotarł, więc następna zapowiedź ma go powtórzyć.
+const String offerNoAnswer = 'no-answer';
+
+/// Czym jest paczka: ile plików, ile bajtów i jak się nazywają.
+///
+/// Jedzie tylko w **pierwszej** zapowiedzi paczki, bo tylko ona otwiera
+/// pytanie do użytkownika; kolejne niosą sam [FileOffer.batchId]. Spis nazw
+/// jest po to, żeby karta z pytaniem mówiła, na co właściwie idzie zgoda:
+/// bez niego użytkownik widziałby nazwę pierwszego pliku i liczbę reszty.
+class FileBatch {
+  final int count;
+  final int bytes;
+
+  /// Nazwy plików, dokładnie [count] pozycji, w kolejności wysyłania. To
+  /// napisy od nadawcy, więc nadają się do pokazania i do porównania, ale nie
+  /// do zbudowania ścieżki.
+  final List<String> names;
+
+  const FileBatch({
+    required this.count,
+    required this.bytes,
+    required this.names,
+  });
+
+  Map<String, Object?> toJson() =>
+      {'count': count, 'bytes': bytes, 'names': names};
+
+  /// `null`, gdy cokolwiek się nie zgadza. Odbiorca traktuje to jak brak
+  /// paczki, czyli pyta o każdy plik osobno: gorzej, ale nigdy szkodliwie.
+  static FileBatch? fromJson(Object? value) {
+    if (value is! Map) return null;
+    final count = value['count'];
+    final bytes = value['bytes'];
+    final names = value['names'];
+    if (count is! int ||
+        count < 2 ||
+        count > maxBatchFiles ||
+        bytes is! int ||
+        bytes < 0 ||
+        names is! List ||
+        names.length != count) {
+      return null;
+    }
+    final czyste = <String>[];
+    for (final name in names) {
+      // Nazwa idzie na kartę z pytaniem, a stamtąd nigdzie dalej. Długość
+      // ograniczamy, żeby jeden napis nie rozepchnął zapowiedzi.
+      if (name is! String || name.isEmpty || name.length > 255) return null;
+      czyste.add(name);
+    }
+    return FileBatch(count: count, bytes: bytes, names: czyste);
+  }
+}
+
 /// Zapowiedź pliku (POST /file-offer): to na jej podstawie odbiorca decyduje,
 /// czy w ogóle chce ten plik odebrać.
 class FileOffer {
@@ -355,6 +422,14 @@ class FileOffer {
   /// odszyfrować śmieci nowym kluczem na starych bajtach.
   final String? keyEpoch;
 
+  /// Do której paczki należy ten plik; `null` znaczy „sam sobie". Odbiorca
+  /// pyta raz na paczkę, a nie raz na plik.
+  final String? batchId;
+
+  /// Czym jest ta paczka. Niesie ją wyłącznie pierwsza zapowiedź, bo tylko
+  /// ona otwiera pytanie; w kolejnych jest `null`.
+  final FileBatch? batch;
+
   const FileOffer({
     required this.messageGuid,
     required this.from,
@@ -363,6 +438,8 @@ class FileOffer {
     required this.sentAt,
     this.sha256,
     this.keyEpoch,
+    this.batchId,
+    this.batch,
   });
 
   Map<String, Object?> toJson() => {
@@ -373,6 +450,8 @@ class FileOffer {
         'sha256': sha256,
         'keyEpoch': keyEpoch,
         'sentAt': sentAt.toUtc().toIso8601String(),
+        if (batchId != null) 'batchId': batchId,
+        if (batch != null) 'batch': batch!.toJson(),
       };
 
   static FileOffer? fromJson(Map<String, Object?> json) {
@@ -392,6 +471,24 @@ class FileOffer {
     final epoch = json['keyEpoch'];
     final sentAt =
         DateTime.tryParse(json['sentAt'] is String ? json['sentAt'] as String : '');
+    // Identyfikator paczki trzymamy w tym samym kształcie co identyfikator
+    // wiadomości. Na dysku się nie pojawia, ale jest kluczem zapamiętanej
+    // zgody, a to za dużo, żeby przyjmować pod nim dowolny napis z sieci.
+    final surowyBatchId = json['batchId'];
+    var batchId =
+        isSafeMessageGuid(surowyBatchId) ? surowyBatchId as String : null;
+    // Zepsuty opis paczki znaczy „nie ma paczki", więc odbiorca zapyta o ten
+    // plik osobno. Odmowa byłaby gorsza: gubiłaby plik przez błąd nadawcy.
+    var batch = batchId == null ? null : FileBatch.fromJson(json['batch']);
+    // Opis, który nie opisuje **tej** zapowiedzi, nie jest jej opisem. Bez
+    // tego nadawca dołączałby spis trzech niewinnych nazw na dwa kilobajty do
+    // zapowiedzi zupełnie innego pliku: karta pokazałaby tamte nazwy i tamten
+    // rozmiar, a zgoda poszłaby na plik, którego nikt nie widział.
+    if (batch != null &&
+        (!batch.names.contains(name) || size > batch.bytes)) {
+      batchId = null;
+      batch = null;
+    }
     return FileOffer(
       messageGuid: guid as String,
       from: from,
@@ -400,6 +497,8 @@ class FileOffer {
       sha256: (sha is String && sha.isNotEmpty) ? sha : null,
       keyEpoch: (epoch is String && epoch.isNotEmpty) ? epoch : null,
       sentAt: sentAt ?? DateTime.now(),
+      batchId: batchId,
+      batch: batch,
     );
   }
 }

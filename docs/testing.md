@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **205 `flutter test` tests** check everything that can be
+The split is simple: **214 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -67,9 +67,20 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 - we do not talk to ourselves (a loop onto our own address)
 - the server rejects garbage without falling over
 
-### Files (`test/file_transfer_test.dart`, 9 tests)
-- several files at once go one after another, each with its own consent
-  question (the same road as dragging them onto the window)
+### Files (`test/file_transfer_test.dart`, 14 tests)
+- several files at once go one after another but cost one consent question,
+  and that question carries the count, the names and the total size (the same
+  road as dragging them onto the window or pasting them)
+- one file is not a batch: the question looks exactly as it always did
+- a refusal covers the whole batch and stops the sender, so nothing after the
+  first file is even announced and nothing reaches the recipient
+- silence is not a refusal: after the two-minute timeout the next file of the
+  batch asks again instead of disappearing because nobody was looking
+- a file that grew past what the batch announced falls out of the consent and
+  is asked about on its own
+- a transfer whose header claims a bigger size than the announcement is refused
+  before a byte is written (a proxy rewrites `x-chatt-file-size` in flight; the
+  headers are not authenticated under encryption and the announcement is)
 - a directory passed together with the files is skipped without a crash
 - a 3 MB file arrives whole, byte for byte
 - recipient offline: failed, and a retry after it returns delivers
@@ -289,7 +300,7 @@ The file is separate on purpose: one `testWidgets` anywhere in a file installs
 400 for **the whole** suite. Next door, in `peer_prefs_test.dart`, two
 instances talk to each other over a real socket.
 
-### An attacker on the wire (`test/security_test.dart`, 8 tests)
+### An attacker on the wire (`test/security_test.dart`, 12 tests)
 - a message identifier carrying a path (`../../../../evil`, `..\..\evil`,
   `/etc/chatt`) is rejected in a file announcement, in a message and in the
   transfer headers; an ordinary UUID passes
@@ -299,6 +310,12 @@ instances talk to each other over a real socket.
 - two different identifiers do not collapse into one file
 - an eight megabyte request does not take the server down, and `/info` answers
   afterwards
+- a batch identifier is held to the same shape as a message identifier, because
+  it is the key of a remembered consent
+- a broken batch description means "no batch", never a refusal: the recipient
+  falls back to asking per file, which is worse but never destructive
+- a well-formed batch survives the round trip whole, and an announcement with
+  no batch at all still looks exactly as it did before batches existed
 
 ### Resistance to a security downgrade (`test/downgrade_test.dart`, 3 tests)
 The attacker knows a peer's identifier and has no private key for it:

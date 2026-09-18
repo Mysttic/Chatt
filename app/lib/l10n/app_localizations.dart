@@ -716,6 +716,18 @@ abstract class AppLocalizations {
   /// **'Tożsamość niepotwierdzona: nazwę można sobie ustawić dowolną'**
   String get unpairedWarning;
 
+  /// Nagłówek karty, gdy jedna zgoda obejmuje całą paczkę plików. Pod nim idzie spis nazw i łączny rozmiar.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} {count, plural, one{chce wysłać {count} plik} few{chce wysłać {count} pliki} other{chce wysłać {count} plików}}'**
+  String fileOfferBatchTitle(Object name, int count);
+
+  /// No description provided for @acceptAll.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przyjmij wszystkie'**
+  String get acceptAll;
+
   /// No description provided for @moreFilesWaiting.
   ///
   /// In pl, this message translates to:

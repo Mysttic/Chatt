@@ -8,6 +8,44 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Changed
+- **Several files sent together now cost one question, not one per file.** The
+  card names every file in the batch and gives the total size, and a single
+  "Accept all" covers the lot; the files still travel one after another, each
+  with its own progress. A refusal refuses the whole batch and travels back as
+  `batch-rejected`, so the sender stops instead of announcing the rest, which
+  matters more than it sounds: every announcement means a full sha256 of the
+  file, and three hundred phone videos are hundreds of gigabytes read off the
+  disk for nothing.
+
+  The consent is worth exactly what was announced. The first announcement
+  carries the batch identifier, the count, the total size and the names; the
+  recipient remembers the decision per (sender, batch) and honours it for at
+  most that many files, at most that many bytes and only those names. A
+  description that does not describe its own announcement is dropped on
+  arrival, so nobody attaches a list of three innocent names to something else
+  and gets it accepted under them. Re-announcing a file that was already let in
+  is free, which is how a resumed transfer works, but only while it is still
+  the same name and the same size. Two clocks bound the consent: thirty minutes
+  of silence counted from the last file that used it, and six hours from the
+  moment it was given, which nothing can push. Anything outside all that falls
+  back to an ordinary per-file question. Silence is not a refusal: the
+  two-minute timeout decides nothing, the sender keeps repeating the
+  description until somebody answers, and a refusal of any file of a known
+  batch stops it. The fields are optional, so a peer running an older version
+  asks per file as before.
+
+### Fixed
+- **The size in the transfer header is now checked against the announcement.**
+  Under encryption the headers are not authenticated and the announcement is,
+  but the write loop was bounded by the header alone, so a consent for one
+  100 kB file let the sender push as many bytes as it liked and, with no
+  checksum in the announcement, keep them. Found while working out what a
+  batch consent could promise: it could not promise anything about bytes until
+  this was closed.
+
 ## [0.8.0] - 2026-09-18
 
 What lies on the clipboard goes into a conversation without a detour through a
@@ -576,6 +614,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.8.0...develop
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/Mysttic/Chatt/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/Mysttic/Chatt/compare/v0.6.2...v0.7.0

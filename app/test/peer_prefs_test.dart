@@ -129,7 +129,7 @@ void main() {
         receivedDirOverride: p.join(work.path, 'bob_received'),
         fileOfferPolicy: (offer) async {
           pytania.add(offer);
-          return true;
+          return OfferDecision.accept;
         },
       );
     });
