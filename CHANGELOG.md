@@ -8,6 +8,49 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.8.2] - 2026-09-21
+
+A photo in a conversation opens where it already is, instead of being handed to
+somebody else who then refuses it.
+
+### Added
+- **Tapping a photo opens it full screen, with zooming and turning.** Pinch or
+  scroll to zoom, drag to move around, double-tap to zoom in on a spot and
+  again to fit it back; the button in the corner turns it ninety degrees at a
+  time. Turning affects what you are looking at and never the file, which stays
+  byte for byte what arrived. The actions from the conversation — save, share,
+  copy the image, open it with the system — are in the top bar, and Esc closes
+  it on a PC.
+
+  Chatt draws the picture itself, with the decoder it already used for
+  thumbnails and under the same rule: only a file you have accepted and that
+  already lies on disk. Nothing is handed to another app, so the commonest
+  thing anyone does with a received photo no longer depends on there being an
+  app installed that shows pictures, nor on the file being one Android lets us
+  hand out at all. Other files open with the system association as before.
+
+### Fixed
+- **Tapping a photo you sent yourself said "Could not open the file."** On
+  Android a file only reaches another app through FileProvider, and FileProvider
+  serves nothing outside the roots listed in `res/xml/file_paths.xml`. That list
+  held the received files and a downloaded release — but an outgoing message
+  keeps the path it was handed, and every way of sending a picture from a phone
+  puts it in the app cache first: the picker, the clipboard, and the keyboard's
+  own "insert image". So the thumbnail drew fine, and touching it failed. The
+  cache directories holding those copies are now served too, which also fixes
+  "Share" on your own file, and which is the narrow fix: the two subdirectories
+  the user actually picked from, not the whole cache.
+
+  Received photos were never affected, which is why this looked like it
+  depended on the photo rather than on who sent it.
+- **"Could not open the file." no longer covers a file that is simply gone.**
+  The channel answered `true`/`false`, so a missing file and a refused handover
+  arrived as the same failure; it now answers with a word, and a file Android
+  swept out of the cache says so. The exception behind a failure goes to logcat
+  instead of vanishing into a `catch`, because the old message said nothing
+  anyone could act on — including us, while working out what this issue even
+  was.
+
 ## [0.8.1] - 2026-09-18
 
 Sending someone a handful of files asked them a handful of times. Now it asks
@@ -617,6 +660,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.8.2]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/Mysttic/Chatt/compare/v0.7.0...v0.7.1
