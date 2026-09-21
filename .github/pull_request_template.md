@@ -6,8 +6,8 @@
 
 <!-- Which tests were run, and on what. Device tests: say which platform. -->
 
-- [ ] `flutter analyze` clean
-- [ ] `flutter test`
+- [ ] `flutter analyze` clean, run locally
+- [ ] `flutter test`, run locally
 - [ ] tried on Windows
 - [ ] tried on Android
 - [ ] tried between two real devices on one network

@@ -4,6 +4,10 @@ name: Testy
 # testów. Odpala się **wyłącznie** przy pull requeście do master, zwykłe
 # pchnięcia na develop i gałęzie robocze nie uruchamiają niczego.
 #
+# Sam blok `on:` umie zawęzić tylko gałąź docelową; zawężenie do PR-ów **z
+# develop** siedzi w warunku `if:` przy jobie niżej - razem z opisem tego, co
+# się dzieje z PR-em otwartym z innej gałęzi.
+#
 # Domyślne `types` (opened, reopened, synchronize) zostawiamy świadomie:
 # dopóki PR jest otwarty, dorzucone do niego commity przechodzą testy jeszcze
 # raz. Bez tego dałoby się scalić PR na podstawie wyniku sprzed poprawek.
@@ -20,13 +24,29 @@ permissions:
   contents: read
 
 # Kolejny commit w otwartym PR anuluje poprzedni, jeszcze trwający bieg.
+# Grupa po `github.workflow`, a nie po wpisanej z palca nazwie: ten sam wzorzec
+# kopiuje się wtedy do pozostałych repozytoriów bez poprawiania w nim niczego.
 concurrency:
-  group: testy-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   testy:
     name: analyze i flutter test
+    # `on: pull_request: branches:` filtruje wyłącznie gałąź DOCELOWĄ (master).
+    # GitHub nie umie filtrować po gałęzi źródłowej w bloku `on:`, więc źródło
+    # sprawdzamy dopiero tutaj: testy biegną tylko dla PR-a z develop.
+    #
+    # Świadoma konsekwencja tej decyzji: PR do master otwarty z innej gałęzi niż
+    # develop (np. hotfix prosto z gałęzi roboczej) nie uruchomi żadnego joba,
+    # a GitHub pokaże taki bieg jako ZIELONY - pominięty job liczy się jako
+    # sukces. Nie ma tu joba-zaślepki, który zamieniałby to w czerwony wynik.
+    # Zmiany do master mają iść przez develop; hotfix prosto do master trzeba
+    # przetestować ręcznie albo odpalić ten workflow z `workflow_dispatch`.
+    #
+    # `github.head_ref` jest puste dla `workflow_dispatch`, dlatego ręczne
+    # uruchomienie przepuszczamy osobnym członem warunku.
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'develop'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
