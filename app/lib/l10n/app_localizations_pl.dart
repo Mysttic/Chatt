@@ -240,6 +240,12 @@ class AppLocalizationsPl extends AppLocalizations {
   String get fileOpenFailed => 'Nie udało się otworzyć pliku.';
 
   @override
+  String get imageLoadFailed => 'Nie udało się wczytać obrazu.';
+
+  @override
+  String get rotate => 'Obróć';
+
+  @override
   String receivingFile(Object name) {
     return 'Odbieram: $name';
   }

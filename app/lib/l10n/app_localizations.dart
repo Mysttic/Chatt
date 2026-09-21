@@ -488,6 +488,18 @@ abstract class AppLocalizations {
   /// **'Nie udało się otworzyć pliku.'**
   String get fileOpenFailed;
 
+  /// No description provided for @imageLoadFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się wczytać obrazu.'**
+  String get imageLoadFailed;
+
+  /// No description provided for @rotate.
+  ///
+  /// In pl, this message translates to:
+  /// **'Obróć'**
+  String get rotate;
+
   /// No description provided for @receivingFile.
   ///
   /// In pl, this message translates to:

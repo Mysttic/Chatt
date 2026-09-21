@@ -103,6 +103,8 @@
   "saveUnsupported": "Ten system nie ma gdzie zapisać pliku bez dodatkowych uprawnień. Użyj „Udostępnij”.",
   "fileGone": "Tego pliku już nie ma na dysku.",
   "fileOpenFailed": "Nie udało się otworzyć pliku.",
+  "imageLoadFailed": "Nie udało się wczytać obrazu.",
+  "rotate": "Obróć",
   "receivingFile": "Odbieram: {name}",
   "@receivingFile": {
     "placeholders": { "name": {} }

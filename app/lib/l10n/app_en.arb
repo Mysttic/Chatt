@@ -70,6 +70,8 @@
   "saveUnsupported": "This system has nowhere to save the file without extra permissions. Use “Share”.",
   "fileGone": "That file is no longer on disk.",
   "fileOpenFailed": "Could not open the file.",
+  "imageLoadFailed": "Could not load the image.",
+  "rotate": "Rotate",
   "receivingFile": "Receiving: {name}",
   "pairStartFailed": "Could not start pairing: the device is not answering.",
 

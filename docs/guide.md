@@ -183,6 +183,17 @@ only ever sees what you agreed to and what already lies on disk.
 
 <img src="screenshots/produkt/en/android_miniatura_obrazka.png" alt="Image thumbnail" width="260">
 
+**Tapping a thumbnail opens the picture full screen.** Pinch or scroll to zoom,
+drag to move around, double-tap to zoom in on a spot and again to fit it back;
+the button in the corner turns it by ninety degrees at a time. Turning affects
+what you are looking at, never the file, which stays exactly as it arrived. The
+same actions as in the conversation are in the top bar, so you can save or
+share the picture without going back first, and Esc closes it on a PC.
+
+The picture is drawn by Chatt itself and never handed to another app, so it
+opens whether or not the system has anything installed that shows images.
+Other files still open with whatever the system associates with them.
+
 ## Encryption and identity confirmation
 
 **A conversation is encrypted from the first message**, including with a device

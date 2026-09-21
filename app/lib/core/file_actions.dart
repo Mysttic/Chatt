@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart' show getSaveLocation;
-import 'package:flutter/services.dart' show MethodChannel;
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/services.dart'
+    show MethodChannel, MissingPluginException;
 import 'package:path/path.dart' as p;
 
 /// Wynik próby otwarcia pliku.
@@ -143,13 +145,32 @@ class FileActions {
     }
   }
 
+  /// Słowo z kanału na wynik. Osobno, bo to ono decyduje, który komunikat
+  /// zobaczy użytkownik, a przez platformę nie da się tego sprawdzić testem.
+  /// Nieznane słowo jest awarią: lepiej powiedzieć „nie udało się" niż udać,
+  /// że wszystko poszło dobrze.
+  @visibleForTesting
+  static FileActionResult resultFromStatus(String? status) => switch (status) {
+        'ok' => FileActionResult.ok,
+        'missing' => FileActionResult.missing,
+        _ => FileActionResult.failed,
+      };
+
+  /// Kanał oddaje słowo, a nie `true`/`false`, bo „nie udało się" i „pliku
+  /// nie ma" to dla użytkownika dwie różne wiadomości, a po stronie Kotlina
+  /// obie kończyły się tym samym `false`.
   static Future<FileActionResult> _viaAndroid(String method, String path) async {
     try {
-      final ok = await _android.invokeMethod<bool>(method, {'path': path});
-      return ok == true ? FileActionResult.ok : FileActionResult.failed;
-    } catch (_) {
-      // Brak kanału (np. test widgetowy) albo wyjątek po stronie Androida.
+      return resultFromStatus(
+          await _android.invokeMethod<String>(method, {'path': path}));
+    } on MissingPluginException {
+      // Brak kanału: test widgetowy albo silnik bez zarejestrowanych kanałów.
+      // Dopiero tutaj `unsupported` znaczy to, co obiecuje: nie ma czym
+      // otworzyć, zostaje ścieżka do skopiowania.
       return FileActionResult.unsupported;
+    } catch (_) {
+      // Wyjątek z drugiej strony kanału to awaria, nie brak możliwości.
+      return FileActionResult.failed;
     }
   }
 

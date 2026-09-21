@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **214 `flutter test` tests** check everything that can be
+The split is simple: **224 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -94,12 +94,27 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
   remainder
 - broken metadata gives a 400 and the server stays alive
 
-### Choosing a file on Android (`test/file_actions_test.dart`, 4 tests)
+### Choosing a file on Android (`test/file_actions_test.dart`, 9 tests)
 The `chatt/files` channel answers with the paths of the copies it made:
 - the list comes back as it is
 - a closed picker, an error from Android and a missing channel (the desktop,
   a widget test) all give an empty list, so the paperclip never takes a screen
   down with it
+
+Opening and sharing answer with a word rather than a flag, and that word
+decides which sentence the user reads:
+- `ok` is success, `missing` says the file is gone, `failed` says handing it
+  out did not work
+- an unknown word and no answer at all both count as a failure, never as a
+  quiet success
+
+### The photo preview (`test/image_view_test.dart`, 5 tests)
+The screen a thumbnail opens into:
+- the sender's name of the file is in the bar, and the picture is in the view
+- the button turns the picture a quarter at a time and comes back to zero
+- a file deleted in the meantime gets a sentence, not a black screen
+- a file that is not an image at all does not take the screen down
+- the actions handed in by the conversation land in the bar and fire
 
 ### Pasting from the clipboard (`test/clipboard_test.dart`, 13 tests)
 The Dart side of the `chatt/clipboard` channel. Whatever the platform says,
@@ -438,3 +453,15 @@ Deliberate holes in coverage, to be checked by hand at release time:
 - **The keyboard's "insert image"**: the emulator ships AOSP LatinIME, which
   has no picture or GIF button, so `contentInsertionConfiguration` needs Gboard
   on a real phone.
+- **Handing a file to another app on Android**: whether FileProvider accepts a
+  path depends on `res/xml/file_paths.xml` against the real directories the
+  system hands the app, and no test sees either. At release time, on a phone:
+  send a photo from the picker, from the clipboard and from the keyboard, then
+  tap each one in the conversation and use "Share" on each one. All six have
+  to work; before 0.8.2 all six failed with "Could not open the file."
+- **What a broken image looks like in the preview**: in the test environment
+  the image decoder never finishes, so neither the picture nor `errorBuilder`
+  ever reaches the view. `image_view_test.dart` checks that the screen stands
+  and that the error handler is wired; that it actually says "Could not load
+  the image." is checked by hand, by renaming a text file to `.png` and
+  sending it.

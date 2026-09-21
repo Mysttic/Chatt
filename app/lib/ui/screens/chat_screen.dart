@@ -24,6 +24,7 @@ import '../widgets/linked_text.dart';
 import '../widgets/paste_shortcut.dart';
 import '../widgets/security_sheet.dart';
 import '../widgets/toasts.dart';
+import 'image_view_screen.dart';
 import 'scan_screen.dart';
 
 /// Telefon zamiast pulpitu. Decyduje o tym, jak zaznacza się tekst i czym
@@ -504,8 +505,68 @@ class _MessageBubble extends StatelessWidget {
     this.query = '',
   });
 
+  /// Ścieżka do zdjęcia, jeśli ta wiadomość niesie obrazek leżący na dysku.
+  /// null znaczy „to nie jest zdjęcie, które umiemy pokazać sami": zwykły
+  /// plik, plik jeszcze nieodebrany albo skasowany po odebraniu.
+  String? _imagePath() {
+    final path = message.filePath;
+    if (path == null || !isImageFile(message.fileName)) return null;
+    return File(path).existsSync() ? path : null;
+  }
+
+  /// Stuknięcie w kafelek pliku. Zdjęcie otwiera się w podglądzie w
+  /// aplikacji, reszta systemowym skojarzeniem.
+  void _tapFile(BuildContext context) {
+    final image = _imagePath();
+    if (image == null) {
+      unawaited(_openFile(context));
+      return;
+    }
+    _openImage(context, image);
+  }
+
+  /// Podgląd zdjęcia na pełnym ekranie. Akcje w jego pasku to te same, co w
+  /// menu dymka, bo po obejrzeniu zdjęcia chce się zwykle z nim coś zrobić,
+  /// a cofanie się do rozmowy po to samo menu byłoby drogą naokoło.
+  void _openImage(BuildContext context, String path) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (podglad) => ImageViewScreen(
+        path: path,
+        name: message.fileName,
+        actions: [
+          if (canCopyImage)
+            IconButton(
+              tooltip: podglad.l10n.copyImage,
+              icon: const Icon(Icons.image_outlined),
+              onPressed: () => _copyImage(podglad),
+            ),
+          if (message.direction == MessageDirection.incoming)
+            IconButton(
+              tooltip: podglad.l10n.saveFile,
+              icon: const Icon(Icons.save_alt),
+              onPressed: () => _saveFile(podglad),
+            ),
+          IconButton(
+            tooltip: Platform.isAndroid
+                ? podglad.l10n.shareFile
+                : podglad.l10n.showFolder,
+            icon: Icon(Platform.isAndroid ? Icons.share : Icons.folder_open),
+            onPressed: () => _revealFile(podglad),
+          ),
+          IconButton(
+            tooltip: podglad.l10n.openFile,
+            icon: const Icon(Icons.open_in_new),
+            onPressed: () => _openFile(podglad),
+          ),
+        ],
+      ),
+    ));
+  }
+
   /// Otwarcie pliku systemowym skojarzeniem; komunikat tylko wtedy, gdy się
-  /// nie udało (na Androidzie pokazujemy ścieżkę do skopiowania).
+  /// nie udało. Ścieżka do skopiowania zostaje na wypadek systemu, w którym
+  /// nie ma czym otworzyć pliku — na Androidzie znaczy to brak kanału, bo
+  /// samo otwieranie idzie przez dostawcę treści i melduje się osobno.
   Future<void> _openFile(BuildContext context) async {
     final result = await services.openFileFromMessage(message);
     if (!context.mounted) return;
@@ -786,7 +847,7 @@ class _MessageBubble extends StatelessWidget {
     final progress = services.progressOf(message.id);
     final thumbnail = _thumbnail();
     return InkWell(
-      onTap: () => _openFile(context),
+      onTap: () => _tapFile(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -859,10 +920,9 @@ class _MessageBubble extends StatelessWidget {
   /// dekodera. Uszkodzony albo spreparowany obrazek kończy się pustym
   /// miejscem, a nie wywrotką listy.
   Widget? _thumbnail() {
-    final path = message.filePath;
-    if (path == null || !isImageFile(message.fileName)) return null;
+    final path = _imagePath();
+    if (path == null) return null;
     final file = File(path);
-    if (!file.existsSync()) return null;
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: ConstrainedBox(

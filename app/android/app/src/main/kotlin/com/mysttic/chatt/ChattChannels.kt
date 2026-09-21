@@ -12,6 +12,7 @@ import android.provider.MediaStore
 import android.provider.Settings
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import android.util.Log
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import io.flutter.embedding.engine.FlutterEngine
@@ -287,9 +288,9 @@ object ChattChannels {
         }
     }
 
-    private fun sendFile(context: Context, path: String, share: Boolean): Boolean {
+    private fun sendFile(context: Context, path: String, share: Boolean): String {
         val file = File(path)
-        if (!file.exists()) return false
+        if (!file.exists()) return "missing"
         return try {
             val uri = FileProvider.getUriForFile(
                 context, "${context.packageName}.fileprovider", file)
@@ -309,9 +310,14 @@ object ChattChannels {
             val chooser = Intent.createChooser(intent, if (share) "Udostępnij" else "Otwórz")
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(chooser)
-            true
+            "ok"
         } catch (error: Exception) {
-            false
+            // Bez tego wpisu wywrotka jest niewidoczna: Dart dostaje samo
+            // „nie udało się", a logcat nic. Najczęstszy powód to plik spoza
+            // korzeni z res/xml/file_paths.xml, czego z komunikatu w aplikacji
+            // nijak nie widać.
+            Log.w("Chatt", "Nie udało się wystawić pliku: $path", error)
+            "failed"
         }
     }
 

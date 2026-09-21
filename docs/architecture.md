@@ -357,7 +357,23 @@ insurance against manufacturers with their own app killing.
 
 Files go out to other apps through FileProvider as `content://` (our own
 `chatt/files` channel), because from API 24 a plain path ends in
-`FileUriExposedException`.
+`FileUriExposedException`. FileProvider serves only what
+[`res/xml/file_paths.xml`](../app/android/app/src/main/res/xml/file_paths.xml)
+lists, and it lists four roots: received files, a downloaded release, and the
+two cache directories holding copies of files the user picked or pasted to
+send. A file outside all of them cannot be handed out at all — which is what
+made tapping your own sent photo fail until 0.8.2, because an outgoing message
+keeps the source path it was given and nothing ever moves that file under
+`files/`. The channel answers with a word (`ok`, `missing`, `failed`) rather
+than a flag, so "the file is gone" and "handing it out failed" reach the user
+as different sentences, and the failure is written to logcat instead of
+vanishing into a `catch`.
+
+Images skip all of this: tapping one opens
+[`ImageViewScreen`](../app/lib/ui/screens/image_view_screen.dart), which draws
+the file itself with Flutter's own decoder. Nothing leaves the app, so the
+most common case does not depend on FileProvider, on the roots above, or on
+there being an app installed that opens pictures.
 
 Files come in through the same channel: the paperclip opens the system
 document picker (`ACTION_OPEN_DOCUMENT`) from `ChattFilePicker`, which copies

@@ -183,6 +183,18 @@ wyłącznie to, na co sam się zgodziłeś i co już leży na dysku.
 
 <img src="screenshots/produkt/android_miniatura_obrazka.png" alt="Miniatura obrazka" width="260">
 
+**Stuknięcie w miniaturę otwiera zdjęcie na pełnym ekranie.** Powiększasz
+szczypaniem albo kółkiem myszy, przesuwasz palcem, dwuklik przybliża w to
+miejsce, w które stuknąłeś, a kolejny wraca do całości; przycisk w rogu obraca
+co ćwierć obrotu. Obrót dotyczy tego, na co patrzysz, nigdy pliku — ten zostaje
+dokładnie taki, jaki przyszedł. W górnym pasku są te same akcje co w rozmowie,
+więc zdjęcie da się zapisać albo udostępnić bez cofania się, a na komputerze
+Esc zamyka podgląd.
+
+Zdjęcie rysuje sam Chatt i nie oddaje go żadnej innej aplikacji, więc otworzy
+się niezależnie od tego, czy w systemie jest czym oglądać obrazki. Pozostałe
+pliki dalej otwierają się tym, co system ma do nich skojarzone.
+
 ## Szyfrowanie i potwierdzanie tożsamości
 
 **Rozmowa jest szyfrowana od pierwszej wiadomości**, także z urządzeniem,
