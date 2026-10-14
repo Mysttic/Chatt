@@ -8,6 +8,7 @@ import '../../core/autostart.dart';
 import '../../core/background_service.dart';
 import '../../core/crypto.dart';
 import '../../core/languages.dart';
+import '../../core/remote_input.dart';
 import '../../core/tray.dart';
 import '../../core/update_install.dart';
 import '../../core/updates.dart';
@@ -786,6 +787,69 @@ class KeyboardAddonCard extends ConsumerStatefulWidget {
 class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
   bool _zajete = false;
 
+  /// Android: stan klawiatury Chatt w systemie. `null` = nie pytano albo
+  /// platforma bez klawiatury.
+  ({bool enabled, bool selected})? _ime;
+
+  /// Trwa wędrówka po ustawieniach systemu: drugie kliknięcie nie zaczyna
+  /// drugiego czekania.
+  bool _wUstawieniach = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _odswiezIme());
+  }
+
+  /// Pyta system o klawiaturę tylko przy włączonym dodatku i odbiorze: wtedy
+  /// i tylko wtedy komponent jest włączony, a kanał wolno wołać.
+  Future<void> _odswiezIme() async {
+    final services = ref.read(appServicesProvider);
+    if (!Platform.isAndroid) return;
+    final odbior =
+        (await services.db.getSettings())?.remoteInputReceive ?? false;
+    if (!services.keyboardAddon.value || !odbior) {
+      if (mounted && _ime != null) setState(() => _ime = null);
+      return;
+    }
+    final stan = await RemoteInputChannel.imeState();
+    if (mounted) setState(() => _ime = stan);
+  }
+
+  /// Ekran klawiatur w ustawieniach systemu. Odpowiedź nie wraca kanałem,
+  /// więc czekamy na powrót aplikacji na wierzch, jak przy zgodzie na
+  /// Bluetooth, i wtedy pytamy o stan.
+  Future<void> _wlaczWSystemie() async {
+    if (_wUstawieniach) return;
+    setState(() => _wUstawieniach = true);
+    var wyszla = false;
+    final powrot = Completer<void>();
+    final sluchacz = AppLifecycleListener(onStateChange: (state) {
+      if (state != AppLifecycleState.resumed) {
+        wyszla = true;
+      } else if (wyszla && !powrot.isCompleted) {
+        powrot.complete();
+      }
+    });
+    try {
+      if (await RemoteInputChannel.openImeSettings()) {
+        await powrot.future
+            .timeout(const Duration(minutes: 10), onTimeout: () {});
+      }
+    } finally {
+      sluchacz.dispose();
+      if (mounted) setState(() => _wUstawieniach = false);
+    }
+    await _odswiezIme();
+  }
+
+  Future<void> _wybierz() async {
+    await RemoteInputChannel.showImePicker();
+    // Wybór kończy się poza aplikacją; stan pytamy po chwili.
+    await Future<void>.delayed(const Duration(seconds: 2));
+    await _odswiezIme();
+  }
+
   Future<void> _przelacz(Future<bool> Function() krok) async {
     setState(() => _zajete = true);
     try {
@@ -793,6 +857,7 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
     } finally {
       if (mounted) setState(() => _zajete = false);
     }
+    await _odswiezIme();
   }
 
   @override
@@ -862,6 +927,10 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
                         ],
                       ),
                     ),
+                  // Android pisze przez klawiaturę Chatt: włączoną raz
+                  // w ustawieniach systemu i wybraną na czas sesji.
+                  if (odbior && przyjmuje && _ime != null) ..._klawiatura(
+                      context, scheme, _ime!),
                   // Trwająca zgoda i jej Stop. Pełny wskaźnik, widoczny także
                   // przy schowanym oknie, przychodzi z kodem natywnym.
                   if (pisze != null)
@@ -889,6 +958,44 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
         ),
       ),
     );
+  }
+}
+
+extension on _KeyboardAddonCardState {
+  List<Widget> _klawiatura(BuildContext context, ColorScheme scheme,
+      ({bool enabled, bool selected}) ime) {
+    TextStyle maly() => TextStyle(color: scheme.onSurfaceVariant, fontSize: 12);
+    if (!ime.enabled) {
+      return [
+        const SizedBox(height: 8),
+        Text(context.l10n.remoteInputImeOff, style: maly()),
+        const SizedBox(height: 4),
+        Text(context.l10n.remoteInputImeWarning, style: maly()),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _wUstawieniach ? null : _wlaczWSystemie,
+          icon: const Icon(Icons.settings_outlined),
+          label: Text(context.l10n.remoteInputImeEnable),
+        ),
+      ];
+    }
+    return [
+      const SizedBox(height: 8),
+      Text(
+        ime.selected
+            ? context.l10n.remoteInputImeReady
+            : context.l10n.remoteInputImeNotSelected,
+        style: maly(),
+      ),
+      if (!ime.selected) ...[
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _wybierz,
+          icon: const Icon(Icons.keyboard_outlined),
+          label: Text(context.l10n.remoteInputImePick),
+        ),
+      ],
+    ];
   }
 }
 

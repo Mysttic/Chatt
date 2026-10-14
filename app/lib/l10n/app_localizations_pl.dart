@@ -884,6 +884,35 @@ class AppLocalizationsPl extends AppLocalizations {
   String get trayRemoteInputStop => 'Zatrzymaj zdalną klawiaturę';
 
   @override
+  String get remoteInputSwitchTitle => 'Przełącz klawiaturę na Chatt';
+
+  @override
+  String remoteInputSwitchBody(Object name) {
+    return '$name pisze na tym urządzeniu. Dotknij i wybierz klawiaturę Chatt.';
+  }
+
+  @override
+  String get remoteInputImeOff =>
+      'Pisanie z innego urządzenia przechodzi przez klawiaturę Chatt. Włącz ją raz w ustawieniach systemu.';
+
+  @override
+  String get remoteInputImeWarning =>
+      'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt nie czyta pól: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.';
+
+  @override
+  String get remoteInputImeEnable => 'Włącz klawiaturę Chatt';
+
+  @override
+  String get remoteInputImeNotSelected =>
+      'Na czas pisania wybierz klawiaturę Chatt. Po sesji wraca poprzednia.';
+
+  @override
+  String get remoteInputImePick => 'Wybierz klawiaturę';
+
+  @override
+  String get remoteInputImeReady => 'Klawiatura Chatt jest włączona.';
+
+  @override
   String get viaWifi => 'przez sieć';
 
   @override

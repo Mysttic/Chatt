@@ -364,6 +364,17 @@
     "placeholders": { "name": {}, "app": {} }
   },
   "trayRemoteInputStop": "Zatrzymaj zdalną klawiaturę",
+  "remoteInputSwitchTitle": "Przełącz klawiaturę na Chatt",
+  "remoteInputSwitchBody": "{name} pisze na tym urządzeniu. Dotknij i wybierz klawiaturę Chatt.",
+  "@remoteInputSwitchBody": {
+    "placeholders": { "name": {} }
+  },
+  "remoteInputImeOff": "Pisanie z innego urządzenia przechodzi przez klawiaturę Chatt. Włącz ją raz w ustawieniach systemu.",
+  "remoteInputImeWarning": "Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt nie czyta pól: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.",
+  "remoteInputImeEnable": "Włącz klawiaturę Chatt",
+  "remoteInputImeNotSelected": "Na czas pisania wybierz klawiaturę Chatt. Po sesji wraca poprzednia.",
+  "remoteInputImePick": "Wybierz klawiaturę",
+  "remoteInputImeReady": "Klawiatura Chatt jest włączona.",
   "viaWifi": "przez sieć",
   "viaBluetooth": "przez Bluetooth",
   "protocolWifi": "Sieć",

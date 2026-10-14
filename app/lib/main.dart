@@ -13,6 +13,7 @@ import 'l10n/app_localizations.dart';
 import 'services/app_services.dart';
 import 'services/providers.dart';
 import 'ui/remote_input_desktop.dart';
+import 'ui/remote_input_mobile.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +55,11 @@ Future<void> _start() async {
   final klawiatura = Platform.isWindows
       ? (RemoteInputDesktop(services, texts: () => biezaceTeksty)..attach())
       : null;
+  // Android: pasek klawiatury Chatt i stałe powiadomienie, wybór klawiatury
+  // po zgodzie, powiadomienie o karcie przy zamkniętym oknie.
+  final klawiaturaMobilna = Platform.isAndroid
+      ? (RemoteInputMobile(services, texts: () => biezaceTeksty)..attach())
+      : null;
 
   // Android: usługa pierwszoplanowa trzyma proces (a z nim serwer i
   // discovery) także po zamknięciu okna. Teksty jej powiadomienia biorą się
@@ -77,6 +83,7 @@ Future<void> _start() async {
       quitLabel: teksty.trayQuit,
     );
     klawiatura?.refreshTexts();
+    klawiaturaMobilna?.refreshTexts();
   });
 
   runApp(

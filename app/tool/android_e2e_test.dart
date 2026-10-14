@@ -19,7 +19,6 @@
 @Timeout(Duration(minutes: 5))
 library;
 
-import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -32,6 +31,8 @@ import 'package:path/path.dart' as p;
 import 'package:chatt/data/db.dart';
 import 'package:chatt/services/app_services.dart';
 
+import 'uiautomator.dart';
+
 /// Port instancji hosta (inny niż domyślny 47780 aplikacji na urządzeniu).
 const int hostPort = 47790;
 
@@ -43,19 +44,6 @@ const int hostPort = 47790;
 /// z telefonem.
 final int deviceProxyPort =
     int.tryParse(Platform.environment['CHATT_PROXY_PORT'] ?? '') ?? 47781;
-
-String get _adb => Platform.environment['ADB'] ?? 'adb';
-String get _device => Platform.environment['CHATT_DEVICE'] ?? 'emulator-5554';
-
-/// Wyjście adb czytamy jako UTF-8, a nie kodowaniem systemowym Windows.
-/// Inaczej „Odrzuć" ze zrzutu drzewa widoków wraca jako „OdrzuÄ‡" i żadne
-/// wyszukiwanie po polskiej etykiecie nie trafia.
-Future<ProcessResult> adb(List<String> args) => Process.run(
-      _adb,
-      ['-s', _device, ...args],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-    );
 
 const String appPackage = 'com.mysttic.chatt';
 
@@ -112,75 +100,6 @@ List<int> swiezaTresc(int rozmiar) {
   return bajty;
 }
 
-/// Środek widgetu o danej etykiecie, znaleziony w drzewie dostępności.
-/// Flutter wystawia teksty jako `content-desc`, systemowe widoki jako `text`.
-/// Zwraca null, gdy przez [timeout] nic takiego się nie pojawiło.
-///
-/// Zrzut drzewa bierzemy w pętli, bo `uiautomator dump` czeka na „spokojne"
-/// okno i przy animacjach Fluttera potrafi się poddać. Bez sprawdzenia, czy
-/// zrzut faktycznie powstał, czytalibyśmy poprzedni plik i szukali przycisku
-/// na nieaktualnym ekranie.
-Future<(int, int)?> findWidget(
-  String label, {
-  Duration timeout = const Duration(seconds: 15),
-  bool fragment = false,
-  bool ostatni = false,
-}) async {
-  final koniec = DateTime.now().add(timeout);
-  do {
-    final where = await _findOnce(label, fragment: fragment, ostatni: ostatni);
-    if (where != null) return where;
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-  } while (DateTime.now().isBefore(koniec));
-  return null;
-}
-
-/// Etykiety widoczne na ekranie, do komunikatu błędu, żeby nie trzeba było
-/// zgadywać, na czym test się potknął.
-Future<String> widocznaTresc() async {
-  const dump = '/sdcard/chatt_ui.xml';
-  final dumped = await adb(['shell', 'uiautomator', 'dump', dump]);
-  if (!'${dumped.stdout}'.contains(dump)) {
-    return 'nie udało się zrzucić drzewa: ${dumped.stdout} ${dumped.stderr}';
-  }
-  final xml = (await adb(['shell', 'cat', dump])).stdout as String;
-  return RegExp(r'content-desc="([^"]+)"')
-      .allMatches(xml)
-      .map((m) => m.group(1)!.replaceAll('&#10;', ' / '))
-      .take(12)
-      .join(' | ');
-}
-
-Future<(int, int)?> _findOnce(String label,
-    {bool fragment = false, bool ostatni = false}) async {
-  const dump = '/sdcard/chatt_ui.xml';
-  final dumped = await adb(['shell', 'uiautomator', 'dump', dump]);
-  if (!'${dumped.stdout}'.contains(dump)) return null;
-  final xml = (await adb(['shell', 'cat', dump])).stdout as String;
-  final opis = fragment
-      ? RegExp('content-desc="[^"]*${RegExp.escape(label)}')
-      : RegExp('content-desc="${RegExp.escape(label)}"');
-  (int, int)? znaleziony;
-  for (final node in xml.split('<node ')) {
-    if (!opis.hasMatch(node) && !node.contains('text="$label"')) {
-      continue;
-    }
-    final bounds =
-        RegExp(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"').firstMatch(node);
-    if (bounds == null) continue;
-    final left = int.parse(bounds.group(1)!);
-    final top = int.parse(bounds.group(2)!);
-    final right = int.parse(bounds.group(3)!);
-    final bottom = int.parse(bounds.group(4)!);
-    znaleziony = ((left + right) ~/ 2, (top + bottom) ~/ 2);
-    // Ta sama etykieta bywa na ekranie kilka razy (przycisk zapisu przy
-    // każdym pliku w rozmowie). `ostatni` bierze najniższy, czyli najnowszą
-    // wiadomość.
-    if (!ostatni) return znaleziony;
-  }
-  return znaleziony;
-}
-
 /// Klik w przycisk prośby o plik. Szukamy go po etykiecie, a nie po stałych
 /// współrzędnych: karta zmienia wysokość (np. ostrzeżenie przy niesparowanym
 /// urządzeniu), więc klikanie „na oko" trafiało raz w jeden przycisk, raz
@@ -207,30 +126,6 @@ Future<void> tapOfferButton({required bool accept}) async {
       'Co widać: ${await widocznaTresc()}');
 }
 
-/// Klik w cokolwiek podpisanego jedną z [etykiety]. Dwie, bo aplikacja na
-/// urządzeniu może być po polsku albo po angielsku, a test nie ma powodu tego
-/// wymuszać. [fragment] dopasowuje po kawałku opisu, Flutter potrafi scalić
-/// całą kartę czy wiersz listy w jeden węzeł.
-Future<void> stuknijEtykiete(List<String> etykiety,
-    {bool fragment = false, bool ostatni = false}) async {
-  for (final etykieta in etykiety) {
-    final gdzie = await findWidget(
-      etykieta,
-      fragment: fragment,
-      ostatni: ostatni,
-      timeout: etykieta == etykiety.first
-          ? const Duration(seconds: 15)
-          : const Duration(seconds: 1),
-    );
-    if (gdzie == null) continue;
-    await adb(['shell', 'input', 'tap', '${gdzie.$1}', '${gdzie.$2}']);
-    await Future<void>.delayed(const Duration(seconds: 1));
-    return;
-  }
-  throw StateError('Nie znalazłem na ekranie: ${etykiety.first}. '
-      'Co widać: ${await widocznaTresc()}');
-}
-
 /// Obrazek na demo miniatury i zapisywania. Rysowany, bo zrzuty i testy mają
 /// się odtwarzać bez wlekania za sobą cudzych zdjęć.
 Future<List<int>> demoObrazek() async {
@@ -249,15 +144,6 @@ Future<List<int>> demoObrazek() async {
   final obraz = await recorder.endRecording().toImage(bok.toInt(), bok.toInt());
   final dane = await obraz.toByteData(format: ui.ImageByteFormat.png);
   return dane!.buffer.asUint8List();
-}
-
-/// Zrzut ekranu urządzenia do pliku (do dokumentacji i podglądu, co się stało).
-Future<void> screenshot(String path) async {
-  final result = await Process.run(_adb, ['-s', _device, 'exec-out', 'screencap', '-p'],
-      stdoutEncoding: null);
-  File(path)
-    ..createSync(recursive: true)
-    ..writeAsBytesSync(result.stdout as List<int>);
 }
 
 void main() {

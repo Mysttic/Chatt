@@ -22,10 +22,29 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         askForNotifications()
+        ChattRemoteInput.attach(this)
+        ChattRemoteInput.handleIntent(this, intent)
+    }
+
+    /**
+     * `singleTop`: powiadomienie „Przełącz klawiaturę na Chatt" przy
+     * otwartym oknie przychodzi tutaj.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        ChattRemoteInput.handleIntent(this, intent)
+    }
+
+    /** Okno wyboru klawiatury pokazuje się i zamyka przez fokus okna. */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        ChattRemoteInput.onWindowFocus(this, hasFocus)
     }
 
     override fun onStart() {
         super.onStart()
+        ChattRemoteInput.attach(this)
         ChattFilePicker.attach(this)
         // O zgodę na urządzenia w pobliżu Chatt pyta dopiero przy włączaniu
         // dodatku Bluetooth w ustawieniach. Tu tylko udostępniamy okno, które
@@ -34,6 +53,7 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onStop() {
+        ChattRemoteInput.detach(this)
         ChattFilePicker.detach(this)
         ChattBluetooth.detach(this)
         super.onStop()

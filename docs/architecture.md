@@ -517,9 +517,65 @@ same to the packet's time limit.
 `RemoteInputChannel.debugSupported` lets the tests pretend to be such a
 platform, as `BtChannel.debugSupported` does.
 
-The Android side comes with phase 3 (`ChattInputMethod`, an
-`InputMethodService` the user enables and picks as the keyboard, with
-`ChattRemoteInput.kt` as the channel).
+#### Android
+
+On Android the sink is the **Chatt keyboard**,
+[`ChattInputMethod`](../app/android/app/src/main/kotlin/com/mysttic/chatt/ChattInputMethod.kt),
+an `InputMethodService` in the app's own process, and the channel is
+[`ChattRemoteInput`](../app/android/app/src/main/kotlin/com/mysttic/chatt/ChattRemoteInput.kt).
+An input method gets an `InputConnection` to the focused field of any app,
+password fields and WebViews included, which is why the add-on goes this way.
+
+- **The component is off in the manifest** (`android:enabled="false"`), so
+  with the add-on off Chatt is absent from the system's list of keyboards.
+  The add-on's switch turns it on and off (`setImeEnabled`,
+  `setComponentEnabledSetting` with `DONT_KILL_APP`); a Chatt keyboard that is
+  current when the add-on goes off is replaced by the system itself.
+- **Turning it on in the system** is the user's one-time step, from a button on
+  the add-on's card that opens the system's keyboard settings; the card waits
+  for the app to come back and asks again. Android shows two warnings on the
+  way: that a keyboard can collect what is typed, and that the app cannot
+  start after a reboot until the phone is unlocked.
+- **The keyboard has no keys.** It is a 48 dp bar: who is typing and where
+  ("Typing: PC → Contacts"), a "Switch keyboard" button and Stop. From
+  Android 15 the input window reaches under the navigation bar, which draws
+  its back and keyboard-switch buttons over it; on the emulator the globe
+  landed on Stop, and its touch area (`tappableElement`, 48 dp) is twice the
+  navigation bar's own inset (24 dp). The bar is padded by the larger of the
+  two. It never goes full screen, it stays shown with a hardware keyboard, and
+  during a grant it keeps the screen on.
+- **Typing** goes through the connection in one batch edit per packet:
+  `commitText` for text; a newline is a newline in a multi-line field and
+  Enter in a single-line one, as on a keyboard; Backspace and Delete remove a
+  selection first and then use `deleteSurroundingTextInCodePoints`, so one
+  `bs` removes a whole emoji, with key events as the fallback for a field that
+  refuses; `action` is `performEditorAction` with the field's action (Search,
+  Send, Go, Next, Previous, Done) and Enter when the field has none.
+- **Refusals:** a field of Chatt's own (`ownApp`), a locked keyguard or a
+  screen that is off (`locked`), and no bound field at all. When the keyboard
+  starts input under the keyguard, it switches back to the previous keyboard
+  at once, so a password lock screen never meets a keyboard without keys.
+- **The end of a grant** switches back to the keyboard the user had before
+  (`switchToPreviousInputMethod`).
+- **Picking the keyboard.** Android shows its keyboard picker only to the
+  window with focus or to the current keyboard. A consent accepted on the card
+  (`afterAccept`) shows the picker when Chatt is not the current keyboard and,
+  once the picker closes and the window gets its focus back, moves the app to
+  the back, so the app with the field is in front. A grant without a card
+  ("don't ask again") with the app in the background posts a high-priority
+  notification "Switch the keyboard to Chatt", whose tap opens the app, shows
+  the picker and moves the app away the same way. A card that arrives with
+  the window closed gets a notification too.
+- **The indicator** is the bar and the text of the permanent notification of
+  `ChattService`, both "Typing: …" for the whole grant, in the app's language
+  (`lib/ui/remote_input_mobile.dart`).
+- **The foreground service.** A process woken by the system binding the
+  keyboard runs `main()` before the system counts the app as visible, so the
+  service's first start is refused; the keyboard retries it in `onCreate` and
+  `onStartInput`, and the system lets it through (`Background started FGS:
+  Allowed ... code:CURRENT_INPUT_METHOD`, seen on the emulator).
+  `startForeground` sits in a `try`, because an exception there would take
+  the process, and the keyboard with it, down.
 
 #### Windows
 
@@ -1010,7 +1066,10 @@ A plain Flutter process dies with its window, so:
   responder started, and Settings shows a warning when it did not;
 - **WifiLock** is taken only up to Android 12. From 13 the system accepts
   `WIFI_MODE_FULL_HIGH_PERF` and ignores it, and `LOW_LATENCY` works only for a
-  foreground app.
+  foreground app;
+- a refused `startForeground` stops the service quietly, and the Chatt
+  keyboard starts it again once the system allows it (see the keyboard
+  add-on).
 
 A foreground service overrides Doze's network cut, so a battery optimisation
 exemption is not needed on stock Android; the button in Settings stays as
