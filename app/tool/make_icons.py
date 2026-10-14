@@ -7,12 +7,14 @@ Rysuje dwa dymki rozmowy na fiolecie z motywu (#512BD4) i zapisuje:
 
 Uruchomienie (z katalogu app/):
     python tool/make_icons.py
+    python tool/make_icons.py zasobnik   # tylko ikona zasobnika „ktoś pisze"
 
 Rysujemy w czterokrotnym powiększeniu i zmniejszamy filtrem LANCZOS, inaczej
 krawędzie dymków byłyby poszarpane.
 """
 
 import os
+import sys
 
 from PIL import Image, ImageDraw
 
@@ -155,13 +157,54 @@ def ikona_powiadomienia(size):
     return warstwa.resize((size, size), Image.LANCZOS)
 
 
+def ikona_pisania(size):
+    """Ikona aplikacji z bursztynową plakietką klawiatury w prawym dolnym rogu.
+
+    Zasobnik pokazuje ją, gdy ktoś pisze na tym komputerze z innego
+    urządzenia. W 16 px z plakietki zostaje kolorowa kropka i to wystarczy,
+    żeby ikona wyglądała inaczej niż zwykle.
+    """
+    duzy = size * SUPERSAMPLING
+    obraz = ikona_launchera(size).resize((duzy, duzy), Image.LANCZOS)
+    rysuj = ImageDraw.Draw(obraz)
+    r = duzy * 0.29
+    cx, cy = duzy - r * 1.02, duzy - r * 1.02
+    rysuj.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 179, 0, 255),
+                  outline=(255, 255, 255, 255), width=max(1, round(duzy * 0.03)))
+    # Klawiatura: prostokąt z dwoma rzędami klawiszy i spacją.
+    w, h = r * 1.15, r * 0.72
+    x0, y0 = cx - w / 2, cy - h / 2
+    rysuj.rounded_rectangle([x0, y0, x0 + w, y0 + h], radius=h * 0.18,
+                            fill=(40, 30, 10, 255))
+    klawisz = w / 9
+    for rzad in range(2):
+        for i in range(4):
+            kx = x0 + klawisz * (1 + i * 2)
+            ky = y0 + h * (0.18 + rzad * 0.28)
+            rysuj.rectangle([kx, ky, kx + klawisz, ky + h * 0.16],
+                            fill=(255, 179, 0, 255))
+    rysuj.rectangle([x0 + w * 0.28, y0 + h * 0.74, x0 + w * 0.72,
+                     y0 + h * 0.86], fill=(255, 179, 0, 255))
+    return obraz.resize((size, size), Image.LANCZOS)
+
+
 def zapisz(sciezka, obraz):
     os.makedirs(os.path.dirname(sciezka), exist_ok=True)
     obraz.save(sciezka)
     print("zapisano", sciezka)
 
 
+def ikona_zasobnika_pisania():
+    sciezka = os.path.join("assets", "tray_icon_typing.ico")
+    ikona_pisania(256).save(sciezka, sizes=[(s, s) for s in WINDOWS_SIZES])
+    print("zapisano", sciezka)
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "zasobnik":
+        ikona_zasobnika_pisania()
+        return
+
     res = os.path.join("android", "app", "src", "main", "res")
 
     for katalog, rozmiar in ANDROID_LAUNCHER.items():
@@ -192,6 +235,8 @@ def main():
 
     podglad = ikona_launchera(512)
     zapisz(os.path.join("build", "icon_preview.png"), podglad)
+
+    ikona_zasobnika_pisania()
 
 
 if __name__ == "__main__":

@@ -876,6 +876,14 @@ class AppLocalizationsPl extends AppLocalizations {
   String get remoteInputStop => 'Stop';
 
   @override
+  String remoteInputBarTarget(Object name, Object app) {
+    return 'Pisze: $name → $app';
+  }
+
+  @override
+  String get trayRemoteInputStop => 'Zatrzymaj zdalną klawiaturę';
+
+  @override
   String get viaWifi => 'przez sieć';
 
   @override

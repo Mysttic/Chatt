@@ -265,6 +265,8 @@
   "remoteInputRequestBody": "Text goes into the field that has focus, in any app, until Stop.",
   "remoteInputActive": "Typing: {name}",
   "remoteInputStop": "Stop",
+  "remoteInputBarTarget": "Typing: {name} → {app}",
+  "trayRemoteInputStop": "Stop remote keyboard",
   "viaWifi": "over the network",
   "viaBluetooth": "over Bluetooth",
   "protocolWifi": "Network",

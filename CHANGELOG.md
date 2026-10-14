@@ -41,8 +41,16 @@ receivers for Windows and Android and the sender's screen land.
   can be set only for a verified device and goes with the shield, like
   `autoAccept`.
 - `chatt/remoteinput`, the channel to the native receivers: `status`, `apply`,
-  `setSession` and `setImeEnabled`. Its native sides arrive with the
-  receivers.
+  `setSession`, `setImeEnabled`, `showIndicator` and `hideIndicator`, plus
+  `stopRequested` from the native side.
+- **Typing on Windows.** A PC with Windows 10 or 11, touch screen or not, types
+  what arrives into the window with the focus, one character at a time
+  (`SendInput`, independent of the keyboard layout), and refuses while Chatt,
+  the lock screen or an administrator's window is in front. The sender learns
+  the program's name and whether the field is a password (UI Automation). A
+  floating bar with Stop stays on top for the whole session without ever taking
+  the focus, the tray icon gets a badge and a Stop in its menu, and a consent
+  card pulls the hidden window out and sends it back after the answer.
 
 ### Security
 - **The first sealed replies in the protocol.** Both routes answer 200 and

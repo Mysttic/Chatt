@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME} WIN32
   "chatt_autostart.cpp"
   "chatt_bluetooth.cpp"
   "chatt_clipboard.cpp"
+  "chatt_remote_input.cpp"
   "chatt_secrets.cpp"
   "flutter_window.cpp"
   "main.cpp"
@@ -46,6 +47,12 @@ target_link_libraries(${BINARY_NAME} PRIVATE "windowscodecs.lib" "ole32.lib" "sh
 # Bluetooth (issue #27): gniazda RFCOMM (ws2_32) i lista radia oraz
 # sparowanych urzadzen (bthprops).
 target_link_libraries(${BINARY_NAME} PRIVATE "ws2_32.lib" "bthprops.lib")
+# Klawiatura z PC (issue #35): nazwa programu z zasobu wersji (version) do
+# pokazania nadawcy. SendInput i pasek ze Stopem to user32 i gdi32, linkowane
+# zawsze; UI Automation idzie przez COM (ole32 wyżej).
+target_link_libraries(${BINARY_NAME} PRIVATE "version.lib")
+# Tempo wpisywania: timeBeginPeriod skraca Sleep(1) do milisekundy.
+target_link_libraries(${BINARY_NAME} PRIVATE "winmm.lib")
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

@@ -1068,12 +1068,16 @@ class _RemoteInput {
     final stop = ops.last.kind == RemoteInputOpKind.stop;
     final pisze = ops.any((op) => op.kind.types);
 
+    // Długie wklejenie odbiorca wpisuje znak po znaku, więc paczka z nim
+    // dostaje tyle czasu więcej, ile potrwa wpisanie.
+    final limit = remoteInputPacketTimeout + remoteInputTypingTime(ops);
     for (var proba = 0; proba < _inputPacketAttempts; proba++) {
       final zegar = Stopwatch()..start();
       final wynik = await _s._exchangeSealed(
         o.peer,
         payload,
-        (route, koperta) => _s.client.sendInput(route: route, payload: koperta),
+        (route, koperta) => _s.client
+            .sendInput(route: route, payload: koperta, timeout: limit),
         route: o.route,
       );
       zegar.stop();

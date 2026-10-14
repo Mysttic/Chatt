@@ -491,6 +491,12 @@ of the channel, is its default. Tests put in their own sink through
 | `apply` | `{ops: [...]}`, only `insert`, `bs`, `del` and `action` | the target plus `applied` |
 | `setSession` | `{active, peerName}` | none |
 | `setImeEnabled` | `{on}` | `{ok}` |
+| `showIndicator` | `{text, stop}` | `{ok}` |
+| `hideIndicator` | none | `{ok}` |
+
+One call goes the other way: `stopRequested`, when somebody presses Stop on the
+native indicator. `RemoteInputChannel.listen` routes it to
+`stopIncomingRemoteInput`.
 
 `setImeEnabled` is called by the add-on's switch alone; on Android it turns the
 keyboard component on and off, so with the add-on off Chatt is absent from the
@@ -504,14 +510,66 @@ nothing. The channel never throws: a missing native side, a
 `PlatformException` or a test without a binding all end as "nowhere to type",
 and on a platform other than Android and Windows it makes no call. A call that
 gets no answer within 5 seconds ends the same way, so a native side that hangs
-cannot hold up the packets behind it.
+cannot hold up the packets behind it; `apply` gets 20 ms more for every
+character and every Backspace or Delete in the packet
+(`remoteInputTypingTime`), because typing is paced, and the sender adds the
+same to the packet's time limit.
 `RemoteInputChannel.debugSupported` lets the tests pretend to be such a
 platform, as `BtChannel.debugSupported` does.
 
-The native sides come with phase 2 (`windows/runner/chatt_remote_input.cpp`,
-`SendInput` with `KEYEVENTF_UNICODE`, independent of the keyboard layout) and
-phase 3 (`ChattInputMethod`, an `InputMethodService` the user enables and picks
-as the keyboard, with `ChattRemoteInput.kt` as the channel).
+The Android side comes with phase 3 (`ChattInputMethod`, an
+`InputMethodService` the user enables and picks as the keyboard, with
+`ChattRemoteInput.kt` as the channel).
+
+#### Windows
+
+[`windows/runner/chatt_remote_input.cpp`](../app/windows/runner/chatt_remote_input.cpp)
+types into whatever window has the focus, on any Windows 10 or 11 PC, touch
+screen or not.
+
+- **Text** goes as Unicode characters (`SendInput` with `KEYEVENTF_UNICODE`),
+  independent of the keyboard layout and with no modifier key; a newline,
+  `action` and Enter are `VK_RETURN`, Backspace `VK_BACK`, Delete the extended
+  `VK_DELETE`.
+- **One character at a time, a millisecond apart.** A burst of events in one
+  `SendInput` call, or one call per character with no pause, garbles the text
+  in WinUI apps: the Windows 11 Notepad typed the last letter over and over
+  after the first few. With 1 ms between characters it typed every one,
+  Polish letters included. Typing runs on its own thread with
+  `timeBeginPeriod(1)`, and the reply goes back through a message-only window,
+  the one place where a channel call may be answered. Before each character the
+  sink checks whether the foreground window changed; when the new one is
+  Chatt, the lock screen or an elevated window, the rest of the packet is
+  dropped and `applied` is false.
+- **The target.** The foreground window's process gives `app` (the file name)
+  and `appLabel` (the version resource's `FileDescription`, or else the file
+  name); a Store app behind `ApplicationFrameHost.exe` is looked up in its
+  child window. Any running `chatt.exe` counts as `ownApp`. `locked` means the
+  input desktop is not `Default` (the lock screen, a UAC prompt) or cannot be
+  opened. `elevated` compares integrity levels: `SendInput` cannot reach a
+  window above its own and reports nothing, and a process whose token cannot
+  even be read is treated as above.
+- **The kind of field** comes from UI Automation (`GetFocusedElement`:
+  `IsPassword` gives `password`, an Edit or Document control `text`, anything
+  else `none`). It runs on a thread of its own with its own COM apartment and
+  the `IUIAutomation2` limits at 400 ms, and the platform thread waits at most
+  600 ms; an app that hangs gives `none`, and while the thread is still stuck
+  on the last question, the answer is `none` at once. The thread starts at the
+  first question, which only a grant asks.
+- **The floating bar** ("Typing: Alicja → Notepad" with Stop) stays on top
+  for the whole grant, also with the Chatt window in the tray. It never takes
+  the focus (`WS_EX_NOACTIVATE`, `MA_NOACTIVATE`, `PA_NOACTIVATE`), like the
+  on-screen keyboard, so a Stop tapped with a finger leaves the focus in the
+  field being typed into. The button is at least 44 px at the window's DPI.
+  It sits at the top of the work area of the monitor with the foreground
+  window. Its texts come from Dart in the app's language
+  (`lib/ui/remote_input_desktop.dart`).
+- **The tray** swaps to `assets/tray_icon_typing.ico` (the icon with an amber
+  keyboard badge, from `tool/make_icons.py zasobnik`) and gets "Stop remote
+  keyboard" in its menu while a grant lives; the tooltip says who is typing.
+- **The consent card** pulls a hidden or minimised window out for the time of
+  the card and sends it back after the answer, so the field picked earlier on
+  this PC has the focus again. A grant alone never shows the window.
 
 ## Protocol
 
@@ -996,7 +1054,9 @@ A desktop process ends with its window, so:
 - **The tray icon** (`tray_manager`) carries a tooltip and a menu in the app
   language, rebuilt when the language changes. The icon ships as a Flutter
   asset (`assets/tray_icon.ico`), because the tray reads a file from disk, not
-  resources inside the `.exe`.
+  resources inside the `.exe`. While somebody types on this PC with the
+  keyboard add-on, the icon has a badge (`assets/tray_icon_typing.ico`) and
+  the menu a Stop.
 - **Starting minimised** is decided in the runner: `main.cpp` checks for the
   `--minimized` argument and then does not register showing the window after
   the first frame.

@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,6 +12,7 @@ import 'data/db.dart';
 import 'l10n/app_localizations.dart';
 import 'services/app_services.dart';
 import 'services/providers.dart';
+import 'ui/remote_input_desktop.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +48,13 @@ Future<void> _start() async {
     },
   );
 
+  // Windows: pasek „Pisze: …" ze Stopem i ikona w zasobniku przez całą
+  // zgodę na zdalną klawiaturę, także przy schowanym oknie.
+  AppLocalizations? biezaceTeksty;
+  final klawiatura = Platform.isWindows
+      ? (RemoteInputDesktop(services, texts: () => biezaceTeksty)..attach())
+      : null;
+
   // Android: usługa pierwszoplanowa trzyma proces (a z nim serwer i
   // discovery) także po zamknięciu okna. Teksty jej powiadomienia biorą się
   // z języka wybranego w aplikacji, więc odświeżamy je przy każdej zmianie.
@@ -55,6 +65,7 @@ Future<void> _start() async {
     final teksty = await AppLocalizations.delegate.load(
       ustawienia.language.effectiveLocale,
     );
+    biezaceTeksty = teksty;
     await BackgroundService.start(
       title: teksty.backgroundServiceTitle,
       body: teksty.backgroundServiceBody,
@@ -65,6 +76,7 @@ Future<void> _start() async {
       showLabel: teksty.trayShow,
       quitLabel: teksty.trayQuit,
     );
+    klawiatura?.refreshTexts();
   });
 
   runApp(

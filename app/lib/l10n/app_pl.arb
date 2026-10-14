@@ -359,6 +359,11 @@
     "placeholders": { "name": {} }
   },
   "remoteInputStop": "Stop",
+  "remoteInputBarTarget": "Pisze: {name} → {app}",
+  "@remoteInputBarTarget": {
+    "placeholders": { "name": {}, "app": {} }
+  },
+  "trayRemoteInputStop": "Zatrzymaj zdalną klawiaturę",
   "viaWifi": "przez sieć",
   "viaBluetooth": "przez Bluetooth",
   "protocolWifi": "Sieć",
