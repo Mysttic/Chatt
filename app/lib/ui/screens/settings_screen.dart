@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
@@ -589,29 +590,49 @@ class BluetoothAddonCardState extends ConsumerState<BluetoothAddonCard> {
   /// ([wlaczanie]) i przyciskiem na karcie, gdy zgodę cofnięto. Poza tymi
   /// dwoma miejscami aplikacja o nią nie prosi.
   ///
-  /// Odpowiedź z systemowego okienka nie wraca kanałem, więc po zapytaniu
-  /// odpytujemy stan, aż się zmieni albo skończy cierpliwość. Bez tego
-  /// przełącznik odbijałby się od razu, jeszcze zanim użytkownik zdąży
-  /// przeczytać pytanie. Przy włączonym dodatku odpytywanie kończy się razem
-  /// z jego wyłączeniem.
+  /// Odpowiedź z systemowego okienka nie wraca kanałem. Przychodzi razem
+  /// z powrotem aplikacji na wierzch, po okienku albo po ekranie ustawień
+  /// systemu, więc na ten powrót czekamy, bez odpytywania radia w tym czasie
+  /// i bez limitu krótszego niż wędrówka po ustawieniach.
   Future<bool> _upewnijSieOZgode(AppServices services,
       {bool wlaczanie = false, bool ustawienia = false}) async {
     var stan = await services.refreshBluetoothStatus(force: wlaczanie);
     if (stan.granted) return true;
-    if (ustawienia) {
-      await services.openBluetoothSettings();
-    } else {
-      await services.askForBluetoothPermission();
-    }
 
-    final koniec = DateTime.now().add(const Duration(seconds: 30));
-    while (mounted &&
-        (wlaczanie || services.bluetoothAddon.value) &&
-        DateTime.now().isBefore(koniec)) {
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      if (!wlaczanie && !services.bluetoothAddon.value) break;
+    var wyszla = false;
+    final powrot = Completer<void>();
+    final sluchacz = AppLifecycleListener(onStateChange: (state) {
+      if (state != AppLifecycleState.resumed) {
+        wyszla = true;
+      } else if (wyszla && !powrot.isCompleted) {
+        powrot.complete();
+      }
+    });
+    try {
+      var otwarte = ustawienia
+          ? await services.openBluetoothSettings()
+          : await services.askForBluetoothPermission();
+      // Okienko, które się nie pokazało (system zbył prośbę bez słowa),
+      // zostawia aplikację na wierzchu. Wtedy zostają ustawienia systemu.
+      if (otwarte && !ustawienia) {
+        await Future.any(
+            [powrot.future, Future<void>.delayed(const Duration(seconds: 3))]);
+        if (!wyszla) otwarte = await services.openBluetoothSettings();
+      }
+      if (!otwarte) return false;
+      await powrot.future
+          .timeout(const Duration(minutes: 10), onTimeout: () {});
+    } finally {
+      sluchacz.dispose();
+    }
+    if (!mounted || (!wlaczanie && !services.bluetoothAddon.value)) {
+      return false;
+    }
+    // Stan zgody potrafi dojść chwilę po powrocie na wierzch.
+    for (var proba = 0; proba < 4; proba++) {
       stan = await services.refreshBluetoothStatus(force: wlaczanie);
       if (stan.granted) return true;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     return false;
   }
