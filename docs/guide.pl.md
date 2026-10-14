@@ -91,6 +91,12 @@ dodatku, a potem już tylko przyciskiem na karcie dodatku, gdy zgodę cofnięto.
 Parowania w systemie robić nie trzeba: Chatt łączy się także
 z urządzeniem niesparowanym.
 
+Przeszkadza jedno: stare parowanie, które pamięta tylko jedna strona. Telefon
+ma komputer na liście sparowanych, a komputer o telefonie już zapomniał.
+Android prosi wtedy o ponowne parowanie i zrywa łącze. Wystarczy usunąć
+komputer z listy w ustawieniach Bluetooth telefonu (albo sparować urządzenia
+od nowa) i Chatt się połączy.
+
 Na Windowsie włączony dodatek podnosi **wykrywalność komputera**: dopóki
 dodatek stoi, komputer widzi każdy, kto rozgląda się w pobliżu za
 urządzeniami. Domyślnie Windows pokazuje się tylko przy otwartym oknie „Dodaj

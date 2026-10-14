@@ -280,6 +280,32 @@ expired after its two minutes. The harness receives without asking and the
 app asks every time, so a file test against the app needs somebody to tap
 Accept.
 
+## Fifth run: the add-on on hardware
+
+14 October, after the transport moved behind the Bluetooth add-on. A Pixel 9
+Pro on Android 17, upgraded in place from 0.8.1 with its data, against the
+Windows PC from the earlier runs. Location services on, the local network
+switch off on both sides, so everything went over the radio.
+
+- With the add-on off, the phone's Bluetooth socket log had no entry from
+  Chatt. Switching it on brought up the "Nearby devices" question and then
+  the RFCOMM listener named `Chatt`.
+- The first search tripped over a leftover system pairing: the phone still
+  had the PC (`…D9:B1`) on its bonded list, the PC no longer had the phone.
+  The link came up and Android reported `bondLossCallback:
+  BREDR_AUTH_FAILURE`, showed its own "pair again" dialog and dropped the
+  link. Once the user removed the PC from the phone's Bluetooth settings, the
+  next search found `Chatt PC` at `70:D8:C2:64:D9:B1` after about 25 seconds,
+  with no dialog, and the whole search ended at 86 seconds.
+- A message each way, 1 MiB from the PC to the phone and a 323 KB image from
+  the phone to the PC, both with the consent card and a matching SHA-256. The
+  phone's socket log showed RFCOMM connections to `…d9:b1` under Chatt's
+  service UUID.
+- With the add-on then switched off on the phone, a message to the PC (known
+  only by its radio address, so with no IP address on record) was delivered
+  over Wi-Fi after the UDP search found the PC by its guid, and the PC's
+  conversation header switched to "over the network".
+
 ## Two things the run itself taught us
 
 **A bonded peer can be filed under an address that is not its radio's.**

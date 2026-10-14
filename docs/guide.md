@@ -256,6 +256,11 @@ address.
 **System pairing is not needed** and gives nothing here. The link goes up
 without it.
 
+One leftover pairing does get in the way: a phone that still remembers the PC
+from an earlier system pairing which the PC has since forgotten. Android then
+asks to pair again, and the link drops. Forget the PC in the phone's Bluetooth
+settings (or pair the two again) and Chatt connects.
+
 **What to expect.** A short message comes back in 22 to 25 ms, which makes
 writing over the radio indistinguishable from writing over Wi-Fi. Files are
 where it shows: 90 to 165 kB/s, so a megabyte takes 6 to 12 seconds, tens of
