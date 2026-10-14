@@ -8,12 +8,15 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.9.0] - 2026-10-14
 
 A conversation can travel over Bluetooth, so two devices talk with nothing
 between them: no shared network, no router, no system pairing. Bluetooth is an
 add-on, off by default. While it is off, nothing in the app touches the radio
-and every conversation travels over the local network, as in 0.8.2.
+and every conversation travels over the local network, as before.
+
+This release also carries 0.8.2, which was never published on its own: a
+photo in a conversation opens in a preview with zooming and turning.
 
 ### Added
 - **Add-ons, with Bluetooth as the first one.** Settings gains an "Add-ons"
@@ -71,10 +74,11 @@ Bluetooth carries 90 to 165 kB/s, which is 50 to 100 times slower than Wi-Fi:
 a megabyte takes 6 to 12 seconds. A short message turns around in 22 to 25 ms,
 so text feels the same either way. Files are where it hurts.
 
-## [0.8.2] - 2026-09-21
+## 0.8.2 - 2026-09-21
 
-A photo in a conversation opens where it already is, instead of being handed to
-somebody else who then refuses it.
+Never published on its own: it reaches users inside 0.9.0.
+
+A photo in a conversation opens right where it is, in a preview of its own.
 
 ### Added
 - **Tapping a photo opens it full screen, with zooming and turning.** Pinch or
@@ -723,8 +727,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.8.2...HEAD
-[0.8.2]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.8.2
+[0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/Mysttic/Chatt/compare/v0.7.0...v0.7.1
