@@ -22,6 +22,7 @@ import '../widgets/link_confirm.dart';
 import '../widgets/link_preview_card.dart';
 import '../widgets/linked_text.dart';
 import '../widgets/paste_shortcut.dart';
+import '../widgets/protocol_badge.dart';
 import '../widgets/security_sheet.dart';
 import '../widgets/toasts.dart';
 import 'image_view_screen.dart';
@@ -238,19 +239,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       children: [
                         Text(peer.displayName,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text(
-                          switch (_online) {
-                            null => '${peer.host}:${peer.port}',
-                            true => context.l10n.peerOnline,
-                            false => context.l10n.peerOffline,
-                          },
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: switch (_online) {
-                                  true => Colors.green,
-                                  false => Theme.of(context).colorScheme.error,
-                                  null => null,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                switch (_online) {
+                                  null => peerAddressLabel(peer,
+                                      radio: ref
+                                          .read(appServicesProvider)
+                                          .bluetoothAddon
+                                          .value),
+                                  true => context.l10n.peerOnline,
+                                  false => context.l10n.peerOffline,
                                 },
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: switch (_online) {
+                                        true => Colors.green,
+                                        false =>
+                                          Theme.of(context).colorScheme.error,
+                                        null => null,
+                                      },
+                                    ),
                               ),
+                            ),
+                            ProtocolBadge(
+                              peer: peer,
+                              padding: const EdgeInsets.only(left: 8),
+                            ),
+                          ],
                         ),
                       ],
                     ),

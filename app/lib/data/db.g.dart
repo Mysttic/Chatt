@@ -161,6 +161,36 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _wifiEnabledMeta = const VerificationMeta(
+    'wifiEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> wifiEnabled = GeneratedColumn<bool>(
+    'wifi_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("wifi_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _bluetoothEnabledMeta = const VerificationMeta(
+    'bluetoothEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> bluetoothEnabled = GeneratedColumn<bool>(
+    'bluetooth_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("bluetooth_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -176,6 +206,8 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     updateChecks,
     lastUpdateCheck,
     linkPreviews,
+    wifiEnabled,
+    bluetoothEnabled,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -274,6 +306,24 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         ),
       );
     }
+    if (data.containsKey('wifi_enabled')) {
+      context.handle(
+        _wifiEnabledMeta,
+        wifiEnabled.isAcceptableOrUnknown(
+          data['wifi_enabled']!,
+          _wifiEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bluetooth_enabled')) {
+      context.handle(
+        _bluetoothEnabledMeta,
+        bluetoothEnabled.isAcceptableOrUnknown(
+          data['bluetooth_enabled']!,
+          _bluetoothEnabledMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -339,6 +389,14 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.bool,
         data['${effectivePrefix}link_previews'],
       )!,
+      wifiEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}wifi_enabled'],
+      )!,
+      bluetoothEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}bluetooth_enabled'],
+      )!,
     );
   }
 
@@ -396,6 +454,18 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// z siebie w połączenie do obcego serwera, a ten zobaczyłby adres IP tego
   /// urządzenia i moment, w którym wiadomość dotarła.
   final bool linkPreviews;
+
+  /// Czy rozmawiamy przez sieć lokalną. Domyślnie tak: to jest droga, którą
+  /// Chatt działa od początku. Przełącznik należy do dodatku Bluetooth
+  /// i liczy się tylko przy nim: wyłączenie ma sens tam, gdzie sieć nie
+  /// przepuszcza ruchu między urządzeniami i zostaje samo radio.
+  final bool wifiEnabled;
+
+  /// Czy włączony jest dodatek Bluetooth (sekcja „Dodatki" w ustawieniach).
+  /// Domyślnie nie. Dodatek włącza radio, prosi o zgodę i czyni komputer
+  /// wykrywalnym, więc włącza go użytkownik. Wyłączony nie zostawia
+  /// w aplikacji żadnego śladu.
+  final bool bluetoothEnabled;
   const Setting({
     required this.id,
     required this.deviceGuid,
@@ -410,6 +480,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.updateChecks,
     this.lastUpdateCheck,
     required this.linkPreviews,
+    required this.wifiEnabled,
+    required this.bluetoothEnabled,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -435,6 +507,8 @@ class Setting extends DataClass implements Insertable<Setting> {
       map['last_update_check'] = Variable<DateTime>(lastUpdateCheck);
     }
     map['link_previews'] = Variable<bool>(linkPreviews);
+    map['wifi_enabled'] = Variable<bool>(wifiEnabled);
+    map['bluetooth_enabled'] = Variable<bool>(bluetoothEnabled);
     return map;
   }
 
@@ -455,6 +529,8 @@ class Setting extends DataClass implements Insertable<Setting> {
           ? const Value.absent()
           : Value(lastUpdateCheck),
       linkPreviews: Value(linkPreviews),
+      wifiEnabled: Value(wifiEnabled),
+      bluetoothEnabled: Value(bluetoothEnabled),
     );
   }
 
@@ -481,6 +557,8 @@ class Setting extends DataClass implements Insertable<Setting> {
       updateChecks: serializer.fromJson<bool>(json['updateChecks']),
       lastUpdateCheck: serializer.fromJson<DateTime?>(json['lastUpdateCheck']),
       linkPreviews: serializer.fromJson<bool>(json['linkPreviews']),
+      wifiEnabled: serializer.fromJson<bool>(json['wifiEnabled']),
+      bluetoothEnabled: serializer.fromJson<bool>(json['bluetoothEnabled']),
     );
   }
   @override
@@ -504,6 +582,8 @@ class Setting extends DataClass implements Insertable<Setting> {
       'updateChecks': serializer.toJson<bool>(updateChecks),
       'lastUpdateCheck': serializer.toJson<DateTime?>(lastUpdateCheck),
       'linkPreviews': serializer.toJson<bool>(linkPreviews),
+      'wifiEnabled': serializer.toJson<bool>(wifiEnabled),
+      'bluetoothEnabled': serializer.toJson<bool>(bluetoothEnabled),
     };
   }
 
@@ -521,6 +601,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     bool? updateChecks,
     Value<DateTime?> lastUpdateCheck = const Value.absent(),
     bool? linkPreviews,
+    bool? wifiEnabled,
+    bool? bluetoothEnabled,
   }) => Setting(
     id: id ?? this.id,
     deviceGuid: deviceGuid ?? this.deviceGuid,
@@ -537,6 +619,8 @@ class Setting extends DataClass implements Insertable<Setting> {
         ? lastUpdateCheck.value
         : this.lastUpdateCheck,
     linkPreviews: linkPreviews ?? this.linkPreviews,
+    wifiEnabled: wifiEnabled ?? this.wifiEnabled,
+    bluetoothEnabled: bluetoothEnabled ?? this.bluetoothEnabled,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
     return Setting(
@@ -569,6 +653,12 @@ class Setting extends DataClass implements Insertable<Setting> {
       linkPreviews: data.linkPreviews.present
           ? data.linkPreviews.value
           : this.linkPreviews,
+      wifiEnabled: data.wifiEnabled.present
+          ? data.wifiEnabled.value
+          : this.wifiEnabled,
+      bluetoothEnabled: data.bluetoothEnabled.present
+          ? data.bluetoothEnabled.value
+          : this.bluetoothEnabled,
     );
   }
 
@@ -587,7 +677,9 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('retentionDays: $retentionDays, ')
           ..write('updateChecks: $updateChecks, ')
           ..write('lastUpdateCheck: $lastUpdateCheck, ')
-          ..write('linkPreviews: $linkPreviews')
+          ..write('linkPreviews: $linkPreviews, ')
+          ..write('wifiEnabled: $wifiEnabled, ')
+          ..write('bluetoothEnabled: $bluetoothEnabled')
           ..write(')'))
         .toString();
   }
@@ -607,6 +699,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     updateChecks,
     lastUpdateCheck,
     linkPreviews,
+    wifiEnabled,
+    bluetoothEnabled,
   );
   @override
   bool operator ==(Object other) =>
@@ -624,7 +718,9 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.retentionDays == this.retentionDays &&
           other.updateChecks == this.updateChecks &&
           other.lastUpdateCheck == this.lastUpdateCheck &&
-          other.linkPreviews == this.linkPreviews);
+          other.linkPreviews == this.linkPreviews &&
+          other.wifiEnabled == this.wifiEnabled &&
+          other.bluetoothEnabled == this.bluetoothEnabled);
 }
 
 class SettingsCompanion extends UpdateCompanion<Setting> {
@@ -641,6 +737,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<bool> updateChecks;
   final Value<DateTime?> lastUpdateCheck;
   final Value<bool> linkPreviews;
+  final Value<bool> wifiEnabled;
+  final Value<bool> bluetoothEnabled;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.deviceGuid = const Value.absent(),
@@ -655,6 +753,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.updateChecks = const Value.absent(),
     this.lastUpdateCheck = const Value.absent(),
     this.linkPreviews = const Value.absent(),
+    this.wifiEnabled = const Value.absent(),
+    this.bluetoothEnabled = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -670,6 +770,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.updateChecks = const Value.absent(),
     this.lastUpdateCheck = const Value.absent(),
     this.linkPreviews = const Value.absent(),
+    this.wifiEnabled = const Value.absent(),
+    this.bluetoothEnabled = const Value.absent(),
   }) : deviceGuid = Value(deviceGuid),
        nickname = Value(nickname);
   static Insertable<Setting> custom({
@@ -686,6 +788,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<bool>? updateChecks,
     Expression<DateTime>? lastUpdateCheck,
     Expression<bool>? linkPreviews,
+    Expression<bool>? wifiEnabled,
+    Expression<bool>? bluetoothEnabled,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -701,6 +805,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (updateChecks != null) 'update_checks': updateChecks,
       if (lastUpdateCheck != null) 'last_update_check': lastUpdateCheck,
       if (linkPreviews != null) 'link_previews': linkPreviews,
+      if (wifiEnabled != null) 'wifi_enabled': wifiEnabled,
+      if (bluetoothEnabled != null) 'bluetooth_enabled': bluetoothEnabled,
     });
   }
 
@@ -718,6 +824,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<bool>? updateChecks,
     Value<DateTime?>? lastUpdateCheck,
     Value<bool>? linkPreviews,
+    Value<bool>? wifiEnabled,
+    Value<bool>? bluetoothEnabled,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
@@ -733,6 +841,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       updateChecks: updateChecks ?? this.updateChecks,
       lastUpdateCheck: lastUpdateCheck ?? this.lastUpdateCheck,
       linkPreviews: linkPreviews ?? this.linkPreviews,
+      wifiEnabled: wifiEnabled ?? this.wifiEnabled,
+      bluetoothEnabled: bluetoothEnabled ?? this.bluetoothEnabled,
     );
   }
 
@@ -782,6 +892,12 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (linkPreviews.present) {
       map['link_previews'] = Variable<bool>(linkPreviews.value);
     }
+    if (wifiEnabled.present) {
+      map['wifi_enabled'] = Variable<bool>(wifiEnabled.value);
+    }
+    if (bluetoothEnabled.present) {
+      map['bluetooth_enabled'] = Variable<bool>(bluetoothEnabled.value);
+    }
     return map;
   }
 
@@ -800,7 +916,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('retentionDays: $retentionDays, ')
           ..write('updateChecks: $updateChecks, ')
           ..write('lastUpdateCheck: $lastUpdateCheck, ')
-          ..write('linkPreviews: $linkPreviews')
+          ..write('linkPreviews: $linkPreviews, ')
+          ..write('wifiEnabled: $wifiEnabled, ')
+          ..write('bluetoothEnabled: $bluetoothEnabled')
           ..write(')'))
         .toString();
   }
@@ -934,6 +1052,28 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _btAddressMeta = const VerificationMeta(
+    'btAddress',
+  );
+  @override
+  late final GeneratedColumn<String> btAddress = GeneratedColumn<String>(
+    'bt_address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastProtocolMeta = const VerificationMeta(
+    'lastProtocol',
+  );
+  @override
+  late final GeneratedColumn<int> lastProtocol = GeneratedColumn<int>(
+    'last_protocol',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _firstSeenMeta = const VerificationMeta(
     'firstSeen',
   );
@@ -969,6 +1109,8 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
     sessionKey,
     alias,
     autoAccept,
+    btAddress,
+    lastProtocol,
     firstSeen,
     lastSeen,
   ];
@@ -1058,6 +1200,21 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
         autoAccept.isAcceptableOrUnknown(data['auto_accept']!, _autoAcceptMeta),
       );
     }
+    if (data.containsKey('bt_address')) {
+      context.handle(
+        _btAddressMeta,
+        btAddress.isAcceptableOrUnknown(data['bt_address']!, _btAddressMeta),
+      );
+    }
+    if (data.containsKey('last_protocol')) {
+      context.handle(
+        _lastProtocolMeta,
+        lastProtocol.isAcceptableOrUnknown(
+          data['last_protocol']!,
+          _lastProtocolMeta,
+        ),
+      );
+    }
     if (data.containsKey('first_seen')) {
       context.handle(
         _firstSeenMeta,
@@ -1127,6 +1284,14 @@ class $PeersTable extends Peers with TableInfo<$PeersTable, Peer> {
         DriftSqlType.bool,
         data['${effectivePrefix}auto_accept'],
       )!,
+      btAddress: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bt_address'],
+      ),
+      lastProtocol: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_protocol'],
+      ),
       firstSeen: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}first_seen'],
@@ -1173,6 +1338,18 @@ class Peer extends DataClass implements Insertable<Peer> {
   /// potwierdzonej tożsamości, więc [setPeerVerified] gasi tę flagę razem
   /// z tarczą: inaczej przetrwałaby unieważnienie potwierdzenia.
   final bool autoAccept;
+
+  /// Ostatni znany adres radia (`AA:BB:CC:DD:EE:FF`), gdy rozmówcę widzieliśmy
+  /// przez Bluetooth. Jak [host], jest tylko podpowiedzią: tożsamością zostaje
+  /// [guid]. Adres potrafi się zmienić, gdy urządzenia zostaną sparowane
+  /// systemowo (patrz docs/spike-rfcomm.md), więc nadpisujemy go przy każdym
+  /// kontakcie i nigdy po nim nie rozpoznajemy rozmówcy.
+  final String? btAddress;
+
+  /// Którędy rozmowa szła ostatnim razem: 0 sieć lokalna, 1 Bluetooth,
+  /// null jeszcze nie wiadomo. Wyłącznie do pokazania w interfejsie, żeby
+  /// widać było, czy wiadomość poleciała szybką drogą, czy wolną.
+  final int? lastProtocol;
   final DateTime firstSeen;
   final DateTime lastSeen;
   const Peer({
@@ -1187,6 +1364,8 @@ class Peer extends DataClass implements Insertable<Peer> {
     this.sessionKey,
     this.alias,
     required this.autoAccept,
+    this.btAddress,
+    this.lastProtocol,
     required this.firstSeen,
     required this.lastSeen,
   });
@@ -1210,6 +1389,12 @@ class Peer extends DataClass implements Insertable<Peer> {
       map['alias'] = Variable<String>(alias);
     }
     map['auto_accept'] = Variable<bool>(autoAccept);
+    if (!nullToAbsent || btAddress != null) {
+      map['bt_address'] = Variable<String>(btAddress);
+    }
+    if (!nullToAbsent || lastProtocol != null) {
+      map['last_protocol'] = Variable<int>(lastProtocol);
+    }
     map['first_seen'] = Variable<DateTime>(firstSeen);
     map['last_seen'] = Variable<DateTime>(lastSeen);
     return map;
@@ -1234,6 +1419,12 @@ class Peer extends DataClass implements Insertable<Peer> {
           ? const Value.absent()
           : Value(alias),
       autoAccept: Value(autoAccept),
+      btAddress: btAddress == null && nullToAbsent
+          ? const Value.absent()
+          : Value(btAddress),
+      lastProtocol: lastProtocol == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastProtocol),
       firstSeen: Value(firstSeen),
       lastSeen: Value(lastSeen),
     );
@@ -1256,6 +1447,8 @@ class Peer extends DataClass implements Insertable<Peer> {
       sessionKey: serializer.fromJson<String?>(json['sessionKey']),
       alias: serializer.fromJson<String?>(json['alias']),
       autoAccept: serializer.fromJson<bool>(json['autoAccept']),
+      btAddress: serializer.fromJson<String?>(json['btAddress']),
+      lastProtocol: serializer.fromJson<int?>(json['lastProtocol']),
       firstSeen: serializer.fromJson<DateTime>(json['firstSeen']),
       lastSeen: serializer.fromJson<DateTime>(json['lastSeen']),
     );
@@ -1275,6 +1468,8 @@ class Peer extends DataClass implements Insertable<Peer> {
       'sessionKey': serializer.toJson<String?>(sessionKey),
       'alias': serializer.toJson<String?>(alias),
       'autoAccept': serializer.toJson<bool>(autoAccept),
+      'btAddress': serializer.toJson<String?>(btAddress),
+      'lastProtocol': serializer.toJson<int?>(lastProtocol),
       'firstSeen': serializer.toJson<DateTime>(firstSeen),
       'lastSeen': serializer.toJson<DateTime>(lastSeen),
     };
@@ -1292,6 +1487,8 @@ class Peer extends DataClass implements Insertable<Peer> {
     Value<String?> sessionKey = const Value.absent(),
     Value<String?> alias = const Value.absent(),
     bool? autoAccept,
+    Value<String?> btAddress = const Value.absent(),
+    Value<int?> lastProtocol = const Value.absent(),
     DateTime? firstSeen,
     DateTime? lastSeen,
   }) => Peer(
@@ -1306,6 +1503,8 @@ class Peer extends DataClass implements Insertable<Peer> {
     sessionKey: sessionKey.present ? sessionKey.value : this.sessionKey,
     alias: alias.present ? alias.value : this.alias,
     autoAccept: autoAccept ?? this.autoAccept,
+    btAddress: btAddress.present ? btAddress.value : this.btAddress,
+    lastProtocol: lastProtocol.present ? lastProtocol.value : this.lastProtocol,
     firstSeen: firstSeen ?? this.firstSeen,
     lastSeen: lastSeen ?? this.lastSeen,
   );
@@ -1328,6 +1527,10 @@ class Peer extends DataClass implements Insertable<Peer> {
       autoAccept: data.autoAccept.present
           ? data.autoAccept.value
           : this.autoAccept,
+      btAddress: data.btAddress.present ? data.btAddress.value : this.btAddress,
+      lastProtocol: data.lastProtocol.present
+          ? data.lastProtocol.value
+          : this.lastProtocol,
       firstSeen: data.firstSeen.present ? data.firstSeen.value : this.firstSeen,
       lastSeen: data.lastSeen.present ? data.lastSeen.value : this.lastSeen,
     );
@@ -1347,6 +1550,8 @@ class Peer extends DataClass implements Insertable<Peer> {
           ..write('sessionKey: $sessionKey, ')
           ..write('alias: $alias, ')
           ..write('autoAccept: $autoAccept, ')
+          ..write('btAddress: $btAddress, ')
+          ..write('lastProtocol: $lastProtocol, ')
           ..write('firstSeen: $firstSeen, ')
           ..write('lastSeen: $lastSeen')
           ..write(')'))
@@ -1366,6 +1571,8 @@ class Peer extends DataClass implements Insertable<Peer> {
     sessionKey,
     alias,
     autoAccept,
+    btAddress,
+    lastProtocol,
     firstSeen,
     lastSeen,
   );
@@ -1384,6 +1591,8 @@ class Peer extends DataClass implements Insertable<Peer> {
           other.sessionKey == this.sessionKey &&
           other.alias == this.alias &&
           other.autoAccept == this.autoAccept &&
+          other.btAddress == this.btAddress &&
+          other.lastProtocol == this.lastProtocol &&
           other.firstSeen == this.firstSeen &&
           other.lastSeen == this.lastSeen);
 }
@@ -1400,6 +1609,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
   final Value<String?> sessionKey;
   final Value<String?> alias;
   final Value<bool> autoAccept;
+  final Value<String?> btAddress;
+  final Value<int?> lastProtocol;
   final Value<DateTime> firstSeen;
   final Value<DateTime> lastSeen;
   const PeersCompanion({
@@ -1414,6 +1625,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     this.sessionKey = const Value.absent(),
     this.alias = const Value.absent(),
     this.autoAccept = const Value.absent(),
+    this.btAddress = const Value.absent(),
+    this.lastProtocol = const Value.absent(),
     this.firstSeen = const Value.absent(),
     this.lastSeen = const Value.absent(),
   });
@@ -1429,6 +1642,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     this.sessionKey = const Value.absent(),
     this.alias = const Value.absent(),
     this.autoAccept = const Value.absent(),
+    this.btAddress = const Value.absent(),
+    this.lastProtocol = const Value.absent(),
     required DateTime firstSeen,
     required DateTime lastSeen,
   }) : guid = Value(guid),
@@ -1449,6 +1664,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     Expression<String>? sessionKey,
     Expression<String>? alias,
     Expression<bool>? autoAccept,
+    Expression<String>? btAddress,
+    Expression<int>? lastProtocol,
     Expression<DateTime>? firstSeen,
     Expression<DateTime>? lastSeen,
   }) {
@@ -1464,6 +1681,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
       if (sessionKey != null) 'session_key': sessionKey,
       if (alias != null) 'alias': alias,
       if (autoAccept != null) 'auto_accept': autoAccept,
+      if (btAddress != null) 'bt_address': btAddress,
+      if (lastProtocol != null) 'last_protocol': lastProtocol,
       if (firstSeen != null) 'first_seen': firstSeen,
       if (lastSeen != null) 'last_seen': lastSeen,
     });
@@ -1481,6 +1700,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     Value<String?>? sessionKey,
     Value<String?>? alias,
     Value<bool>? autoAccept,
+    Value<String?>? btAddress,
+    Value<int?>? lastProtocol,
     Value<DateTime>? firstSeen,
     Value<DateTime>? lastSeen,
   }) {
@@ -1496,6 +1717,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
       sessionKey: sessionKey ?? this.sessionKey,
       alias: alias ?? this.alias,
       autoAccept: autoAccept ?? this.autoAccept,
+      btAddress: btAddress ?? this.btAddress,
+      lastProtocol: lastProtocol ?? this.lastProtocol,
       firstSeen: firstSeen ?? this.firstSeen,
       lastSeen: lastSeen ?? this.lastSeen,
     );
@@ -1537,6 +1760,12 @@ class PeersCompanion extends UpdateCompanion<Peer> {
     if (autoAccept.present) {
       map['auto_accept'] = Variable<bool>(autoAccept.value);
     }
+    if (btAddress.present) {
+      map['bt_address'] = Variable<String>(btAddress.value);
+    }
+    if (lastProtocol.present) {
+      map['last_protocol'] = Variable<int>(lastProtocol.value);
+    }
     if (firstSeen.present) {
       map['first_seen'] = Variable<DateTime>(firstSeen.value);
     }
@@ -1560,6 +1789,8 @@ class PeersCompanion extends UpdateCompanion<Peer> {
           ..write('sessionKey: $sessionKey, ')
           ..write('alias: $alias, ')
           ..write('autoAccept: $autoAccept, ')
+          ..write('btAddress: $btAddress, ')
+          ..write('lastProtocol: $lastProtocol, ')
           ..write('firstSeen: $firstSeen, ')
           ..write('lastSeen: $lastSeen')
           ..write(')'))
@@ -2679,6 +2910,8 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<bool> updateChecks,
   Value<DateTime?> lastUpdateCheck,
   Value<bool> linkPreviews,
+  Value<bool> wifiEnabled,
+  Value<bool> bluetoothEnabled,
 });
 typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<int> id,
@@ -2694,6 +2927,8 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<bool> updateChecks,
   Value<DateTime?> lastUpdateCheck,
   Value<bool> linkPreviews,
+  Value<bool> wifiEnabled,
+  Value<bool> bluetoothEnabled,
 });
 
 class $$SettingsTableFilterComposer
@@ -2771,6 +3006,16 @@ class $$SettingsTableFilterComposer
     column: $table.linkPreviews,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<bool> get wifiEnabled => $composableBuilder(
+    column: $table.wifiEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get bluetoothEnabled => $composableBuilder(
+    column: $table.bluetoothEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsTableOrderingComposer
@@ -2846,6 +3091,16 @@ class $$SettingsTableOrderingComposer
     column: $table.linkPreviews,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get wifiEnabled => $composableBuilder(
+    column: $table.wifiEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get bluetoothEnabled => $composableBuilder(
+    column: $table.bluetoothEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableAnnotationComposer
@@ -2911,6 +3166,16 @@ class $$SettingsTableAnnotationComposer
     column: $table.linkPreviews,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get wifiEnabled => $composableBuilder(
+    column: $table.wifiEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get bluetoothEnabled => $composableBuilder(
+    column: $table.bluetoothEnabled,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableManager
@@ -2954,6 +3219,8 @@ class $$SettingsTableTableManager
                 Value<bool> updateChecks = const Value.absent(),
                 Value<DateTime?> lastUpdateCheck = const Value.absent(),
                 Value<bool> linkPreviews = const Value.absent(),
+                Value<bool> wifiEnabled = const Value.absent(),
+                Value<bool> bluetoothEnabled = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 deviceGuid: deviceGuid,
@@ -2968,6 +3235,8 @@ class $$SettingsTableTableManager
                 updateChecks: updateChecks,
                 lastUpdateCheck: lastUpdateCheck,
                 linkPreviews: linkPreviews,
+                wifiEnabled: wifiEnabled,
+                bluetoothEnabled: bluetoothEnabled,
               ),
           createCompanionCallback:
               ({
@@ -2984,6 +3253,8 @@ class $$SettingsTableTableManager
                 Value<bool> updateChecks = const Value.absent(),
                 Value<DateTime?> lastUpdateCheck = const Value.absent(),
                 Value<bool> linkPreviews = const Value.absent(),
+                Value<bool> wifiEnabled = const Value.absent(),
+                Value<bool> bluetoothEnabled = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 deviceGuid: deviceGuid,
@@ -2998,6 +3269,8 @@ class $$SettingsTableTableManager
                 updateChecks: updateChecks,
                 lastUpdateCheck: lastUpdateCheck,
                 linkPreviews: linkPreviews,
+                wifiEnabled: wifiEnabled,
+                bluetoothEnabled: bluetoothEnabled,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3033,6 +3306,8 @@ typedef $$PeersTableCreateCompanionBuilder = PeersCompanion Function({
   Value<String?> sessionKey,
   Value<String?> alias,
   Value<bool> autoAccept,
+  Value<String?> btAddress,
+  Value<int?> lastProtocol,
   required DateTime firstSeen,
   required DateTime lastSeen,
 });
@@ -3048,6 +3323,8 @@ typedef $$PeersTableUpdateCompanionBuilder = PeersCompanion Function({
   Value<String?> sessionKey,
   Value<String?> alias,
   Value<bool> autoAccept,
+  Value<String?> btAddress,
+  Value<int?> lastProtocol,
   Value<DateTime> firstSeen,
   Value<DateTime> lastSeen,
 });
@@ -3135,6 +3412,16 @@ class $$PeersTableFilterComposer extends Composer<_$ChattDb, $PeersTable> {
 
   ColumnFilters<bool> get autoAccept => $composableBuilder(
     column: $table.autoAccept,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get btAddress => $composableBuilder(
+    column: $table.btAddress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastProtocol => $composableBuilder(
+    column: $table.lastProtocol,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3237,6 +3524,16 @@ class $$PeersTableOrderingComposer extends Composer<_$ChattDb, $PeersTable> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get btAddress => $composableBuilder(
+    column: $table.btAddress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastProtocol => $composableBuilder(
+    column: $table.lastProtocol,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get firstSeen => $composableBuilder(
     column: $table.firstSeen,
     builder: (column) => ColumnOrderings(column),
@@ -3292,6 +3589,14 @@ class $$PeersTableAnnotationComposer extends Composer<_$ChattDb, $PeersTable> {
 
   GeneratedColumn<bool> get autoAccept => $composableBuilder(
     column: $table.autoAccept,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get btAddress =>
+      $composableBuilder(column: $table.btAddress, builder: (column) => column);
+
+  GeneratedColumn<int> get lastProtocol => $composableBuilder(
+    column: $table.lastProtocol,
     builder: (column) => column,
   );
 
@@ -3366,6 +3671,8 @@ class $$PeersTableTableManager
                 Value<String?> sessionKey = const Value.absent(),
                 Value<String?> alias = const Value.absent(),
                 Value<bool> autoAccept = const Value.absent(),
+                Value<String?> btAddress = const Value.absent(),
+                Value<int?> lastProtocol = const Value.absent(),
                 Value<DateTime> firstSeen = const Value.absent(),
                 Value<DateTime> lastSeen = const Value.absent(),
               }) => PeersCompanion(
@@ -3380,6 +3687,8 @@ class $$PeersTableTableManager
                 sessionKey: sessionKey,
                 alias: alias,
                 autoAccept: autoAccept,
+                btAddress: btAddress,
+                lastProtocol: lastProtocol,
                 firstSeen: firstSeen,
                 lastSeen: lastSeen,
               ),
@@ -3396,6 +3705,8 @@ class $$PeersTableTableManager
                 Value<String?> sessionKey = const Value.absent(),
                 Value<String?> alias = const Value.absent(),
                 Value<bool> autoAccept = const Value.absent(),
+                Value<String?> btAddress = const Value.absent(),
+                Value<int?> lastProtocol = const Value.absent(),
                 required DateTime firstSeen,
                 required DateTime lastSeen,
               }) => PeersCompanion.insert(
@@ -3410,6 +3721,8 @@ class $$PeersTableTableManager
                 sessionKey: sessionKey,
                 alias: alias,
                 autoAccept: autoAccept,
+                btAddress: btAddress,
+                lastProtocol: lastProtocol,
                 firstSeen: firstSeen,
                 lastSeen: lastSeen,
               ),

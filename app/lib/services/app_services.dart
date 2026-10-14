@@ -22,10 +22,12 @@ import '../core/received_paths.dart';
 import '../core/updates.dart';
 import '../data/db.dart';
 import '../data/db_open.dart';
+import '../network/bt_transport.dart';
 import '../network/client.dart';
 import '../network/discovery.dart';
 import '../network/protocol.dart';
 import '../network/server.dart';
+import '../network/transport.dart';
 
 /// Prośba o zgodę na odbiór pliku: czeka na decyzję użytkownika.
 class PendingFileOffer {
@@ -441,6 +443,7 @@ class AppServices {
     services._sweepStaleParts();
     services._startRetention();
     services._startLinkPreviews();
+    await services._startTransports();
     // Pytanie o wydanie tylko wtedy, gdy discovery też jest włączone: testy
     // stawiają po kilka instancji naraz i żadna nie ma po co wychodzić w sieć.
     if (enableDiscovery) services._startUpdateChecks();
@@ -552,6 +555,83 @@ class AppServices {
     return ChattCrypto.sameTag(expected, tag);
   }
 
+  /// Droga, która zadziałała ostatnio. Bez tej pamięci każda wiadomość do
+  /// rozmówcy osiągalnego wyłącznie przez Bluetooth czekałaby najpierw na
+  /// limit czasu nieistniejącego połączenia IP.
+  ///
+  /// Pamiętamy sam protokół. Adres bierze się zawsze z bieżącego wiersza
+  /// rozmówcy, który odświeża każdy kontakt i każde szukanie po sieci:
+  /// zapamiętany adres IP po zmianie adresów w sieci prowadziłby do innego
+  /// urządzenia.
+  final _lastGoodProtocol = <String, PeerProtocol>{};
+
+  /// Wszystkie drogi do rozmówcy, w kolejności próbowania: najpierw ta, która
+  /// zadziałała ostatnio, potem sieć lokalna, na końcu Bluetooth. Sieć przed
+  /// radiem, bo jest kilkadziesiąt razy szybsza.
+  ///
+  /// Trasy wyłączonego transportu w ogóle się tu nie pojawiają, więc przy
+  /// wyłączonym dodatku Bluetooth radio nie jest ruszane, choćby baza
+  /// pamiętała adres radia rozmówcy.
+  List<PeerRoute> routesOf(Peer peer) {
+    final radio = peer.btAddress;
+    final candidates = <PeerRoute>[
+      IpRoute(peer.host, peer.port),
+      if (radio != null && radio.isNotEmpty) BluetoothRoute(radio),
+    ];
+    final last = _lastGoodProtocol[peer.guid];
+    final ordered = last == null
+        ? candidates
+        : [
+            ...candidates.where((route) => route.protocol == last),
+            ...candidates.where((route) => route.protocol != last),
+          ];
+    return [
+      for (final route in ordered)
+        if (client.transportFor(route) != null) route,
+    ];
+  }
+
+  /// Którą drogą przyszło żądanie od [guid]. Trafia do bazy, żeby rozmowa
+  /// pokazywała, czym idzie, i do pamięci tras, żeby odpowiedź (potwierdzenie
+  /// parowania, odpis, zgoda na plik) poszła tą samą drogą. Bez tego po
+  /// parowaniu przez radio odpowiedź szłaby najpierw na stary adres IP.
+  int _drogaPrzychodzaca(String guid, String fromHost) {
+    final protokol = btAddressOf(fromHost) == null
+        ? PeerProtocol.wifi
+        : PeerProtocol.bluetooth;
+    _lastGoodProtocol[guid] = protokol;
+    return protokol.index;
+  }
+
+  /// Jedna trasa do rozmówcy: ta, od której zaczynamy.
+  PeerRoute routeOf(Peer peer) {
+    final routes = routesOf(peer);
+    return routes.isEmpty ? IpRoute(peer.host, peer.port) : routes.first;
+  }
+
+  /// Robi [operacja] po kolei każdą trasą, aż któraś zadziała. Udana trasa
+  /// zostaje zapamiętana i trafia do bazy, żeby interfejs mógł pokazać,
+  /// którędy idzie ta rozmowa.
+  Future<T> _overRoutes<T>(
+    Peer peer,
+    Future<T> Function(PeerRoute route) operacja,
+    bool Function(T wynik) udane,
+  ) async {
+    final routes = routesOf(peer);
+    if (routes.isEmpty) return operacja(IpRoute(peer.host, peer.port));
+    late T ostatni;
+    for (final route in routes) {
+      ostatni = await operacja(route);
+      if (!udane(ostatni)) continue;
+      _lastGoodProtocol[peer.guid] = route.protocol;
+      if (peer.lastProtocol != route.protocol.index) {
+        unawaited(db.setPeerProtocol(peer.id, route.protocol.index));
+      }
+      return ostatni;
+    }
+    return ostatni;
+  }
+
   /// Ręczne dodanie urządzenia po adresie: fallback, gdy broadcast nie
   /// przechodzi (izolacja AP, emulator Androida za NAT-em).
   ///
@@ -560,24 +640,45 @@ class AppServices {
   /// forward, przekierowanie portu na routerze) to są dwie różne rzeczy
   /// i tylko ten pierwszy da się połączyć.
   Future<Peer?> addPeerByAddress(String host, int port) async {
-    final info = await client.fetchInfo(host, port);
+    final info = await client.fetchInfo(IpRoute(host, port));
     if (info == null || info.guid == identity.guid) return null;
-    return db.upsertPeer(
+    final peer = await db.upsertPeer(
       guid: info.guid,
       name: info.name,
       welcomeMessage: info.welcomeMessage,
       host: host,
       port: port,
     );
+    return _przypnijKlucz(peer, info);
+  }
+
+  /// Klucz publiczny znamy już z `/info`, więc przypinamy go od razu. Bez
+  /// tego świeżo dodany rozmówca straszy w panelu bezpieczeństwa brakiem
+  /// szyfrowania aż do pierwszej wiadomości, choć klucz był w ręku.
+  ///
+  /// Przypinamy tylko wtedy, gdy tożsamość zgadza się ze swoim kluczem, i tylko
+  /// gdy żadnego jeszcze nie mamy: podmianę przypiętego klucza ma zobaczyć
+  /// użytkownik.
+  Future<Peer> _przypnijKlucz(Peer peer, DeviceIdentity info) async {
+    if (peer.publicKey != null || !_identityMatchesKey(info)) return peer;
+    await db.setPeerKey(peer.id, base64.encode(info.publicKey));
+    return await db.peerByGuid(peer.guid) ?? peer;
   }
 
   /// Ręczne usunięcie urządzenia z listy (razem z rozmową).
   Future<void> forgetPeer(Peer peer) => db.deletePeer(peer.id);
 
   /// Sprawdzenie obecności: czy rozmówca wciąż odpowiada pod znanym adresem.
-  Future<bool> isPeerOnline(Peer peer) async =>
-      (await client.fetchInfo(peer.host, peer.port,
-          timeout: const Duration(seconds: 2))) != null;
+  /// Liczy się odpowiedź od niego samego: pod starym adresem po zmianie
+  /// adresów w sieci potrafi odpowiedzieć inne urządzenie.
+  Future<bool> isPeerOnline(Peer peer) async {
+    bool on(DeviceIdentity? info) => info != null && info.guid == peer.guid;
+    return on(await _overRoutes(
+      peer,
+      (route) => client.fetchInfo(route, timeout: const Duration(seconds: 2)),
+      on,
+    ));
+  }
 
   Future<Peer> _rememberPeer(DiscoveredPeer peer) => db.upsertPeer(
         guid: peer.guid,
@@ -598,9 +699,22 @@ class AppServices {
     final keyPair = await ChattCrypto.newKeyPair();
     final myKey = await ChattCrypto.publicKeyOf(keyPair);
 
+    // Jedna sprawdzona trasa na cały przebieg: zobowiązanie i odsłonięcie
+    // muszą trafić do tego samego urządzenia, a odpowiedź na parowanie nie
+    // mówi, kto odpowiada. Pod starym adresem potrafi stać inny Chatt.
+    PeerRoute? trasa;
+    for (final route in routesOf(peer)) {
+      final info = await client.fetchInfo(route);
+      if (info != null && info.guid == peer.guid) {
+        trasa = route;
+        break;
+      }
+    }
+    if (trasa == null) return null;
+    _lastGoodProtocol[peer.guid] = trasa.protocol;
+
     final commit = await client.pair(
-      host: peer.host,
-      port: peer.port,
+      route: trasa,
       payload: PairMessage(
         action: pairCommit,
         from: identity,
@@ -622,8 +736,7 @@ class AppServices {
     );
 
     final reveal = await client.pair(
-      host: peer.host,
-      port: peer.port,
+      route: trasa,
       payload: PairMessage(
         action: pairReveal,
         from: identity,
@@ -664,8 +777,7 @@ class AppServices {
 
     pairing.mineConfirmed = true;
     final reply = await client.pair(
-      host: peer.host,
-      port: peer.port,
+      route: routeOf(peer),
       payload: PairMessage(action: pairConfirm, from: identity).toJson(),
     );
     if (!reply.accepted) {
@@ -683,8 +795,7 @@ class AppServices {
     _dropPairing(peerGuid);
     if (peer == null) return;
     await client.pair(
-      host: peer.host,
-      port: peer.port,
+      route: routeOf(peer),
       payload: PairMessage(action: pairCancel, from: identity).toJson(),
     );
   }
@@ -694,7 +805,11 @@ class AppServices {
       guid: message.from.guid,
       name: message.from.name,
       welcomeMessage: message.from.welcomeMessage,
-      host: fromHost,
+      // „Skąd przyszło" niesie raz adres IP, a raz adres radia. Jedno nie ma
+      // prawa trafić tam, gdzie spodziewane jest drugie.
+      host: ipAddressOf(fromHost),
+      btAddress: btAddressOf(fromHost),
+      protocol: _drogaPrzychodzaca(message.from.guid, fromHost),
       port: message.from.tcpPort,
     );
 
@@ -816,7 +931,7 @@ class AppServices {
   Future<Peer?> pairByScan(PairLink link) async {
     if (link.guid == identity.guid) return null; // własny kod
 
-    final info = await client.fetchInfo(link.host, link.port);
+    final info = await client.fetchInfo(IpRoute(link.host, link.port));
     if (info == null || !_identityMatchesKey(info) || info.guid != link.guid) {
       // Pod tym adresem nie ma urządzenia z tym kluczem: kod jest stary
       // (zmienił się adres) albo ktoś podstawił swój ekran.
@@ -835,8 +950,7 @@ class AppServices {
     _dropPairing(peer.guid);
 
     await client.pair(
-      host: link.host,
-      port: link.port,
+      route: IpRoute(link.host, link.port),
       payload: PairMessage(action: pairScanned, from: identity).toJson(),
     );
     return db.peerByGuid(link.guid);
@@ -869,7 +983,11 @@ class AppServices {
     final zapisany = _peerStaticKey(peer);
     if (zapisany != null) return zapisany;
 
-    final info = await client.fetchInfo(peer.host, peer.port);
+    final info = await _overRoutes(
+      peer,
+      (route) => client.fetchInfo(route),
+      (found) => found != null && found.guid == peer.guid,
+    );
     if (info == null || !_identityMatchesKey(info)) return null;
     if (info.guid != peer.guid) return null;
     await db.setPeerKey(peer.id, base64.encode(info.publicKey));
@@ -900,10 +1018,15 @@ class AppServices {
 
     final efemeryczne = await ChattCrypto.newKeyPair();
     final mojEfemeryczny = await ChattCrypto.publicKeyOf(efemeryczne);
-    final odpowiedz = await client.handshake(
-      host: peer.host,
-      port: peer.port,
-      payload: handshakeRequest(from: identity, ephemeral: mojEfemeryczny),
+    final odpowiedz = await _overRoutes(
+      peer,
+      (route) => client.handshake(
+        route: route,
+        payload: handshakeRequest(from: identity, ephemeral: mojEfemeryczny),
+      ),
+      // Odpowiedź innego urządzenia spod tej samej trasy to trasa nieudana:
+      // pętla idzie do następnej i niczego nie zapamiętuje.
+      (reply) => reply != null && reply.peer.guid == peer.guid,
     );
     if (odpowiedz == null) return null;
     // Odpowiedzieć musi ten, do kogo pisaliśmy, i to swoim kluczem.
@@ -961,7 +1084,11 @@ class AppServices {
       guid: from.guid,
       name: from.name,
       welcomeMessage: from.welcomeMessage,
-      host: fromHost,
+      // „Skąd przyszło" niesie raz adres IP, a raz adres radia. Jedno nie ma
+      // prawa trafić tam, gdzie spodziewane jest drugie.
+      host: ipAddressOf(fromHost),
+      btAddress: btAddressOf(fromHost),
+      protocol: _drogaPrzychodzaca(from.guid, fromHost),
       port: from.tcpPort,
     );
     await db.setPeerKey(peer.id, base64.encode(from.publicKey));
@@ -1173,8 +1300,11 @@ class AppServices {
     for (var proba = 0; proba < 2; proba++) {
       final koperta = await _sealFor(peer, payload);
       if (koperta == null) return Delivery.failed;
-      final wynik = await client.sendMessage(
-          host: peer.host, port: peer.port, payload: koperta);
+      final wynik = await _overRoutes(
+        peer,
+        (route) => client.sendMessage(route: route, payload: koperta),
+        (result) => result != Delivery.failed,
+      );
       if (wynik != Delivery.noSession) return wynik;
       _dropSession(peer.guid);
     }
@@ -1186,6 +1316,13 @@ class AppServices {
   /// znajdziemy to samo urządzenie gdzie indziej, zapisujemy nowy adres.
   /// Zwraca rozmówcę z aktualnym adresem albo null, gdy naprawdę go nie ma.
   Future<Peer?> _relocate(Peer peer) async {
+    // Szukanie po UDP ma sens tylko wtedy, gdy w ogóle rozmawiamy przez sieć.
+    // Urządzenie na samym Bluetoothcie nie ma gdzie wysłać broadcastu, a jego
+    // nieudana próba kosztowała wcześniej całą wysyłkę. Liczy się przełącznik
+    // sieci: rozmówca poznany przez radio ma pusty adres IP i właśnie jego
+    // trzeba w sieci znaleźć.
+    if (!client.wifiOn) return null;
+
     final List<DiscoveredPeer> found;
     try {
       // Z podpisem: to jest właśnie ta ścieżka, w której podszycie się pod
@@ -1274,7 +1411,7 @@ class AppServices {
         return _bezOdpowiedzi;
       }
       var reply = await client.offerFile(
-          host: target.host, port: target.port, payload: offerPayload);
+          route: routeOf(target), payload: offerPayload);
 
       if (reply == null) {
         // Cisza pod znanym adresem: albo sesja do odnowienia, albo rozmówca
@@ -1290,7 +1427,7 @@ class AppServices {
           offerPayload = await _sealFor(target, zapowiedz());
           if (offerPayload != null) {
             reply = await client.offerFile(
-                host: target.host, port: target.port, payload: offerPayload);
+                route: routeOf(target), payload: offerPayload);
           }
         }
       }
@@ -1333,7 +1470,7 @@ class AppServices {
           return _bezOdpowiedzi;
         }
         reply = await client.offerFile(
-            host: target.host, port: target.port, payload: offerPayload);
+            route: routeOf(target), payload: offerPayload);
         if (reply != null && reply.alreadyHave) {
           delivered = true;
         } else if (reply == null || reply.accepted) {
@@ -1371,8 +1508,7 @@ class AppServices {
     String sessionId,
   ) =>
       client.sendFile(
-        host: peer.host,
-        port: peer.port,
+        route: routeOf(peer),
         headers: {
           headerMessageGuid: message.messageGuid,
           headerFrom: encodeIdentityHeader(identity),
@@ -1421,7 +1557,11 @@ class AppServices {
       guid: message.from.guid,
       name: message.from.name,
       welcomeMessage: message.from.welcomeMessage,
-      host: fromHost,
+      // „Skąd przyszło" niesie raz adres IP, a raz adres radia. Jedno nie ma
+      // prawa trafić tam, gdzie spodziewane jest drugie.
+      host: ipAddressOf(fromHost),
+      btAddress: btAddressOf(fromHost),
+      protocol: _drogaPrzychodzaca(message.from.guid, fromHost),
       port: message.from.tcpPort,
     );
     final conversationId = await db.ensureConversation(peer.id);
@@ -1459,7 +1599,11 @@ class AppServices {
       guid: offer.from.guid,
       name: offer.from.name,
       welcomeMessage: offer.from.welcomeMessage,
-      host: fromHost,
+      // „Skąd przyszło" niesie raz adres IP, a raz adres radia. Jedno nie ma
+      // prawa trafić tam, gdzie spodziewane jest drugie.
+      host: ipAddressOf(fromHost),
+      btAddress: btAddressOf(fromHost),
+      protocol: _drogaPrzychodzaca(offer.from.guid, fromHost),
       port: offer.from.tcpPort,
     );
     final conversationId = await db.ensureConversation(peer.id);
@@ -1636,7 +1780,11 @@ class AppServices {
       guid: meta.from.guid,
       name: meta.from.name,
       welcomeMessage: meta.from.welcomeMessage,
-      host: fromHost,
+      // „Skąd przyszło" niesie raz adres IP, a raz adres radia. Jedno nie ma
+      // prawa trafić tam, gdzie spodziewane jest drugie.
+      host: ipAddressOf(fromHost),
+      btAddress: btAddressOf(fromHost),
+      protocol: _drogaPrzychodzaca(meta.from.guid, fromHost),
       port: meta.from.tcpPort,
     );
     final conversationId = await db.ensureConversation(peer.id);
@@ -1993,6 +2141,336 @@ class AppServices {
   Future<int> applyRetention(int days) =>
       days <= 0 ? Future.value(0) : db.deleteMessagesOlderThan(Duration(days: days));
 
+  // --- Transporty -----------------------------------------------------------
+
+  BluetoothTransport? _bluetooth;
+  StreamSubscription<Setting>? _transportWatch;
+
+  /// Trwające podnoszenie transportu. Bez tego dwa wołania naraz (obserwator
+  /// ustawień i przełącznik z ekranu) tworzą dwa transporty, a każdy z nich
+  /// odpytuje stronę natywną osobno i wyrywa drugiemu gotowe łącza:
+  /// jedno z nich trafia wtedy do transportu, którego nikt nie używa.
+  Future<bool>? _bluetoothStarting;
+
+  /// Czy dodatek Bluetooth jest włączony (Ustawienia, sekcja „Dodatki").
+  ///
+  /// To jest jedyny włącznik całej funkcji. Przy false Bluetooth w aplikacji
+  /// nie istnieje: nasłuch stoi, kanał natywny milczy, żaden ekran nie
+  /// pokazuje szukania przez radio ani znacznika drogi, a sieć lokalna jest
+  /// jedyną drogą i nie da się jej wyłączyć.
+  final ValueNotifier<bool> bluetoothAddon = ValueNotifier(false);
+
+  /// Czy Bluetooth naprawdę chodzi. Włączony dodatek potrafi nie wstać:
+  /// wyłączone radio, brak zgody, komputer bez modułu.
+  final ValueNotifier<bool> bluetoothRunning = ValueNotifier(false);
+
+  /// Rośnie, gdy łącze Bluetooth stanie albo padnie. Lista rozmów i ekran
+  /// rozmowy patrzą tutaj, żeby znacznik protokołu odświeżał się na żywo.
+  final ValueNotifier<int> bluetoothRevision = ValueNotifier(0);
+
+  /// Stan radia i zgód. Odświeżany przy każdej próbie włączenia i na żądanie
+  /// z ekranu ustawień.
+  final ValueNotifier<BtStatus> bluetoothStatus =
+      ValueNotifier(const BtStatus());
+
+  /// Czy ta platforma w ogóle ma kod natywny do Bluetootha.
+  bool get bluetoothSupported => BtChannel.supported;
+
+  /// Adresy, z którymi stoi teraz łącze. Po tym widać w interfejsie, że
+  /// rozmowa idzie przez radio.
+  List<String> get bluetoothLinks => _bluetooth?.linkedAddresses ?? const [];
+
+  /// Czy z tym rozmówcą stoi teraz łącze Bluetooth.
+  bool isLinkedByBluetooth(Peer peer) {
+    final address = peer.btAddress;
+    if (address == null || address.isEmpty) return false;
+    return _bluetooth?.isLinked(address) ?? false;
+  }
+
+  /// Przełączniki z ustawień trafiają na żywo tam, gdzie są potrzebne.
+  /// Wyłączenie dodatku zatrzymuje radio od razu, bez czekania na restart.
+  Future<void> _startTransports() async {
+    final settings = await db.getSettings();
+    bluetoothAddon.value =
+        (settings?.bluetoothEnabled ?? false) && BtChannel.supported;
+    _applyWifi(settings);
+    if (bluetoothAddon.value) await startBluetooth();
+    // Z obserwatora idzie wyłącznie sieć. Dodatek ma jednego właściciela,
+    // [setBluetoothAddon], więc spóźnione zdarzenie z bazy nie podniesie
+    // radia po jego wyłączeniu.
+    _transportWatch = db.watchSettings().listen(_applyWifi, onError: (_) {});
+  }
+
+  /// Sieć z ustawień. Przełącznik sieci należy do dodatku Bluetooth: bez
+  /// dodatku sieć jest jedyną drogą, więc chodzi zawsze, cokolwiek leży
+  /// w bazie.
+  void _applyWifi(Setting? settings) {
+    client.useWifi(!bluetoothAddon.value || (settings?.wifiEnabled ?? true));
+  }
+
+  /// Kolejka przełączeń dodatku. Każde czeka na koniec poprzedniego, więc
+  /// szybkie „wyłącz, włącz" w trakcie podnoszenia radia kończy się tym, co
+  /// kliknięto na końcu, w pamięci, w bazie i w radiu jednocześnie.
+  Future<void> _addonQueue = Future.value();
+
+  /// Włącza albo wyłącza dodatek Bluetooth. Przy włączaniu zwraca, czy radio
+  /// naprawdę wstało.
+  ///
+  /// Wyłączenie gasi transport, zanim cokolwiek trafi do bazy, i przywraca
+  /// sieć: po zniknięciu dodatku znika też przełącznik, którym dałoby się
+  /// ją włączyć z powrotem.
+  Future<bool> setBluetoothAddon(bool on) {
+    final wynik = _addonQueue.then((_) => _setBluetoothAddon(on));
+    _addonQueue = wynik.then((_) {}, onError: (_) {});
+    return wynik;
+  }
+
+  Future<bool> _setBluetoothAddon(bool on) async {
+    if (on && !BtChannel.supported) return false;
+    bluetoothAddon.value = on;
+    if (!on) {
+      client.useWifi(true);
+      await stopBluetooth();
+      await db.saveBluetoothAddon(false);
+      return true;
+    }
+    await db.saveBluetoothAddon(true);
+    _applyWifi(await db.getSettings());
+    return startBluetooth();
+  }
+
+  /// Podnosi transport Bluetooth: nasłuch RFCOMM, wykrywalność radia
+  /// i odpytywanie o nowe łącza. Zwraca false, gdy się nie da, także wtedy,
+  /// gdy dodatek jest wyłączony.
+  ///
+  /// Drugie wołanie w trakcie pierwszego czeka na jego wynik.
+  Future<bool> startBluetooth() {
+    final trwa = _bluetoothStarting;
+    if (trwa != null) return trwa;
+    if (_bluetooth != null) return Future.value(true);
+    final proba = _startBluetooth();
+    _bluetoothStarting = proba;
+    return proba.whenComplete(() {
+      _bluetoothStarting = null;
+      _watchForRadio();
+    });
+  }
+
+  /// Ponawia podnoszenie radia, dopóki dodatek jest włączony, a transport
+  /// leży. Radio włączone w systemie albo zgoda wydana poza aplikacją
+  /// podnoszą go wtedy bez otwierania ustawień.
+  Timer? _bluetoothRetry;
+
+  /// Gaśnie przy [dispose], żeby zamykana aplikacja nie zaczęła ponawiać.
+  bool _closing = false;
+
+  void _watchForRadio() {
+    if (_closing || !bluetoothAddon.value || _bluetooth != null) {
+      _bluetoothRetry?.cancel();
+      _bluetoothRetry = null;
+      return;
+    }
+    _bluetoothRetry ??= Timer.periodic(btRetryInterval, (_) {
+      if (_closing || !bluetoothAddon.value || _bluetooth != null) {
+        _watchForRadio();
+        return;
+      }
+      unawaited(refreshBluetoothStatus());
+    });
+  }
+
+  Future<bool> _startBluetooth() async {
+    if (_bluetooth != null) return true;
+    if (!bluetoothAddon.value || !BtChannel.supported) return false;
+
+    final stan = await BtChannel.status();
+    bluetoothStatus.value = stan;
+    if (!stan.usable) {
+      bluetoothRunning.value = false;
+      return false;
+    }
+
+    final transport = BluetoothTransport(
+      // Żądanie z łącza Bluetooth idzie tą samą drogą co z gniazda TCP:
+      // ten sam routing, ci sami obsługujący, to samo szyfrowanie.
+      onRequest: (request, peerAddress) =>
+          server.handleBluetooth(request, peerAddress),
+      onLinkChange: (address, up) => bluetoothRevision.value++,
+    );
+    if (!await transport.start()) {
+      bluetoothRunning.value = false;
+      return false;
+    }
+    // Dodatek zgaszony w trakcie podnoszenia: radio wstało już po decyzji,
+    // że ma go nie być.
+    if (!bluetoothAddon.value) {
+      await transport.stop();
+      bluetoothRunning.value = false;
+      return false;
+    }
+    _bluetooth = transport;
+    client.useBluetooth(transport);
+    bluetoothRunning.value = true;
+    bluetoothRevision.value++;
+    return true;
+  }
+
+  Future<void> stopBluetooth() async {
+    // Zatrzymanie w trakcie podnoszenia czeka na jego koniec: inaczej
+    // zostałby transport, o którym nikt już nie pamięta, a radio dalej
+    // by nasłuchiwało.
+    final trwa = _bluetoothStarting;
+    if (trwa != null) await trwa;
+    final transport = _bluetooth;
+    _bluetooth = null;
+    client.useBluetooth(null);
+    bluetoothRunning.value = false;
+    bluetoothRevision.value++;
+    _watchForRadio();
+    await transport?.stop();
+  }
+
+  /// Odświeża stan radia i zgód (ekrany pytają o to przy wejściu).
+  ///
+  /// Przy wyłączonym dodatku nie pyta systemu o nic i oddaje ostatni znany
+  /// stan. [force] jest dla przełącznika dodatku, który przed włączeniem
+  /// musi sprawdzić zgodę.
+  ///
+  /// Gdy dodatek jest włączony, a radio dopiero teraz da się użyć
+  /// (użytkownik włączył je w systemie albo wydał zgodę), transport wstaje
+  /// od razu, bez przełączania dodatku.
+  Future<BtStatus> refreshBluetoothStatus({bool force = false}) async {
+    if (!force && !bluetoothAddon.value) return bluetoothStatus.value;
+    final stan = await BtChannel.status();
+    bluetoothStatus.value = stan;
+    if (bluetoothAddon.value && _bluetooth == null && stan.usable) {
+      unawaited(startBluetooth());
+    }
+    return stan;
+  }
+
+  /// Prosi o zgodę na urządzenia w pobliżu. Najpierw systemowym okienkiem,
+  /// a gdy nie ma jak (użytkownik odmówił na stałe, starszy Android), ekranem
+  /// ustawień aplikacji. Dotyczy Androida.
+  Future<bool> askForBluetoothPermission() async {
+    if (await BtChannel.requestPermission()) return true;
+    return BtChannel.openSettings();
+  }
+
+  /// Otwiera ekran zgód w ustawieniach systemu. Dotyczy Androida.
+  Future<bool> openBluetoothSettings() => BtChannel.openSettings();
+
+  /// Otwiera systemowy ekran lokalizacji. Bez włączonych usług lokalizacji
+  /// Android nie oddaje wyników wyszukiwania Bluetooth, choć do samego
+  /// połączenia nie są potrzebne.
+  Future<bool> openLocationSettings() => BtChannel.openLocationSettings();
+
+  /// Szuka Chatta po Bluetoothcie.
+  ///
+  /// Radio nie umie powiedzieć, kto jest Chattem: mówi tylko, jakie
+  /// urządzenia są w pobliżu. Rozstrzyga dopiero próba połączenia pod naszym
+  /// numerem usługi i zapytanie o `/info`, dokładnie jak przy ręcznym
+  /// dodawaniu po adresie IP. Urządzenia bez Chatta odpadają od razu, bo nie
+  /// mają takiego wpisu w SDP.
+  ///
+  /// Wyszukiwanie zagłusza łącze na cały czas trwania, więc nie robimy tego
+  /// samo z siebie: pyta o to użytkownik z ekranu „W pobliżu".
+  Future<List<Peer>> scanBluetooth({
+    void Function(Peer peer)? onFound,
+    /// Każde urządzenie, które zobaczyło radio, jeszcze przed sprawdzeniem,
+    /// czy stoi pod nim Chatt. Po tym widać różnicę między „nie widzę
+    /// komputera" a „widzę, ale nie odpowiada".
+    void Function(BtDevice device, bool isChatt)? onDevice,
+    /// Ile trwa samo zapytanie w eter. Android odpowiada przez kilkanaście
+    /// sekund, więc krótsze okno ucina wyniki.
+    Duration inquiry = const Duration(seconds: 16),
+    /// Ile czasu zostaje na wypytanie znalezionych. Osobny budżet, bo
+    /// wspólny zjadało zapytanie w eter i na pytanie nie zostawało nic.
+    Duration probing = const Duration(seconds: 60),
+  }) async {
+    if (_bluetooth == null) return const [];
+    await BtChannel.scan();
+
+    // Odpowiedzi z eteru przychodzą rozgłoszeniami przez cały czas trwania
+    // zapytania. Nie kończymy więc pętli na pierwszym „już nie szukam": ten
+    // stan bywa prawdziwy, zanim cokolwiek wróci, i zostawałaby sama lista
+    // sparowanych.
+    final koniec = DateTime.now().add(inquiry);
+    final minimum = DateTime.now().add(inquiry ~/ 2);
+
+    // Najpierw zbieramy, dopiero potem pytamy. Połączenie RFCOMM przerywa
+    // zapytanie w eter (obie platformy wołają wtedy cancelDiscovery), więc
+    // sprawdzanie w trakcie skanu ucinało ten skan po pierwszym urządzeniu
+    // i z eteru nie wracało nic ponad to, co i tak było sparowane.
+    final widziane = <String, BtDevice>{};
+    var szuka = true;
+    while ((szuka || DateTime.now().isBefore(minimum)) &&
+        DateTime.now().isBefore(koniec)) {
+      // Dodatek zgaszony w trakcie szukania kończy szukanie.
+      if (_bluetooth == null) return const [];
+      final wynik = await BtChannel.scanResults();
+      szuka = wynik.scanning;
+      for (final device in wynik.devices) {
+        widziane[device.address] = device;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+    }
+
+    // Radio nie umie powiedzieć, kto jest Chattem: rozstrzyga dopiero próba
+    // połączenia pod naszym numerem usługi.
+    final znalezione = <Peer>[];
+    final koniecPytania = DateTime.now().add(probing);
+    for (final device in btProbeOrder(widziane.values)) {
+      if (DateTime.now().isAfter(koniecPytania) || _bluetooth == null) break;
+      final peer = await _probeBluetooth(device.address);
+      onDevice?.call(device, peer != null);
+      if (peer == null) continue;
+      znalezione.add(peer);
+      onFound?.call(peer);
+    }
+    return znalezione;
+  }
+
+  /// Ręczne dodanie urządzenia po adresie radia: odpowiednik dodania po IP.
+  ///
+  /// Przydaje się wszędzie tam, gdzie szukanie nie wchodzi w grę: Android nie
+  /// oddaje wyników wyszukiwania przy wyłączonych usługach lokalizacji, a
+  /// adres i tak bywa znany skądinąd (z parowania systemowego albo z kodu QR).
+  Future<Peer?> addPeerByBluetooth(String address) {
+    final czysty = normalizeBtAddress(address);
+    if (czysty.isEmpty || _bluetooth == null) return Future.value(null);
+    return _probeBluetooth(czysty);
+  }
+
+  /// Czy pod tym adresem stoi Chatt. Zapisujemy go dopiero wtedy, gdy się
+  /// przedstawi swoim kluczem, więc słuchawki i klawiatury nie trafiają
+  /// na listę rozmówców.
+  Future<Peer?> _probeBluetooth(String address) async {
+    final info = await client.fetchInfo(
+      BluetoothRoute(address),
+      // Krótko: przy wyszukiwaniu pytamy wszystko, co widzi radio, a Chatt
+      // po drugiej stronie odpowiada od razu.
+      timeout: const Duration(seconds: 5),
+    );
+    if (info == null || info.guid == identity.guid) {
+      // Łącze do czegoś, co Chattem nie jest, niepotrzebnie zajmuje kanał.
+      await _bluetooth?.dropLink(address);
+      return null;
+    }
+    final peer = await db.upsertPeer(
+      guid: info.guid,
+      name: info.name,
+      welcomeMessage: info.welcomeMessage,
+      // Rozmówca poznany przez radio nie ma adresu w sieci. Pusty host
+      // i zerowy port nie nadpisują tego, co o nim wiemy z Wi-Fi.
+      host: '',
+      port: 0,
+      btAddress: address,
+      protocol: PeerProtocol.bluetooth.index,
+    );
+    return _przypnijKlucz(peer, info);
+  }
+
   // --- Podglądy odnośników --------------------------------------------------
 
   /// Pobieranie podglądów stron dla odnośników w wiadomościach. Stoi
@@ -2070,6 +2548,8 @@ class AppServices {
   }
 
   Future<void> dispose() async {
+    _closing = true;
+    _bluetoothRetry?.cancel();
     // Nikt już nie odpowie na wiszące prośby o zgodę: odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {
@@ -2084,6 +2564,14 @@ class AppServices {
     await _retentionWatch?.cancel();
     await _linkPreviewWatch?.cancel();
     linkPreviews.dispose();
+    await _transportWatch?.cancel();
+    // Radio gaśnie razem z aplikacją: nasłuch RFCOMM i wykrywalność
+    // komputera nie mają prawa przeżyć jej zamknięcia.
+    await stopBluetooth();
+    bluetoothAddon.dispose();
+    bluetoothRunning.dispose();
+    bluetoothRevision.dispose();
+    bluetoothStatus.dispose();
     responder.stop();
     await server.stop();
     client.dispose();

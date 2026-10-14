@@ -12,6 +12,8 @@ import '../../core/update_install.dart';
 import '../../core/updates.dart';
 import '../../core/version.dart';
 import '../../data/db.dart';
+import '../../network/bt_transport.dart';
+import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../backgrounds.dart';
 import '../l10n_context.dart';
@@ -469,6 +471,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
           ),
           const SizedBox(height: 32),
+          Text(context.l10n.addons,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.addonsHelp,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          const BluetoothAddonCard(),
+          const SizedBox(height: 32),
           Text(context.l10n.thisDevice,
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -513,6 +525,225 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       ),
     );
   }
+}
+
+/// Dodatek Bluetooth: jeden przełącznik, który włącza całą funkcję.
+///
+/// Przy wyłączonym dodatku karta pokazuje sam przełącznik, a reszta aplikacji
+/// wygląda i działa jak przed Bluetoothem. Po włączeniu dochodzą: stan radia
+/// i zgody, adres radia, wykrywalność komputera i przełącznik sieci lokalnej,
+/// który bez dodatku nie ma sensu, bo sieć jest wtedy jedyną drogą.
+class BluetoothAddonCard extends ConsumerStatefulWidget {
+  const BluetoothAddonCard({super.key});
+
+  @override
+  ConsumerState<BluetoothAddonCard> createState() => BluetoothAddonCardState();
+}
+
+class BluetoothAddonCardState extends ConsumerState<BluetoothAddonCard> {
+  bool _zajete = false;
+
+  /// Trwa czekanie na zgodę wydaną w ustawieniach systemu. Drugie
+  /// kliknięcie przycisku nie zaczyna drugiego czekania.
+  bool _czekaNaZgode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Stan radia i zgód potrafi się zmienić poza aplikacją (użytkownik gasi
+    // Bluetooth w systemie), więc pytamy o niego przy każdym wejściu. Przy
+    // wyłączonym dodatku serwis nie pyta systemu o nic.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(appServicesProvider).refreshBluetoothStatus();
+    });
+  }
+
+  Future<void> _setWifi(bool value) async {
+    await ref.read(appServicesProvider).db.saveWifiEnabled(value);
+  }
+
+  Future<void> _setAddon(bool value) async {
+    final services = ref.read(appServicesProvider);
+    setState(() => _zajete = true);
+    try {
+      if (!value) {
+        await services.setBluetoothAddon(false);
+        return;
+      }
+      if (!await _upewnijSieOZgode(services, wlaczanie: true)) {
+        if (mounted) showToast(context.l10n.transportBluetoothNoPermission);
+        return;
+      }
+      // Serwis zapisuje przełącznik i podnosi radio. Wynik pokazujemy po jego
+      // odpowiedzi.
+      final udalo = await services.setBluetoothAddon(true);
+      if (!mounted || udalo) return;
+      await services.refreshBluetoothStatus();
+      if (mounted) showToast(context.l10n.transportBluetoothFailed);
+    } finally {
+      if (mounted) setState(() => _zajete = false);
+    }
+  }
+
+  /// Zgoda na urządzenia w pobliżu, pytana przy włączaniu dodatku
+  /// ([wlaczanie]) i przyciskiem na karcie, gdy zgodę cofnięto. Poza tymi
+  /// dwoma miejscami aplikacja o nią nie prosi.
+  ///
+  /// Odpowiedź z systemowego okienka nie wraca kanałem, więc po zapytaniu
+  /// odpytujemy stan, aż się zmieni albo skończy cierpliwość. Bez tego
+  /// przełącznik odbijałby się od razu, jeszcze zanim użytkownik zdąży
+  /// przeczytać pytanie. Przy włączonym dodatku odpytywanie kończy się razem
+  /// z jego wyłączeniem.
+  Future<bool> _upewnijSieOZgode(AppServices services,
+      {bool wlaczanie = false, bool ustawienia = false}) async {
+    var stan = await services.refreshBluetoothStatus(force: wlaczanie);
+    if (stan.granted) return true;
+    if (ustawienia) {
+      await services.openBluetoothSettings();
+    } else {
+      await services.askForBluetoothPermission();
+    }
+
+    final koniec = DateTime.now().add(const Duration(seconds: 30));
+    while (mounted &&
+        (wlaczanie || services.bluetoothAddon.value) &&
+        DateTime.now().isBefore(koniec)) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!wlaczanie && !services.bluetoothAddon.value) break;
+      stan = await services.refreshBluetoothStatus(force: wlaczanie);
+      if (stan.granted) return true;
+    }
+    return false;
+  }
+
+  /// Zgoda cofnięta przy włączonym dodatku. Przycisk obiecuje ustawienia
+  /// systemu, więc je otwiera: tam zgodę da się wydać także po odmowie na
+  /// stałe. Odświeżanie stanu podnosi radio, gdy tylko zgoda się pojawi.
+  Future<void> _wydajZgode(AppServices services) async {
+    if (_czekaNaZgode) return;
+    setState(() => _czekaNaZgode = true);
+    try {
+      await _upewnijSieOZgode(services, ustawienia: true);
+    } finally {
+      if (mounted) setState(() => _czekaNaZgode = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final services = ref.read(appServicesProvider);
+    final wifi = ref.watch(settingsProvider).value?.wifiEnabled ?? true;
+    final scheme = Theme.of(context).colorScheme;
+    final wspierany = services.bluetoothSupported;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: ListenableBuilder(
+          listenable: Listenable.merge([
+            services.bluetoothAddon,
+            services.bluetoothRunning,
+            services.bluetoothStatus,
+          ]),
+          builder: (context, _) {
+            final wlaczony = services.bluetoothAddon.value;
+            final BtStatus stan = services.bluetoothStatus.value;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: wlaczony,
+                  onChanged: (!wspierany || _zajete) ? null : _setAddon,
+                  secondary: const Icon(Icons.bluetooth),
+                  title: Text(context.l10n.transportBluetooth),
+                  subtitle: Text(wspierany
+                      ? context.l10n.transportBluetoothHelp
+                      : context.l10n.transportBluetoothUnsupported),
+                ),
+                if (wlaczony) ...[
+                  if (!stan.enabled)
+                    _uwaga(scheme, Icons.bluetooth_disabled,
+                        context.l10n.transportBluetoothRadioOff),
+                  if (stan.enabled && !stan.granted) ...[
+                    _uwaga(scheme, Icons.lock_outline,
+                        context.l10n.transportBluetoothNoPermission),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed:
+                          _czekaNaZgode ? null : () => _wydajZgode(services),
+                      icon: const Icon(Icons.settings_outlined),
+                      label: Text(context.l10n.transportBluetoothGrant),
+                    ),
+                  ],
+                  // Własny adres radia: druga strona potrzebuje go przy
+                  // dodawaniu po adresie. Android go nie podaje, więc tam
+                  // tego wiersza nie ma.
+                  if (stan.address.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: SelectableText(
+                        context.l10n.myBtAddress(stan.address),
+                        style: TextStyle(
+                            color: scheme.onSurfaceVariant, fontSize: 12),
+                      ),
+                    ),
+                  // Przy działającym radiu komputer widzi każdy, kto się
+                  // rozejrzy. Użytkownik dowiaduje się o tym tutaj.
+                  if (Platform.isWindows && services.bluetoothRunning.value)
+                    _uwaga(scheme, Icons.visibility_outlined,
+                        context.l10n.transportBluetoothDiscoverable),
+                  const Divider(height: 24),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: wifi,
+                    onChanged: _setWifi,
+                    secondary: const Icon(Icons.wifi),
+                    title: Text(context.l10n.transportWifi),
+                    subtitle: Text(context.l10n.transportWifiHelp),
+                  ),
+                  if (!wifi && !services.bluetoothRunning.value)
+                    _uwaga(scheme, Icons.warning_amber_outlined,
+                        context.l10n.transportBothOff,
+                        bad: true),
+                  const SizedBox(height: 8),
+                  Text(
+                    context.l10n.transportsHelp,
+                    style:
+                        TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _uwaga(ColorScheme scheme, IconData icon, String text,
+          {bool bad = false}) =>
+      Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon,
+                size: 18,
+                color: bad ? scheme.error : scheme.onSurfaceVariant),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(
+                  color: bad ? scheme.error : scheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 /// Przełącznik podglądów stron pod odnośnikami.

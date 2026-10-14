@@ -2,14 +2,20 @@
 
 *English version: [guide.md](guide.md)*
 
-Chatt łączy dwa urządzenia w tej samej sieci Wi‑Fi: komputer z Windows
-i telefon z Androidem. Nie ma konta, logowania ani serwera pośredniczącego:
-wiadomości i pliki idą prosto z jednego urządzenia do drugiego.
+Chatt łączy dwa urządzenia: komputer z Windows i telefon z Androidem. Nie ma
+konta, logowania ani serwera pośredniczącego: wiadomości i pliki idą prosto
+z jednego urządzenia do drugiego.
+
+Drogą jest **sieć lokalna**, gdy oba urządzenia siedzą w tej samej sieci
+Wi‑Fi. Dodatek **Bluetooth**, domyślnie wyłączony, dokłada drugą drogę dla
+urządzeń w zasięgu radia (około 10 metrów). Z włączonym dodatkiem obie drogi
+działają naraz, a aplikacja sama wybiera, którą pójdzie.
 
 ## Pierwsze uruchomienie
 
 1. Uruchom Chatt na obu urządzeniach i podłącz je do **tej samej sieci Wi‑Fi**.
    Komputer może być na kablu, o ile jest w tej samej podsieci co telefon.
+   Bez wspólnej sieci zostaje dodatek Bluetooth, opisany niżej.
 2. Na Windows przy pierwszym starcie zapora zapyta o zgodę na ruch
    przychodzący. Zaznacz sieć prywatną i pozwól, bo bez tego drugie urządzenie
    nie ma jak się połączyć.
@@ -38,19 +44,80 @@ Gdy skan nic nie znajduje:
 - **Dodaj po adresie IP**: adres i port drugiego urządzenia znajdziesz u niego
   w Ustawieniach, w sekcji „To urządzenie".
 
+**Szukanie przez Bluetooth.** Ekran „W pobliżu" pyta najpierw o drogę: Sieć
+albo Bluetooth. To pytanie pojawia się tylko z włączonym dodatkiem Bluetooth,
+a sam Bluetooth jest do wzięcia, gdy radio działa. Radio samo z siebie nie
+mówi, które urządzenie ma Chatta, więc
+aplikacja próbuje się połączyć po kolei z tymi, które się odezwały, i zostawia
+na liście te, które odpowiedziały jak Chatt. Idzie to dokładnie tą samą drogą
+co ręczne dodanie po adresie IP. Szukanie trwa do półtorej minuty i zagłusza
+radio na cały swój czas, więc rusza dopiero po Twoim kliknięciu.
+Komputery i telefony są pytane najpierw, słuchawki na końcu, a urządzenie
+trafia na listę w chwili, gdy odpowie, więc komputer obok zwykle widać po pół
+minuty, jeszcze w trakcie szukania.
+
+Na Androidzie szukanie wymaga włączonych usług lokalizacji. Chatt nie pyta,
+gdzie jesteś, ale bez nich Android nie oddaje żadnych wyników; ekran „W
+pobliżu" mówi o tym wprost i daje przycisk „Włącz lokalizację". Kiedy to nie
+wchodzi w grę, „Dodaj po adresie radia" (ikona łącza na pasku) łączy się od
+razu z adresem w rodzaju `70:D8:C2:64:D9:B1`, który drugie urządzenie pokazuje
+w ustawieniach Bluetooth. Komputer pokazuje swój także na karcie dodatku
+w Ustawieniach Chatta.
+
+Na Androidzie 11 i starszym szukanie wymaga do tego zgody na lokalizację,
+o którą Chatt nie prosi. Tam drugie urządzenie dodaje się po adresie radia.
+
 Przytrzymanie wpisu na liście usuwa urządzenie. Przycisk „Wyczyść nieużywane
 urządzenia" w Ustawieniach sprząta wpisy, z którymi nie ma żadnej wiadomości
 i których nie widać od godziny.
+
+## Dodatek Bluetooth
+
+Bluetooth jest dodatkiem. W Ustawieniach, w sekcji **Dodatki**, stoi
+przełącznik **Bluetooth**, wyłączony od początku. Dopóki jest wyłączony,
+poza tą sekcją Bluetootha w aplikacji nie ma: żaden inny ekran o nim nie
+wspomina, nic nie nasłuchuje na radiu, a sieć lokalna jest jedyną drogą.
+
+Po włączeniu karta dodatku pokazuje resztę: czy radio jest wyłączone
+w systemie, czy brakuje zgody (przycisk do jej wydania stoi obok), adres radia
+tego urządzenia, o ile system go podaje, i przełącznik **Sieć lokalna** na
+wypadek, gdy radio ma być jedyną drogą. Gdy sieć jest zgaszona, a radio nie
+działa, karta ostrzega, że to urządzenie z nikim się nie połączy. Radio
+włączone później w systemie albo zgoda wydana później podnoszą Bluetooth same,
+w ciągu około dziesięciu sekund.
+
+Na Androidzie o zgodę na Bluetooth aplikacja pyta w chwili włączania
+dodatku, a potem już tylko przyciskiem na karcie dodatku, gdy zgodę cofnięto.
+Parowania w systemie robić nie trzeba: Chatt łączy się także
+z urządzeniem niesparowanym.
+
+Na Windowsie włączony dodatek podnosi **wykrywalność komputera**: dopóki
+dodatek stoi, komputer widzi każdy, kto rozgląda się w pobliżu za
+urządzeniami. Domyślnie Windows pokazuje się tylko przy otwartym oknie „Dodaj
+urządzenie". Wyłączenie dodatku gasi wykrywalność z powrotem. Karta dodatku
+mówi o tym wprost.
+
+**Którą drogą.** Aplikacja próbuje po kolei: najpierw ta, którą udało się
+ostatnio, potem sieć, potem Bluetooth, i zapamiętuje tę, która zadziałała.
+Sieć idzie pierwsza, bo jest kilkadziesiąt razy szybsza. Ręcznego przełącznika
+drogi przy rozmówcy nie ma, wybór dzieje się sam.
+
+**Ile to trwa.** Przez Bluetooth leci od 90 do 165 kB/s, czyli od 50 do 100
+razy wolniej niż przez Wi‑Fi: megabajt idzie od 6 do 12 sekund. Krótka
+wiadomość wraca w 22 do 25 ms, więc pisania nie odróżnisz od tego przez sieć.
+Bolą dopiero pliki.
 
 ## Wiadomości
 
 Kliknięcie urządzenia otwiera rozmowę. Pod nazwą rozmówcy widać, czy jest
 w tej chwili dostępny.
 
-Wpisy na liście rozmów niosą dwa znaki: zieloną kropkę na awatarze, dopóki
-urządzenie odpowiada w sieci, i zieloną tarczę przy nazwie, gdy jego tożsamość
-jest potwierdzona. Lista pyta każde znane urządzenie co 30 sekund, tylko przy
-otwartym ekranie.
+Wpisy na liście rozmów niosą zieloną kropkę na awatarze, dopóki urządzenie
+odpowiada w sieci, i zieloną tarczę przy nazwie, gdy jego tożsamość jest
+potwierdzona. Z włączonym dodatkiem Bluetooth dochodzi ikona drogi (Wi‑Fi
+albo Bluetooth), którą poszła ostatnia wymiana; w nagłówku rozmowy ta sama
+ikona stoi z podpisem. Lista pyta każde znane urządzenie co 30 sekund, tylko
+przy otwartym ekranie.
 
 <img src="screenshots/produkt/android_rozmowa_z_plikiem.png" alt="Rozmowa" width="260">
 
@@ -232,6 +299,23 @@ Do potwierdzenia tożsamości są dwie drogi:
   ostrzeżenie, a prośba o ponowne potwierdzenie znanego już urządzenia jest
   oznaczona na czerwono.
 
+**Przez Bluetooth jest tak samo.** Łącze radiowe niesie ten sam uścisk dłoni,
+te same zaszyfrowane koperty i ten sam strumień pliku co połączenie w sieci,
+więc pytanie o paczkę plików, kod do porównania i kod QR działają bez różnicy.
+Radio jest tu zwykłym kablem: parowanie w systemie niczego nie dokłada,
+a zielona tarcza dalej bierze się wyłącznie z porównanego kodu albo ze
+skanu QR.
+
+Z włączonym dodatkiem dochodzi nowy napastnik: ktoś w zasięgu radia, około
+10 metrów. Jawne zostają wtedy nazwa urządzenia i adres jego radia, dokładnie
+tak jak dziś jawne jest rozgłoszenie po sieci lokalnej.
+
+Adres radia ląduje w bazie obok adresu IP i jest wskazówką, gdzie szukać
+rozmówcy. Rozpoznanie idzie po kluczu, a adres nadpisuje się przy każdym
+kontakcie. Po co ta ostrożność, widać na sprzęcie: ten sam komputer potrafi
+pokazać się telefonowi pod dwoma różnymi adresami radia, zależnie od tego, czy
+telefon był z nim sparowany.
+
 W tym samym panelu siedzą dwie rzeczy, które należą do rozmówcy:
 
 - **Zmień nazwę.** Urządzenie rozgłasza własną nazwę, więc komputer trafia na
@@ -255,6 +339,9 @@ W Ustawieniach, w sekcji **Nasłuch w tle**, aplikacja mówi, czy system jej nie
 usypia. Jeśli ostrzega, kliknij „Wyłącz optymalizację baterii". Na większości
 telefonów usługa pierwszoplanowa wystarcza sama z siebie, ale część
 producentów dokłada własne mechanizmy ubijania aplikacji.
+
+Nasłuch przez Bluetooth przy zgaszonym ekranie nie był jeszcze sprawdzony na
+sprzęcie.
 
 <img src="screenshots/produkt/android_ustawienia.png" alt="Ustawienia" width="260">
 

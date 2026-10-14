@@ -5,216 +5,182 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../core/identity.dart';
+import 'bt_transport.dart';
+import 'http_transport.dart';
 import 'protocol.dart';
+import 'transport.dart';
 
-/// Klient HTTP do rozmowy z serwerem innego urządzenia (server.dart).
+/// Klient do rozmowy z drugim urządzeniem.
+///
+/// Sam nie wie, czym jadą bajty: bierze [PeerRoute] i oddaje ją transportowi,
+/// który tę trasę obsługuje. Serializacja, kody odpowiedzi i znaczenie
+/// każdej operacji są te same, co były, gdy istniało tylko HTTP.
 class PeerClient {
-  final http.Client _http;
+  final HttpTransport _ip;
+  BluetoothTransport? _bluetooth;
+  bool _wifiOn = true;
 
-  PeerClient([http.Client? client]) : _http = client ?? http.Client();
+  PeerClient([http.Client? client]) : _ip = HttpTransport(client);
 
-  /// Pobiera tożsamość urządzenia pod host:port. Zwraca null, gdy nie
-  /// odpowiada albo to nie jest Chatt, służy też jako test obecności
-  /// i jako "ręczne dodanie po IP".
+  /// Podpina transport Bluetooth. null odpina: tak wygląda wyłączenie go
+  /// w ustawieniach.
+  void useBluetooth(BluetoothTransport? transport) => _bluetooth = transport;
+
+  /// Włącza i wyłącza drogę przez sieć lokalną. Wyłączona znaczy, że żadna
+  /// trasa IP nie zostanie nawet spróbowana.
+  void useWifi(bool on) => _wifiOn = on;
+
+  /// Czy droga przez sieć lokalną jest włączona.
+  bool get wifiOn => _wifiOn;
+
+  /// Który transport dowiezie tę trasę. null = żaden, czyli nie ma dokąd
+  /// pisać (rozmówca znany tylko po Bluetooth przy wyłączonym Bluetoothcie).
+  PeerTransport? transportFor(PeerRoute route) {
+    if (_wifiOn && _ip.handles(route)) return _ip;
+    final bluetooth = _bluetooth;
+    if (bluetooth != null && bluetooth.handles(route)) return bluetooth;
+    return null;
+  }
+
+  /// Pobiera tożsamość urządzenia pod trasą. Zwraca null, gdy nie odpowiada
+  /// albo to nie jest Chatt, służy też jako test obecności i jako „ręczne
+  /// dodanie po IP".
   Future<DeviceIdentity?> fetchInfo(
-    String host,
-    int port, {
+    PeerRoute route, {
     Duration timeout = const Duration(seconds: 3),
   }) async {
-    try {
-      final response = await _http
-          .get(Uri.http('$host:$port', '/info'))
-          .timeout(timeout);
-      if (response.statusCode != 200) return null;
-      final json = tryDecodeJsonMap(utf8.encode(response.body));
-      if (json == null || json['app'] != 'chatt') return null;
-      return DeviceIdentity.fromJson(json);
-    } catch (_) {
-      return null;
-    }
+    final reply = await _request(route, 'GET', '/info', timeout: timeout);
+    if (reply.status != 200) return null;
+    final json = tryDecodeJsonMap(reply.body);
+    if (json == null || json['app'] != 'chatt') return null;
+    return DeviceIdentity.fromJson(json);
   }
 
   /// Uścisk dłoni: wysyłamy swoją tożsamość i klucz efemeryczny, dostajemy
   /// numer sesji i klucz drugiej strony. null = nie doszło do skutku.
   Future<HandshakeResult?> handshake({
-    required String host,
-    required int port,
+    required PeerRoute route,
     required Map<String, Object?> payload,
     Duration timeout = const Duration(seconds: 5),
   }) async {
-    try {
-      final response = await _http
-          .post(
-            Uri.http('$host:$port', '/handshake'),
-            headers: {'content-type': 'application/json'},
-            body: jsonEncode(payload),
-          )
-          .timeout(timeout);
-      if (response.statusCode != 200) return null;
-      return HandshakeResult.fromJson(
-          tryDecodeJsonMap(utf8.encode(response.body)));
-    } catch (_) {
-      return null;
-    }
+    final reply = await _json(route, '/handshake', payload, timeout);
+    if (reply.status != 200) return null;
+    return HandshakeResult.fromJson(tryDecodeJsonMap(reply.body));
   }
 
   /// Dostarcza wiadomość. [Delivery.ok] = odbiorca potwierdził zapis (ACK),
   /// [Delivery.noSession] = trzeba powtórzyć uścisk dłoni i spróbować raz
   /// jeszcze (odbiorca się zrestartował albo sesja wygasła).
   Future<Delivery> sendMessage({
-    required String host,
-    required int port,
+    required PeerRoute route,
     required Map<String, Object?> payload,
     Duration timeout = const Duration(seconds: 5),
   }) async {
-    try {
-      final response = await _http
-          .post(
-            Uri.http('$host:$port', '/message'),
-            headers: {'content-type': 'application/json'},
-            body: jsonEncode(payload),
-          )
-          .timeout(timeout);
-      if (response.statusCode == 409) return Delivery.noSession;
-      if (response.statusCode != 200) return Delivery.failed;
-      final json = tryDecodeJsonMap(utf8.encode(response.body));
-      return json?['ok'] == true ? Delivery.ok : Delivery.failed;
-    } catch (_) {
-      return Delivery.failed;
-    }
+    final reply = await _json(route, '/message', payload, timeout);
+    if (reply.status == 409) return Delivery.noSession;
+    if (reply.status != 200) return Delivery.failed;
+    return tryDecodeJsonMap(reply.body)?['ok'] == true
+        ? Delivery.ok
+        : Delivery.failed;
   }
 
   /// Wysyła krok parowania (prośbę albo potwierdzenie kodem).
   Future<PairReply> pair({
-    required String host,
-    required int port,
+    required PeerRoute route,
     required Map<String, Object?> payload,
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    try {
-      final response = await _http
-          .post(
-            Uri.http('$host:$port', '/pair'),
-            headers: {'content-type': 'application/json'},
-            body: jsonEncode(payload),
-          )
-          .timeout(timeout);
-      return PairReply.fromJson(tryDecodeJsonMap(utf8.encode(response.body)));
-    } catch (_) {
-      return const PairReply(PairOutcome.unreachable);
-    }
+    final reply = await _json(route, '/pair', payload, timeout);
+    if (!reply.reachable) return const PairReply(PairOutcome.unreachable);
+    return PairReply.fromJson(tryDecodeJsonMap(reply.body));
   }
 
   /// Zapowiada plik i czeka na decyzję odbiorcy. Zwraca null, gdy odbiorca
   /// nie odpowiada albo nie zna `/file-offer` (protokół 1), wtedy nadawca
   /// wysyła plik po staremu, bez pytania o zgodę.
   Future<FileOfferReply?> offerFile({
-    required String host,
-    required int port,
+    required PeerRoute route,
     required Map<String, Object?> payload,
     Duration timeout = const Duration(minutes: 3),
   }) async {
-    try {
-      final response = await _http
-          .post(
-            Uri.http('$host:$port', '/file-offer'),
-            headers: {'content-type': 'application/json'},
-            body: jsonEncode(payload),
-          )
-          .timeout(timeout);
-      if (response.statusCode == 409) return null; // sesja do odnowienia
-      final json = tryDecodeJsonMap(utf8.encode(response.body));
-      if (json == null) return null; // 404 z routera = starszy odbiorca
-      return FileOfferReply.fromJson(json);
-    } catch (_) {
-      return null;
-    }
+    final reply = await _json(route, '/file-offer', payload, timeout);
+    if (!reply.reachable) return null;
+    if (reply.status == 409) return null; // sesja do odnowienia
+    final json = tryDecodeJsonMap(reply.body);
+    if (json == null) return null; // 404 z routera = starszy odbiorca
+    return FileOfferReply.fromJson(json);
   }
 
   /// Wysyła plik strumieniowo (bez ładowania do pamięci), od bajtu [offset]
   /// (wznowienie przerwanego transferu). [onProgress] dostaje liczbę bajtów
-  /// już zapisanych u odbiorcy, licząc te z poprzedniej próby. Timeout skaluje
-  /// się z rozmiarem (wolne Wi-Fi nie może ubijać dużych transferów).
+  /// już zapisanych u odbiorcy, licząc te z poprzedniej próby.
   Future<Delivery> sendFile({
-    required String host,
-    required int port,
+    required PeerRoute route,
     required Map<String, String> headers,
     required File file,
     int offset = 0,
     void Function(int sentBytes, int totalBytes)? onProgress,
+
     /// Przepuszczenie treści przez szyfrowanie. Dostaje strumień z pliku
     /// i bajt, od którego się zaczyna (żeby wznowienie trafiło w to samo
     /// miejsce strumienia klucza). Musi zachować długość.
     Stream<List<int>> Function(Stream<List<int>> data, int startOffset)?
         transform,
   }) async {
-    // Czytanie pliku żyje własnym życiem obok zapytania. Gdy odbiorca zerwie
-    // połączenie w połowie, `send` wraca od razu, a reader leciałby dalej
-    // i wołał [onProgress] po tym, jak wołający posprzątał swój stan.
-    // Stąd subskrypcja: w `finally` ją kasujemy i wyciszamy postęp.
-    http.StreamedRequest? request;
-    StreamSubscription<List<int>>? reader;
-    void closeBody() {
-      try {
-        request?.sink.close();
-      } catch (_) {}
-    }
-
-    try {
-      final total = await file.length();
-      final start = (offset < 0 || offset > total) ? 0 : offset;
-      request = http.StreamedRequest('POST', Uri.http('$host:$port', '/file'))
-        ..contentLength = total - start
-        ..headers.addAll({...headers, 'content-type': 'application/octet-stream'});
-
-      final source = transform == null
-          ? file.openRead(start)
-          : transform(file.openRead(start), start);
-
-      var sent = start;
-      // Treść idzie przez addStream, bo tylko on hamuje czytanie pliku, gdy
-      // sieć nie nadąża (ręczne `sink.add` w pętli buforowało cały plik
-      // w pamięci). Pośredni kontroler jest po to, żeby dało się to czytanie
-      // anulować, gdy odbiorca zerwie połączenie: inaczej zostaje otwarty
-      // uchwyt do pliku i strumień pompujący w próżnię.
-      final pump = StreamController<List<int>>();
-      reader = source.listen(
-        (chunk) {
-          sent += chunk.length;
-          onProgress?.call(sent, total);
-          pump.add(chunk);
-        },
-        onDone: pump.close,
-        onError: (Object _) => pump.close(),
-        cancelOnError: true,
-      );
-      pump.onPause = reader.pause;
-      pump.onResume = reader.resume;
-      pump.onCancel = reader.cancel;
-
-      unawaited(request.sink
-          .addStream(pump.stream)
-          .whenComplete(closeBody)
-          .catchError((Object _) {}));
-
-      final timeout = Duration(seconds: 30 + (total - start) ~/ (512 * 1024));
-      final response = await _http.send(request).timeout(timeout);
-      final body = await response.stream.bytesToString().timeout(timeout);
-      if (response.statusCode == 409) return Delivery.noSession;
-      if (response.statusCode != 200) return Delivery.failed;
-      return tryDecodeJsonMap(utf8.encode(body))?['ok'] == true
-          ? Delivery.ok
-          : Delivery.failed;
-    } catch (_) {
-      return Delivery.failed;
-    } finally {
-      // Zerwane połączenie: przestajemy czytać plik (zwalniamy uchwyt)
-      // i zamykamy body, żeby nic już nie wołało [onProgress] po tym, jak
-      // wołający posprzątał swój stan.
-      await reader?.cancel();
-      closeBody();
-    }
+    final transport = transportFor(route);
+    if (transport == null) return Delivery.failed;
+    final reply = await transport.stream(
+      route,
+      '/file',
+      headers: headers,
+      file: file,
+      offset: offset,
+      onProgress: onProgress,
+      transform: transform,
+    );
+    if (reply.status == 409) return Delivery.noSession;
+    if (reply.status != 200) return Delivery.failed;
+    return tryDecodeJsonMap(reply.body)?['ok'] == true
+        ? Delivery.ok
+        : Delivery.failed;
   }
 
-  void dispose() => _http.close();
+  Future<TransportReply> _json(
+    PeerRoute route,
+    String path,
+    Map<String, Object?> payload,
+    Duration timeout,
+  ) =>
+      _request(
+        route,
+        'POST',
+        path,
+        headers: {'content-type': 'application/json'},
+        body: utf8.encode(jsonEncode(payload)),
+        timeout: timeout,
+      );
+
+  Future<TransportReply> _request(
+    PeerRoute route,
+    String method,
+    String path, {
+    Map<String, String> headers = const {},
+    List<int> body = const [],
+    required Duration timeout,
+  }) async {
+    final transport = transportFor(route);
+    if (transport == null) return const TransportReply.unreachable();
+    return transport.request(
+      route,
+      method,
+      path,
+      headers: headers,
+      body: body,
+      timeout: timeout,
+    );
+  }
+
+  void dispose() {
+    unawaited(_ip.dispose());
+  }
 }

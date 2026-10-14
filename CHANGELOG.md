@@ -8,6 +8,69 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+A conversation can travel over Bluetooth, so two devices talk with nothing
+between them: no shared network, no router, no system pairing. Bluetooth is an
+add-on, off by default. While it is off, nothing in the app touches the radio
+and every conversation travels over the local network, as in 0.8.2.
+
+### Added
+- **Add-ons, with Bluetooth as the first one.** Settings gains an "Add-ons"
+  section. While the Bluetooth add-on is off it exists nowhere else in the app:
+  no other screen shows it, nothing listens on the radio, the native side gets
+  no call apart from the permission check while the switch is being turned on,
+  and the local network is the only road. Android asks for the Bluetooth
+  permission when the add-on goes on, and again only from the add-on's card
+  if the permission is taken away later.
+- **Bluetooth as a second way of reaching the other device.** With the add-on
+  on, the network and the radio run side by side: the app tries the network
+  first and falls back to the radio by itself, so there is nothing to choose
+  per conversation. The add-on's card shows the radio and permission state,
+  this radio's address on Windows, and a local network switch for when the
+  radio should be the only road. A radio turned on later, or switched off and
+  on in the system, brings the add-on back up by itself.
+- **The "Nearby" screen asks which way to look**, the network or Bluetooth,
+  while the add-on is on. Bluetooth is offered once the radio is running. The
+  radio cannot say who is running Chatt, so every device in range is asked,
+  and one that does not answer as Chatt never appears on the list. Computers
+  and phones are asked first and each device appears the moment it answers. On
+  Android the screen says when location services are off, since without them
+  the system hands out no search results, and a radio address can also be
+  typed in by hand.
+- **The conversation list and the conversation header say which way a
+  conversation is going** while the add-on is on: a Wi-Fi or a Bluetooth mark,
+  with a caption inside the conversation.
+
+### Changed
+- **A device added by its address shows the padlock at once.** The key it
+  reports when it answers is pinned right away, after a check that it matches
+  the device's identity. Until now the key was pinned with the first message.
+
+### Fixed
+- **Presence and the key exchange count only an answer from the device
+  itself.** When addresses on the network shift, another Chatt device can end
+  up at the old address. It used to show the conversation as online; now the
+  app moves on and looks for the right device.
+
+### Security
+- **System pairing is not required and buys nothing here.** The handshake, the
+  encrypted envelopes, the file stream, the consent for a batch of files and
+  the confirmation by code or QR run over the radio exactly as they are. The
+  green shield still comes only from a code or a QR scan.
+- With the add-on on, a new neighbour joins the threat model: somebody in
+  radio range, about 10 m, next to somebody on the same network. In the clear
+  are the device's Bluetooth name and the radio's MAC address, exactly as UDP
+  discovery is in the clear today.
+- With the add-on on, a computer is discoverable to everybody nearby, and the
+  add-on's card says so. Turning the add-on off takes the discoverability with
+  it.
+
+### Known cost
+Bluetooth carries 90 to 165 kB/s, which is 50 to 100 times slower than Wi-Fi:
+a megabyte takes 6 to 12 seconds. A short message turns around in 22 to 25 ms,
+so text feels the same either way. Files are where it hurts.
+
 ## [0.8.2] - 2026-09-21
 
 A photo in a conversation opens where it already is, instead of being handed to
@@ -660,6 +723,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.8.2...HEAD
 [0.8.2]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0

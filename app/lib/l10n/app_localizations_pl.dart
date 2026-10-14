@@ -784,4 +784,129 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get discoveryDeaf =>
       'To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.';
+
+  @override
+  String get addons => 'Dodatki';
+
+  @override
+  String get addonsHelp =>
+      'Funkcje, których większość osób nie potrzebuje. Wyłączony dodatek nie wychodzi poza tę sekcję: nie widać go na żadnym innym ekranie i niczego nie uruchamia.';
+
+  @override
+  String get transportsHelp =>
+      'Dwie drogi, obie mogą być włączone naraz. Sieć jest kilkadziesiąt razy szybsza, Bluetooth działa bez żadnej sieci, gdy urządzenia są obok siebie.';
+
+  @override
+  String get transportWifi => 'Sieć lokalna';
+
+  @override
+  String get transportWifiHelp =>
+      'Wiadomości i pliki przez Wi-Fi albo kabel. Wymaga, żeby oba urządzenia były w tej samej sieci.';
+
+  @override
+  String get transportBluetooth => 'Bluetooth';
+
+  @override
+  String get transportBluetoothHelp =>
+      'Wiadomości i pliki przez radio, bez routera, adresu i wspólnej sieci. Kilkadziesiąt razy wolniej niż Wi-Fi, więc duży plik potrwa. Włączenie dodaje szukanie przez Bluetooth w „W pobliżu” i znacznik drogi w rozmowach.';
+
+  @override
+  String get transportBluetoothUnsupported =>
+      'Na tym systemie nie ma Bluetootha w Chatcie.';
+
+  @override
+  String get transportBluetoothRadioOff =>
+      'Włącz Bluetooth w ustawieniach systemu.';
+
+  @override
+  String get transportBluetoothNoPermission =>
+      'Chatt nie ma zgody na urządzenia w pobliżu.';
+
+  @override
+  String get transportBluetoothGrant => 'Otwórz ustawienia';
+
+  @override
+  String get transportBluetoothFailed => 'Nie udało się włączyć Bluetootha.';
+
+  @override
+  String get transportBothOff =>
+      'Sieć wyłączona, a Bluetooth nie działa: to urządzenie z nikim się nie skontaktuje.';
+
+  @override
+  String get transportBluetoothDiscoverable =>
+      'Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.';
+
+  @override
+  String get viaWifi => 'przez sieć';
+
+  @override
+  String get viaBluetooth => 'przez Bluetooth';
+
+  @override
+  String get protocolWifi => 'Sieć';
+
+  @override
+  String get protocolBluetooth => 'Bluetooth';
+
+  @override
+  String get searchWhere => 'Gdzie szukać';
+
+  @override
+  String get searchBluetoothHint =>
+      'Szukanie przez radio trwa do półtorej minuty i na ten czas zwalnia otwarte rozmowy.';
+
+  @override
+  String get searchBluetoothOff =>
+      'Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w sekcji Dodatki.';
+
+  @override
+  String get searchingBluetooth => 'Szukam przez Bluetooth…';
+
+  @override
+  String get scanStartBluetooth => 'Szukaj przez Bluetooth';
+
+  @override
+  String get nearbyBeforeScanBluetooth =>
+      'Wyszukaj przez Bluetooth, żeby zobaczyć, które urządzenia obok odpowiadają.';
+
+  @override
+  String get nearbyScanningBluetooth =>
+      'Jeszcze nikt nie odpowiedział. Urządzenia pojawiają się tu po kolei, gdy tylko odpowiedzą.';
+
+  @override
+  String get scanNothingFoundBluetooth =>
+      'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Możesz też dodać je po adresie radia.';
+
+  @override
+  String get searchBluetoothNoLocation =>
+      'Android nie odda wyników szukania przy wyłączonych usługach lokalizacji. Do samego połączenia nie są potrzebne i Chatt o położenie nie pyta.';
+
+  @override
+  String get turnOnLocation => 'Włącz lokalizację';
+
+  @override
+  String get addByBtAddress => 'Dodaj po adresie radia';
+
+  @override
+  String get manualAddBtTitle => 'Dodaj po adresie Bluetooth';
+
+  @override
+  String get manualAddBtHelp =>
+      'Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w sekcji Dodatki.';
+
+  @override
+  String get btAddressLabel => 'Adres Bluetooth';
+
+  @override
+  String get btAddressHint => 'AA:BB:CC:DD:EE:FF';
+
+  @override
+  String noChattAtBtAddress(String address) {
+    return 'Pod $address nie odpowiada Chatt';
+  }
+
+  @override
+  String myBtAddress(String address) {
+    return 'Adres tego radia: $address';
+  }
 }

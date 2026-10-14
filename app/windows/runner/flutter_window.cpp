@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "chatt_autostart.h"
+#include "chatt_bluetooth.h"
 #include "chatt_clipboard.h"
 #include "chatt_secrets.h"
 #include "flutter/generated_plugin_registrant.h"
@@ -32,6 +33,9 @@ bool FlutterWindow::OnCreate() {
   RegisterChattSecrets(flutter_controller_->engine());
   RegisterChattAutostart(flutter_controller_->engine());
   RegisterChattClipboard(flutter_controller_->engine());
+  // Bluetooth (issue #27). Sama rejestracja niczego nie uruchamia: kanal
+  // odzywa sie dopiero wtedy, gdy uzytkownik wlaczy dodatek Bluetooth.
+  RegisterChattBluetooth(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   // Start do zasobnika: okno w ogóle się nie pokazuje, więc nie ma mignięcia
