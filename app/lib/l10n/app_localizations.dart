@@ -1478,6 +1478,66 @@ abstract class AppLocalizations {
   /// **'Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.'**
   String get transportBluetoothDiscoverable;
 
+  /// No description provided for @keyboardAddon.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klawiatura z PC'**
+  String get keyboardAddon;
+
+  /// No description provided for @keyboardAddonHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.'**
+  String get keyboardAddonHelp;
+
+  /// No description provided for @remoteInputReceive.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pozwól pisać na tym urządzeniu'**
+  String get remoteInputReceive;
+
+  /// No description provided for @remoteInputReceiveHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.'**
+  String get remoteInputReceiveHelp;
+
+  /// No description provided for @remoteInputSafety.
+  ///
+  /// In pl, this message translates to:
+  /// **'Drugie urządzenie pisze tu jak zwykła klawiatura: może wysłać wiadomość, zatwierdzić formularz, wpisać hasło. Sesja trwa do Stopu albo do pół godziny bez pisania.'**
+  String get remoteInputSafety;
+
+  /// No description provided for @remoteInputUnsupported.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie z innego urządzenia przyjmują Android i Windows.'**
+  String get remoteInputUnsupported;
+
+  /// No description provided for @remoteInputRequestTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} chce pisać na tym urządzeniu'**
+  String remoteInputRequestTitle(Object name);
+
+  /// No description provided for @remoteInputRequestBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tekst trafi do pola, które ma fokus, w dowolnej aplikacji, aż do Stopu.'**
+  String get remoteInputRequestBody;
+
+  /// No description provided for @remoteInputActive.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisze: {name}'**
+  String remoteInputActive(Object name);
+
+  /// No description provided for @remoteInputStop.
+  ///
+  /// In pl, this message translates to:
+  /// **'Stop'**
+  String get remoteInputStop;
+
   /// No description provided for @viaWifi.
   ///
   /// In pl, this message translates to:

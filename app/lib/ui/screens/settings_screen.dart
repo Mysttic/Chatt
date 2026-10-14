@@ -481,6 +481,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           const SizedBox(height: 8),
           const BluetoothAddonCard(),
+          const SizedBox(height: 8),
+          const KeyboardAddonCard(),
           const SizedBox(height: 32),
           Text(context.l10n.thisDevice,
               style: Theme.of(context).textTheme.titleMedium),
@@ -765,6 +767,129 @@ class BluetoothAddonCardState extends ConsumerState<BluetoothAddonCard> {
           ],
         ),
       );
+}
+
+/// Dodatek „Klawiatura z PC": przełącznik całej funkcji i, po jego włączeniu,
+/// przełącznik odbioru.
+///
+/// Wyłączony dodatek to sam przełącznik. Włączony pozwala pisać stąd na
+/// innych urządzeniach, a przełącznik „Pozwól pisać na tym urządzeniu" jest
+/// osobną zgodą i startuje wyłączony: włączenie dodatku na komputerze,
+/// z którego się pisze, nie wpuszcza nikogo na ten komputer.
+class KeyboardAddonCard extends ConsumerStatefulWidget {
+  const KeyboardAddonCard({super.key});
+
+  @override
+  ConsumerState<KeyboardAddonCard> createState() => _KeyboardAddonCardState();
+}
+
+class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
+  bool _zajete = false;
+
+  Future<void> _przelacz(Future<bool> Function() krok) async {
+    setState(() => _zajete = true);
+    try {
+      await krok();
+    } finally {
+      if (mounted) setState(() => _zajete = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final services = ref.read(appServicesProvider);
+    final odbior =
+        ref.watch(settingsProvider).value?.remoteInputReceive ?? false;
+    final scheme = Theme.of(context).colorScheme;
+    final przyjmuje = services.remoteInputReceiveSupported;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: ListenableBuilder(
+          listenable: Listenable.merge([
+            services.keyboardAddon,
+            services.incomingRemoteInput,
+          ]),
+          builder: (context, _) {
+            final wlaczony = services.keyboardAddon.value;
+            final pisze = services.incomingRemoteInput.value;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: wlaczony,
+                  onChanged: _zajete
+                      ? null
+                      : (value) =>
+                          _przelacz(() => services.setKeyboardAddon(value)),
+                  secondary: const Icon(Icons.keyboard_outlined),
+                  title: Text(context.l10n.keyboardAddon),
+                  subtitle: Text(context.l10n.keyboardAddonHelp),
+                ),
+                if (wlaczony) ...[
+                  const Divider(height: 24),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: odbior && przyjmuje,
+                    onChanged: (_zajete || !przyjmuje)
+                        ? null
+                        : (value) => _przelacz(
+                            () => services.setRemoteInputReceive(value)),
+                    secondary: const Icon(Icons.keyboard_alt_outlined),
+                    title: Text(context.l10n.remoteInputReceive),
+                    subtitle: Text(przyjmuje
+                        ? context.l10n.remoteInputReceiveHelp
+                        : context.l10n.remoteInputUnsupported),
+                  ),
+                  if (odbior && przyjmuje)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.warning_amber_outlined,
+                              size: 18, color: scheme.onSurfaceVariant),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              context.l10n.remoteInputSafety,
+                              style: TextStyle(
+                                  color: scheme.onSurfaceVariant, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Trwająca zgoda i jej Stop. Pełny wskaźnik, widoczny także
+                  // przy schowanym oknie, przychodzi z kodem natywnym.
+                  if (pisze != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          Icon(Icons.keyboard, color: scheme.primary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                                context.l10n.remoteInputActive(pisze.peerName)),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: services.stopIncomingRemoteInput,
+                            child: Text(context.l10n.remoteInputStop),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 /// Przełącznik podglądów stron pod odnośnikami.

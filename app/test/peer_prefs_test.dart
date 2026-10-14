@@ -102,6 +102,40 @@ void main() {
       expect((await odczyt()).autoAccept, isFalse,
           reason: 'zgoda dotyczyła potwierdzonej tożsamości, nie nazwy');
     });
+
+    test('bez potwierdzonej tożsamości nie da się włączyć pisania bez pytania',
+        () async {
+      final peer = await dodaj();
+      final wynik = await db.setPeerRemoteInput(peer.id, true);
+
+      expect(wynik, isFalse, reason: 'pilnuje tego sama baza');
+      expect((await odczyt()).remoteInput, isFalse);
+    });
+
+    test('po potwierdzeniu pisanie bez pytania się włącza', () async {
+      final peer = await dodaj();
+      await db.setPeerVerified(peer.id, true);
+
+      expect(await db.setPeerRemoteInput(peer.id, true), isTrue);
+      expect((await odczyt()).remoteInput, isTrue);
+    });
+
+    test('zdjęcie potwierdzenia gasi pisanie bez pytania razem z plikami',
+        () async {
+      final peer = await dodaj();
+      await db.setPeerVerified(peer.id, true);
+      await db.setPeerAutoAccept(peer.id, true);
+      await db.setPeerRemoteInput(peer.id, true);
+
+      await db.setPeerVerified(peer.id, false);
+
+      final po = await odczyt();
+      expect(po.remoteInput, isFalse,
+          reason: 'klawiatura bez karty przy zgaszonej tarczy pisałaby '
+              'w imieniu kogokolwiek, kto ma tę nazwę');
+      expect(po.autoAccept, isFalse);
+      expect(po.verified, isFalse);
+    });
   });
 
   group('przyjmowanie pliku bez pytania', () {

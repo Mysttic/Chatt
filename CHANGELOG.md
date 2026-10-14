@@ -8,6 +8,69 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+The groundwork for a second add-on: typing on a PC's keyboard into the field
+that has focus on another device, in any app. The protocol, the consent and the
+add-on's card are in place. Typing reaches another device once the native
+receivers for Windows and Android and the sender's screen land.
+
+### Added
+- **Keyboard from a PC, the second add-on.** Settings → Add-ons gains a card
+  for it, off by default and under the rules the Bluetooth add-on set: while it
+  is off no other screen shows it and its native channel gets no call apart
+  from the switch itself. With it on, the card holds a second switch, "Allow
+  typing on this device", which also starts off: turning the add-on on at the
+  PC that types lets nobody type on that PC. Turning the add-on off turns
+  receiving off in the same step, so turning it on again does not quietly
+  bring receiving back.
+- **A consent card for every typing session.** Only a device with a confirmed
+  identity can ask. The card puts the focus on Reject, so an Enter pressed
+  while typing elsewhere can only refuse, and two minutes of silence count as
+  no answer. While a session lasts, the add-on's card shows who is typing and
+  a Stop button.
+- **`POST /input-session` and `POST /input`**, on both roads, the network and
+  the radio. A session starts with a request; the sender's packets then carry
+  text, Backspace, Delete and the field's action (Enter, or Search, Send, Go,
+  Next, Previous and Done on Android), one packet in flight, with everything that queued
+  up meanwhile merged into the next. A packet that got no answer goes again
+  under the same number and lands once. The protocol version stays 5: a peer
+  without these routes answers 404.
+- Schema v13: `settings.keyboardEnabled`, `settings.remoteInputReceive` and
+  `peers.remoteInput` ("don't ask again" per device), all false. The last one
+  can be set only for a verified device and goes with the shield, like
+  `autoAccept`.
+- `chatt/remoteinput`, the channel to the native receivers: `status`, `apply`,
+  `setSession` and `setImeEnabled`. Its native sides arrive with the
+  receivers.
+
+### Security
+- **The first sealed replies in the protocol.** Both routes answer 200 and
+  403 inside an envelope, refusals included, padded like the requests to 512
+  bytes and above that to a multiple of 64, so one keystroke looks like any
+  other. The plain answers left (409, 400, 404, 413, 500) say nothing about the
+  add-on. An
+  unverified sender hears `rejected` whatever the settings, so only a verified
+  device can learn that the add-on is on.
+- **Consent is checked again on every packet**: the shield, the add-on and the
+  receive switch, read from the database. A grant lives in memory, ends after
+  30 minutes without typing or 8 hours in all, and is bound to a token the
+  receiver draws, so a packet recorded earlier types nothing. A request id
+  works once, remembered per sender and only for verified senders, so a flood
+  of requests from elsewhere cannot make a recorded one count again.
+- **Nothing is typed while a card waits** on the receiving device, so a remote
+  Enter cannot answer a question nobody read.
+- **The typed text is stored nowhere** on either side: no database, no log, no
+  app state.
+- **A handshake answer cannot take over another session's number.** The
+  responder picks the session number, and numbers travel in the clear. The
+  side that opened the handshake refuses a number that already names a session
+  on its side, so another device's incoming session keeps its key.
+- The threat model grows: the add-on gives a verified device typing on an
+  unlocked, running device, over the radio too when Bluetooth is on.
+  `docs/architecture.md` and `docs/SECURITY.md` say what that means for a
+  stolen verified device.
+
 ## [0.9.0] - 2026-10-14
 
 A conversation can travel over Bluetooth, so two devices talk with nothing
@@ -727,6 +790,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.9.0...HEAD
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0

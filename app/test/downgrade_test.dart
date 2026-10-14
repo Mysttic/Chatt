@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:chatt/core/identity.dart';
+import 'package:chatt/core/remote_input.dart';
 import 'package:chatt/data/db.dart';
 import 'package:chatt/network/client.dart';
 import 'package:chatt/network/protocol.dart';
@@ -24,9 +25,13 @@ void main() {
   late AppServices bob;
   late PeerClient napastnik;
   late DeviceIdentity podszytaAlicja;
+  late _Ujscie ujscie;
+  late List<PendingRemoteInput> pytaniaOPisanie;
 
   setUp(() async {
     work = Directory.systemTemp.createTempSync('chatt_downgrade');
+    ujscie = _Ujscie();
+    pytaniaOPisanie = [];
     alice = await AppServices.start(
       executor: NativeDatabase.memory(),
       portOverride: 0,
@@ -42,6 +47,13 @@ void main() {
       enableDiscovery: false,
       receivedDirOverride: p.join(work.path, 'bob'),
       fileOfferPolicy: acceptAllFileOffers,
+      // Bartek zgodziłby się na każdą prośbę o pisanie: jedyne, co może
+      // zatrzymać napastnika, to brak klucza sesji.
+      remoteInputPolicy: (prosba) {
+        pytaniaOPisanie.add(prosba);
+        return acceptAllRemoteInput(prosba);
+      },
+      remoteInputSink: ujscie,
     );
 
     // Alicja i Bartek parują się kodem.
@@ -151,4 +163,85 @@ void main() {
     final atAlice = (await alice.db.watchMessages(conversation).first).last;
     expect(atAlice.status, MessageStatus.delivered);
   });
+
+  test('jawna prośba o pisanie i jawna paczka operacji dostają 409',
+      () async {
+    // U Bartka wszystko otwarte: dodatek, odbiór i zgoda na każdą prośbę.
+    await bob.setKeyboardAddon(true);
+    expect(await bob.setRemoteInputReceive(true), isTrue);
+    final trasa = IpRoute('127.0.0.1', bob.server.port!);
+
+    final prosba = await napastnik.requestInputSession(
+      route: trasa,
+      payload: InputSessionRequest(
+        from: podszytaAlicja,
+        op: inputSessionRequest,
+        input: 'podszycie-4',
+        platform: 'windows',
+      ).toJson(),
+    );
+    expect(prosba.status, 409, reason: 'jawny JSON to brak sesji');
+    expect(tryDecodeJsonMap(prosba.body)?['error'], errorNoSession,
+        reason: 'jawna odpowiedź mówi wyłącznie „zrób uścisk dłoni"');
+
+    final paczka = await napastnik.sendInput(
+      route: trasa,
+      payload: RemoteInputPacket(
+        from: podszytaAlicja,
+        input: 'podszycie-4',
+        token: 'dG9rZW4tbmFwYXN0bmlrYQ==',
+        seq: 1,
+        ops: const [
+          RemoteInputOp.insert('PRZELEJ-1000-ZL\n'),
+          RemoteInputOp.action(),
+        ],
+      ).toJson(),
+    );
+    expect(paczka.status, 409);
+    expect(tryDecodeJsonMap(paczka.body)?['error'], errorNoSession);
+
+    expect(pytaniaOPisanie, isEmpty, reason: 'żadna karta zgody');
+    expect(bob.pendingRemoteInput.value, isEmpty);
+    expect(bob.incomingRemoteInput.value, isNull, reason: 'żadnej zgody');
+    expect(ujscie.ops, isEmpty, reason: 'nic nie wpisane');
+    expect(ujscie.wywolania, ['setImeEnabled:true'],
+        reason: 'ujście słyszało tylko przełącznik dodatku');
+  });
+}
+
+/// Ujście w pamięci: zapisuje, co by wpisało, i odpowiada stałym celem.
+class _Ujscie implements RemoteInputSink {
+  final ops = <RemoteInputOp>[];
+  final wywolania = <String>[];
+  final RemoteInputTarget cel = const RemoteInputTarget(
+      active: true,
+      field: RemoteInputField.text,
+      app: 'com.example.notes',
+      appLabel: 'Notatki');
+
+  @override
+  bool supported = true;
+
+  @override
+  Future<RemoteInputTarget> status() async {
+    wywolania.add('status');
+    return cel;
+  }
+
+  @override
+  Future<RemoteInputApplied> apply(List<RemoteInputOp> nowe) async {
+    wywolania.add('apply');
+    ops.addAll(nowe);
+    return (applied: true, target: cel);
+  }
+
+  @override
+  Future<void> setSession({required bool active, String peerName = ''}) async =>
+      wywolania.add('setSession:$active');
+
+  @override
+  Future<bool> setImeEnabled(bool on) async {
+    wywolania.add('setImeEnabled:$on');
+    return true;
+  }
 }

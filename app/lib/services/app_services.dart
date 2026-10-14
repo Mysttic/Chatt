@@ -6,7 +6,8 @@ import 'dart:math' as math;
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:cryptography/cryptography.dart' show SimpleKeyPair;
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, ValueNotifier, visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -19,6 +20,7 @@ import '../core/identity.dart';
 import '../core/link_preview.dart';
 import '../core/pair_link.dart';
 import '../core/received_paths.dart';
+import '../core/remote_input.dart';
 import '../core/updates.dart';
 import '../data/db.dart';
 import '../data/db_open.dart';
@@ -28,6 +30,8 @@ import '../network/discovery.dart';
 import '../network/protocol.dart';
 import '../network/server.dart';
 import '../network/transport.dart';
+
+part 'remote_input.dart';
 
 /// Prośba o zgodę na odbiór pliku: czeka na decyzję użytkownika.
 class PendingFileOffer {
@@ -374,6 +378,8 @@ class AppServices {
     String? receivedDirOverride,
     FileOfferPolicy? fileOfferPolicy,
     IncomingMessageHook? onIncomingMessage,
+    RemoteInputPolicy? remoteInputPolicy,
+    RemoteInputSink? remoteInputSink,
   }) async {
     // Testy podają własny executor (baza w pamięci) i wtedy nie ma czego
     // szyfrować ani przepisywać.
@@ -423,6 +429,10 @@ class AppServices {
           services._handleFileOffer(offer, fromHost, session),
       onFile: (meta, data, fromHost, session) =>
           services._handleIncomingFile(meta, data, fromHost, session),
+      onInputSession: (request, fromHost, session) =>
+          services._remoteInput.handleSession(request, fromHost, session),
+      onInput: (packet, fromHost, session) =>
+          services._remoteInput.handlePacket(packet, fromHost, session),
     );
     final preferred = portOverride ?? ChattEnv.tcpPort ?? settings.tcpPort;
     final actualPort = await server.start(preferredPort: preferred);
@@ -440,6 +450,12 @@ class AppServices {
     services.keyProtected = opened?.keyProtected ?? true;
     services._offerPolicy = fileOfferPolicy ?? services._askUserAboutOffer;
     services._onIncoming = onIncomingMessage;
+    final klawiatura = services._remoteInput;
+    if (remoteInputPolicy != null) klawiatura._policy = remoteInputPolicy;
+    if (remoteInputSink != null) klawiatura._sink = remoteInputSink;
+    // Dodatek klawiatury wstaje z bazy bez żadnego wywołania kanału: przy
+    // starcie nie ma czego podnosić, a wyłączony ma milczeć.
+    klawiatura.keyboardAddon.value = settings.keyboardEnabled;
     services._sweepStaleParts();
     services._startRetention();
     services._startLinkPreviews();
@@ -665,8 +681,12 @@ class AppServices {
     return await db.peerByGuid(peer.guid) ?? peer;
   }
 
-  /// Ręczne usunięcie urządzenia z listy (razem z rozmową).
-  Future<void> forgetPeer(Peer peer) => db.deletePeer(peer.id);
+  /// Ręczne usunięcie urządzenia z listy (razem z rozmową). Zgoda na pisanie,
+  /// prośba o nią i własna sesja pisania do niego znikają razem z nim.
+  Future<void> forgetPeer(Peer peer) {
+    _remoteInput.forgetPeer(peer.guid);
+    return db.deletePeer(peer.id);
+  }
 
   /// Sprawdzenie obecności: czy rozmówca wciąż odpowiada pod znanym adresem.
   /// Liczy się odpowiedź od niego samego: pod starym adresem po zmianie
@@ -1034,6 +1054,10 @@ class AppServices {
         odpowiedz.peer.guid != peer.guid) {
       return null;
     }
+    // Numer sesji wybiera odpowiadający, a numery cudzych sesji są jawne
+    // w każdej kopercie. Numer, który już coś u nas znaczy, zająłby miejsce
+    // cudzej sesji przychodzącej i jej ruch otwierałby się nie tym kluczem.
+    if (_sessionsById.containsKey(odpowiedz.sessionId)) return null;
 
     final klucz = await ChattCrypto.sessionKey(
       myStatic: _identityKeys,
@@ -1309,6 +1333,82 @@ class AppServices {
       _dropSession(peer.guid);
     }
     return Delivery.failed;
+  }
+
+  /// Zapytanie w kopercie, na które druga strona odpowiada też kopertą
+  /// (zdalna klawiatura). Odpowiedź otwiera klucz sesji, w której poszło
+  /// zapytanie; [reply] jest null, gdy nie przyszła albo się nie otwiera.
+  /// [alive] pozwala przerwać chodzenie po trasach, gdy wynik przestał
+  /// kogokolwiek obchodzić.
+  ///
+  /// Bez [route] zapytanie chodzi po trasach jak każde inne, a [route]
+  /// w wyniku to ta, która odpowiedziała kopertą. Odmowa (403) też jest
+  /// odpowiedzią: przez Wi-Fi odmówione nie idzie drugi raz radiem. Z [route]
+  /// zapytanie jedzie tylko nią. 409 kończy się nowym uściskiem dłoni i jedną
+  /// powtórką, z tą samą treścią.
+  Future<({PeerRoute? route, int status, Map<String, Object?>? reply})>
+      _exchangeSealed(
+    Peer peer,
+    Map<String, Object?> payload,
+    Future<TransportReply> Function(
+            PeerRoute route, Map<String, Object?> koperta)
+        wyslij, {
+    PeerRoute? route,
+    bool Function()? alive,
+  }) async {
+    var status = -1;
+    for (var proba = 0; proba < 2; proba++) {
+      if (alive != null && !alive()) break;
+      final sesja = await _sessionFor(peer);
+      if (sesja == null) return (route: null, status: status, reply: null);
+      final koperta = await ChattCrypto.seal(
+          payload: payload, key: sesja.key, sessionId: sesja.id);
+      PeerRoute? trasa;
+      Future<({int status, Map<String, Object?>? reply})> raz(
+          PeerRoute r) async {
+        // Zapytanie, którego wysyłający już nie chce (wycofana prośba), nie
+        // idzie następną drogą.
+        if (alive != null && !alive()) return (status: -1, reply: null);
+        final odp = await wyslij(r, koperta);
+        final otwarta = await _openSealedReply(odp, sesja);
+        if (otwarta != null) trasa = r;
+        return (status: odp.status, reply: otwarta);
+      }
+
+      final wynik = route != null
+          ? await raz(route)
+          : await _overRoutes(
+              peer,
+              raz,
+              // 409 i 404 też kończą chodzenie po trasach: odpowiedział
+              // Chatt, a radio dałoby tę samą odpowiedź, wolniej.
+              (w) => w.reply != null || w.status == 409 || w.status == 404,
+            );
+      status = wynik.status;
+      if (wynik.status == 409) {
+        _dropSession(peer.guid);
+        continue;
+      }
+      return (route: trasa, status: wynik.status, reply: wynik.reply);
+    }
+    return (route: null, status: status, reply: null);
+  }
+
+  /// Zapieczętowana odpowiedź z sesji [sesja] albo null. Odpowiedź nie może
+  /// nieść `from`: tak wygląda zapytanie, i tylko po tym odbita koperta nie
+  /// przejdzie za odpowiedź ani za zapytanie.
+  static Future<Map<String, Object?>?> _openSealedReply(
+      TransportReply odp, _Session sesja) async {
+    if (odp.status != 200 && odp.status != 403) return null;
+    final json = tryDecodeJsonMap(odp.body);
+    if (json == null ||
+        !isEncryptedEnvelope(json) ||
+        sessionOfEnvelope(json) != sesja.id) {
+      return null;
+    }
+    final opened = await ChattCrypto.open(envelope: json, key: sesja.key);
+    if (opened == null || opened.containsKey('from')) return null;
+    return opened;
   }
 
   /// Rozmówca pod zapisanym adresem nie odpowiada. Adres IP w sieci domowej
@@ -2471,6 +2571,95 @@ class AppServices {
     return _przypnijKlucz(peer, info);
   }
 
+  // --- Zdalna klawiatura ----------------------------------------------------
+
+  /// Dodatek „Klawiatura z PC" w obie strony; logika siedzi w
+  /// `remote_input.dart`, tu są tylko wejścia.
+  late final _RemoteInput _remoteInput = _RemoteInput(this);
+
+  /// Czy dodatek klawiatury jest włączony (Ustawienia, sekcja „Dodatki").
+  /// Jedyny włącznik całej funkcji, w obie strony: wyłączony znaczy, że żaden
+  /// ekran poza kartą dodatku jej nie pokazuje, prośby i paczki dostają
+  /// odmowę bez karty, a kanał `chatt/remoteinput` nie dostaje wywołań.
+  ValueNotifier<bool> get keyboardAddon => _remoteInput.keyboardAddon;
+
+  /// Prośby o pisanie na tym urządzeniu, czekające na decyzję. Nakładka
+  /// pokazuje kartę i odpowiada przez [respondToRemoteInput].
+  ValueNotifier<List<PendingRemoteInput>> get pendingRemoteInput =>
+      _remoteInput.pending;
+
+  /// Trwająca zgoda na pisanie na tym urządzeniu, do wskaźnika i Stopu.
+  ValueNotifier<IncomingRemoteInput?> get incomingRemoteInput =>
+      _remoteInput.incoming;
+
+  /// Własna sesja pisania na innym urządzeniu.
+  ValueNotifier<OutgoingRemoteInput?> get outgoingRemoteInput =>
+      _remoteInput.outgoing;
+
+  /// Czy na tej platformie inni mogą pisać (jest ujście natywne).
+  bool get remoteInputReceiveSupported => _remoteInput.receiveSupported;
+
+  /// Włącza albo wyłącza dodatek klawiatury. Wyłączenie kończy zgodę,
+  /// prośby i własną sesję pisania, gasi odbiór w bazie i wyłącza klawiaturę
+  /// Chatt w systemie. Przełączenia idą po kolei.
+  Future<bool> setKeyboardAddon(bool on) => _remoteInput.setAddon(on);
+
+  /// Przełącznik „Pozwól pisać na tym urządzeniu". Działa tylko przy
+  /// włączonym dodatku; wyłączenie kończy zgodę i prośby od razu.
+  Future<bool> setRemoteInputReceive(bool on) => _remoteInput.setReceive(on);
+
+  /// Prosi [peer] o sesję pisania i czeka na jego decyzję (do dwóch minut).
+  Future<RemoteInputStart> startRemoteInput(Peer peer) =>
+      _remoteInput.start(peer);
+
+  /// Dopisuje operacje do kolejki aktywnej sesji pisania.
+  bool sendRemoteInput(List<RemoteInputOp> ops) => _remoteInput.send(ops);
+
+  /// Kończy własną sesję pisania (albo wycofuje prośbę bez odpowiedzi).
+  Future<void> stopRemoteInput() => _remoteInput.stop();
+
+  /// Odpowiedź z karty na prośbę z [pendingRemoteInput]. [remember] to „nie
+  /// pytaj więcej dla tego urządzenia".
+  void respondToRemoteInput(String id,
+          {required bool accept, bool remember = false}) =>
+      _remoteInput.respond(id, accept: accept, remember: remember);
+
+  /// Stop po stronie odbiorcy.
+  void stopIncomingRemoteInput() => _remoteInput.stopIncoming();
+
+  /// Czy wisi jakakolwiek karta z pytaniem. Zdalne pisanie wtedy czeka, żeby
+  /// zdalny Enter nie odpowiedział na pytanie, którego nikt nie przeczytał.
+  bool get _anyPromptPending =>
+      pendingOffers.value.isNotEmpty ||
+      pendingPairings.value.isNotEmpty ||
+      _remoteInput.pending.value.isNotEmpty;
+
+  /// Zapomina sesje przychodzące od [peerGuid], bez ruszania zgód. Następne
+  /// zapytanie od niego dostaje 409, jak po restarcie, a zgoda na pisanie
+  /// zostaje.
+  @visibleForTesting
+  void debugDropIncomingSessions(String peerGuid) {
+    final wychodzaca = _sessionsByPeer[peerGuid];
+    _sessionsById.removeWhere((_, sesja) =>
+        sesja.peerGuid == peerGuid && !identical(sesja, wychodzaca));
+  }
+
+  /// Pieczętuje dowolny ładunek bieżącą sesją z [peer] i wysyła go na
+  /// `/input-session` albo `/input`. Testy budują tym paczki, których
+  /// prawdziwy nadawca nigdy nie wyśle.
+  @visibleForTesting
+  Future<({int status, Map<String, Object?>? reply})> debugSendSealed(
+      Peer peer, String path, Map<String, Object?> payload) async {
+    final wynik = await _exchangeSealed(
+      peer,
+      payload,
+      (route, koperta) => path == '/input-session'
+          ? client.requestInputSession(route: route, payload: koperta)
+          : client.sendInput(route: route, payload: koperta),
+    );
+    return (status: wynik.status, reply: wynik.reply);
+  }
+
   // --- Podglądy odnośników --------------------------------------------------
 
   /// Pobieranie podglądów stron dla odnośników w wiadomościach. Stoi
@@ -2550,6 +2739,7 @@ class AppServices {
   Future<void> dispose() async {
     _closing = true;
     _bluetoothRetry?.cancel();
+    await _remoteInput.dispose();
     // Nikt już nie odpowie na wiszące prośby o zgodę: odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {

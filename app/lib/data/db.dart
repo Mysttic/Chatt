@@ -72,6 +72,18 @@ class Settings extends Table {
   BoolColumn get bluetoothEnabled =>
       boolean().withDefault(const Constant(false))();
 
+  /// Czy włączony jest dodatek „Klawiatura z PC". Domyślnie nie. Wyłączony
+  /// nie zostawia w aplikacji śladu, a kanał natywny nie dostaje wywołań.
+  BoolColumn get keyboardEnabled =>
+      boolean().withDefault(const Constant(false))();
+
+  /// Czy inne urządzenia mogą pisać na tym. Osobno od dodatku, bo włączenie
+  /// dodatku na komputerze, z którego się pisze, nie jest zgodą na bycie
+  /// wpisywanym. Liczy się tylko przy włączonym dodatku, a jego wyłączenie
+  /// gasi także ten przełącznik.
+  BoolColumn get remoteInputReceive =>
+      boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -119,6 +131,11 @@ class Peers extends Table {
   /// null jeszcze nie wiadomo. Wyłącznie do pokazania w interfejsie, żeby
   /// widać było, czy wiadomość poleciała szybką drogą, czy wolną.
   IntColumn get lastProtocol => integer().nullable()();
+
+  /// Pozwól temu rozmówcy pisać na tym urządzeniu bez karty zgody. Jak
+  /// [autoAccept]: tylko przy potwierdzonej tożsamości, a [setPeerVerified]
+  /// gasi tę flagę razem z tarczą.
+  BoolColumn get remoteInput => boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get firstSeen => dateTime()();
   DateTimeColumn get lastSeen => dateTime()();
@@ -217,7 +234,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -295,6 +312,13 @@ class ChattDb extends _$ChattDb {
         await _dodajKolumneJesliBrak(m, peers, peers.lastProtocol);
         await _dodajKolumneJesliBrak(m, settings, settings.wifiEnabled);
         await _dodajKolumneJesliBrak(m, settings, settings.bluetoothEnabled);
+      }
+      if (from < 13) {
+        // v13: dodatek klawiatury. Wszystko wyłączone na starcie: dodatek,
+        // odbiór i pisanie bez pytania włącza użytkownik, nigdy aktualizacja.
+        await _dodajKolumneJesliBrak(m, settings, settings.keyboardEnabled);
+        await _dodajKolumneJesliBrak(m, settings, settings.remoteInputReceive);
+        await _dodajKolumneJesliBrak(m, peers, peers.remoteInput);
       }
     },
   );
@@ -397,6 +421,19 @@ class ChattDb extends _$ChattDb {
         wifiEnabled: enabled ? const Value.absent() : const Value(true),
       ));
 
+  /// Dodatek klawiatury. Wyłączenie gasi tym samym zapisem odbiór: ponowne
+  /// włączenie dodatku nie ma po cichu przywracać zgody na bycie wpisywanym.
+  Future<void> saveKeyboardAddon(bool enabled) =>
+      (update(settings)..where((s) => s.id.equals(1))).write(SettingsCompanion(
+        keyboardEnabled: Value(enabled),
+        remoteInputReceive:
+            enabled ? const Value.absent() : const Value(false),
+      ));
+
+  Future<void> saveRemoteInputReceive(bool enabled) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(remoteInputReceive: Value(enabled)));
+
   Future<void> saveLinkPreviews(bool enabled) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(linkPreviews: Value(enabled)));
@@ -484,9 +521,9 @@ class ChattDb extends _$ChattDb {
   /// Efekt parowania kodem PIN: od teraz wiadomo, że pod tym GUID-em siedzi
   /// urządzenie, które użytkownik świadomie potwierdził.
   ///
-  /// Zdjęcie potwierdzenia gasi też przyjmowanie plików bez pytania. Zgoda
-  /// dotyczyła konkretnej, potwierdzonej tożsamości; gdy tarcza gaśnie,
-  /// zostawienie otwartej furtki byłoby cichym rozszerzeniem tej zgody.
+  /// Zdjęcie potwierdzenia gasi też przyjmowanie plików i pisanie bez
+  /// pytania. Zgoda dotyczyła konkretnej, potwierdzonej tożsamości; gdy tarcza
+  /// gaśnie, zostawienie otwartej furtki byłoby cichym rozszerzeniem tej zgody.
   Future<void> setPeerVerified(int id, bool verified) =>
       (update(peers)..where((p) => p.id.equals(id))).write(
         verified
@@ -494,6 +531,7 @@ class ChattDb extends _$ChattDb {
             : const PeersCompanion(
                 verified: Value(false),
                 autoAccept: Value(false),
+                remoteInput: Value(false),
               ),
       );
 
@@ -517,6 +555,19 @@ class ChattDb extends _$ChattDb {
     final allowed = value && peer.verified;
     await (update(peers)..where((p) => p.id.equals(id)))
         .write(PeersCompanion(autoAccept: Value(allowed)));
+    return allowed;
+  }
+
+  /// Pisanie na tym urządzeniu bez karty zgody. Jak [setPeerAutoAccept]:
+  /// włączyć da się tylko przy potwierdzonej tożsamości, a pilnuje tego baza.
+  /// Zwraca stan po zapisie.
+  Future<bool> setPeerRemoteInput(int id, bool value) async {
+    final peer =
+        await (select(peers)..where((p) => p.id.equals(id))).getSingleOrNull();
+    if (peer == null) return false;
+    final allowed = value && peer.verified;
+    await (update(peers)..where((p) => p.id.equals(id)))
+        .write(PeersCompanion(remoteInput: Value(allowed)));
     return allowed;
   }
 

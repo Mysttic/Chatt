@@ -343,6 +343,22 @@
   "transportBluetoothFailed": "Nie udało się włączyć Bluetootha.",
   "transportBothOff": "Sieć wyłączona, a Bluetooth nie działa: to urządzenie z nikim się nie skontaktuje.",
   "transportBluetoothDiscoverable": "Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.",
+  "keyboardAddon": "Klawiatura z PC",
+  "keyboardAddonHelp": "Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.",
+  "remoteInputReceive": "Pozwól pisać na tym urządzeniu",
+  "remoteInputReceiveHelp": "Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.",
+  "remoteInputSafety": "Drugie urządzenie pisze tu jak zwykła klawiatura: może wysłać wiadomość, zatwierdzić formularz, wpisać hasło. Sesja trwa do Stopu albo do pół godziny bez pisania.",
+  "remoteInputUnsupported": "Pisanie z innego urządzenia przyjmują Android i Windows.",
+  "remoteInputRequestTitle": "{name} chce pisać na tym urządzeniu",
+  "@remoteInputRequestTitle": {
+    "placeholders": { "name": {} }
+  },
+  "remoteInputRequestBody": "Tekst trafi do pola, które ma fokus, w dowolnej aplikacji, aż do Stopu.",
+  "remoteInputActive": "Pisze: {name}",
+  "@remoteInputActive": {
+    "placeholders": { "name": {} }
+  },
+  "remoteInputStop": "Stop",
   "viaWifi": "przez sieć",
   "viaBluetooth": "przez Bluetooth",
   "protocolWifi": "Sieć",

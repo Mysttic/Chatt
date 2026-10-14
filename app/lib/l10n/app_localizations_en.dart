@@ -834,6 +834,45 @@ class AppLocalizationsEn extends AppLocalizations {
       'While the add-on is on, this PC is visible to nearby devices. It goes away with the switch.';
 
   @override
+  String get keyboardAddon => 'Keyboard from a PC';
+
+  @override
+  String get keyboardAddonHelp =>
+      'Type on a computer\'s keyboard into the field that has focus on another device, in any app. Only between devices with a confirmed identity, over the same encrypted channel as conversations.';
+
+  @override
+  String get remoteInputReceive => 'Allow typing on this device';
+
+  @override
+  String get remoteInputReceiveHelp =>
+      'A confirmed device can ask to type here. Every session starts with a question on this screen.';
+
+  @override
+  String get remoteInputSafety =>
+      'The other device types here like an ordinary keyboard: it can send a message, submit a form, enter a password. A session lasts until Stop or half an hour without typing.';
+
+  @override
+  String get remoteInputUnsupported =>
+      'Typing from another device works on Android and Windows.';
+
+  @override
+  String remoteInputRequestTitle(Object name) {
+    return '$name wants to type on this device';
+  }
+
+  @override
+  String get remoteInputRequestBody =>
+      'Text goes into the field that has focus, in any app, until Stop.';
+
+  @override
+  String remoteInputActive(Object name) {
+    return 'Typing: $name';
+  }
+
+  @override
+  String get remoteInputStop => 'Stop';
+
+  @override
   String get viaWifi => 'over the network';
 
   @override

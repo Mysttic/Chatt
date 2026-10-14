@@ -837,6 +837,45 @@ class AppLocalizationsPl extends AppLocalizations {
       'Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.';
 
   @override
+  String get keyboardAddon => 'Klawiatura z PC';
+
+  @override
+  String get keyboardAddonHelp =>
+      'Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.';
+
+  @override
+  String get remoteInputReceive => 'Pozwól pisać na tym urządzeniu';
+
+  @override
+  String get remoteInputReceiveHelp =>
+      'Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.';
+
+  @override
+  String get remoteInputSafety =>
+      'Drugie urządzenie pisze tu jak zwykła klawiatura: może wysłać wiadomość, zatwierdzić formularz, wpisać hasło. Sesja trwa do Stopu albo do pół godziny bez pisania.';
+
+  @override
+  String get remoteInputUnsupported =>
+      'Pisanie z innego urządzenia przyjmują Android i Windows.';
+
+  @override
+  String remoteInputRequestTitle(Object name) {
+    return '$name chce pisać na tym urządzeniu';
+  }
+
+  @override
+  String get remoteInputRequestBody =>
+      'Tekst trafi do pola, które ma fokus, w dowolnej aplikacji, aż do Stopu.';
+
+  @override
+  String remoteInputActive(Object name) {
+    return 'Pisze: $name';
+  }
+
+  @override
+  String get remoteInputStop => 'Stop';
+
+  @override
   String get viaWifi => 'przez sieć';
 
   @override

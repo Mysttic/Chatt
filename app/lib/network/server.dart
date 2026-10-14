@@ -10,6 +10,9 @@ import 'bt_link.dart';
 import 'protocol.dart';
 import 'transport.dart';
 
+/// Odpowiedź, którą obsługujący złożył i zapieczętował sam: kod HTTP i ciało.
+typedef SealedReply = ({int status, Map<String, Object?> body});
+
 /// Serwer HTTP tej instancji: to przez niego przychodzą wiadomości od
 /// innych urządzeń. Działa identycznie na Windows, Linuksie i Androidzie
 /// (dart:io), więc każde urządzenie jest równorzędnym "peerem".
@@ -50,6 +53,16 @@ class ChattServer {
   final Future<FileReceiveResult> Function(IncomingFileMeta meta,
       Stream<List<int>> data, String fromHost, String session)? onFile;
 
+  /// Wołane dla POST /input-session i POST /input (zdalna klawiatura).
+  /// Zwracają kod i gotowe, **zapieczętowane** ciało odpowiedzi, także przy
+  /// odmowie: z jawnej odpowiedzi nie da się wyczytać, czy dodatek jest
+  /// włączony. [session] jak przy [onMessage].
+  final Future<SealedReply> Function(
+          InputSessionRequest request, String fromHost, String session)?
+      onInputSession;
+  final Future<SealedReply> Function(
+          RemoteInputPacket packet, String fromHost, String session)? onInput;
+
   HttpServer? _server;
 
   ChattServer({
@@ -60,6 +73,8 @@ class ChattServer {
     this.onEnvelope,
     this.onFileOffer,
     this.onFile,
+    this.onInputSession,
+    this.onInput,
   });
 
   /// Zamienia kopertę na jej zawartość. Od protokołu 5 **wszystko** musi
@@ -98,7 +113,9 @@ class ChattServer {
             ..post('/pair', _handlePair)
             ..post('/handshake', _handleHandshake)
             ..post('/file-offer', _handleFileOffer)
-            ..post('/file', _handleFile))
+            ..post('/file', _handleFile)
+            ..post('/input-session', _handleInputSession)
+            ..post('/input', _handleInput))
           .call);
 
   /// Żądanie, które przyszło łączem Bluetooth. Adres radia wchodzi jako
@@ -165,12 +182,13 @@ class ChattServer {
   /// przez `/file` prosto na dysk.
   static const int _maxBodyBytes = 1024 * 1024;
 
-  /// Ciało zapytania albo null, gdy przekroczyło granicę.
-  Future<List<int>?> _readBody(Request request) async {
+  /// Ciało zapytania albo null, gdy przekroczyło granicę [limit].
+  Future<List<int>?> _readBody(Request request,
+      {int limit = _maxBodyBytes}) async {
     final bytes = <int>[];
     await for (final chunk in request.read()) {
       bytes.addAll(chunk);
-      if (bytes.length > _maxBodyBytes) return null;
+      if (bytes.length > limit) return null;
     }
     return bytes;
   }
@@ -329,6 +347,54 @@ class ChattServer {
         FileReceiveResult.checksumMismatch => 422,
       },
     );
+  }
+
+  /// Prośba o sesję zdalnej klawiatury albo jej wycofanie.
+  Future<Response> _handleInputSession(Request request) async {
+    final handler = onInputSession;
+    if (handler == null) {
+      return _json({'ok': false, 'error': 'not_supported'}, status: 404);
+    }
+    final body = await _readBody(request, limit: maxInputBodyBytes);
+    if (body == null) return _tooLarge();
+    final opened = await _unseal(tryDecodeJsonMap(body));
+    final json = opened.json;
+    if (json == null) {
+      return _noSession();
+    }
+    final prosba = InputSessionRequest.fromJson(json);
+    if (prosba == null) {
+      return _json({'ok': false, 'error': 'bad_request'}, status: 400);
+    }
+    if (prosba.from.guid == identity().guid) {
+      return _json({'ok': false, 'error': 'self'}, status: 400);
+    }
+    final reply = await handler(prosba, _from(request), opened.session!);
+    return _json(reply.body, status: reply.status);
+  }
+
+  /// Paczka operacji zdalnej klawiatury.
+  Future<Response> _handleInput(Request request) async {
+    final handler = onInput;
+    if (handler == null) {
+      return _json({'ok': false, 'error': 'not_supported'}, status: 404);
+    }
+    final body = await _readBody(request, limit: maxInputBodyBytes);
+    if (body == null) return _tooLarge();
+    final opened = await _unseal(tryDecodeJsonMap(body));
+    final json = opened.json;
+    if (json == null) {
+      return _noSession();
+    }
+    final paczka = RemoteInputPacket.fromJson(json);
+    if (paczka == null) {
+      return _json({'ok': false, 'error': 'bad_request'}, status: 400);
+    }
+    if (paczka.from.guid == identity().guid) {
+      return _json({'ok': false, 'error': 'self'}, status: 400);
+    }
+    final reply = await handler(paczka, _from(request), opened.session!);
+    return _json(reply.body, status: reply.status);
   }
 
   static Response _json(Map<String, Object?> body, {int status = 200}) =>
