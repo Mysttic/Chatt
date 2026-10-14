@@ -70,6 +70,8 @@
   "saveUnsupported": "This system has nowhere to save the file without extra permissions. Use “Share”.",
   "fileGone": "That file is no longer on disk.",
   "fileOpenFailed": "Could not open the file.",
+  "imageLoadFailed": "Could not load the image.",
+  "rotate": "Rotate",
   "receivingFile": "Receiving: {name}",
   "pairStartFailed": "Could not start pairing: the device is not answering.",
 
@@ -237,5 +239,48 @@
   "selectText": "Select text",
   "selectTextHint": "Press and hold to select part of it",
 
-  "discoveryDeaf": "This device does not answer scans. Others will find it only by adding its address by hand. The usual cause is another program holding port 47777."
+  "discoveryDeaf": "This device does not answer scans. Others will find it only by adding its address by hand. The usual cause is another program holding port 47777.",
+
+  "addons": "Add-ons",
+  "addonsHelp": "Features most people never need. An add-on that is off stays inside this section: it shows on no other screen and starts nothing.",
+  "transportsHelp": "Two roads, and both can be on at once. The network is tens of times faster; Bluetooth works with no network at all, as long as the devices are next to each other.",
+  "transportWifi": "Local network",
+  "transportWifiHelp": "Messages and files over Wi-Fi or a cable. Both devices have to be on the same network.",
+  "transportBluetooth": "Bluetooth",
+  "transportBluetoothHelp": "Messages and files over the radio, with no router, no address and no shared network. Tens of times slower than Wi-Fi, so a big file will take a while. Turning it on adds searching over Bluetooth to Nearby and shows which road each conversation takes.",
+  "transportBluetoothUnsupported": "Chatt has no Bluetooth on this system.",
+  "transportBluetoothRadioOff": "Turn Bluetooth on in the system settings.",
+  "transportBluetoothNoPermission": "Chatt has no permission for nearby devices.",
+  "transportBluetoothGrant": "Open settings",
+  "transportBluetoothFailed": "Bluetooth would not start.",
+  "transportBothOff": "The network is off and Bluetooth is not running: this device will reach nobody.",
+  "transportBluetoothDiscoverable": "While the add-on is on, this PC is visible to nearby devices. It goes away with the switch.",
+  "viaWifi": "over the network",
+  "viaBluetooth": "over Bluetooth",
+  "protocolWifi": "Network",
+  "protocolBluetooth": "Bluetooth",
+  "searchWhere": "Where to look",
+  "searchBluetoothHint": "Looking over the radio takes up to a minute and a half and slows open conversations down while it runs.",
+  "searchBluetoothOff": "Bluetooth is not running. Check the radio and the permission in Settings, under Add-ons.",
+  "searchingBluetooth": "Looking over Bluetooth…",
+  "scanStartBluetooth": "Search over Bluetooth",
+  "nearbyBeforeScanBluetooth": "Search over Bluetooth to see which devices next to you answer.",
+  "nearbyScanningBluetooth": "Nothing has answered yet. Devices show up here one by one, as soon as they answer.",
+  "scanNothingFoundBluetooth": "No devices found over Bluetooth. Check that Chatt is running on the other device with the Bluetooth add-on on, and that it is a few metres away at most. You can also add it by radio address.",
+
+  "searchBluetoothNoLocation": "Android hands out no search results while location services are off. The connection itself does not need them, and Chatt never asks where you are.",
+  "turnOnLocation": "Turn location on",
+  "addByBtAddress": "Add by radio address",
+  "manualAddBtTitle": "Add by Bluetooth address",
+  "manualAddBtHelp": "The other device shows its address in its Bluetooth settings. A PC also shows its own in Chatt's Settings, under Add-ons.",
+  "btAddressLabel": "Bluetooth address",
+  "btAddressHint": "AA:BB:CC:DD:EE:FF",
+  "noChattAtBtAddress": "No Chatt answers at {address}",
+  "@noChattAtBtAddress": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "myBtAddress": "This radio's address: {address}",
+  "@myBtAddress": {
+    "placeholders": { "address": { "type": "String" } }
+  }
 }

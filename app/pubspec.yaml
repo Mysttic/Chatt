@@ -1,7 +1,7 @@
 name: chatt
 description: "Komunikator P2P w sieci lokalnej: wiadomości i pliki bez serwera."
 publish_to: 'none'
-version: 0.8.1+17
+version: 0.9.0+19
 
 environment:
   sdk: ^3.13.2

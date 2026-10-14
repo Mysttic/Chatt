@@ -8,6 +8,116 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.9.0] - 2026-10-14
+
+A conversation can travel over Bluetooth, so two devices talk with nothing
+between them: no shared network, no router, no system pairing. Bluetooth is an
+add-on, off by default. While it is off, nothing in the app touches the radio
+and every conversation travels over the local network, as before.
+
+This release also carries 0.8.2, which was never published on its own: a
+photo in a conversation opens in a preview with zooming and turning.
+
+### Added
+- **Add-ons, with Bluetooth as the first one.** Settings gains an "Add-ons"
+  section. While the Bluetooth add-on is off it exists nowhere else in the app:
+  no other screen shows it, nothing listens on the radio, the native side gets
+  no call apart from the permission check while the switch is being turned on,
+  and the local network is the only road. Android asks for the Bluetooth
+  permission when the add-on goes on, and again only from the add-on's card
+  if the permission is taken away later.
+- **Bluetooth as a second way of reaching the other device.** With the add-on
+  on, the network and the radio run side by side: the app tries the network
+  first and falls back to the radio by itself, so there is nothing to choose
+  per conversation. The add-on's card shows the radio and permission state,
+  this radio's address on Windows, and a local network switch for when the
+  radio should be the only road. A radio turned on later, or switched off and
+  on in the system, brings the add-on back up by itself.
+- **The "Nearby" screen asks which way to look**, the network or Bluetooth,
+  while the add-on is on. Bluetooth is offered once the radio is running. The
+  radio cannot say who is running Chatt, so every device in range is asked,
+  and one that does not answer as Chatt never appears on the list. Computers
+  and phones are asked first and each device appears the moment it answers. On
+  Android the screen says when location services are off, since without them
+  the system hands out no search results, and a radio address can also be
+  typed in by hand.
+- **The conversation list and the conversation header say which way a
+  conversation is going** while the add-on is on: a Wi-Fi or a Bluetooth mark,
+  with a caption inside the conversation.
+
+### Changed
+- **A device added by its address shows the padlock at once.** The key it
+  reports when it answers is pinned right away, after a check that it matches
+  the device's identity. Until now the key was pinned with the first message.
+
+### Fixed
+- **Presence and the key exchange count only an answer from the device
+  itself.** When addresses on the network shift, another Chatt device can end
+  up at the old address. It used to show the conversation as online; now the
+  app moves on and looks for the right device.
+
+### Security
+- **System pairing is not required and buys nothing here.** The handshake, the
+  encrypted envelopes, the file stream, the consent for a batch of files and
+  the confirmation by code or QR run over the radio exactly as they are. The
+  green shield still comes only from a code or a QR scan.
+- With the add-on on, a new neighbour joins the threat model: somebody in
+  radio range, about 10 m, next to somebody on the same network. In the clear
+  are the device's Bluetooth name and the radio's MAC address, exactly as UDP
+  discovery is in the clear today.
+- With the add-on on, a computer is discoverable to everybody nearby, and the
+  add-on's card says so. Turning the add-on off takes the discoverability with
+  it.
+
+### Known cost
+Bluetooth carries 90 to 165 kB/s, which is 50 to 100 times slower than Wi-Fi:
+a megabyte takes 6 to 12 seconds. A short message turns around in 22 to 25 ms,
+so text feels the same either way. Files are where it hurts.
+
+## 0.8.2 - 2026-09-21
+
+Never published on its own: it reaches users inside 0.9.0.
+
+A photo in a conversation opens right where it is, in a preview of its own.
+
+### Added
+- **Tapping a photo opens it full screen, with zooming and turning.** Pinch or
+  scroll to zoom, drag to move around, double-tap to zoom in on a spot and
+  again to fit it back; the button in the corner turns it ninety degrees at a
+  time. Turning affects what you are looking at and never the file, which stays
+  byte for byte what arrived. The actions from the conversation — save, share,
+  copy the image, open it with the system — are in the top bar, and Esc closes
+  it on a PC.
+
+  Chatt draws the picture itself, with the decoder it already used for
+  thumbnails and under the same rule: only a file you have accepted and that
+  already lies on disk. Nothing is handed to another app, so the commonest
+  thing anyone does with a received photo no longer depends on there being an
+  app installed that shows pictures, nor on the file being one Android lets us
+  hand out at all. Other files open with the system association as before.
+
+### Fixed
+- **Tapping a photo you sent yourself said "Could not open the file."** On
+  Android a file only reaches another app through FileProvider, and FileProvider
+  serves nothing outside the roots listed in `res/xml/file_paths.xml`. That list
+  held the received files and a downloaded release — but an outgoing message
+  keeps the path it was handed, and every way of sending a picture from a phone
+  puts it in the app cache first: the picker, the clipboard, and the keyboard's
+  own "insert image". So the thumbnail drew fine, and touching it failed. The
+  cache directories holding those copies are now served too, which also fixes
+  "Share" on your own file, and which is the narrow fix: the two subdirectories
+  the user actually picked from, not the whole cache.
+
+  Received photos were never affected, which is why this looked like it
+  depended on the photo rather than on who sent it.
+- **"Could not open the file." no longer covers a file that is simply gone.**
+  The channel answered `true`/`false`, so a missing file and a refused handover
+  arrived as the same failure; it now answers with a word, and a file Android
+  swept out of the cache says so. The exception behind a failure goes to logcat
+  instead of vanishing into a `catch`, because the old message said nothing
+  anyone could act on — including us, while working out what this issue even
+  was.
+
 ## [0.8.1] - 2026-09-18
 
 Sending someone a handful of files asked them a handful of times. Now it asks
@@ -617,6 +727,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/Mysttic/Chatt/compare/v0.7.0...v0.7.1

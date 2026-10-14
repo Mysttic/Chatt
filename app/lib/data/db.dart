@@ -59,6 +59,19 @@ class Settings extends Table {
   /// urządzenia i moment, w którym wiadomość dotarła.
   BoolColumn get linkPreviews => boolean().withDefault(const Constant(false))();
 
+  /// Czy rozmawiamy przez sieć lokalną. Domyślnie tak: to jest droga, którą
+  /// Chatt działa od początku. Przełącznik należy do dodatku Bluetooth
+  /// i liczy się tylko przy nim: wyłączenie ma sens tam, gdzie sieć nie
+  /// przepuszcza ruchu między urządzeniami i zostaje samo radio.
+  BoolColumn get wifiEnabled => boolean().withDefault(const Constant(true))();
+
+  /// Czy włączony jest dodatek Bluetooth (sekcja „Dodatki" w ustawieniach).
+  /// Domyślnie nie. Dodatek włącza radio, prosi o zgodę i czyni komputer
+  /// wykrywalnym, więc włącza go użytkownik. Wyłączony nie zostawia
+  /// w aplikacji żadnego śladu.
+  BoolColumn get bluetoothEnabled =>
+      boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -94,6 +107,18 @@ class Peers extends Table {
   /// potwierdzonej tożsamości, więc [setPeerVerified] gasi tę flagę razem
   /// z tarczą: inaczej przetrwałaby unieważnienie potwierdzenia.
   BoolColumn get autoAccept => boolean().withDefault(const Constant(false))();
+
+  /// Ostatni znany adres radia (`AA:BB:CC:DD:EE:FF`), gdy rozmówcę widzieliśmy
+  /// przez Bluetooth. Jak [host], jest tylko podpowiedzią: tożsamością zostaje
+  /// [guid]. Adres potrafi się zmienić, gdy urządzenia zostaną sparowane
+  /// systemowo (patrz docs/spike-rfcomm.md), więc nadpisujemy go przy każdym
+  /// kontakcie i nigdy po nim nie rozpoznajemy rozmówcy.
+  TextColumn get btAddress => text().nullable()();
+
+  /// Którędy rozmowa szła ostatnim razem: 0 sieć lokalna, 1 Bluetooth,
+  /// null jeszcze nie wiadomo. Wyłącznie do pokazania w interfejsie, żeby
+  /// widać było, czy wiadomość poleciała szybką drogą, czy wolną.
+  IntColumn get lastProtocol => integer().nullable()();
 
   DateTimeColumn get firstSeen => dateTime()();
   DateTimeColumn get lastSeen => dateTime()();
@@ -192,7 +217,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -259,6 +284,17 @@ class ChattDb extends _$ChattDb {
         // ruchu poza sieć lokalną i ma go włączyć użytkownik, a nie
         // aktualizacja aplikacji.
         await _dodajKolumneJesliBrak(m, settings, settings.linkPreviews);
+      }
+      if (from < 12) {
+        // v12: Bluetooth jako druga droga dla bajtów. Same kolumny, bez
+        // ruszania czegokolwiek, co już w bazie leży: rozmówca poznany po IP
+        // zostaje rozmówcą poznanym po IP, z pustym adresem radia i nieznanym
+        // ostatnim protokołem. Precedens z v6, który wyczyścił listę urządzeń
+        // i historię, nie ma prawa się powtórzyć.
+        await _dodajKolumneJesliBrak(m, peers, peers.btAddress);
+        await _dodajKolumneJesliBrak(m, peers, peers.lastProtocol);
+        await _dodajKolumneJesliBrak(m, settings, settings.wifiEnabled);
+        await _dodajKolumneJesliBrak(m, settings, settings.bluetoothEnabled);
       }
     },
   );
@@ -348,6 +384,18 @@ class ChattDb extends _$ChattDb {
   Future<void> saveUpdateChecks(bool enabled) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(updateChecks: Value(enabled)));
+
+  Future<void> saveWifiEnabled(bool enabled) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(wifiEnabled: Value(enabled)));
+
+  /// Dodatek Bluetooth. Wyłączenie przywraca sieć tym samym zapisem: bez
+  /// dodatku znika przełącznik, którym dałoby się ją włączyć z powrotem.
+  Future<void> saveBluetoothAddon(bool enabled) =>
+      (update(settings)..where((s) => s.id.equals(1))).write(SettingsCompanion(
+        bluetoothEnabled: Value(enabled),
+        wifiEnabled: enabled ? const Value.absent() : const Value(true),
+      ));
 
   Future<void> saveLinkPreviews(bool enabled) =>
       (update(settings)..where((s) => s.id.equals(1)))
@@ -501,6 +549,8 @@ class ChattDb extends _$ChattDb {
     required String welcomeMessage,
     required String host,
     required int port,
+    String? btAddress,
+    int? protocol,
   }) async {
     final now = DateTime.now();
     await into(peers).insert(
@@ -510,6 +560,8 @@ class ChattDb extends _$ChattDb {
         welcomeMessage: Value(welcomeMessage),
         host: host,
         port: port,
+        btAddress: Value(btAddress),
+        lastProtocol: Value(protocol),
         firstSeen: now,
         lastSeen: now,
       ),
@@ -519,7 +571,18 @@ class ChattDb extends _$ChattDb {
           welcomeMessage: Value(welcomeMessage),
           // Pusty host (nieznany adres źródła) nie nadpisuje ostatniego dobrego.
           host: host.isEmpty ? const Value.absent() : Value(host),
-          port: Value(port),
+          // Tak samo port: rozmówca spotkany wyłącznie przez Bluetooth nie ma
+          // żadnego, a zero wyczyściłoby adres, pod którym był osiągalny
+          // w sieci.
+          port: port <= 0 ? const Value.absent() : Value(port),
+          // I tak samo adres radia, w drugą stronę: kontakt po IP nie kasuje
+          // tego, co wiemy o drodze przez Bluetooth.
+          btAddress: (btAddress == null || btAddress.isEmpty)
+              ? const Value.absent()
+              : Value(btAddress),
+          // Nieznany protokół nie kasuje tego, co już wiadomo.
+          lastProtocol:
+              protocol == null ? const Value.absent() : Value(protocol),
           lastSeen: Value(now),
         ),
         target: [peers.guid],
@@ -527,6 +590,13 @@ class ChattDb extends _$ChattDb {
     );
     return (await peerByGuid(guid))!;
   }
+
+  /// Zapamiętuje, którędy rozmowa poszła ostatnim razem. Wyłącznie do
+  /// pokazania w interfejsie: trasę przy wysyłaniu wybiera to, co akurat
+  /// odpowiada.
+  Future<void> setPeerProtocol(int id, int protocol) =>
+      (update(peers)..where((p) => p.id.equals(id)))
+          .write(PeersCompanion(lastProtocol: Value(protocol)));
 
   // --- Konwersacje ----------------------------------------------------------
 

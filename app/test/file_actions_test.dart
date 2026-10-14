@@ -46,4 +46,38 @@ void main() {
       expect(await FileActions.pickFiles(), isEmpty);
     });
   });
+
+  /// Otwieranie i udostępnianie na Androidzie idzie przez dostawcę treści,
+  /// a ten odmawia wszystkiemu spoza korzeni z `res/xml/file_paths.xml`.
+  /// Kanał oddaje więc słowo, nie `true`/`false`: „pliku nie ma" i „nie
+  /// udało się" to dla użytkownika dwie różne wiadomości, a wcześniej obie
+  /// kończyły się tym samym komunikatem o nieudanym otwarciu.
+  group('FileActions.resultFromStatus', () {
+    test('„ok" to powodzenie', () {
+      expect(FileActions.resultFromStatus('ok'), FileActionResult.ok);
+    });
+
+    test('„missing" mówi o braku pliku, nie o awarii', () {
+      expect(
+          FileActions.resultFromStatus('missing'), FileActionResult.missing);
+    });
+
+    test('„failed" to awaria', () {
+      expect(FileActions.resultFromStatus('failed'), FileActionResult.failed);
+    });
+
+    test('nieznane słowo i brak odpowiedzi to awaria, nie ciche powodzenie',
+        () {
+      expect(FileActions.resultFromStatus('cokolwiek'),
+          FileActionResult.failed);
+      expect(FileActions.resultFromStatus(null), FileActionResult.failed);
+    });
+
+    test('„unsupported" nie przychodzi z kanału i też jest awarią', () {
+      // `unsupported` zostaje wyłącznie dla systemu bez czego otworzyć plik
+      // i dla braku kanału; Android nigdy go nie melduje.
+      expect(FileActions.resultFromStatus('unsupported'),
+          FileActionResult.failed);
+    });
+  });
 }

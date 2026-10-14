@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Co wolno wypuścić przez FileProvider: odebrane pliki i pobrane wydanie,
-     nic więcej z katalogu aplikacji. APK musi tędy przejść, bo systemowy
-     instalator dostaje content://, nie ścieżkę. -->
+<!-- Co wolno wypuścić przez FileProvider: odebrane pliki, pobrane wydanie
+     i kopie plików przygotowanych do wysłania, nic więcej z katalogu
+     aplikacji. APK musi tędy przejść, bo systemowy instalator dostaje
+     content://, nie ścieżkę.
+
+     Dwa korzenie w cache to pliki, które użytkownik sam wybrał albo wkleił,
+     żeby je wysłać: kopie lądują w `cache/wybrane/` (okno wyboru,
+     ChattFilePicker) i `cache/wklejone/` (schowek przez ChattClipboard oraz
+     obrazek wstawiony z klawiatury przez core/clipboard.dart). Bez nich
+     stuknięcie we własne wysłane zdjęcie kończyło się komunikatem „Nie udało
+     się otworzyć pliku.", bo FileProvider odmawia wszystkiemu spoza
+     wymienionych tu korzeni.
+
+     Podkatalogi, nie całe `cache/`: wychodzi dokładnie to, co użytkownik
+     świadomie wskazał do wysłania, a nie wszystko, co aplikacja akurat
+     trzyma w cache'u. -->
 <paths>
     <files-path name="odebrane" path="Chatt/received/" />
     <files-path name="aktualizacje" path="Chatt/updates/" />
+    <cache-path name="wybrane" path="wybrane/" />
+    <cache-path name="wklejone" path="wklejone/" />
 </paths>

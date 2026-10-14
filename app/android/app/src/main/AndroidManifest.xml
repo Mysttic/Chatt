@@ -21,6 +21,28 @@
          ekran instalacji w ogóle się nie otworzy. Aplikacja niczego nie
          podmienia sama i nie instaluje niczego po cichu. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Bluetooth Classic jako drugi transport (issue #27). CONNECT do
+         nawiązania łącza RFCOMM, SCAN do znalezienia drugiego urządzenia bez
+         wpisywania adresu. Przy SCAN jest neverForLocation, bo szukamy
+         komputera obok i położenie użytkownika nic tu nie wnosi: bez tego
+         Android wymusiłby zgodę na położenie. Rozgłaszania (BLUETOOTH_ADVERTISE)
+         świadomie nie ma: telefon jest wykrywalny wtedy, gdy użytkownik tak
+         ustawi w systemie, a to komputer jest stroną, która nasłuchuje.
+         Do Androida 11 te same rzeczy załatwiały dwie stare zgody plus
+         położenie. Brak <uses-feature>, żeby aplikacja nie zniknęła ze Sklepu
+         urządzeniom bez radia. Zgody leżą w manifeście, bo
+         inaczej się nie da, ale aplikacja sięga po nie dopiero przy włączaniu
+         dodatku Bluetooth (Ustawienia, sekcja „Dodatki"), domyślnie
+         wyłączonego. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30"/>
     <!-- Kopia zapasowa Androida wyłączona, z dwóch powodów naraz.
          Klucz bazy leży w Keystore i nigdy nie opuszcza urządzenia, więc
          przywrócona kopia przynosi z powrotem owinięty plik `chatt.key`,

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:chatt/core/crypto.dart';
 import 'package:chatt/services/app_services.dart';
+import 'package:chatt/network/transport.dart';
 
 /// Fundament wydania 0.2.0: tożsamość liczona z klucza i uścisk dłoni,
 /// z którego wychodzi klucz ważny tylko na jedną sesję.
@@ -180,7 +181,7 @@ void main() {
 
     // Klucz musi dojść przez sieć, bo z niego liczy się pierwsza sesja.
     final bobUAlicji =
-        await alice.client.fetchInfo('127.0.0.1', bob.server.port!);
+        await alice.client.fetchInfo(IpRoute('127.0.0.1', bob.server.port!));
     expect(bobUAlicji, isNotNull);
     expect(bobUAlicji!.publicKey, bob.identity.publicKey);
     expect(ChattCrypto.guidFromPublicKey(bobUAlicji.publicKey),
