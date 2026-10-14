@@ -1393,6 +1393,216 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.'**
   String get discoveryDeaf;
+
+  /// No description provided for @addons.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodatki'**
+  String get addons;
+
+  /// No description provided for @addonsHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Funkcje, których większość osób nie potrzebuje. Wyłączony dodatek nie wychodzi poza tę sekcję: nie widać go na żadnym innym ekranie i niczego nie uruchamia.'**
+  String get addonsHelp;
+
+  /// No description provided for @transportsHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dwie drogi, obie mogą być włączone naraz. Sieć jest kilkadziesiąt razy szybsza, Bluetooth działa bez żadnej sieci, gdy urządzenia są obok siebie.'**
+  String get transportsHelp;
+
+  /// No description provided for @transportWifi.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sieć lokalna'**
+  String get transportWifi;
+
+  /// No description provided for @transportWifiHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wiadomości i pliki przez Wi-Fi albo kabel. Wymaga, żeby oba urządzenia były w tej samej sieci.'**
+  String get transportWifiHelp;
+
+  /// No description provided for @transportBluetooth.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bluetooth'**
+  String get transportBluetooth;
+
+  /// No description provided for @transportBluetoothHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wiadomości i pliki przez radio, bez routera, adresu i wspólnej sieci. Kilkadziesiąt razy wolniej niż Wi-Fi, więc duży plik potrwa. Włączenie dodaje szukanie przez Bluetooth w „W pobliżu” i znacznik drogi w rozmowach.'**
+  String get transportBluetoothHelp;
+
+  /// No description provided for @transportBluetoothUnsupported.
+  ///
+  /// In pl, this message translates to:
+  /// **'Na tym systemie nie ma Bluetootha w Chatcie.'**
+  String get transportBluetoothUnsupported;
+
+  /// No description provided for @transportBluetoothRadioOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Włącz Bluetooth w ustawieniach systemu.'**
+  String get transportBluetoothRadioOff;
+
+  /// No description provided for @transportBluetoothNoPermission.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt nie ma zgody na urządzenia w pobliżu.'**
+  String get transportBluetoothNoPermission;
+
+  /// No description provided for @transportBluetoothGrant.
+  ///
+  /// In pl, this message translates to:
+  /// **'Otwórz ustawienia'**
+  String get transportBluetoothGrant;
+
+  /// No description provided for @transportBluetoothFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się włączyć Bluetootha.'**
+  String get transportBluetoothFailed;
+
+  /// No description provided for @transportBothOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sieć wyłączona, a Bluetooth nie działa: to urządzenie z nikim się nie skontaktuje.'**
+  String get transportBothOff;
+
+  /// No description provided for @transportBluetoothDiscoverable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.'**
+  String get transportBluetoothDiscoverable;
+
+  /// No description provided for @viaWifi.
+  ///
+  /// In pl, this message translates to:
+  /// **'przez sieć'**
+  String get viaWifi;
+
+  /// No description provided for @viaBluetooth.
+  ///
+  /// In pl, this message translates to:
+  /// **'przez Bluetooth'**
+  String get viaBluetooth;
+
+  /// No description provided for @protocolWifi.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sieć'**
+  String get protocolWifi;
+
+  /// No description provided for @protocolBluetooth.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bluetooth'**
+  String get protocolBluetooth;
+
+  /// No description provided for @searchWhere.
+  ///
+  /// In pl, this message translates to:
+  /// **'Gdzie szukać'**
+  String get searchWhere;
+
+  /// No description provided for @searchBluetoothHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukanie przez radio trwa do półtorej minuty i na ten czas zwalnia otwarte rozmowy.'**
+  String get searchBluetoothHint;
+
+  /// No description provided for @searchBluetoothOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w sekcji Dodatki.'**
+  String get searchBluetoothOff;
+
+  /// No description provided for @searchingBluetooth.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukam przez Bluetooth…'**
+  String get searchingBluetooth;
+
+  /// No description provided for @scanStartBluetooth.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szukaj przez Bluetooth'**
+  String get scanStartBluetooth;
+
+  /// No description provided for @nearbyBeforeScanBluetooth.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyszukaj przez Bluetooth, żeby zobaczyć, które urządzenia obok odpowiadają.'**
+  String get nearbyBeforeScanBluetooth;
+
+  /// No description provided for @nearbyScanningBluetooth.
+  ///
+  /// In pl, this message translates to:
+  /// **'Jeszcze nikt nie odpowiedział. Urządzenia pojawiają się tu po kolei, gdy tylko odpowiedzą.'**
+  String get nearbyScanningBluetooth;
+
+  /// No description provided for @scanNothingFoundBluetooth.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Możesz też dodać je po adresie radia.'**
+  String get scanNothingFoundBluetooth;
+
+  /// No description provided for @searchBluetoothNoLocation.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android nie odda wyników szukania przy wyłączonych usługach lokalizacji. Do samego połączenia nie są potrzebne i Chatt o położenie nie pyta.'**
+  String get searchBluetoothNoLocation;
+
+  /// No description provided for @turnOnLocation.
+  ///
+  /// In pl, this message translates to:
+  /// **'Włącz lokalizację'**
+  String get turnOnLocation;
+
+  /// No description provided for @addByBtAddress.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj po adresie radia'**
+  String get addByBtAddress;
+
+  /// No description provided for @manualAddBtTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodaj po adresie Bluetooth'**
+  String get manualAddBtTitle;
+
+  /// No description provided for @manualAddBtHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w sekcji Dodatki.'**
+  String get manualAddBtHelp;
+
+  /// No description provided for @btAddressLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres Bluetooth'**
+  String get btAddressLabel;
+
+  /// No description provided for @btAddressHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'AA:BB:CC:DD:EE:FF'**
+  String get btAddressHint;
+
+  /// No description provided for @noChattAtBtAddress.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pod {address} nie odpowiada Chatt'**
+  String noChattAtBtAddress(String address);
+
+  /// No description provided for @myBtAddress.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres tego radia: {address}'**
+  String myBtAddress(String address);
 }
 
 class _AppLocalizationsDelegate

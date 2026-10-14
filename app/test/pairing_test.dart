@@ -8,6 +8,7 @@ import 'package:chatt/core/crypto.dart';
 import 'package:chatt/core/identity.dart';
 import 'package:chatt/core/pair_link.dart';
 import 'package:chatt/network/protocol.dart';
+import 'package:chatt/network/transport.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// Parowanie przez porównanie kodu: uzgodnienie leci pod spodem, a obie
@@ -99,8 +100,7 @@ void main() {
     final podmieniony = await ChattCrypto.newKeyPair();
 
     final commit = await alice.client.pair(
-      host: '127.0.0.1',
-      port: bob.server.port!,
+      route: IpRoute('127.0.0.1', bob.server.port!),
       payload: PairMessage(
         action: pairCommit,
         from: alice.identity,
@@ -111,8 +111,7 @@ void main() {
     expect(commit.accepted, isTrue);
 
     final reveal = await alice.client.pair(
-      host: '127.0.0.1',
-      port: bob.server.port!,
+      route: IpRoute('127.0.0.1', bob.server.port!),
       payload: PairMessage(
         action: pairReveal,
         from: alice.identity,

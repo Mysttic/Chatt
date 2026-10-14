@@ -112,6 +112,11 @@ class DiscoveryResponder {
         datagram.address,
         datagram.port,
       );
+    }, onError: (Object _) {
+      // Urządzenie bez sieci (telefon w trybie samolotowym rozmawiający przez
+      // Bluetooth) melduje błąd gniazda strumieniem, z pominięciem send.
+      // Bez tej obsługi leciał on bokiem jako nieobsłużony i wywracał
+      // wysyłkę, która z siecią nie miała nic wspólnego.
     });
     _socket = socket;
   }
@@ -167,6 +172,10 @@ class DiscoveryScanner {
         }
         onFound?.call(peer);
       }());
+    }, onError: (Object _) {
+      // Jak w responderze: brak sieci to nie jest powód, żeby wywracać
+      // cokolwiek. Skan po prostu nic nie znajdzie.
+      if (!done.isCompleted) done.complete();
     });
 
     final payload = utf8.encode(jsonEncode(discoverPacket(me, nonce)));

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db.dart';
+import '../../network/bt_transport.dart';
+import '../../network/transport.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
@@ -22,30 +24,101 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   bool _scanning = false;
   int _foundInLastScan = 0;
 
+  /// Którędy szukamy. Radio i sieć to dwa różne pytania do dwóch różnych
+  /// światów: broadcast UDP nie wyjdzie poza sieć, a zapytanie w eter nie
+  /// znajdzie komputera piętro niżej.
+  PeerProtocol _gdzie = PeerProtocol.wifi;
+
   /// Guidy urządzeń z ostatniego skanu. `null` znaczy „jeszcze nie szukałem",
   /// wtedy ekran nie pokazuje listy. Baza pamięta wszystkich, których
   /// kiedykolwiek widziała, a lista z poprzedniego wejścia wygląda jak wynik
   /// skanu, którego nie było.
   Set<String>? _znalezione;
 
+  /// Dodatek Bluetooth, zapamiętany przy wejściu: [dispose] musi odpiąć
+  /// słuchacza od tego samego obiektu.
+  late final ValueNotifier<bool> _dodatek;
+
+  /// Którędy szukamy naprawdę. Bez dodatku Bluetooth zostaje sama sieć,
+  /// cokolwiek było wybrane wcześniej.
+  PeerProtocol get _droga => _dodatek.value ? _gdzie : PeerProtocol.wifi;
+
+  @override
+  void initState() {
+    super.initState();
+    _dodatek = ref.read(appServicesProvider).bluetoothAddon
+      ..addListener(_dodatekZmieniony);
+    // Lokalizację i radio użytkownik przełącza poza aplikacją, więc stan
+    // odświeżamy przy każdym wejściu na ekran. Przy wyłączonym dodatku
+    // serwis nie pyta systemu o nic.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(appServicesProvider).refreshBluetoothStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _dodatek.removeListener(_dodatekZmieniony);
+    super.dispose();
+  }
+
+  void _dodatekZmieniony() {
+    if (!mounted) return;
+    setState(() {
+      // Wyniki szukania przez radio znikają razem z dodatkiem.
+      if (!_dodatek.value && _gdzie == PeerProtocol.bluetooth) {
+        _gdzie = PeerProtocol.wifi;
+        _znalezione = null;
+      }
+    });
+  }
+
   Future<void> _scan() async {
     setState(() {
       _scanning = true;
       _foundInLastScan = 0;
     });
-    final found = await ref
-        .read(appServicesProvider)
-        .scan(onFound: (_) => setState(() => _foundInLastScan++));
+    final services = ref.read(appServicesProvider);
+    void policz(_) {
+      if (mounted) setState(() => _foundInLastScan++);
+    }
+
+    // Dwa różne pytania oddają dwa różne typy: skan sieci zwraca to, co
+    // odpowiedziało na broadcast, a skan radia gotowe wpisy z bazy. Z obu
+    // interesują nas te same identyfikatory.
+    final List<String> guidy;
+    if (_droga == PeerProtocol.bluetooth) {
+      // Radio szuka do minuty, więc każdy, kto odpowie, trafia na listę od
+      // razu. Komputer obok da się otworzyć, zanim skończy się pytanie
+      // słuchawek i telewizorów z sąsiedztwa.
+      setState(() => _znalezione = {});
+      final found = await services.scanBluetooth(onFound: (peer) {
+        if (!mounted) return;
+        setState(() {
+          _foundInLastScan++;
+          _znalezione = {...?_znalezione, peer.guid};
+        });
+      });
+      guidy = [for (final peer in found) peer.guid];
+    } else {
+      final found = await services.scan(onFound: policz);
+      guidy = [for (final peer in found) peer.guid];
+    }
     if (!mounted) return;
     setState(() {
       _scanning = false;
-      _foundInLastScan = found.length;
-      _znalezione = found.map((p) => p.guid).toSet();
+      _foundInLastScan = guidy.length;
+      _znalezione = guidy.toSet();
     });
-    showToast(found.isEmpty
-        ? context.l10n.scanNothingFound
-        : context.l10n.scanFound(found.length));
+    showToast(guidy.isEmpty
+        ? _nicNieZnaleziono(context)
+        : context.l10n.scanFound(guidy.length));
   }
+
+  String _nicNieZnaleziono(BuildContext context) =>
+      _droga == PeerProtocol.bluetooth
+          ? context.l10n.scanNothingFoundBluetooth
+          : context.l10n.scanNothingFound;
 
   Future<void> _openChat(Peer peer) async {
     final services = ref.read(appServicesProvider);
@@ -87,7 +160,11 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     showToast(teksty.deviceDeleted(nazwa));
   }
 
+  /// Ręczne dodanie. Przy wybranym Bluetoothcie pyta o adres radia: tam nie
+  /// ma ani hosta, ani portu.
   Future<void> _addManually() async {
+    if (_droga == PeerProtocol.bluetooth) return _addByBluetooth();
+
     final result = await showDialog<(String, int)>(
       context: context,
       builder: (context) => const _ManualAddDialog(),
@@ -108,6 +185,27 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     }
   }
 
+  /// Adres radia wpisany z ręki: droga na wypadek, gdy szukanie nie wchodzi
+  /// w grę. Na Androidzie z wyłączoną lokalizacją to jedyna droga.
+  Future<void> _addByBluetooth() async {
+    final address = await showDialog<String>(
+      context: context,
+      builder: (context) => const _ManualAddBluetoothDialog(),
+    );
+    if (address == null || !mounted) return;
+
+    final teksty = context.l10n;
+    final peer =
+        await ref.read(appServicesProvider).addPeerByBluetooth(address);
+    if (!mounted) return;
+    if (peer == null) {
+      showToast(teksty.noChattAtBtAddress(address));
+      return;
+    }
+    setState(() => _znalezione = {...?_znalezione, peer.guid});
+    await _openChat(peer);
+  }
+
   @override
   Widget build(BuildContext context) {
     final peers = ref.watch(knownPeersProvider);
@@ -117,7 +215,9 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
         title: Text(context.l10n.nearbyTitle),
         actions: [
           IconButton(
-            tooltip: context.l10n.addByAddress,
+            tooltip: _droga == PeerProtocol.bluetooth
+                ? context.l10n.addByBtAddress
+                : context.l10n.addByAddress,
             icon: const Icon(Icons.add_link),
             onPressed: _addManually,
           ),
@@ -126,8 +226,19 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
       body: ContentColumn(
         child: Column(
         children: [
+          // Wybór drogi należy do dodatku Bluetooth. Bez niego ekran jest
+          // taki, jak był przed radiem: sam przycisk szukania w sieci.
+          if (_dodatek.value)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: _WyborProtokolu(
+                wybrany: _gdzie,
+                wlaczony: !_scanning,
+                onChanged: (protokol) => setState(() => _gdzie = protokol),
+              ),
+            ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(16, _dodatek.value ? 0 : 16, 16, 16),
             child: FilledButton.icon(
               icon: _scanning
                   ? const SizedBox(
@@ -135,11 +246,17 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.wifi_tethering),
+                  : Icon(_droga == PeerProtocol.bluetooth
+                      ? Icons.bluetooth_searching
+                      : Icons.wifi_tethering),
               label: Text(
                 _scanning
-                    ? context.l10n.scanRunning(_foundInLastScan)
-                    : context.l10n.scanStart,
+                    ? (_droga == PeerProtocol.bluetooth
+                        ? context.l10n.searchingBluetooth
+                        : context.l10n.scanRunning(_foundInLastScan))
+                    : (_droga == PeerProtocol.bluetooth
+                        ? context.l10n.scanStartBluetooth
+                        : context.l10n.scanStart),
               ),
               onPressed: _scanning ? null : _scan,
             ),
@@ -152,7 +269,9 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
               data: (all) {
                 final znalezione = _znalezione;
                 if (znalezione == null) {
-                  return _Podpowiedz(context.l10n.nearbyBeforeScan);
+                  return _Podpowiedz(_droga == PeerProtocol.bluetooth
+                      ? context.l10n.nearbyBeforeScanBluetooth
+                      : context.l10n.nearbyBeforeScan);
                 }
                 // Wpisy z bazy, bo tylko one wiedzą o potwierdzeniu
                 // tożsamości i o własnej nazwie, zawężone do tego,
@@ -161,7 +280,10 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                     .where((peer) => znalezione.contains(peer.guid))
                     .toList();
                 if (items.isEmpty) {
-                  return _Podpowiedz(context.l10n.scanNothingFound);
+                  return _Podpowiedz(
+                      _scanning && _droga == PeerProtocol.bluetooth
+                          ? context.l10n.nearbyScanningBluetooth
+                          : _nicNieZnaleziono(context));
                 }
                 return Column(
                   children: [
@@ -191,7 +313,8 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                             ),
                             subtitle: Text(
                               peer.welcomeMessage.isEmpty
-                                  ? '${peer.host}:${peer.port}'
+                                  ? peerAddressLabel(peer,
+                                      radio: _dodatek.value)
                                   : peer.welcomeMessage,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -214,6 +337,190 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
         ],
         ),
       ),
+    );
+  }
+}
+
+/// Wybór drogi, którą szukamy. Stoi na ekranie tylko przy włączonym dodatku
+/// Bluetooth, a sam Bluetooth jest do wzięcia, gdy radio naprawdę wstało.
+class _WyborProtokolu extends ConsumerWidget {
+  final PeerProtocol wybrany;
+  final bool wlaczony;
+  final void Function(PeerProtocol protokol) onChanged;
+
+  const _WyborProtokolu({
+    required this.wybrany,
+    required this.wlaczony,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final services = ref.read(appServicesProvider);
+    return ValueListenableBuilder<bool>(
+      valueListenable: services.bluetoothRunning,
+      builder: (context, radioStoi, _) {
+        final scheme = Theme.of(context).colorScheme;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              context.l10n.searchWhere,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            SegmentedButton<PeerProtocol>(
+              segments: [
+                ButtonSegment(
+                  value: PeerProtocol.wifi,
+                  icon: const Icon(Icons.wifi),
+                  label: Text(context.l10n.protocolWifi),
+                ),
+                ButtonSegment(
+                  value: PeerProtocol.bluetooth,
+                  icon: const Icon(Icons.bluetooth),
+                  label: Text(context.l10n.protocolBluetooth),
+                  enabled: radioStoi,
+                ),
+              ],
+              selected: {radioStoi ? wybrany : PeerProtocol.wifi},
+              onSelectionChanged:
+                  wlaczony ? (wybor) => onChanged(wybor.first) : null,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              radioStoi
+                  ? context.l10n.searchBluetoothHint
+                  : context.l10n.searchBluetoothOff,
+              style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+            ),
+            // Wyłączona lokalizacja to najczęstszy powód, dla którego szukanie
+            // po radiu nie zwraca nic. Bez tego ostrzeżenia objaw wygląda na
+            // „nikogo nie ma w pobliżu" i szuka się go godzinami.
+            if (radioStoi && wybrany == PeerProtocol.bluetooth)
+              ValueListenableBuilder<BtStatus>(
+                valueListenable: services.bluetoothStatus,
+                builder: (context, stan, _) {
+                  if (stan.locationOn) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.location_off_outlined,
+                                size: 18, color: scheme.error),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                context.l10n.searchBluetoothNoLocation,
+                                style:
+                                    TextStyle(color: scheme.error, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            await services.openLocationSettings();
+                          },
+                          icon: const Icon(Icons.my_location),
+                          label: Text(context.l10n.turnOnLocation),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Adres radia z ręki. Odpowiednik dodania po IP, dla tej drugiej drogi.
+class _ManualAddBluetoothDialog extends ConsumerStatefulWidget {
+  const _ManualAddBluetoothDialog();
+
+  @override
+  ConsumerState<_ManualAddBluetoothDialog> createState() =>
+      _ManualAddBluetoothDialogState();
+}
+
+class _ManualAddBluetoothDialogState
+    extends ConsumerState<_ManualAddBluetoothDialog> {
+  final _adres = TextEditingController();
+
+  @override
+  void dispose() {
+    _adres.dispose();
+    super.dispose();
+  }
+
+  /// Adres wychodzi stąd zawsze w jednej postaci. Przepisując go z ekranu
+  /// drugiego urządzenia łatwo pominąć dwukropki, a Android przyjmuje
+  /// wyłącznie `AA:BB:CC:DD:EE:FF`.
+  void _submit() {
+    final address = normalizeBtAddress(_adres.text);
+    if (address.isEmpty) return;
+    Navigator.of(context).pop(address);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final services = ref.read(appServicesProvider);
+    final scheme = Theme.of(context).colorScheme;
+    return AlertDialog(
+      title: Text(context.l10n.manualAddBtTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.manualAddBtHelp,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _adres,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: context.l10n.btAddressLabel,
+              hintText: context.l10n.btAddressHint,
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+          // Własny adres pokazujemy obok: druga strona i tak będzie go
+          // potrzebowała, a Android nie podaje go nawet sam sobie.
+          ValueListenableBuilder<BtStatus>(
+            valueListenable: services.bluetoothStatus,
+            builder: (context, stan, _) {
+              if (stan.address.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: SelectableText(
+                  context.l10n.myBtAddress(stan.address),
+                  style:
+                      TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.l10n.cancel),
+        ),
+        FilledButton(onPressed: _submit, child: Text(context.l10n.connect)),
+      ],
     );
   }
 }

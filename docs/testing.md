@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **224 `flutter test` tests** check everything that can be
+The split is simple: **255 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -60,9 +60,12 @@ plaintext), once as a link that dies after N bytes (resuming a transfer).
 - the responder reports whether it is actually listening, because a bind that
   fails means a device nobody can find with a scan
 
-### Messages (`test/messaging_e2e_test.dart`, 5 tests)
+### Messages (`test/messaging_e2e_test.dart`, 6 tests)
 - pairing by address, exchanging messages both ways, dedupe
 - recipient offline: failed, and after it comes back a retry delivers
+- another Chatt answering at the peer's old address is neither the peer's
+  presence nor a road to the peer: the presence check says offline and the
+  message ends as failed
 - adding by hand records the address the device **answered from**
 - we do not talk to ourselves (a loop onto our own address)
 - the server rejects garbage without falling over
@@ -231,11 +234,16 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migration ahead of its own version (`test/migration_test.dart`, 1 test)
+### Migrations (`test/migration_test.dart`, 3 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
   `duplicate column name`
+- the step from 11 to 12 keeps the peer, its address, its identity confirmation
+  and its messages, and the settings row comes through with the Bluetooth
+  add-on off and the network on
+- the two roads to a peer do not wipe each other: the network address and the
+  radio address sit side by side in the same row
 
 ### Links in messages (`test/links_test.dart`, 23 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
@@ -341,7 +349,117 @@ The attacker knows a peer's identifier and has no private key for it:
 The protocol itself defends against all three, because there is no plaintext in
 it. The tests stay as a guard: a fallback unencrypted mode would turn them red.
 
+### Framing over one Bluetooth link (`test/bt_link_test.dart`, 5 tests)
+`lib/network/bt_link.dart` cuts requests into frames and runs several of them
+down a single RFCOMM link. It sits on a `BytePipe`, so the whole layer is
+driven in a test with no radio anywhere:
+- a request and its reply make the whole round trip
+- two exchanges at once do not mix into each other
+- 70000 bytes go through a pipe that hands them over 7 bytes at a time
+- a link that breaks ends a hanging request with an error
+- a request to a side that has no handler for it comes back as 502
+
+### The same framing over a real socket (`test/bt_socket_test.dart`, 3 tests)
+The native side bridges an RFCOMM link onto a TCP socket on 127.0.0.1, so the
+pipe the app actually uses is a socket. What sets it apart from the in-memory
+pair above (packet boundaries, back-pressure, how a close arrives) is exactly
+what broke on hardware, so it gets its own tests on the loopback:
+- three exchanges one after another, with the link expected to survive each
+  one; the first worked from the start, the second was what exposed a link
+  that did not outlive its own reply
+- 300000 bytes arrive byte for byte
+- both sides open an exchange over the same link, because in Chatt every
+  device is an equal
+
+### The radio address (`test/bt_address_test.dart`, 3 tests)
+A radio address is copied off a screen by a person, so it arrives in whatever
+shape seemed reasonable at the time. Android accepts exactly one and throws on
+the rest, so the flattening happens on our side:
+- with colons, with dashes, with nothing and with spaces around it, all come
+  out as `AA:BB:CC:DD:EE:FF`
+- five bytes, seven bytes, a letter outside hex and an IP address all come back
+  empty
+- the "where it came from" field keeps a radio address and a network address
+  apart
+
+### The order of asking (`test/bt_probe_order_test.dart`, 2 tests)
+A search over the radio asks the devices it saw one at a time, and every one
+without Chatt costs seconds, so the order decides whether the computer next to
+you shows up after five seconds or after a minute:
+- computers and phones first, then devices that gave no class, then
+  headphones, watches and the rest, each group in the order the radio saw it
+- an address seen only over BLE is dropped: RFCOMM to it waits out the whole
+  page timeout and never connects
+
+### The Bluetooth add-on (`test/bluetooth_addon_test.dart`, 11 tests)
+Bluetooth is an add-on, and an add-on that is off must not exist. The test
+mocks the `chatt/bluetooth` channel, records every call that reaches it (with
+the argument of `discoverable`) and sets `BtChannel.debugSupported`, so on the
+Linux CI the add-on is the only thing keeping the channel silent:
+- with the add-on off, asking for the radio state, starting the transport,
+  searching and adding by radio address make no call to the channel at all
+- the add-on raises the radio (state, listening, discoverability on) and polls
+  for links; switched off, it turns discoverability off and stops listening,
+  and after that no polling and no question reaches the channel
+- switching the add-on off brings the network back, in the database as well:
+  with the add-on on the network can be off, and after the add-on goes off
+  `wifiEnabled` is true again
+- without the add-on the network works whatever the database says: with
+  `wifiEnabled` false in the database, a message still travels between two
+  instances and is delivered
+- a write to the database alone does not raise the radio: the add-on has one
+  owner, `setBluetoothAddon`
+- switching off while the radio is still coming up leaves it down, in memory,
+  in the database and on the channel
+- a quick "off, on" while the radio is coming up ends switched on everywhere,
+  because the switch calls run one after another
+- a radio turned on in the system brings the transport up on the next status
+  refresh
+- a native listener that died (the radio switched off and on in the system) is
+  raised again from the poll loop, discoverability included
+- an add-on saved in the database comes up with the app, the network switch
+  included; on a platform with no native code the same database gives no
+  add-on at all
+
+### The add-on on screen (`test/bluetooth_addon_ui_test.dart`, 4 tests)
+- the road mark takes no space with the add-on off, padding included, and
+  shows once the add-on is on
+- Nearby has no road picker with the add-on off; it appears with the add-on
+  and goes away with it
+- the add-on's card is a single switch while the add-on is off; the local
+  network switch appears only with the add-on
+- a peer known only over the radio shows no radio address with the add-on off
+
 ## Scenarios on live hardware
+
+### `tool/bt_rozmowa_check.dart`
+A conversation over the radio, on real hardware. It raises the whole app stack
+on both sides (its own in-memory database, server, client, transports),
+switches the Bluetooth add-on on in that database and pushes a message and a
+file through Bluetooth, with the handshake and the
+encryption that normally go over the network:
+
+```
+cd app
+flutter run -d windows -t tool/bt_rozmowa_check.dart --dart-define=CHATT_BT_ROLE=serwer
+flutter run -d <device> -t tool/bt_rozmowa_check.dart --dart-define=CHATT_BT_ROLE=klient
+```
+
+`CHATT_BT_ADDR` skips the search and goes straight to an address. That matters
+more than it sounds: searching and carrying bytes break separately, and Android
+hands out no discovery results at all while location services are off, whatever
+permissions the app holds. `CHATT_BT_VERBOSE=true` prints every frame and the
+reason each link ended, on both the Dart and the native side.
+
+Against the real app on the other side, a file waits for somebody to tap
+**Accept**, and after two minutes with no answer it ends as not delivered. The
+script receives without asking and the app asks every time, so a "failed"
+file at 2 kB/s after exactly 120 s means an unanswered question; the radio is
+fine.
+
+The script touches none of the user's data: the database lives in memory, the
+received files go to a temporary directory, UDP discovery is off and the server
+takes a port from the system. It can run next to an ordinary Chatt.
 
 ### `tool/android_e2e_test.dart`
 A host instance on the PC talks to the **app installed on a device** through
@@ -439,6 +557,11 @@ Deliberate holes in coverage, to be checked by hand at release time:
 - **Router behaviour**: client isolation on a guest network, broadcasts between
   the 2.4 and 5 GHz bands, masks other than /24 (the scanner computes the
   broadcast address as if for a /24 and adds the global 255.255.255.255).
+- **A Bluetooth link between two devices**: CI has no radio, so `flutter test`
+  never opens one. The framing is checked over a pipe, and the link itself is
+  checked by hand on two machines at release time.
+- **Bluetooth listening with the screen off** on Android: nobody has put the
+  foreground service through that on hardware yet.
 - **Manufacturer app killing** on Android outside stock systems.
 - **Doze mode**: the foreground service overrides the network block, but there
   is no automated test for it.

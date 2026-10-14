@@ -8,6 +8,7 @@ import '../../services/presence.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
+import '../widgets/protocol_badge.dart';
 import 'chat_screen.dart';
 import 'nearby_screen.dart';
 import 'settings_screen.dart';
@@ -228,8 +229,21 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(formatWhen(item.lastAt),
-                        style: Theme.of(context).textTheme.bodySmall),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Sama ikona: w wierszu listy nie ma miejsca na
+                        // podpis, a różnicę między sekundą a minutą przy tym
+                        // samym pliku trzeba pokazać.
+                        ProtocolBadge(
+                          peer: item.peer,
+                          compact: true,
+                          padding: const EdgeInsets.only(right: 6),
+                        ),
+                        Text(formatWhen(item.lastAt),
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    ),
                     if (item.unreadCount > 0) ...[
                       const SizedBox(height: 4),
                       Badge.count(count: item.unreadCount),

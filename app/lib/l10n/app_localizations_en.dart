@@ -781,4 +781,129 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get discoveryDeaf =>
       'This device does not answer scans. Others will find it only by adding its address by hand. The usual cause is another program holding port 47777.';
+
+  @override
+  String get addons => 'Add-ons';
+
+  @override
+  String get addonsHelp =>
+      'Features most people never need. An add-on that is off stays inside this section: it shows on no other screen and starts nothing.';
+
+  @override
+  String get transportsHelp =>
+      'Two roads, and both can be on at once. The network is tens of times faster; Bluetooth works with no network at all, as long as the devices are next to each other.';
+
+  @override
+  String get transportWifi => 'Local network';
+
+  @override
+  String get transportWifiHelp =>
+      'Messages and files over Wi-Fi or a cable. Both devices have to be on the same network.';
+
+  @override
+  String get transportBluetooth => 'Bluetooth';
+
+  @override
+  String get transportBluetoothHelp =>
+      'Messages and files over the radio, with no router, no address and no shared network. Tens of times slower than Wi-Fi, so a big file will take a while. Turning it on adds searching over Bluetooth to Nearby and shows which road each conversation takes.';
+
+  @override
+  String get transportBluetoothUnsupported =>
+      'Chatt has no Bluetooth on this system.';
+
+  @override
+  String get transportBluetoothRadioOff =>
+      'Turn Bluetooth on in the system settings.';
+
+  @override
+  String get transportBluetoothNoPermission =>
+      'Chatt has no permission for nearby devices.';
+
+  @override
+  String get transportBluetoothGrant => 'Open settings';
+
+  @override
+  String get transportBluetoothFailed => 'Bluetooth would not start.';
+
+  @override
+  String get transportBothOff =>
+      'The network is off and Bluetooth is not running: this device will reach nobody.';
+
+  @override
+  String get transportBluetoothDiscoverable =>
+      'While the add-on is on, this PC is visible to nearby devices. It goes away with the switch.';
+
+  @override
+  String get viaWifi => 'over the network';
+
+  @override
+  String get viaBluetooth => 'over Bluetooth';
+
+  @override
+  String get protocolWifi => 'Network';
+
+  @override
+  String get protocolBluetooth => 'Bluetooth';
+
+  @override
+  String get searchWhere => 'Where to look';
+
+  @override
+  String get searchBluetoothHint =>
+      'Looking over the radio takes up to a minute and a half and slows open conversations down while it runs.';
+
+  @override
+  String get searchBluetoothOff =>
+      'Bluetooth is not running. Check the radio and the permission in Settings, under Add-ons.';
+
+  @override
+  String get searchingBluetooth => 'Looking over Bluetooth…';
+
+  @override
+  String get scanStartBluetooth => 'Search over Bluetooth';
+
+  @override
+  String get nearbyBeforeScanBluetooth =>
+      'Search over Bluetooth to see which devices next to you answer.';
+
+  @override
+  String get nearbyScanningBluetooth =>
+      'Nothing has answered yet. Devices show up here one by one, as soon as they answer.';
+
+  @override
+  String get scanNothingFoundBluetooth =>
+      'No devices found over Bluetooth. Check that Chatt is running on the other device with the Bluetooth add-on on, and that it is a few metres away at most. You can also add it by radio address.';
+
+  @override
+  String get searchBluetoothNoLocation =>
+      'Android hands out no search results while location services are off. The connection itself does not need them, and Chatt never asks where you are.';
+
+  @override
+  String get turnOnLocation => 'Turn location on';
+
+  @override
+  String get addByBtAddress => 'Add by radio address';
+
+  @override
+  String get manualAddBtTitle => 'Add by Bluetooth address';
+
+  @override
+  String get manualAddBtHelp =>
+      'The other device shows its address in its Bluetooth settings. A PC also shows its own in Chatt\'s Settings, under Add-ons.';
+
+  @override
+  String get btAddressLabel => 'Bluetooth address';
+
+  @override
+  String get btAddressHint => 'AA:BB:CC:DD:EE:FF';
+
+  @override
+  String noChattAtBtAddress(String address) {
+    return 'No Chatt answers at $address';
+  }
+
+  @override
+  String myBtAddress(String address) {
+    return 'This radio\'s address: $address';
+  }
 }

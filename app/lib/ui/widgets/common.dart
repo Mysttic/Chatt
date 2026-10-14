@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/db.dart';
 import '../l10n_context.dart';
 
 /// Kółko z inicjałem rozmówcy: awatar na liście rozmów i w nagłówku.
@@ -90,6 +91,15 @@ class PeerName extends StatelessWidget {
           ],
         ],
       );
+}
+
+/// Adres, pod którym rozmówca jest osiągalny. Poznany wyłącznie przez radio
+/// nie ma żadnego w sieci, więc pokazujemy adres radia, o ile [radio] mówi,
+/// że dodatek Bluetooth jest włączony. Bez dodatku zostaje pusty napis.
+String peerAddressLabel(Peer peer, {required bool radio}) {
+  if (peer.host.isNotEmpty && peer.port > 0) return '${peer.host}:${peer.port}';
+  final adres = peer.btAddress;
+  return (!radio || adres == null || adres.isEmpty) ? '' : adres;
 }
 
 /// Zwięzły czas dla list: dziś -> HH:mm, ten rok -> d.MM, starsze -> d.MM.rrrr.

@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:chatt/data/db.dart';
 import 'package:chatt/network/protocol.dart';
+import 'package:chatt/network/transport.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// E2E transferu plików między dwiema pełnymi instancjami: zgoda odbiorcy,
@@ -617,12 +618,11 @@ void main() {
 
   test('uszkodzone metadane -> 400, serwer żyje dalej', () async {
     final ok = await alice.client.sendFile(
-      host: '127.0.0.1',
-      port: bob.server.port!,
+      route: IpRoute('127.0.0.1', bob.server.port!),
       headers: {'x-chatt-message-guid': 'x'}, // brak reszty nagłówków
       file: makeRandomFile('smieci.bin', 1024),
     );
     expect(ok.delivered, isFalse);
-    expect(await alice.client.fetchInfo('127.0.0.1', bob.server.port!), isNotNull);
+    expect(await alice.client.fetchInfo(IpRoute('127.0.0.1', bob.server.port!)), isNotNull);
   });
 }

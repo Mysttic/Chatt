@@ -8,14 +8,16 @@ is in [guide.md](guide.md), and the build commands are in
 
 There is no server, so **every copy is a client and a server at the same
 time**. Each device hosts a small HTTP server (`shelf`) and answers UDP
-broadcasts.
+broadcasts. That server is reachable over two roads: a TCP socket on the local
+network and a Bluetooth Classic (RFCOMM) link. Both can be on at once.
 
 A device's identity is an **X25519 key pair**. The identifier (`guid`) is
 derived from a hash of the public key, so it cannot be claimed without the
 matching private key: whoever announces a foreign identifier will not finish
 the handshake. Everything (conversations, sessions, deduplication) hangs off
 the identifier; the address is only a hint about where the device was last
-seen.
+seen. There are two kinds of address now, an IP one and a radio one, and both
+are hints.
 
 ## Layers
 
@@ -23,13 +25,14 @@ seen.
 lib/
   core/      identity, cryptography, platform channels, environment overrides
   data/      SQLite schema (drift) and queries
-  network/   protocol, UDP discovery, HTTP server, HTTP client
+  network/   protocol, UDP discovery, server, transports (HTTP, Bluetooth), client
   services/  AppServices, the root that ties everything together, plus Riverpod providers
   ui/        screens and widgets
 ```
 
 **`AppServices`** holds the database, the server, the client and the discovery
-responder, and decides what to do with every incoming request.
+responder, and decides what to do with every incoming request. It also picks
+the road to a peer, which is the subject of the next section.
 `AppServices.start()` builds a complete, self-contained stack, so tests can
 bring up two of them in one process and make them talk over a real socket (see
 [testing.md](testing.md)).
@@ -39,10 +42,140 @@ database**, so every change reaches the view by itself. The exceptions are
 things that are not in the database because they are transient: transfer
 progress and consent requests, which travel through a `ValueNotifier`.
 
+## Transports
+
+`PeerClient` used to take a host and a port and open an HTTP connection. A radio
+link has neither, so "how do I reach you" was pulled out into
+[`network/transport.dart`](../app/lib/network/transport.dart): `PeerProtocol`
+(`wifi`, `bluetooth`), the sealed `PeerRoute` (`IpRoute(host, port)`,
+`BluetoothRoute(address)`), `TransportReply` (an HTTP-shaped status plus a body,
+where `-1` means the request never left) and the `PeerTransport` interface
+(`request`, `stream`, `handles`, `dispose`). `PeerClient` takes a route and
+hands it to the transport that claims it; serialisation and reply codes are
+unchanged.
+
+- [`http_transport.dart`](../app/lib/network/http_transport.dart) is the old
+  `PeerClient` code under the new interface, with the same timeouts and the same
+  way of streaming a file.
+- [`bt_transport.dart`](../app/lib/network/bt_transport.dart) is `BtChannel`
+  (the Dart side of the `chatt/bluetooth` channel) plus `BluetoothTransport`,
+  which keeps one link per peer.
+
+### The Bluetooth add-on
+
+Everything below sits behind one switch: the Bluetooth add-on in the
+**Add-ons** section of Settings (`settings.bluetoothEnabled`, off by default).
+`AppServices.bluetoothAddon` is the single gate and `setBluetoothAddon` its only
+writer. With the add-on off:
+
+- no transport is started, so nothing listens on RFCOMM and a PC stays
+  undiscoverable;
+- the `chatt/bluetooth` channel receives no call: `refreshBluetoothStatus`,
+  `scanBluetooth`, `addPeerByBluetooth` and `startBluetooth` return before they
+  reach it, and the native side only registers the channel. The one exception
+  is the switch itself while it is being turned on: it checks and asks for the
+  permission (`refreshBluetoothStatus(force: true)`,
+  `askForBluetoothPermission`) before the add-on is on;
+- the network is the only road and is always on: `client.useWifi` ignores
+  `settings.wifiEnabled`, and switching the add-on off writes
+  `wifiEnabled = true` back in the same update;
+- no screen shows any of it: Nearby has no road picker and no add by radio
+  address, and the conversation list and header carry no road mark
+  (`ProtocolBadge` takes no space, its padding included).
+
+The add-on's card holds what belongs to it: the radio and permission state, the
+radio's own address, the discoverability notice on Windows and the local network
+switch (`settings.wifiEnabled`), which counts only while the add-on is on.
+Android asks for the Bluetooth permissions when the add-on goes on, and again
+only from the card's button after the permission was taken away; that button
+opens the app's page in system settings, where a permanently refused permission
+can still be granted. The manifest declares the permissions because Android
+offers no other way. `setBluetoothAddon` runs its calls one after another, and
+the settings watcher drives the network switch alone, so neither a quick "off,
+on" nor a late event from the database can leave the radio in a state nobody
+asked for.
+
+With the add-on on, a transport that could not start (radio off, no
+permission) is retried every 10 seconds and on every `refreshBluetoothStatus`,
+and a running transport whose native listener died (the radio switched off and
+on in the system) raises the listener again from its poll loop, at most every
+5 seconds. Switching the add-on off also cancels a radio search in progress; on
+Windows the inquiry already under way cannot be aborted and runs out within
+about 8 seconds, with its results thrown away. On Windows, switching off turns
+discoverability off and leaves the radio's incoming connections as they were.
+
+`BtChannel.debugSupported` lets `test/bluetooth_addon_test.dart` pretend to be a
+platform with native code, so the silence of the channel is checked on the
+Linux CI as well.
+
+### Picking the road
+
+`AppServices.routesOf(peer)` returns the routes in the order they are worth
+trying: the one that worked last, then the network, then Bluetooth.
+`_overRoutes` walks that list until one answers and remembers the one that did.
+The network goes first because it is tens of times faster; the measurements are
+in [spike-rfcomm.md](spike-rfcomm.md). The fallback is automatic, so there is
+nothing to switch per peer. A short message over the radio is indistinguishable
+from one over Wi-Fi; files are where the difference shows.
+
+### The radio link is bridged to 127.0.0.1
+
+The native code does not carry bytes over the method channel. It bridges the
+RFCOMM link onto a TCP socket on `127.0.0.1` and pumps bytes between the two, so
+Dart is handed an ordinary `dart:io` `Socket`. The reason is threading: the
+result of a `MethodChannel` call may only be returned from the platform thread,
+so a byte pump through the channel would block the interface. Every channel call
+returns at once, and the things that take time (listening, connecting, scanning)
+report back through `linkPoll`, polled every 500 ms, and `scanResults`, polled
+every 700 ms during a search.
+
+| Platform | Implementation |
+|---|---|
+| Android | [`ChattBluetooth.kt`](../app/android/app/src/main/kotlin/com/mysttic/chatt/ChattBluetooth.kt): `listenUsingInsecureRfcommWithServiceRecord` and `createInsecureRfcommSocketToServiceRecord` |
+| Windows | [`chatt_bluetooth.cpp`](../app/windows/runner/chatt_bluetooth.cpp): Win32 Winsock `AF_BTH` / `BTHPROTO_RFCOMM`, the SDP record written with `WSASetServiceW`. WinRT is out: it wants C++20 and exceptions, and the runner has both off |
+
+The service record carries our own UUID,
+`c4a1f7d2-5b3e-4f1a-9c8d-6e2b0a7f3d51`. SPP is out: it is shared with every
+USB-to-serial bridge and every Windows COM port.
+
+With the add-on on, Windows raises the radio's discoverability itself
+(`BluetoothEnableDiscovery` plus `BluetoothEnableIncomingConnections`), because
+by default the machine is visible only while the "Add a device" window is open.
+It goes down again when the add-on goes off.
+
+### One link, several exchanges at once
+
+[`bt_link.dart`](../app/lib/network/bt_link.dart) does the framing and the
+multiplexing over that single link. A frame is `[1 byte kind][4 bytes stream
+number][4 bytes length][payload]`, the kinds are `head`, `body`, `end`, `reply`
+and `abort`, and a payload holds at most 8192 bytes. The side that dialled
+numbers its streams odd and the side that answered numbers them even, so two
+exchanges in flight cannot claim the same number. It is plain Dart over a
+`BytePipe` abstraction, which is what makes it testable without a radio.
+
+### Both roads end at the same handler
+
+`ChattServer` builds one handler (a `shelf` `Pipeline` and a `Router`) for both
+transports and exposes `handleBluetooth(BtRequest, peerAddress)`. A request off
+the radio walks exactly the path a request off the TCP socket walks: the same
+endpoints, the same handlers, the same error wrapper. One thing differs, and it
+is "where it came from": an IP address on one road, the radio address behind the
+`bt:` prefix (`btHostPrefix` in `transport.dart`) on the other.
+
+### Finding a device over the radio
+
+The radio cannot say who is running Chatt. Android runs an inquiry, Windows
+`BluetoothFindFirstDevice` with `fIssueInquiry`, and the question is settled by
+connecting on our UUID and asking `GET /info`, the same way it is settled when a
+device is added by IP by hand. Devices without Chatt fall away, because they
+carry no such record in SDP. A scan jams the link for as long as it runs, so it
+happens only when the user asks for it from the "Nearby" screen.
+
 ## Protocol
 
 Protocol version **5** (`lib/network/protocol.dart`, `protocolVersion`), bumped
-on incompatible changes.
+on incompatible changes. Bluetooth left it at 5: nothing incompatible arrived,
+and the identity packet carries no radio route yet.
 
 **There is no plaintext in the protocol.** Every request other than
 `GET /info`, `POST /handshake` and `POST /pair` arrives in an envelope bound to
@@ -78,6 +211,9 @@ answer that claims to be a known device without a matching signature.
 | `POST /pair` | identity confirmation |
 | `POST /file-offer` | file announcement: name, size, sha256, key tag, and the batch it belongs to |
 | `POST /file` | raw bytes from the given offset, with the session number in a header |
+
+The same endpoints answer requests that arrive over an RFCOMM link; the route
+decides which road a request rides.
 
 ### Session
 
@@ -149,7 +285,7 @@ computed. Abandoned parts are swept after seven days.
 
 ## Database
 
-`drift` (SQLite), schema version **11**. Tables: `settings`, `peers`,
+`drift` (SQLite), schema version **12**. Tables: `settings`, `peers`,
 `conversations`, `messages`.
 
 | Version | What was added |
@@ -164,6 +300,16 @@ computed. Abandoned parts are swept after seven days.
 | 9 | `peers.alias`, `peers.autoAccept` |
 | 10 | `settings.updateChecks`, `settings.lastUpdateCheck` |
 | 11 | `settings.linkPreviews` |
+| 12 | `peers.btAddress`, `peers.lastProtocol`, `settings.wifiEnabled`, `settings.bluetoothEnabled` |
+
+Version 12 only adds columns and touches nothing that was there:
+`peers.btAddress` is a nullable text, `peers.lastProtocol` a nullable int (0 the
+network, 1 Bluetooth, null nobody knows yet), `settings.wifiEnabled` defaults to
+true and `settings.bluetoothEnabled` (the add-on) to false.
+
+`upsertPeer` keeps the two roads apart: an empty host with a zero port does not
+overwrite the last good address on the network, and an empty radio address does
+not erase a known Bluetooth route. Neither road can wipe the other.
 
 The wipe at v6 comes from identifiers becoming key-derived: every device got a
 new one, so saved contacts no longer matched anything on the network.
@@ -224,6 +370,25 @@ own packets and claim to be anyone. Plus an attacker who **gets at the disk**
 and copies the database file or the whole app directory. Not assumed: access to
 an **unlocked, running** device, where the key is in process memory by
 definition.
+
+With the Bluetooth transport on there is a second attacker: someone **within
+radio range**, around 10 m, who can do the same things on that road.
+
+### Bluetooth is treated like a cable
+
+System pairing is not required and buys nothing, so the link is opened insecure
+(no `SO_BTH_AUTHENTICATE` on Windows, `listenUsingInsecureRfcomm` on Android).
+Everything above the link rides the radio untouched: the Noise-KK handshake, the
+AES-GCM envelopes, the AES-CTR file stream, the key-derived `guid`, the consent
+for a batch of files, the six-digit code and the QR code. The green shield still
+comes from the code or the QR code alone.
+
+The radio address is a new lasting identifier in the database, and it is a hint
+about where to knock. Recognition goes by `guid`, and the address is overwritten
+on every contact. On the hardware in [spike-rfcomm.md](spike-rfcomm.md) a paired
+phone held the PC under an LE address while an unpaired one held it under the
+radio's BR/EDR address: that is the proof the address cannot stand in for an
+identity.
 
 ### Identity confirmation
 
@@ -316,6 +481,10 @@ size.
 - Discovery is in the clear: the device name and port are visible to everyone
   on the network. A broadcast goes out to someone you do not know yet, so there
   is nothing to encrypt it with.
+- **The radio is in the clear in the same way**: the Bluetooth device name and
+  the radio's MAC address are readable by anyone in range, exactly as the device
+  name and port are on the network today. While the transport is on, the machine
+  is discoverable to everybody nearby, and Settings warns about it.
 - Session key rotation is deferred, because resuming a transfer needs the same
   key across sessions.
 - Received files lie on disk unencrypted. The database wraps conversation
@@ -332,6 +501,17 @@ size.
   address is not local, so over a VPN the user sees a silent "not delivered"
   with no reason given. This is a diagnostics gap: the identity is the key and
   a device at a hijacked address derives a different session key.
+- **There are no automated end-to-end tests over a real radio**: CI has none.
+  `tool/bt_rozmowa_check.dart` is the manual check on two machines.
+  `test/bt_link_test.dart` covers the framing over a pipe, and
+  `test/migration_test.dart` covers the step from 11 to 12.
+- On Android 11 and older a radio search needs `ACCESS_FINE_LOCATION`, and the
+  app does not ask for it, so the search finds nothing there. Adding a device by
+  its radio address works.
+- Bluetooth listening from the Android foreground service with the screen off
+  has not been checked on hardware.
+- Receive streams in `bt_link` apply no backpressure per stream. The radio is
+  slower than a write to disk, so in practice it has not hurt.
 
 ## Android: background listening
 

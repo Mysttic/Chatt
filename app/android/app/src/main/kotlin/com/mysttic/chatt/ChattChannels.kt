@@ -133,6 +133,11 @@ object ChattChannels {
                 result.error("keystore", error.message, null)
             }
         }
+
+        // Bluetooth (issue #27), kanał "chatt/bluetooth". Sama rejestracja
+        // niczego nie uruchamia: kanał woła wyłącznie dodatek Bluetooth,
+        // włączony w ustawieniach Chatta.
+        ChattBluetooth.install(context, messenger)
     }
 
     /**

@@ -27,10 +27,15 @@ class MainActivity : FlutterActivity() {
     override fun onStart() {
         super.onStart()
         ChattFilePicker.attach(this)
+        // O zgodę na urządzenia w pobliżu Chatt pyta dopiero przy włączaniu
+        // dodatku Bluetooth w ustawieniach. Tu tylko udostępniamy okno, które
+        // może ją pokazać.
+        ChattBluetooth.attach(this)
     }
 
     override fun onStop() {
         ChattFilePicker.detach(this)
+        ChattBluetooth.detach(this)
         super.onStop()
     }
 
@@ -45,6 +50,16 @@ class MainActivity : FlutterActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (ChattFilePicker.onActivityResult(this, requestCode, resultCode, data)) return
         super.onActivityResult(requestCode, resultCode, data)
+    }
+
+    /** Wynik pytania o zgodę na Bluetooth; pozostałe idą do wtyczek Fluttera. */
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        ChattBluetooth.onPermissionResult(this, requestCode, permissions, grantResults)
     }
 
     /** Od Androida 13 bez zgody nie pokażemy nic o nowej wiadomości. */

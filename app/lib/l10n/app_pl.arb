@@ -327,5 +327,48 @@
   "selectText": "Zaznacz tekst",
   "selectTextHint": "Przytrzymaj, żeby zaznaczyć fragment",
 
-  "discoveryDeaf": "To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program."
+  "discoveryDeaf": "To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.",
+
+  "addons": "Dodatki",
+  "addonsHelp": "Funkcje, których większość osób nie potrzebuje. Wyłączony dodatek nie wychodzi poza tę sekcję: nie widać go na żadnym innym ekranie i niczego nie uruchamia.",
+  "transportsHelp": "Dwie drogi, obie mogą być włączone naraz. Sieć jest kilkadziesiąt razy szybsza, Bluetooth działa bez żadnej sieci, gdy urządzenia są obok siebie.",
+  "transportWifi": "Sieć lokalna",
+  "transportWifiHelp": "Wiadomości i pliki przez Wi-Fi albo kabel. Wymaga, żeby oba urządzenia były w tej samej sieci.",
+  "transportBluetooth": "Bluetooth",
+  "transportBluetoothHelp": "Wiadomości i pliki przez radio, bez routera, adresu i wspólnej sieci. Kilkadziesiąt razy wolniej niż Wi-Fi, więc duży plik potrwa. Włączenie dodaje szukanie przez Bluetooth w „W pobliżu” i znacznik drogi w rozmowach.",
+  "transportBluetoothUnsupported": "Na tym systemie nie ma Bluetootha w Chatcie.",
+  "transportBluetoothRadioOff": "Włącz Bluetooth w ustawieniach systemu.",
+  "transportBluetoothNoPermission": "Chatt nie ma zgody na urządzenia w pobliżu.",
+  "transportBluetoothGrant": "Otwórz ustawienia",
+  "transportBluetoothFailed": "Nie udało się włączyć Bluetootha.",
+  "transportBothOff": "Sieć wyłączona, a Bluetooth nie działa: to urządzenie z nikim się nie skontaktuje.",
+  "transportBluetoothDiscoverable": "Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.",
+  "viaWifi": "przez sieć",
+  "viaBluetooth": "przez Bluetooth",
+  "protocolWifi": "Sieć",
+  "protocolBluetooth": "Bluetooth",
+  "searchWhere": "Gdzie szukać",
+  "searchBluetoothHint": "Szukanie przez radio trwa do półtorej minuty i na ten czas zwalnia otwarte rozmowy.",
+  "searchBluetoothOff": "Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w sekcji Dodatki.",
+  "searchingBluetooth": "Szukam przez Bluetooth…",
+  "scanStartBluetooth": "Szukaj przez Bluetooth",
+  "nearbyBeforeScanBluetooth": "Wyszukaj przez Bluetooth, żeby zobaczyć, które urządzenia obok odpowiadają.",
+  "nearbyScanningBluetooth": "Jeszcze nikt nie odpowiedział. Urządzenia pojawiają się tu po kolei, gdy tylko odpowiedzą.",
+  "scanNothingFoundBluetooth": "Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Możesz też dodać je po adresie radia.",
+
+  "searchBluetoothNoLocation": "Android nie odda wyników szukania przy wyłączonych usługach lokalizacji. Do samego połączenia nie są potrzebne i Chatt o położenie nie pyta.",
+  "turnOnLocation": "Włącz lokalizację",
+  "addByBtAddress": "Dodaj po adresie radia",
+  "manualAddBtTitle": "Dodaj po adresie Bluetooth",
+  "manualAddBtHelp": "Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w sekcji Dodatki.",
+  "btAddressLabel": "Adres Bluetooth",
+  "btAddressHint": "AA:BB:CC:DD:EE:FF",
+  "noChattAtBtAddress": "Pod {address} nie odpowiada Chatt",
+  "@noChattAtBtAddress": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "myBtAddress": "Adres tego radia: {address}",
+  "@myBtAddress": {
+    "placeholders": { "address": { "type": "String" } }
+  }
 }

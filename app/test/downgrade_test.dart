@@ -9,6 +9,7 @@ import 'package:chatt/core/identity.dart';
 import 'package:chatt/data/db.dart';
 import 'package:chatt/network/client.dart';
 import 'package:chatt/network/protocol.dart';
+import 'package:chatt/network/transport.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// Próba obejścia szyfrowania: napastnik zna publiczny GUID sparowanego
@@ -79,8 +80,7 @@ void main() {
     final before = await messagesAtBob();
 
     final accepted = await napastnik.sendMessage(
-      host: '127.0.0.1',
-      port: bob.server.port!,
+      route: IpRoute('127.0.0.1', bob.server.port!),
       payload: messagePacket(
         messageGuid: 'podszycie-1',
         from: podszytaAlicja,
@@ -101,8 +101,7 @@ void main() {
   test('jawna zapowiedź pliku od sparowanego rozmówcy jest odrzucana',
       () async {
     final reply = await napastnik.offerFile(
-      host: '127.0.0.1',
-      port: bob.server.port!,
+      route: IpRoute('127.0.0.1', bob.server.port!),
       payload: FileOffer(
         messageGuid: 'podszycie-2',
         from: podszytaAlicja,
@@ -127,8 +126,7 @@ void main() {
     final podmiana = File(p.join(work.path, 'podmiana.pdf'));
     podmiana.writeAsStringSync('PODMIENIONA-UMOWA');
     final wciete = await napastnik.sendFile(
-      host: '127.0.0.1',
-      port: bob.server.port!,
+      route: IpRoute('127.0.0.1', bob.server.port!),
       headers: {
         headerMessageGuid: 'podszycie-3',
         headerFrom: encodeIdentityHeader(podszytaAlicja),

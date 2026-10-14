@@ -20,7 +20,11 @@ not expect a same-day turnaround.
 ## What is in scope
 
 Everything that processes input from the network, because any device on the
-same Wi-Fi can send it:
+same Wi-Fi can send it. With the Bluetooth add-on on, the same input can
+arrive over the radio, so the sender can be anyone in range, about 10 m. The
+add-on is off by default, and while it is off the app does not touch the radio,
+apart from checking and asking for the permission at the moment the switch is
+turned on:
 
 - **the protocol and the session handshake** (`app/lib/network/`): envelopes,
   the key agreement, the discovery responder,
@@ -50,6 +54,28 @@ These are design decisions:
 - **`POST /pair` is not authenticated**, so anyone on the network can raise a
   confirmation card. It gets them no further: the codes have to match on both
   screens, and a card for an already known device is marked in red.
+- **Bluetooth is treated as a cable.** System pairing is not required and
+  buys nothing: the link is opened insecure
+  (`listenUsingInsecureRfcommWithServiceRecord` on Android, no
+  `SO_BTH_AUTHENTICATE` on Windows). Everything that protects a conversation
+  sits above the link and goes over the radio unchanged: the Noise-KK
+  handshake, the AES-GCM envelopes, the AES-CTR file stream, the guid derived
+  from the public key, the consent for a batch of files, identity confirmation
+  by code and by QR. A request arriving from the radio walks the same path as
+  one from a TCP socket: the same routes, the same handlers, the same error
+  guard. The green shield still comes from one thing only, a code or a QR
+  confirmed on both screens.
+- **The radio is in the clear the way discovery is.** The Bluetooth device
+  name and the radio's MAC address are visible to anyone in range, exactly as
+  the device name and port are visible to everyone on the Wi-Fi. With the
+  add-on on, the computer is discoverable to everyone nearby; the add-on's card
+  in Settings says so.
+- **A radio address is a route.** `Peers.btAddress` is a new lasting
+  identifier in the database. Who somebody is still comes from the guid, and
+  the address is overwritten on every contact. Measured on hardware
+  ([spike-rfcomm.md](spike-rfcomm.md)): a paired phone saw the computer under
+  its LE address, an unpaired one under the BR/EDR address of the radio, so
+  one machine showed up under two addresses depending on who was looking.
 - **Received files lie on disk unencrypted.** The database wraps conversation
   history; file content stays where the user opens it with other applications.
 - **The database key can be read by a process running as the same system

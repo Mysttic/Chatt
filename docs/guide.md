@@ -194,6 +194,100 @@ The picture is drawn by Chatt itself and never handed to another app, so it
 opens whether or not the system has anything installed that shows images.
 Other files still open with whatever the system associates with them.
 
+## Talking over Bluetooth
+
+Everything above assumes the two devices share a network. Often they do not: a
+guest network that isolates its clients from each other, the phone on mobile
+data while the laptop hangs off someone else's Wi-Fi, a room with no router in
+it. Bluetooth is the second road. It carries the same messages and the same
+files with no router, no address and no shared network, as long as the two
+devices are within some ten metres of each other.
+
+Both roads can be on at once, and the app picks between them by itself: the
+network first, because it is tens of times faster, and the radio when the
+network does not answer. Whichever worked last is tried first next time. There
+is no switch to flip per conversation.
+
+**Turning it on.** Bluetooth is an add-on. Settings has an **Add-ons** section
+with a **Bluetooth** switch, off from the start. While it is off, Bluetooth does
+not exist anywhere else in the app: no other screen mentions it, nothing listens
+on the radio, and the local network is the only road.
+
+Chatt asks Android for the nearby devices permission when the add-on goes on,
+and again only from the add-on's card if the permission is later taken away.
+The card shows the rest: what stands in the way (the radio turned off in the
+system, and on Android a missing permission, with an **Open settings** button
+next to it), this radio's own address where the system gives it out, and a
+**Local network** switch for when the radio should be the only road. With the
+network off and the radio not running, the card warns that this device reaches
+nobody. A radio turned on later in the system, or a permission granted later,
+brings Bluetooth up by itself within about ten seconds.
+
+On Windows the add-on also makes the PC discoverable to anything nearby, and the
+card says so outright. Without that it is visible only while the system's "Add
+device" window stands open. The add-on off, the visibility goes with it.
+
+**Finding the other device.** The **Nearby** screen asks **Where to look**
+before it searches: **Network** or **Bluetooth**. The question is there only
+with the add-on on, and the Bluetooth choice opens up once the radio is running
+on this device. A search over the radio takes up
+to a minute and a half and slows open conversations down while it runs, which
+is why it happens only when you ask for it.
+
+The radio itself cannot say which of the devices around runs Chatt. The app
+connects to each one it finds and asks, the way it does when a device is added
+by IP address by hand; whatever does not answer drops off the list. Computers
+and phones are asked first and headphones last, and a device lands on the list
+the moment it answers, so the computer next to you usually shows up within
+half a minute, while the rest of the search is still going.
+
+On Android the search needs location services switched on. Chatt never asks
+where you are, but without them Android hands out no search results at all;
+the Nearby screen says so and offers a **Turn location on** button. When that
+is not an option, **Add by radio address** (the link icon in the bar) goes
+straight to an address such as `70:D8:C2:64:D9:B1`, which the other device
+shows in its Bluetooth settings. A PC also shows its own on the add-on's card in
+Chatt's Settings.
+
+On Android 11 and older the search needs the location permission as well, and
+Chatt does not ask for it. There the other device is added by its radio
+address.
+
+**System pairing is not needed** and gives nothing here. The link goes up
+without it.
+
+One leftover pairing does get in the way: a phone that still remembers the PC
+from an earlier system pairing which the PC has since forgotten. Android then
+asks to pair again, and the link drops. Forget the PC in the phone's Bluetooth
+settings (or pair the two again) and Chatt connects.
+
+**What to expect.** A short message comes back in 22 to 25 ms, which makes
+writing over the radio indistinguishable from writing over Wi-Fi. Files are
+where it shows: 90 to 165 kB/s, so a megabyte takes 6 to 12 seconds, tens of
+times longer than on the network.
+
+**Which road a conversation is taking** is marked on the conversation list and
+in the conversation header while the add-on is on: a Wi-Fi or a Bluetooth icon,
+with a caption ("over the network", "over Bluetooth") in the conversation
+itself.
+
+Encryption does not change. The key agreement, the encrypted messages, the file
+transfer, the question before a file, the six-digit code and the QR code all
+work over the radio exactly as they do over the network, and the green shield
+still comes only from a code or a QR check. What changes is where someone would
+have to stand to try anything: within radio range of you. Your Bluetooth device
+name and the radio's address are visible to anyone nearby, the same way the
+answer to a network scan is visible today.
+
+The radio's address lands in the database next to the IP address and serves as
+a hint of where to find the other device. Recognition goes by the key, and the
+address is overwritten on every contact. The hardware shows why: the same PC
+can appear to a phone under two different radio addresses, depending on whether
+the phone was paired with it.
+
+Bluetooth listening with the screen off on Android has not been checked on
+hardware yet.
+
 ## Encryption and identity confirmation
 
 **A conversation is encrypted from the first message**, including with a device

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:chatt/data/db.dart';
 import 'package:chatt/network/protocol.dart';
+import 'package:chatt/network/transport.dart';
 import 'package:chatt/services/app_services.dart';
 
 /// E2E logiki: dwie pełne instancje aplikacji (bez UI) w jednym procesie,
@@ -106,6 +107,40 @@ void main() {
     expect(messages.single.status, MessageStatus.delivered);
   });
 
+  test('pod starym adresem odpowiada inny Chatt: to nie jest nasz rozmówca',
+      () async {
+    final bobAsPeer =
+        await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    final conversation = await alice.openConversationWith(bobAsPeer!);
+    await alice.sendText(conversation, 'Cześć');
+    expect((await alice.db.watchMessages(conversation).first).single.status,
+        MessageStatus.delivered);
+
+    // Adresy w sieci się przetasowały: pod adresem, który Alicja ma zapisany
+    // dla Bartka, stoi teraz Celina.
+    final celina = await AppServices.start(
+      executor: NativeDatabase.memory(),
+      portOverride: 0,
+      nameOverride: 'Celina',
+      enableDiscovery: false,
+    );
+    addTearDown(celina.dispose);
+    final przesuniety = await alice.db.upsertPeer(
+      guid: bobAsPeer.guid,
+      name: bobAsPeer.name,
+      welcomeMessage: bobAsPeer.welcomeMessage,
+      host: '127.0.0.1',
+      port: celina.server.port!,
+    );
+
+    expect(await alice.isPeerOnline(przesuniety), isFalse,
+        reason: 'odpowiedź Celiny nie jest obecnością Bartka');
+    await alice.sendText(conversation, 'Dalej tu jesteś?');
+    final messages = await alice.db.watchMessages(conversation).first;
+    expect(messages.last.status, MessageStatus.failed,
+        reason: 'Celina nie przejmuje rozmowy z Bartkiem');
+  });
+
   test('ręczne dodanie zapisuje adres, pod którym urządzenie odpowiedziało',
       () async {
     // Tunel (emulator za NAT-em, przekierowanie portu na routerze): Bartek
@@ -137,8 +172,7 @@ void main() {
 
     // ...a wiadomość z własną tożsamością jest odrzucana przez serwer.
     final accepted = await alice.client.sendMessage(
-      host: '127.0.0.1',
-      port: alice.server.port!,
+      route: IpRoute('127.0.0.1', alice.server.port!),
       payload: messagePacket(
         messageGuid: 'petla',
         from: alice.identity,
@@ -152,12 +186,11 @@ void main() {
 
   test('serwer odrzuca śmieci bez wywracania się', () async {
     final ok = await alice.client.sendMessage(
-      host: '127.0.0.1',
-      port: bob.server.port!,
+      route: IpRoute('127.0.0.1', bob.server.port!),
       payload: {'nie': 'to co trzeba'},
     );
     expect(ok.delivered, isFalse);
     // Serwer dalej żyje i obsługuje poprawne zapytania.
-    expect(await alice.client.fetchInfo('127.0.0.1', bob.server.port!), isNotNull);
+    expect(await alice.client.fetchInfo(IpRoute('127.0.0.1', bob.server.port!)), isNotNull);
   });
 }
