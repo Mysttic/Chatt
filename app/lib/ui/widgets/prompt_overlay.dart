@@ -447,6 +447,9 @@ class _RemoteInputCard extends StatefulWidget {
 class _RemoteInputCardState extends State<_RemoteInputCard> {
   final _rejectFocus = FocusNode(debugLabel: 'odrzuć pisanie');
 
+  /// „Nie pytaj więcej dla tego urządzenia": zgoda zapisana przy rozmówcy.
+  bool _pamietaj = false;
+
   @override
   void initState() {
     super.initState();
@@ -487,11 +490,21 @@ class _RemoteInputCardState extends State<_RemoteInputCard> {
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
+                // Prosić może tylko urządzenie z potwierdzoną tożsamością.
+                const Icon(Icons.verified_user, color: Colors.green, size: 20),
               ],
             ),
             const SizedBox(height: 8),
             Text(context.l10n.remoteInputRequestBody),
             const SizedBox(height: 4),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _pamietaj,
+              onChanged: (value) => setState(() => _pamietaj = value ?? false),
+              title: Text(context.l10n.remoteInputDontAskAgain),
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -503,8 +516,8 @@ class _RemoteInputCardState extends State<_RemoteInputCard> {
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
-                  onPressed: () =>
-                      services.respondToRemoteInput(request.id, accept: true),
+                  onPressed: () => services.respondToRemoteInput(request.id,
+                      accept: true, remember: _pamietaj),
                   child: Text(context.l10n.accept),
                 ),
               ],

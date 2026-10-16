@@ -375,6 +375,7 @@ void main() {
         'cel u nadawcy',
       );
       expect(s.alicja.outgoingRemoteInput.value!.applied, isTrue);
+      expect(s.alicja.outgoingRemoteInput.value!.typedReplies, 1);
       expect(s.alicja.outgoingRemoteInput.value!.rtt, isNotNull);
       expect(s.bartek.incomingRemoteInput.value!.target, haslo);
     });
@@ -396,6 +397,8 @@ void main() {
         'cel z pingu',
       );
       expect(s.ujscie.wpisania, 0);
+      expect(s.alicja.outgoingRemoteInput.value!.typedReplies, 0,
+          reason: 'ping to nie paczka z tekstem');
       expect(
         s.ujscie.wywolania.where((w) => w == 'status').length,
         greaterThan(1),

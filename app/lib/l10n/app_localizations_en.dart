@@ -910,6 +910,167 @@ class AppLocalizationsEn extends AppLocalizations {
   String get remoteInputImeReady => 'The Chatt keyboard is on.';
 
   @override
+  String get remoteInputSendHint =>
+      'To type on another device, open the conversation with it and pick the keyboard at the top.';
+
+  @override
+  String get remoteInputDontAskAgain => 'Don\'t ask again for this device';
+
+  @override
+  String remoteInputBannerTarget(Object name, Object app) {
+    return '$name is typing into $app';
+  }
+
+  @override
+  String get remoteInputOwnAppNote =>
+      'Nothing is typed while Chatt is in front.';
+
+  @override
+  String get remoteInputAllowTitle => 'Typing without asking';
+
+  @override
+  String get remoteInputAllowBody =>
+      'This device starts typing here without the consent card. The Typing bar with Stop shows as always. It works only with a confirmed identity and with typing allowed in the Keyboard from a PC add-on.';
+
+  @override
+  String get remoteKeyboardOpen => 'Type on that device';
+
+  @override
+  String get remoteKeyboardNeedsVerified =>
+      'Typing on that device needs a confirmed identity';
+
+  @override
+  String remoteKeyboardTitle(Object name) {
+    return 'Typing on $name';
+  }
+
+  @override
+  String remoteKeyboardWaiting(Object name) {
+    return 'Waiting for consent on $name. Open Chatt there.';
+  }
+
+  @override
+  String get remoteKeyboardWaitingHint =>
+      'An Android phone shows a notification if Chatt may post notifications.';
+
+  @override
+  String remoteKeyboardTarget(Object app) {
+    return 'Typing into: $app';
+  }
+
+  @override
+  String remoteKeyboardTargetPassword(Object app) {
+    return 'Typing into: $app · password field';
+  }
+
+  @override
+  String get remoteKeyboardNoField =>
+      'No field to type into. Tap a field on that device; on Android, with the Chatt keyboard picked.';
+
+  @override
+  String get remoteKeyboardOwnApp =>
+      'Chatt is in front on that device. Switch there to the app you want to type in.';
+
+  @override
+  String get remoteKeyboardElevated =>
+      'A window running as administrator. Nothing is typed there.';
+
+  @override
+  String get remoteKeyboardLocked =>
+      'That device is locked or its screen is off.';
+
+  @override
+  String get remoteKeyboardPaused =>
+      'Paused: a question is waiting on that device. Typing resumes once it is answered.';
+
+  @override
+  String get remoteKeyboardLocalCard =>
+      'Answer the question at the top, then go on typing.';
+
+  @override
+  String remoteKeyboardEnded(Object name) {
+    return 'The session was ended on $name.';
+  }
+
+  @override
+  String get remoteKeyboardLost => 'The connection dropped.';
+
+  @override
+  String get remoteKeyboardReconnect => 'Reconnect';
+
+  @override
+  String get remoteKeyboardModeLive => 'Live';
+
+  @override
+  String get remoteKeyboardModeCompose => 'Compose';
+
+  @override
+  String get remoteKeyboardLiveHint =>
+      'Type here. Every character goes to that device at once.';
+
+  @override
+  String get remoteKeyboardKeysHint =>
+      'Enter submits the field, Shift+Enter is a new line, Backspace and Delete delete on that device.';
+
+  @override
+  String get remoteKeyboardComposeHint =>
+      'Write the text and send it in one go.';
+
+  @override
+  String get remoteKeyboardSend => 'Send';
+
+  @override
+  String get remoteKeyboardThenEnter => 'Then Enter';
+
+  @override
+  String get remoteKeyboardPaste => 'Paste from clipboard';
+
+  @override
+  String get remoteKeyboardClipboardEmpty =>
+      'There is no text on the clipboard.';
+
+  @override
+  String get remoteKeyboardTooLong =>
+      'Too much text at once. Send it in parts.';
+
+  @override
+  String remoteKeyboardRejected(Object name) {
+    return '$name declined.';
+  }
+
+  @override
+  String remoteKeyboardNotEnabled(Object name) {
+    return 'Typing is off on $name. It is turned on in Settings, in the Keyboard from a PC add-on.';
+  }
+
+  @override
+  String remoteKeyboardNoAnswer(Object name) {
+    return '$name did not answer the request.';
+  }
+
+  @override
+  String remoteKeyboardBusy(Object name) {
+    return 'Someone else is already typing on $name.';
+  }
+
+  @override
+  String remoteKeyboardOlderPeer(Object name) {
+    return '$name has an older Chatt, without the remote keyboard.';
+  }
+
+  @override
+  String remoteKeyboardUnreachable(Object name) {
+    return 'Could not reach $name.';
+  }
+
+  @override
+  String get remoteKeyboardNotVerified =>
+      'Confirm this device\'s identity first.';
+
+  @override
+  String get remoteKeyboardAddonOff => 'The Keyboard from a PC add-on is off.';
+
+  @override
   String get viaWifi => 'over the network';
 
   @override

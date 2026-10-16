@@ -871,14 +871,9 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: ListenableBuilder(
-          listenable: Listenable.merge([
-            services.keyboardAddon,
-            services.incomingRemoteInput,
-          ]),
-          builder: (context, _) {
-            final wlaczony = services.keyboardAddon.value;
-            final pisze = services.incomingRemoteInput.value;
+        child: ValueListenableBuilder<bool>(
+          valueListenable: services.keyboardAddon,
+          builder: (context, wlaczony, _) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -894,6 +889,14 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
                   subtitle: Text(context.l10n.keyboardAddonHelp),
                 ),
                 if (wlaczony) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 56),
+                    child: Text(
+                      context.l10n.remoteInputSendHint,
+                      style: TextStyle(
+                          color: scheme.onSurfaceVariant, fontSize: 12),
+                    ),
+                  ),
                   const Divider(height: 24),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -931,26 +934,6 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
                   // w ustawieniach systemu i wybraną na czas sesji.
                   if (odbior && przyjmuje && _ime != null) ..._klawiatura(
                       context, scheme, _ime!),
-                  // Trwająca zgoda i jej Stop. Pełny wskaźnik, widoczny także
-                  // przy schowanym oknie, przychodzi z kodem natywnym.
-                  if (pisze != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Row(
-                        children: [
-                          Icon(Icons.keyboard, color: scheme.primary),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                                context.l10n.remoteInputActive(pisze.peerName)),
-                          ),
-                          FilledButton.tonal(
-                            onPressed: services.stopIncomingRemoteInput,
-                            child: Text(context.l10n.remoteInputStop),
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
               ],
             );

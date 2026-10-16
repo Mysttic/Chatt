@@ -214,11 +214,9 @@ receiving device are out of scope. The sender learns only what typing needs:
 the kind of field, its action, the app's name and whether the receiver can type
 at all.
 
-The protocol, the Dart core on both sides, the add-on's card and the consent
-card are in place. The receiving ends come with phase 2 (Windows, `SendInput`)
-and phase 3 (Android, the Chatt keyboard), and the sender's screen with phase 4
-(the phases of issue #35). Until the native side exists, the channel answers
-that there is nowhere to type.
+The sender types on its own screen, opened from the conversation with the
+receiving device. The receiver types with `SendInput` on Windows and with the
+Chatt keyboard on Android. Issue #35 holds the plan and its phases.
 
 The logic lives in
 [`services/remote_input.dart`](../app/lib/services/remote_input.dart), a `part`
@@ -273,8 +271,10 @@ switches and the other device's grant are checked again.
 "Don't ask again" is per device, `peers.remoteInput`, and is guarded like
 `autoAccept`: the database sets it only for a verified peer
 (`setPeerRemoteInput`), and `setPeerVerified(false)` clears it together with
-the shield. The service takes it as `respondToRemoteInput(remember: true)`; the
-checkbox on the card comes with phase 4.
+the shield. The card sets it with its "Don't ask again for this device"
+checkbox (`respondToRemoteInput(remember: true)`), and the security sheet of
+the conversation shows it as "Typing without asking", next to the files'
+switch: visible only with the add-on on, active only with the green shield.
 
 #### Endpoints
 
@@ -451,8 +451,70 @@ the radio
   receiver does not wait half an hour.
 - `outgoingRemoteInput` holds the state (`waiting`, `active`, `paused`,
   `disconnected`), the last target, whether the last packet was typed, the
-  round trip and the road. Typed text lives only in the sender's queue and in
-  the packet: it reaches no database, log or `ValueNotifier` on either side.
+  round trip and the road. Typed text lives only in the fields of the
+  sender's screen, the sender's queue and the packet: it reaches no database,
+  no log and no state of the service on either side.
+
+#### The sender's screen
+
+[`RemoteKeyboardScreen`](../app/lib/ui/screens/remote_keyboard_screen.dart)
+opens from a keyboard button in the conversation's bar. The button exists only
+with the add-on on and is active only with the green shield. The screen is a
+route of its own over the whole window, two-pane layout included, with a field
+of its own: in the conversation's field Enter sends a message.
+
+- **The session lives as long as the screen.** Opening it asks for the
+  session and shows "Waiting for consent on X" with Cancel. A refusal closes
+  the screen with a message naming the reason (declined, typing off there,
+  no answer, someone else typing, an older Chatt, unreachable). The session
+  ends, or the request is withdrawn, the moment the screen is popped, once:
+  a screen still animating away cannot end the session of the next one, and
+  a refusal that arrives after Cancel closes nothing else. A session that
+  ended (Stop on the other side, a broken link) keeps the screen with
+  Reconnect.
+- **Live mode** types as you go. Its field is an echo of what went out since
+  the last Enter: the cursor is pinned to its end, selection is off, and so
+  are suggestions, autocorrect, the keyboard's learning and the undo
+  shortcuts. A change of the echo goes out as the difference (`echoOps`): the
+  common beginning stays, the rest of the old text goes as Backspace counted
+  in code points, the rest of the new one as text. A character the keyboard is
+  still composing (a dead key, an IME) goes once it is done, and the field is
+  left untouched until then: moving the cursor in the middle of a composition
+  breaks it on Windows. Enter sends the field's action and empties the echo,
+  Shift+Enter sends a newline, Backspace on an empty echo and Delete go to the
+  other side, Ctrl+V and Shift+Insert paste like the button, and Tab, the
+  arrows, Home, End, PgUp and PgDn do nothing, so the focus and the cursor
+  stay where they are, also while typing is on hold (a Tab there would put
+  the focus on Stop, and the next Enter would press it).
+- **Typing goes only where it can land.** The fields are read-only while the
+  session is paused, while the other side has no field, is locked, has Chatt
+  or an administrator's window in front, and while a card waits here. An
+  answer saying the last text was not typed (`applied: false`) empties the
+  echo, every such answer, also the second in a row (`typedReplies` counts the
+  answers to typing packets): an echo holding text that never landed would
+  turn the next Backspace into deleting somebody else's text over there.
+- **Compose mode** sends a whole text with Send (or Ctrl+Enter, once per
+  press), with an optional Enter after it; it is the only mode where the
+  timing between characters does not travel. Its undo shortcuts are off too,
+  so a sent password cannot come back with Ctrl+Z.
+- **Paste from clipboard** sends the clipboard's text as typed text, in either
+  mode.
+- **The echo is masked** until the last answer says `field: text`: a password,
+  or a field of unknown kind, shows dots. Text typed under the mask stays
+  masked until it leaves the field (Enter, Send, a mode switch), even when the
+  focus over there moves on to an ordinary field.
+- **The status line** says where the typing goes ("Typing into: Notes",
+  "· password field") or why nothing gets typed: Chatt in front over there,
+  a locked or dark screen, an administrator's window, no field, a card waiting
+  over there (`paused`). With the Bluetooth add-on on it shows the road, and
+  always the round trip.
+- **A card on this device** (a file offer, a pairing code, a typing request)
+  stops the typing, and the status line says so. A card takes the focus a
+  frame after it shows (Accept, for a single file), while the person typing
+  looks at the other device, so the next space or Enter would answer it
+  unread: the screen takes the focus back to its read-only field, for every
+  card that shows, the next one from the queue included, and the card is
+  answered with a click. The focus returns to typing when the cards are gone.
 
 #### The receiver
 
@@ -474,10 +536,14 @@ the radio
 - One waiting request per sender and at most 8 in all. The same sender asking
   again ends its own grant and withdraws its own older request; any other
   sender hears `busy` while a grant lives.
-- `incomingRemoteInput` drives the "Typing: X" row with Stop in the add-on's
-  card. An indicator that stays visible with the window hidden comes with the
-  native sides: a floating bar on Windows (phase 2) and the Chatt keyboard's
-  own bar on Android (phase 3).
+- `incomingRemoteInput` drives the "X is typing into app" bar with Stop above the
+  whole app ([`RemoteInputBanner`](../app/lib/ui/widgets/remote_input_banner.dart),
+  in `MaterialApp.builder`, under the cards and above the messages in the
+  corner), on every screen for the whole grant. With Chatt or an
+  administrator's window in front nothing is typed, and the bar says so; it
+  names the app only while typing really lands there. With the window hidden the native
+  indicators take over: the floating bar on Windows, the Chatt keyboard's bar
+  and the permanent notification on Android.
 
 #### The `chatt/remoteinput` channel
 

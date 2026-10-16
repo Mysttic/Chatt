@@ -73,8 +73,10 @@ class _SecuritySheet extends ConsumerWidget {
         ),
     };
 
+    // Przewijany: dwa odciski, przełączniki zgód i przyciski parowania nie
+    // mieszczą się na niskim oknie ani przy powiększonej czcionce.
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -111,6 +113,13 @@ class _SecuritySheet extends ConsumerWidget {
             if (klucz.isNotEmpty) ...[
               const Divider(height: 32),
               _AutoAccept(peer: peer),
+              // Należy do dodatku klawiatury: bez niego nie ma tu śladu.
+              ValueListenableBuilder<bool>(
+                valueListenable: services.keyboardAddon,
+                builder: (context, dodatek, _) => dodatek
+                    ? _RemoteInput(peer: peer)
+                    : const SizedBox.shrink(),
+              ),
             ],
             if (klucz.isNotEmpty && !peer.verified) ...[
               const SizedBox(height: 20),
@@ -264,6 +273,37 @@ class _AutoAccept extends ConsumerWidget {
       subtitle: Text(
         peer.verified
             ? context.l10n.autoAcceptBody
+            : context.l10n.autoAcceptNeedsVerified,
+        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+      ),
+    );
+  }
+}
+
+/// Przełącznik „pisanie bez pytania" dodatku klawiatury. Jak przy plikach:
+/// aktywny wyłącznie przy zielonej tarczy, a cofnięcie potwierdzenia gasi
+/// go w bazie.
+class _RemoteInput extends ConsumerWidget {
+  final Peer peer;
+
+  const _RemoteInput({required this.peer});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      value: peer.remoteInput && peer.verified,
+      onChanged: peer.verified
+          ? (value) => ref
+              .read(appServicesProvider)
+              .db
+              .setPeerRemoteInput(peer.id, value)
+          : null,
+      title: Text(context.l10n.remoteInputAllowTitle),
+      subtitle: Text(
+        peer.verified
+            ? context.l10n.remoteInputAllowBody
             : context.l10n.autoAcceptNeedsVerified,
         style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
       ),

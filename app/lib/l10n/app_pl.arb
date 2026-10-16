@@ -375,6 +375,82 @@
   "remoteInputImeNotSelected": "Na czas pisania wybierz klawiaturę Chatt. Po sesji wraca poprzednia.",
   "remoteInputImePick": "Wybierz klawiaturę",
   "remoteInputImeReady": "Klawiatura Chatt jest włączona.",
+  "remoteInputSendHint": "Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz klawiaturę u góry ekranu.",
+  "remoteInputDontAskAgain": "Nie pytaj więcej dla tego urządzenia",
+  "remoteInputBannerTarget": "{name} pisze do: {app}",
+  "@remoteInputBannerTarget": {
+    "placeholders": { "name": {}, "app": {} }
+  },
+  "remoteInputOwnAppNote": "Nic się nie wpisze, dopóki Chatt jest na wierzchu.",
+  "remoteInputAllowTitle": "Pisanie bez pytania",
+  "remoteInputAllowBody": "To urządzenie zaczyna pisać tutaj bez karty zgody. Pasek „Pisze” ze Stopem pokazuje się jak zawsze. Działa tylko przy potwierdzonej tożsamości i włączonym pisaniu w dodatku „Klawiatura z PC”.",
+  "remoteKeyboardOpen": "Pisz na tamtym urządzeniu",
+  "remoteKeyboardNeedsVerified": "Pisanie na tamtym urządzeniu wymaga potwierdzonej tożsamości",
+  "remoteKeyboardTitle": "Piszesz na: {name}",
+  "@remoteKeyboardTitle": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardWaiting": "Czekam na zgodę na urządzeniu {name}. Otwórz tam Chatt.",
+  "@remoteKeyboardWaiting": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardWaitingHint": "Telefon z Androidem pokaże powiadomienie, jeśli Chatt ma zgodę na powiadomienia.",
+  "remoteKeyboardTarget": "Pisze do: {app}",
+  "@remoteKeyboardTarget": {
+    "placeholders": { "app": {} }
+  },
+  "remoteKeyboardTargetPassword": "Pisze do: {app} · pole hasła",
+  "@remoteKeyboardTargetPassword": {
+    "placeholders": { "app": {} }
+  },
+  "remoteKeyboardNoField": "Brak pola do pisania. Stuknij pole na tamtym urządzeniu; na Androidzie z wybraną klawiaturą Chatt.",
+  "remoteKeyboardOwnApp": "Na tamtym urządzeniu na wierzchu jest Chatt. Przejdź tam do aplikacji, w której chcesz pisać.",
+  "remoteKeyboardElevated": "Okno z uprawnieniami administratora. Tam nic się nie wpisze.",
+  "remoteKeyboardLocked": "Tamto urządzenie jest zablokowane albo ma wygaszony ekran.",
+  "remoteKeyboardPaused": "Wstrzymane: na tamtym urządzeniu czeka pytanie. Pisanie wróci po odpowiedzi.",
+  "remoteKeyboardLocalCard": "Odpowiedz na pytanie u góry, potem pisz dalej.",
+  "remoteKeyboardEnded": "Sesję zakończono na urządzeniu {name}.",
+  "@remoteKeyboardEnded": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardLost": "Połączenie zerwane.",
+  "remoteKeyboardReconnect": "Połącz ponownie",
+  "remoteKeyboardModeLive": "Znak po znaku",
+  "remoteKeyboardModeCompose": "Całość naraz",
+  "remoteKeyboardLiveHint": "Pisz tutaj. Każdy znak od razu trafia na tamto urządzenie.",
+  "remoteKeyboardKeysHint": "Enter zatwierdza pole, Shift+Enter to nowa linia, Backspace i Delete kasują na tamtym urządzeniu.",
+  "remoteKeyboardComposeHint": "Napisz tekst i wyślij go w całości.",
+  "remoteKeyboardSend": "Wyślij",
+  "remoteKeyboardThenEnter": "Potem Enter",
+  "remoteKeyboardPaste": "Wklej ze schowka",
+  "remoteKeyboardClipboardEmpty": "W schowku nie ma tekstu.",
+  "remoteKeyboardTooLong": "Za dużo tekstu naraz. Wyślij go w częściach.",
+  "remoteKeyboardRejected": "Urządzenie {name} odmówiło.",
+  "@remoteKeyboardRejected": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardNotEnabled": "Na urządzeniu {name} pisanie jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.",
+  "@remoteKeyboardNotEnabled": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardNoAnswer": "Urządzenie {name} nie odpowiedziało na prośbę.",
+  "@remoteKeyboardNoAnswer": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardBusy": "Na urządzeniu {name} pisze już ktoś inny.",
+  "@remoteKeyboardBusy": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardOlderPeer": "Urządzenie {name} ma starszą wersję Chatt, bez zdalnej klawiatury.",
+  "@remoteKeyboardOlderPeer": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardUnreachable": "Nie udało się połączyć z urządzeniem {name}.",
+  "@remoteKeyboardUnreachable": {
+    "placeholders": { "name": {} }
+  },
+  "remoteKeyboardNotVerified": "Najpierw potwierdź tożsamość tego urządzenia.",
+  "remoteKeyboardAddonOff": "Dodatek „Klawiatura z PC” jest wyłączony.",
   "viaWifi": "przez sieć",
   "viaBluetooth": "przez Bluetooth",
   "protocolWifi": "Sieć",

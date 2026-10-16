@@ -10,6 +10,9 @@
 //   flutter test tool/windows_shots.dart
 //   set CHATT_SHOTS_LANG=en && flutter test tool/windows_shots.dart
 //
+// Same zrzuty dodatku „Klawiatura z PC":
+//   flutter test tool/windows_shots.dart --plain-name klawiatury
+//
 // Wynik: docs/screenshots/windows/{pl,en}/*.png
 //
 // ignore_for_file: avoid_print
@@ -23,6 +26,7 @@ import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart' show FontLoader;
@@ -31,11 +35,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:chatt/app.dart';
+import 'package:chatt/core/remote_input.dart';
 import 'package:chatt/data/db.dart';
-import 'package:chatt/network/protocol.dart' show defaultTcpPort;
+import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 import 'package:chatt/services/presence.dart';
 import 'package:chatt/services/providers.dart';
+import 'package:chatt/ui/screens/remote_keyboard_screen.dart';
+import 'package:chatt/ui/screens/settings_screen.dart';
 
 const Map<String, String> _pl = {
   'ja': 'Mój komputer',
@@ -47,6 +54,10 @@ const Map<String, String> _pl = {
   'dzieki': 'Mam, dzięki!',
   'png': 'zachod-slonca.png',
   'ustawienia': 'Ustawienia',
+  'telefon': 'Telefon Anny',
+  'notatki': 'Notatki',
+  'notatnik': 'Notatnik',
+  'pisanie': 'Spotkanie przesunięte na 15:00, sala 2',
 };
 
 const Map<String, String> _en = {
@@ -59,6 +70,10 @@ const Map<String, String> _en = {
   'dzieki': 'Got it, thanks!',
   'png': 'sunset.png',
   'ustawienia': 'Settings',
+  'telefon': "Anna's phone",
+  'notatki': 'Notes',
+  'notatnik': 'Notepad',
+  'pisanie': 'Meeting moved to 3 pm, room 2',
 };
 
 final String jezyk = Platform.environment['CHATT_SHOTS_LANG'] ?? 'pl';
@@ -149,7 +164,12 @@ Future<void> wczytajCzcionki() async {
   await ikony.load();
 }
 
-Future<AppServices> rozmowca(String nazwa, Directory work) =>
+Future<AppServices> rozmowca(
+  String nazwa,
+  Directory work, {
+  RemoteInputSink? ujscie,
+  RemoteInputPolicy? zgodaNaPisanie,
+}) =>
     AppServices.start(
       executor: NativeDatabase.memory(),
       portOverride: 0,
@@ -157,7 +177,87 @@ Future<AppServices> rozmowca(String nazwa, Directory work) =>
       enableDiscovery: false,
       receivedDirOverride: p.join(work.path, 'received-$nazwa'),
       fileOfferPolicy: acceptAllFileOffers,
+      remoteInputSink: ujscie,
+      remoteInputPolicy: zgodaNaPisanie,
     );
+
+/// Komputer, którego okno oglądamy: język, jasny motyw i port domyślny
+/// w ustawieniach (na zrzucie do sklepu „0" wyglądałoby jak usterka).
+Future<AppServices> mojKomputer(Directory work, {RemoteInputSink? ujscie}) async {
+  final ja = await AppServices.start(
+    executor: NativeDatabase.memory(),
+    portOverride: 0,
+    nameOverride: t['ja'],
+    enableDiscovery: false,
+    receivedDirOverride: p.join(work.path, 'received'),
+    remoteInputSink: ujscie,
+  );
+  await ja.db.saveLanguage(
+      jezyk == 'en' ? AppLanguage.english : AppLanguage.polish);
+  await ja.db.saveTheme(AppTheme.light);
+  await ja.db.saveSettings(
+    nickname: t['ja']!,
+    welcomeMessage: '',
+    tcpPort: defaultTcpPort,
+  );
+  return ja;
+}
+
+/// Pole z fokusem po drugiej stronie, jak zgłosiłaby je strona natywna.
+class _Ujscie implements RemoteInputSink {
+  final RemoteInputTarget cel;
+
+  _Ujscie(this.cel);
+
+  @override
+  bool get supported => true;
+
+  @override
+  Future<RemoteInputTarget> status() async => cel;
+
+  @override
+  Future<RemoteInputApplied> apply(List<RemoteInputOp> ops) async =>
+      (applied: true, target: cel);
+
+  @override
+  Future<void> setSession({required bool active, String peerName = ''}) async {}
+
+  @override
+  Future<bool> setImeEnabled(bool on) async => true;
+}
+
+/// Sesja już ruszyła (prośbę i zgodę załatwia prawdziwa droga przed
+/// zrzutem), a tekst w polu jest na pokaz: wysyłka spod udawanego zegara
+/// harnessu wisiałaby do limitu klienta.
+class _GotowaSesja implements RemoteKeyboardLink {
+  final AppServices services;
+
+  _GotowaSesja(this.services);
+
+  @override
+  ValueListenable<OutgoingRemoteInput?> get state =>
+      services.outgoingRemoteInput;
+
+  @override
+  Future<RemoteInputStart> start() async => RemoteInputStart.accepted;
+
+  @override
+  bool send(List<RemoteInputOp> ops) => true;
+
+  @override
+  Future<void> stop() async {}
+}
+
+/// Parowanie kodem, obie strony potwierdzają. Zwraca [druga] tak, jak widzi
+/// ją [pierwsza].
+Future<Peer> sparuj(AppServices pierwsza, AppServices druga) async {
+  final drugaUPierwszej =
+      await pierwsza.addPeerByAddress('127.0.0.1', druga.server.port!);
+  await pierwsza.startPairing(drugaUPierwszej!);
+  await pierwsza.confirmPairing(druga.identity.guid);
+  await druga.confirmPairing(pierwsza.identity.guid);
+  return (await pierwsza.db.peerByGuid(druga.identity.guid))!;
+}
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -190,24 +290,7 @@ void main() {
     // do niej po pętli zwrotnej tak, jak robiłyby to z drugiego końca sieci.
     await tester.runAsync(() async {
       await wczytajCzcionki();
-      ja = await AppServices.start(
-        executor: NativeDatabase.memory(),
-        portOverride: 0,
-        nameOverride: t['ja'],
-        enableDiscovery: false,
-        receivedDirOverride: p.join(work.path, 'received'),
-      );
-      await ja.db.saveLanguage(
-          jezyk == 'en' ? AppLanguage.english : AppLanguage.polish);
-      await ja.db.saveTheme(AppTheme.light);
-      // Stos stoi na porcie losowym (portOverride: 0), a pole w ustawieniach
-      // pokazuje to, co w bazie, a na zrzucie do sklepu „0" wyglądałoby jak
-      // usterka, więc wpisujemy port domyślny.
-      await ja.db.saveSettings(
-        nickname: t['ja']!,
-        welcomeMessage: '',
-        tcpPort: defaultTcpPort,
-      );
+      ja = await mojKomputer(work);
 
       anna = await rozmowca(t['anna']!, work);
       biuro = await rozmowca(t['biuro']!, work);
@@ -299,6 +382,184 @@ void main() {
     await tester.runAsync(() async {
       await anna.dispose();
       await biuro.dispose();
+      await ja.dispose();
+    });
+    await tester.pump(const Duration(seconds: 20));
+  });
+
+  // Dodatek „Klawiatura z PC". Cała sieć (parowanie, prośba, zgoda) idzie
+  // przed `pumpWidget`, w prawdziwym czasie: prośba wysłana spod udawanego
+  // zegara harnessu potrafi paść na połączeniu z puli, choć ten sam przebieg
+  // poza harnessem trwa milisekundy. Stąd dwa testy, każdy z siecią na start.
+
+  /// Wspólny początek: harness, katalog na zrzuty i katalog roboczy.
+  Future<Directory> przygotuj(WidgetTester tester) async {
+    HttpOverrides.global = null;
+    FocusManager.instance.highlightStrategy = FocusHighlightStrategy.alwaysTouch;
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    shots = Directory(p.join(
+        Directory.current.path, '..', 'docs', 'screenshots', 'windows', jezyk))
+      ..createSync(recursive: true);
+    final work = Directory.systemTemp.createTempSync('chatt_windows_shots');
+    addTearDown(() => work.deleteSync(recursive: true));
+    await tester.runAsync(wczytajCzcionki);
+    return work;
+  }
+
+  Future<void> aplikacja(WidgetTester tester, GlobalKey klucz, AppServices ja,
+          List<AppServices> obecni) =>
+      tester.pumpWidget(RepaintBoundary(
+        key: klucz,
+        child: ProviderScope(
+          overrides: [
+            appServicesProvider.overrideWithValue(ja),
+            presenceProvider.overrideWith((ref) => Stream.value({
+                  for (final s in obecni) s.identity.guid: true,
+                })),
+          ],
+          child: const ChattApp(),
+        ),
+      ));
+
+  testWidgets('zrzuty klawiatury z PC: nadawca', (tester) async {
+    final work = await przygotuj(tester);
+    late AppServices ja;
+    late AppServices telefon;
+    late Peer telefonUMnie;
+
+    // Telefon przyjmuje pisanie bez pytania, z polem notatek na wierzchu.
+    await tester.runAsync(() async {
+      ja = await mojKomputer(work);
+      telefon = await rozmowca(t['telefon']!, work,
+          ujscie: _Ujscie(RemoteInputTarget(
+            active: true,
+            field: RemoteInputField.text,
+            app: 'com.google.android.keep',
+            appLabel: t['notatki']!,
+          )),
+          zgodaNaPisanie: acceptAllRemoteInput);
+      telefonUMnie = await sparuj(ja, telefon);
+      await ja.openConversationWith(telefonUMnie);
+      await ja.setKeyboardAddon(true);
+      await telefon.setKeyboardAddon(true);
+      await telefon.setRemoteInputReceive(true);
+      final sesja = await ja.startRemoteInput(telefonUMnie);
+      if (sesja != RemoteInputStart.accepted) {
+        throw StateError('telefon nie przyjął sesji: $sesja');
+      }
+    });
+
+    final klucz = GlobalKey();
+    await aplikacja(tester, klucz, ja, [telefon]);
+    await odczekaj(tester);
+
+    // Rozmowa z telefonem, a nad nią ekran pisania.
+    await tester.tap(find.text(t['telefon']!).first);
+    await odczekaj(tester);
+    Navigator.of(tester.element(find.byType(Scaffold).first),
+            rootNavigator: true)
+        .push(MaterialPageRoute<void>(
+      builder: (_) =>
+          RemoteKeyboardScreen(peer: telefonUMnie, link: _GotowaSesja(ja)),
+    ));
+    await odczekaj(tester);
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(RemoteKeyboardScreen),
+        matching: find.byType(TextField),
+      ),
+      t['pisanie']!,
+    );
+    await zrzut(tester, klucz, '06_klawiatura_pisanie');
+
+    await tester.runAsync(() async {
+      await ja.stopRemoteInput();
+      await telefon.dispose();
+      await ja.dispose();
+    });
+    await tester.pump(const Duration(seconds: 20));
+  });
+
+  testWidgets('zrzuty klawiatury z PC: odbiorca', (tester) async {
+    final work = await przygotuj(tester);
+    late AppServices ja;
+    late AppServices anna;
+    late Future<RemoteInputStart> prosba;
+
+    // Laptop Anny prosi o pisanie na tym komputerze, z Notatnikiem na
+    // wierzchu. Karta czeka, zanim aplikacja w ogóle stanie.
+    await tester.runAsync(() async {
+      ja = await mojKomputer(work,
+          ujscie: _Ujscie(RemoteInputTarget(
+            active: true,
+            field: RemoteInputField.text,
+            app: 'notepad.exe',
+            appLabel: t['notatnik']!,
+          )));
+      anna = await rozmowca(t['anna']!, work);
+      final jaUAnny = await sparuj(anna, ja);
+      final annaUMnie = await ja.db.peerByGuid(anna.identity.guid);
+      await ja.openConversationWith(annaUMnie!);
+      await anna.setKeyboardAddon(true);
+      await ja.setKeyboardAddon(true);
+      await ja.setRemoteInputReceive(true);
+      prosba = anna.startRemoteInput(jaUAnny);
+      final koniec = DateTime.now().add(const Duration(seconds: 15));
+      while (ja.pendingRemoteInput.value.isEmpty) {
+        if (DateTime.now().isAfter(koniec)) {
+          throw StateError('karta nie przyszła');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    });
+
+    final klucz = GlobalKey();
+    await aplikacja(tester, klucz, ja, [anna]);
+    await zrzut(tester, klucz, '07_klawiatura_zgoda');
+
+    // Zgoda: pasek „Pisze" u góry, a w ustawieniach karta dodatku.
+    await tester.runAsync(() async {
+      if (ja.pendingRemoteInput.value.isEmpty) {
+        final wynik = await prosba.timeout(const Duration(seconds: 2),
+            onTimeout: () => RemoteInputStart.cancelled);
+        throw StateError('karta zniknęła przed zgodą, prośba Anny: $wynik');
+      }
+      ja.respondToRemoteInput(ja.pendingRemoteInput.value.single.id,
+          accept: true);
+      final wynik = await prosba;
+      if (wynik != RemoteInputStart.accepted) {
+        throw StateError('zgoda nie doszła do Anny: $wynik');
+      }
+    });
+    await tester.tap(find.byTooltip(t['ustawienia']!));
+    await odczekaj(tester);
+    // Lista ustawień buduje się leniwie: karty dodatków nie ma, dopóki nie
+    // dojedzie się do niej przewijaniem.
+    await tester.scrollUntilVisible(
+      find.byType(KeyboardAddonCard),
+      400,
+      scrollable: find
+          .descendant(
+            of: find.byType(SettingsScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    // Karta przy dolnej krawędzi kadru: niżej jest sekcja „To urządzenie"
+    // z adresami IP komputera, na którym powstaje zrzut, a wyżej czerwona
+    // karta o głuchym wykrywaniu (stos zrzutów działa bez wykrywania).
+    // Przesunięcie o 100 px chowa jedno i drugie.
+    final karta = tester.element(find.byType(KeyboardAddonCard));
+    await Scrollable.ensureVisible(karta, alignment: 1.0);
+    final pozycja = Scrollable.of(karta).position;
+    pozycja.jumpTo(pozycja.pixels + 100);
+    await zrzut(tester, klucz, '08_klawiatura_odbior');
+
+    await tester.runAsync(() async {
+      await anna.stopRemoteInput();
+      await anna.dispose();
       await ja.dispose();
     });
     await tester.pump(const Duration(seconds: 20));

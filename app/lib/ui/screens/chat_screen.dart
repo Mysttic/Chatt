@@ -26,6 +26,7 @@ import '../widgets/protocol_badge.dart';
 import '../widgets/security_sheet.dart';
 import '../widgets/toasts.dart';
 import 'image_view_screen.dart';
+import 'remote_keyboard_screen.dart';
 import 'scan_screen.dart';
 
 /// Telefon zamiast pulpitu. Decyduje o tym, jak zaznacza się tekst i czym
@@ -107,6 +108,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showToast(teksty.pairStartFailed);
   }
 
+
+  /// Pisanie na tamtym urządzeniu. Własna trasa na całe okno, także
+  /// w układzie dwukolumnowym: pole pisania ma być jedynym polem na ekranie.
+  void _piszNaTamtym(Peer peer) {
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
+      builder: (_) => RemoteKeyboardScreen(peer: peer),
+    ));
+  }
 
   /// Skanowanie kodu z drugiego urządzenia. Po udanym skanie tożsamość jest
   /// potwierdzona po tej stronie od razu: widzieliśmy tamten ekran.
@@ -283,6 +292,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             tooltip: _searching ? context.l10n.close : context.l10n.searchTooltip,
             icon: Icon(_searching ? Icons.close : Icons.search),
             onPressed: _toggleSearch,
+          ),
+          // Dodatek „Klawiatura z PC". Wyłączony nie zajmuje miejsca; pisać
+          // wolno tylko na urządzenie z potwierdzoną tożsamością.
+          ValueListenableBuilder<bool>(
+            valueListenable: services.keyboardAddon,
+            builder: (context, dodatek, _) => dodatek
+                ? IconButton(
+                    tooltip: peer.verified
+                        ? context.l10n.remoteKeyboardOpen
+                        : context.l10n.remoteKeyboardNeedsVerified,
+                    icon: const Icon(Icons.keyboard_alt_outlined),
+                    onPressed:
+                        peer.verified ? () => _piszNaTamtym(peer) : null,
+                  )
+                : const SizedBox.shrink(),
           ),
           // Trzy stany, bo od protokołu 5 szyfrowanie i potwierdzenie
           // tożsamości to dwie różne rzeczy:
