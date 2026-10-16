@@ -55,6 +55,9 @@ flutter:
     # Ikona w zasobniku Windows. Zasobnik czyta plik z dysku, więc musi
     # jechać razem z aplikacją, a nie tylko siedzieć w zasobach .exe.
     - assets/tray_icon.ico
+    # Ta sama ikona z plakietką: ktoś właśnie pisze na tym komputerze
+    # (dodatek „Klawiatura z PC").
+    - assets/tray_icon_typing.ico
 
   # Czcionki dołączone do aplikacji: identyczny rendering na każdej platformie
   # (desktop Linux w kontenerze testowym nie ma czcionek systemowych) oraz

@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **341 `flutter test` tests** check everything that can be
+The split is simple: **346 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -583,7 +583,39 @@ The sender's queue:
   and app names of 64 Chinese characters or emoji, cut without splitting a
   character
 
+### The keyboard on the Windows desktop (`test/remote_input_desktop_test.dart`, 5 tests)
+The native bar, the tray and the window are replaced by recorders:
+- a grant shows the bar and the tray badge with the sender's name, and the
+  target's program name once there is one; the same text twice makes one call;
+  the end of the grant hides both; a grant alone does not move the window
+- with no texts yet nothing shows, and a language change shows the bar again
+  in the new language
+- a consent card pulls a hidden window out and hides it after the answer; a
+  minimised one goes back to the taskbar; a window already on screen is left
+  alone
+
 ## Scenarios on live hardware
+
+### `tool/klawiatura_check.dart`
+The `chatt/remoteinput` sink on a live Windows runner, with no consent and no
+network: `flutter run -d windows -t tool/klawiatura_check.dart`. It prints the
+target every second until Notepad (or the program in `CHATT_KLAWIATURA_CEL`) is
+in front, then shows the floating bar, types `Chatt ąęł 124`, a Backspace, `3`,
+Enter and `koniec`, and waits 30 seconds for Stop on the bar. Notepad has to
+show two lines, `Chatt ąęł 123` and `koniec`; Stop prints `STOP`, hides the bar
+and leaves Notepad with the focus. By hand at the same time: Chatt itself in
+front gives `ownApp=true`, Notepad run as administrator `elevated=true`, a
+password field on a web page `field=password`.
+
+### `tool/klawiatura_e2e_test.dart`
+The whole road on one PC: `flutter test tool/klawiatura_e2e_test.dart` is the
+sender, and the Chatt app running next to it (keyboard add-on and receiving on,
+port `CHATT_KLAWIATURA_PORT`, 47780 by default) is the receiver. The script
+pairs by code (confirm "They match" in the app), asks for a session (accept the
+card), counts down ten seconds for the target window to come to the front, and
+sends text, Backspace, Enter and a 600-character paste, printing the target
+after every step. The app's window, hidden in the tray, comes out for the cards
+and goes back after them; the bar and the tray badge stay for the session.
 
 ### `tool/bt_rozmowa_check.dart`
 A conversation over the radio, on real hardware. It raises the whole app stack

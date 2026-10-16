@@ -1538,6 +1538,18 @@ abstract class AppLocalizations {
   /// **'Stop'**
   String get remoteInputStop;
 
+  /// No description provided for @remoteInputBarTarget.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisze: {name} → {app}'**
+  String remoteInputBarTarget(Object name, Object app);
+
+  /// No description provided for @trayRemoteInputStop.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zatrzymaj zdalną klawiaturę'**
+  String get trayRemoteInputStop;
+
   /// No description provided for @viaWifi.
   ///
   /// In pl, this message translates to:

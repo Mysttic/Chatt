@@ -769,6 +769,21 @@ const Duration remoteInputAnswerTimeout = Duration(minutes: 2);
 /// z tym samym `seq`.
 const Duration remoteInputPacketTimeout = Duration(seconds: 2);
 
+/// Ile najwyżej trwa wpisanie jednego znaku (albo jednego Backspace) po
+/// stronie odbiorcy. Windows wpisuje znak po znaku z milisekundą przerwy, bo
+/// część aplikacji gubi znaki wysłane serią; zapas jest na wolniejszy zegar.
+const Duration remoteInputTypingPerUnit = Duration(milliseconds: 20);
+
+/// Czas wpisania paczki u odbiorcy, ponad zwykły limit odpowiedzi. Nadawca
+/// dolicza go do limitu czasu paczki, a odbiorca do limitu wywołania kanału.
+Duration remoteInputTypingTime(List<RemoteInputOp> ops) {
+  var jednostki = 0;
+  for (final op in ops) {
+    if (op.kind.types) jednostki += op.text.length + op.count + 1;
+  }
+  return remoteInputTypingPerUnit * jednostki;
+}
+
 /// Zgoda gaśnie po tylu minutach bez operacji. Pingi się nie liczą.
 const Duration remoteInputIdle = Duration(minutes: 30);
 

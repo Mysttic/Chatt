@@ -873,6 +873,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get remoteInputStop => 'Stop';
 
   @override
+  String remoteInputBarTarget(Object name, Object app) {
+    return 'Typing: $name → $app';
+  }
+
+  @override
+  String get trayRemoteInputStop => 'Stop remote keyboard';
+
+  @override
   String get viaWifi => 'over the network';
 
   @override

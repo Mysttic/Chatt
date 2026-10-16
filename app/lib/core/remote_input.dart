@@ -69,12 +69,13 @@ class RemoteInputChannel implements RemoteInputSink {
   static Future<Map<String, Object?>?> _call(
     String method, [
     Map<String, Object?>? args,
+    Duration timeout = _callTimeout,
   ]) async {
     if (!isSupported) return null;
     try {
       return await _channel
           .invokeMapMethod<String, Object?>(method, args)
-          .timeout(_callTimeout);
+          .timeout(timeout);
     } on PlatformException catch (error) {
       debugPrint('chatt/remoteinput $method: ${error.code}');
       return null;
@@ -91,9 +92,13 @@ class RemoteInputChannel implements RemoteInputSink {
 
   @override
   Future<RemoteInputApplied> apply(List<RemoteInputOp> ops) async {
-    final json = await _call('apply', {
-      'ops': [for (final op in ops) op.toJson()],
-    });
+    final json = await _call(
+      'apply',
+      {
+        'ops': [for (final op in ops) op.toJson()],
+      },
+      _callTimeout + remoteInputTypingTime(ops),
+    );
     return (
       applied: json?['applied'] == true,
       target: RemoteInputTarget.fromJson(json),
@@ -107,4 +112,31 @@ class RemoteInputChannel implements RemoteInputSink {
   @override
   Future<bool> setImeEnabled(bool on) async =>
       (await _call('setImeEnabled', {'on': on}))?['ok'] == true;
+
+  /// Wskaźnik trwającej zgody poza oknem aplikacji: na Windows pływający
+  /// pasek „Pisze: …" ze Stopem, widoczny także przy oknie schowanym
+  /// w zasobniku. Teksty idą z Darta, bo tylko tu jest wybrany język.
+  static Future<bool> showIndicator({
+    required String text,
+    required String stop,
+  }) async =>
+      (await _call('showIndicator', {'text': text, 'stop': stop}))?['ok'] ==
+      true;
+
+  static Future<bool> hideIndicator() async =>
+      (await _call('hideIndicator'))?['ok'] == true;
+
+  /// Wywołania od strony natywnej: Stop stuknięty na pasku. Rejestracja
+  /// niczego po drugiej stronie nie woła.
+  static void listen({required void Function() onStop}) {
+    if (!isSupported) return;
+    try {
+      _channel.setMethodCallHandler((call) async {
+        if (call.method == 'stopRequested') onStop();
+        return null;
+      });
+    } catch (_) {
+      // Brak wiązania (test bez Fluttera): nie ma skąd przyjść Stopowi.
+    }
+  }
 }
