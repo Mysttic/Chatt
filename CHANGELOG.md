@@ -8,7 +8,7 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.10.0] - 2026-10-16
 
 A second add-on: typing on a PC's keyboard into the field that has focus on
 another device, in any app, for phones, tablets and touch-only PCs with no
@@ -873,7 +873,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.9.0...HEAD
+[0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0
