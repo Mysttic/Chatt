@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **255 `flutter test` tests** check everything that can be
+The split is simple: **387 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -38,7 +38,20 @@ codes, behaviour when a connection breaks.
 
 For the harder scenarios the tests put their own proxy between the instances:
 once as a wiretap (checking that the content really does not travel in
-plaintext), once as a link that dies after N bytes (resuming a transfer).
+plaintext), once as a link that dies after N bytes (resuming a transfer). The
+wiretap records both directions and keeps each connection of the sending side
+apart, so a test can cut the recording into single HTTP requests and play them
+back.
+
+The remote keyboard needs a device that types, and `flutter test` has no native
+side, so the receiving instance gets an in-memory sink
+(`AppServices.start(remoteInputSink:)`) that records every operation it is
+handed and answers with a made-up target. Two hooks marked
+`@visibleForTesting` cover what a real sender never does:
+`debugSendSealed` seals any payload under the live session and sends it to
+`/input-session` or `/input` (forged tokens, old numbers, bad shapes), and
+`debugDropIncomingSessions` makes the receiver forget a sender's session
+without a restart, which would wipe the grant as well.
 
 ## What is covered
 
@@ -182,12 +195,19 @@ when it speaks and when it stays quiet:
 - the file key hangs off the session key and the message guid
 - a device broadcasts its key, and its identifier follows from it
 
-### Encryption (`test/encryption_test.dart`, 4 tests)
+### Encryption (`test/encryption_test.dart`, 6 tests)
 - paired: message content does not travel in plaintext, checked with a wiretap
   on the link
 - **unpaired: the content does not travel in plaintext either**
 - paired: a file travels encrypted and comes together byte for byte
 - paired: resuming an encrypted file sends only the remainder
+- remote keyboard: the typed text, the word `password` from the target and the
+  receiving app's package and label appear in neither direction on the wire,
+  while the receiver's sink gets the text exactly
+- remote keyboard, replay from the wire: every recorded `/input-session` and
+  `/input` request, sent again with a plain `HttpClient` after the session
+  stopped, gets 403 or 409; no card appears, nothing reaches the sink and no
+  grant comes back
 
 ### Search, backgrounds and thumbnails (`test/search_test.dart`, 12 tests)
 - search ignores case, and an empty string matches everything
@@ -214,7 +234,7 @@ when it speaks and when it stays quiet:
 - the age limit deletes only messages older than itself, and turned off
   (0 days) it deletes nothing
 
-### Per-peer settings (`test/peer_prefs_test.dart`, 10 tests)
+### Per-peer settings (`test/peer_prefs_test.dart`, 13 tests)
 - a name of your own covers the broadcast one without deleting it, and it
   survives the peer renaming itself; an empty string or a space brings the
   broadcast name back
@@ -224,6 +244,9 @@ when it speaks and when it stays quiet:
 - three live transfers between two instances: a confirmed peer with consent
   gets the file through with no question asked; the same peer without consent
   still raises one; and the flag alone, with the shield gone, raises one too
+- typing without a card (`peers.remoteInput`) is guarded the same way: it
+  cannot be turned on for an unconfirmed peer, it can for a confirmed one, and
+  removing the confirmation turns it off together with taking files
 
 ### Starting over after a lost key (`test/startup_error_test.dart`, 4 tests)
 - the reset deletes the database, its journals and the key, and stops at the
@@ -234,7 +257,7 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migrations (`test/migration_test.dart`, 3 tests)
+### Migrations (`test/migration_test.dart`, 4 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
@@ -244,6 +267,10 @@ when it speaks and when it stays quiet:
   add-on off and the network on
 - the two roads to a peer do not wipe each other: the network address and the
   radio address sit side by side in the same row
+- the step from 12 to 13 keeps the peer (its addresses, confirmation and
+  taking files without asking), its messages and the settings, the Bluetooth
+  add-on included, and brings the keyboard add-on, receiving and typing
+  without a card in switched off
 
 ### Links in messages (`test/links_test.dart`, 23 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
@@ -323,7 +350,7 @@ The file is separate on purpose: one `testWidgets` anywhere in a file installs
 400 for **the whole** suite. Next door, in `peer_prefs_test.dart`, two
 instances talk to each other over a real socket.
 
-### An attacker on the wire (`test/security_test.dart`, 12 tests)
+### An attacker on the wire (`test/security_test.dart`, 22 tests)
 - a message identifier carrying a path (`../../../../evil`, `..\..\evil`,
   `/etc/chatt`) is rejected in a file announcement, in a message and in the
   transfer headers; an ordinary UUID passes
@@ -339,14 +366,32 @@ instances talk to each other over a real socket.
   falls back to asking per file, which is worse but never destructive
 - a well-formed batch survives the round trip whole, and an announcement with
   no batch at all still looks exactly as it did before batches existed
+- a keyboard packet off the network has a strict shape, and anything wrong
+  drops the whole packet: text over 4096 units, a lone high or low surrogate,
+  a control character, a tab, CR or an empty text; an unknown operation (`key`
+  included); a Backspace or Delete run of 0 or 65; more than 256 operations,
+  more than 4096 units of text or 4096 deletions in total; a `stop` anywhere
+  but last; an `input` with a path or over 64 characters; a `seq` that is a
+  fraction, a string or below 1; a token with foreign characters; a `pad` that
+  is not a string. A valid packet with an emoji and a newline passes whole,
+  and padding comes out at a multiple of 64 bytes
+- a typing request keeps only `request` and `cancel` as operations and turns an
+  unknown platform into none
+- the server turns away a keyboard body over 32 KiB (413 on the radio path;
+  over TCP the connection may close first, as on the other routes),
+  answers plaintext junk and an unknown session with 409, and a sealed packet
+  of a bad shape with 400 before anything reaches the sink; `/info` answers
+  afterwards
 
-### Resistance to a security downgrade (`test/downgrade_test.dart`, 3 tests)
+### Resistance to a security downgrade (`test/downgrade_test.dart`, 4 tests)
 The attacker knows a peer's identifier and has no private key for it:
 - a plaintext message impersonating a known peer is rejected
 - a plaintext file announcement from a known peer is rejected
 - a plaintext transfer will not replace a file announced under encryption
+- a plaintext typing request and a plaintext packet of typing operations get
+  409; no card, no grant and nothing at the sink
 
-The protocol itself defends against all three, because there is no plaintext in
+The protocol itself defends against all four, because there is no plaintext in
 it. The tests stay as a guard: a fallback unencrypted mode would turn them red.
 
 ### Framing over one Bluetooth link (`test/bt_link_test.dart`, 5 tests)
@@ -430,7 +475,405 @@ Linux CI the add-on is the only thing keeping the channel silent:
   network switch appears only with the add-on
 - a peer known only over the radio shows no radio address with the add-on off
 
+### The keyboard add-on (`test/keyboard_addon_test.dart`, 12 tests)
+The add-on that is off must not exist, as with Bluetooth. The test mocks the
+`chatt/remoteinput` channel, records every call with its arguments and sets
+`RemoteInputChannel.debugSupported`, so on the Linux CI the add-on is the only
+thing keeping the channel silent:
+- with the add-on off, two instances starting, a request from a verified peer
+  (refused, no card) and forged packets (403) make no call to the channel at
+  all, and the receive switch cannot be turned on
+- turning the add-on on makes exactly one call, `setImeEnabled(on: true)`;
+  turning it off without a grant makes exactly `setImeEnabled(on: false)`
+- turning it off during a grant ends the grant (`setSession(active: false)`,
+  then `setImeEnabled(on: false)`), the sender's next packet bounces with
+  `no_grant`, a new request hears `not_enabled`, and the channel goes quiet
+- switching the add-on off writes receiving off in the database, and switching
+  it on again does not bring receiving back; the receive switch with the add-on
+  off writes nothing
+- a database write alone raises neither the add-on nor a call to the channel
+- quick "off, on", "on, off, on" and "on, off" sequences, with the first call
+  held on the channel, end in the state of the last click in memory, in the
+  database and in the order of `setImeEnabled` calls
+- on a platform with no sink the add-on still turns on and its sender still
+  types on another device, while receiving stays off and the channel silent
+- an add-on saved in the database comes up with the app without a single call,
+  and a verified peer then gets a grant
+
+### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 12 tests)
+- the add-on's card is a single switch while the add-on is off; the receive
+  switch appears with the add-on and goes away with it
+- turning receiving on with the real switches shows the safety note; turning
+  the add-on off removes both and writes receiving off
+- a live grant from a second instance shows the "Typing: Alicja" bar above the
+  app with Stop, and Stop ends the grant (the sender's next packet bounces)
+- the bar names the app being typed into, Chatt itself included, and
+  disappears with the add-on
+- a file card puts the focus on Accept, and on Reject while someone types on
+  this device
+- the overlay shows no keyboard card with the add-on off, even when a verified
+  peer asks; the conversation list and the conversation screen show no
+  keyboard icon
+- the conversation's keyboard button appears with the add-on, is active only
+  with a confirmed identity, and goes away with the add-on
+- the consent card names the device, holds the focus on Reject after a frame,
+  and Enter refuses: the sender hears `rejected` and no grant exists
+- Accept alone writes nothing; "Don't ask again" with Accept writes
+  `remoteInput` for the sender in the database
+- "Typing without asking" in the security sheet shows only with the add-on,
+  writes `remoteInput`, and goes off and inactive when the confirmation goes
+
+### The sender's screen (`test/remote_keyboard_screen_test.dart`, 28 tests)
+Through a session without a network (`RemoteKeyboardLink`), which records what
+the screen sends and lets the test set the state:
+- `echoOps`: an append is text, a cut from the end is Backspace, a changed
+  ending is both, an emoji from a surrogate pair counts as one character, no
+  change sends nothing
+- waiting for consent shows the device and Cancel; Cancel closes the screen
+  and stops the session; a refusal at the start closes it with a message
+- typing in the echo goes out as text and Backspace; Enter empties the echo
+  and goes as the field's action, Shift+Enter as a newline
+- Backspace on an empty echo and Delete delete on the other side; the arrows,
+  Home and Tab change nothing and keep the focus in the field
+- the echo is masked for a password and for a field of unknown kind, and only
+  `field: text` uncovers it
+- the status line explains a locked screen, an administrator's window, no
+  field and `paused`
+- a field of Chatt itself takes typing like any other
+- a broken session leaves the field read-only with Reconnect, which asks
+  again and lets typing go on
+- too much text at once brings the echo back and says so
+- Compose sends the whole text with an Enter and clears the field
+- Paste from clipboard empties the echo and sends the clipboard's text
+- a card on this device pauses typing: the screen takes the focus back from
+  the card, Enter and Backspace send nothing, and the focus returns to typing
+  after the card
+- leaving the screen ends the session
+- a password typed under the mask stays masked after the focus over there
+  moves to an ordinary field, in both modes, until it leaves the field
+- text the other side did not type leaves the echo, a second such packet in
+  a row too, and a ping changes nothing; the field is read-only while paused
+  and without a field over there
+- Ctrl+V in the echo pastes from the clipboard
+- a held Ctrl+Enter sends the whole text once
+- a refusal that arrives after Cancel closes nothing more and shows nothing
+- a screen still animating away does not end the session of the next one
+- the next card from the queue does not keep the focus either
+- Tab while typing is on hold stays in the field, so Enter cannot press Stop
+- a mask change in Compose keeps the field focused and connected to the
+  keyboard
+
+### The remote keyboard (`test/remote_input_test.dart`, 51 tests)
+Two or three live instances paired with each other, the receiver with an
+in-memory sink. A request for a session:
+- with consent, the operations reach the sink in order, Polish letters and a
+  newline included; the sink's target comes back to the sender and to the
+  receiver's indicator; an idle ping brings the target and types nothing
+- with receiving off, with the add-on off on the receiver (even with the
+  database saying otherwise) and from an unverified sender (whatever the
+  settings) there is no card and no call to the sink; the shield removed on the
+  receiver alone gives `rejected`
+- the card: Reject, Accept and Accept with "don't ask again", after which the
+  next session needs no card; `peers.remoteInput` set directly does the same;
+  a policy that answers `noAnswer` ends the start as `noAnswer`
+- the same request again gets the same answer and no second card: while the
+  card waits it waits for the same decision, under a live grant it gets the
+  same grant, after a refusal the same refusal, and after a grant that ended
+  `rejected`
+- two requests at once from one sender leave the newer one with a single card,
+  and the older one ends as `noAnswer`, whichever of them reads the database
+  first
+- 520 requests from an unverified device under fresh ids do not push a
+  verified sender's used id out: its recording still bounces
+- a `cancel` uses the id up, so the same request arriving later bounces with
+  no card; a `cancel` after an acceptance the sender never heard of ends that
+  grant; a `cancel` from another device does not touch someone else's card;
+  Stop while the card waits takes the card down and the start ends `cancelled`
+- the same sender asking again replaces its own grant (the old token stops
+  working) or its own waiting request; a second sender while a grant lives
+  hears `busy` and gets its card once the first one stops
+- a peer without these routes (a proxy answering 404, as 0.9.0 does) gives
+  `olderPeer`; a receiver that closes with a card up does not leave the start
+  hanging
+- a grant nobody uses ends by itself once its idle clock runs out (shortened
+  for the test), indicator included, and the sender's next packet hears
+  `no_grant`
+
+Packets:
+- a repeated `seq` gets `duplicate` and types nothing twice; a lower `seq` gets
+  `stale_seq` and the grant goes on; a wrong token or another `input` gets
+  `no_grant` and the grant goes on
+- a packet under another device's session, with the right token or with the
+  holder's identity inside, is refused and the sink stays untouched
+- a packet outside the grant is refused at once, while the holder's packet is
+  still stuck in the sink
+- a `stop` from the sender ends the grant and a replayed one does nothing; Stop
+  on the receiver makes the sender's next packet bounce; a `stop` with an old
+  token leaves a newer grant alone; a `stop` still gets through when the packet
+  ahead of it fails on the way
+- a 409 in the middle of a session (the receiver forgets the sender's session)
+  ends in a new handshake under the same grant: the same token, `seq` carrying
+  on, the text typed once
+- a file offer or a pairing code waiting on the receiver pauses typing (the
+  sender sees `paused`, nothing is typed) and typing comes back after it; pings
+  keep reporting the pause while the card is up and leave "typed" as it was
+- under a grant the sink hears `holdOwnApp` at once when a card starts waiting
+  and when this device starts typing on another one, and again when that is
+  over; outside a grant nothing goes
+- after `forgetPeer`, the shield removed, receiving or the add-on switched off,
+  or receiving written off in the database behind the service's back, the
+  sender's next packet gets `no_grant` and the sink stays as it was
+
+The sender's queue:
+- what queues up while a packet is in flight goes out merged in one packet
+- a paste longer than 4096 units splits into packets without breaking a
+  surrogate pair; long text and long Backspace or Delete runs stay within the
+  packet limits
+- more than 65536 units waiting is refused whole; the text is cleaned before
+  it leaves (CR LF, tab, control characters)
+- one character, one Backspace, one Delete, an action, a ping and a `stop` all
+  pad to the same 512 bytes, and so does every reply, with any kind of field
+  and app names of 64 Chinese characters or emoji, cut without splitting a
+  character
+
+### The keyboard on the Windows desktop (`test/remote_input_desktop_test.dart`, 6 tests)
+The native bar, the tray and the window are replaced by recorders:
+- attaching gives the channel the field kind of Chatt's own window, and
+  detaching takes it back
+- a grant shows the bar and the tray badge with the sender's name, and the
+  target's program name once there is one; the same text twice makes one call;
+  the end of the grant hides both; a grant alone does not move the window
+- with no texts yet nothing shows, and a language change shows the bar again
+  in the new language
+- a consent card pulls a hidden window out and hides it after the answer; a
+  minimised one goes back to the taskbar; a window already on screen is left
+  alone
+
+### Chatt's own window on Windows (`test/remote_input_own_window_test.dart`, 2 tests)
+- the focused field from the widget tree: a text field is `text`, an obscured
+  one `password`, a read-only one and a button `none`, and so is no focus
+- the channel puts that kind into the target only when the native side says
+  `ownWindow` and the target is active; another program or another Chatt
+  instance keeps the native answer, and so does a platform where the app sets
+  nothing
+
+### The keyboard on Android outside the app (`test/remote_input_mobile_test.dart`, 4 tests)
+- a grant accepted on the card shows the bar text and asks for the keyboard
+  picker once; the following packets only change the text; the end hides it
+- a grant without a card while the app is in the background posts "Switch the
+  keyboard to Chatt"
+- a card arriving with the window closed gets one notification, and none
+  while the app is in front
+- the Chatt keyboard stepping aside for the lock screen's password field
+  posts "Switch the keyboard to Chatt" during a grant, and nothing without
+  one
+
 ## Scenarios on live hardware
+
+### `tool/klawiatura_android_e2e_test.dart`
+The Chatt keyboard on a live device: this process is the sender, the app on
+the emulator or phone is the receiver, through the same adb tunnels as
+`tool/android_e2e_test.dart`. With the add-on and receiving on in the app (the
+script enables the keyboard itself with `adb shell ime enable`):
+`flutter test tool/klawiatura_android_e2e_test.dart`. Eight steps, all
+asserted: a request before pairing is refused with no card; pairing by code;
+a request accepted on the card brings up the keyboard picker, Chatt is picked
+and the app moves to the back; in a new contact form the text with Polish
+letters, a Backspace and the field's action arrive (read back with
+`uiautomator dump`); with the screen off the target says `locked` and nothing
+is typed, and a lock screen without a password leaves the Chatt keyboard
+current with no notification; on the emulator only, with a text password set
+for the step and cleared after it, the Chatt keyboard steps aside on the lock
+screen, the password unlocks the phone, and a tap on "Switch the keyboard to
+Chatt" and on the Chatt keyboard in the picker brings it back; Stop on the
+keyboard bar ends the session on both sides and the
+previous keyboard comes back; Chatt's own message field takes the text (no
+Enter, so nothing goes out) and the text is deleted again; switching the
+add-on off takes the Chatt
+keyboard off the system's list, and switching it on brings it back. Shared
+helpers for the device scenarios live in `tool/uiautomator.dart`. With
+`CHATT_SHOTS=1` the run also saves the pictures of `docs/keyboard.md` into
+`docs/screenshots/android/` (`and23` to `and30`). It first turns the Chatt
+keyboard on the way a user does, in the system's keyboard settings, and saves
+the add-on's card and Android's warnings (the second one only when Android
+shows it). The Contacts step then saves the keyboard picker and the Chatt
+keyboard's bar while typing, the emulator-only password step the "Switch the
+keyboard to Chatt" notification, and the step in Chatt's own message field
+the consent card and the "Typing" bar in the app. The notification picture is
+cropped to Chatt's two notifications only on a Windows host, with rows fixed
+for the Pixel 9 Pro emulator (1280x2856), and on a phone the run saves no
+`and30`. The sender is called "Office PC" then. Without the variable the run
+changes nothing in the repository.
+
+The run on the emulator (Pixel 9 Pro, API 37) found two things the unit tests
+cannot: the navigation bar drawn over the keyboard bar, with the
+keyboard-switch button on top of Stop, and a pairing reply that went nowhere
+through the tunnel, because every request from the device rewrites the port
+the host keeps for it (the script pairs host first and then pins the tunnel
+port back). The password step found a third: a tap on the notification
+opened Chatt, but Android dropped the keyboard picker it asked for
+(`Ignoring showInputMethodPickerFromClient`), because the window's focus
+reaches the input method manager only after the activity hears about it. The
+picker now goes 300 ms after the focus.
+
+### `tool/klawiatura_check.dart`
+The `chatt/remoteinput` sink on a live Windows runner, with no consent and no
+network: `flutter run -d windows -t tool/klawiatura_check.dart`. It prints the
+target every second until Notepad (or the program in `CHATT_KLAWIATURA_CEL`) is
+in front, then shows the floating bar, types `Chatt ąęł 124`, a Backspace, `3`,
+Enter and `koniec`, and waits 30 seconds for Stop on the bar. Notepad has to
+show two lines, `Chatt ąęł 123` and `koniec`; Stop prints `STOP`, hides the bar
+and leaves Notepad with the focus. By hand at the same time: Chatt itself in
+front gives `ownApp=true` and the kind of its focused field, Notepad run as
+administrator `elevated=true`, a password field on a web page
+`field=password`.
+
+### `tool/klawiatura_e2e_test.dart`
+The whole road on one PC: `flutter test tool/klawiatura_e2e_test.dart` is the
+sender, and the Chatt app running next to it (keyboard add-on and receiving on,
+port `CHATT_KLAWIATURA_PORT`, 47780 by default) is the receiver; a second
+instance with its own `CHATT_DATA_DIR` keeps the everyday database out of it.
+The script pairs by code (confirm "They match" in the app), asks for a session
+(accept the card), waits up to a minute for Notepad to come to the front, and
+sends text, Backspace, Enter and a 600-character paste, each packet only while
+the target is `notepad.exe`. With `CHATT_ADMIN=1` it then waits for Notepad
+run as administrator in front (the UAC prompt is yours to answer), sends
+` ADMIN` and expects a refusal with `elevated`, and sends 3000 sevens into the
+ordinary Notepad in one packet: bringing the administrator's Notepad to the
+front halfway has to drop the rest (`applied: false`). Then it waits for the
+Chatt window in front and checks that the target is `ownApp` and still open
+to typing; with
+`CHATT_W_CHATT=1` (a test instance only) it also waits for a click into a
+Chatt text field, types `do Chatt` there and deletes it 10 seconds later.
+Last, it waits for Stop on the floating bar; with `CHATT_STOP_W_TRAKCIE=1` it
+first waits for Notepad again and sends 3000 fives in one packet, half a
+minute of typing, for Stop to cut short. The app's
+window, hidden in the tray, comes out for the cards and goes back after them;
+the bar and the tray badge stay for the session.
+
+The run on 16 October 2026 (Windows 11, the Windows 11 Notepad) found the pace
+of typing wrong: with 1 ms between characters "Chatt ąęł 124" landed as
+"Chatt 4444443". Now it types 10 ms apart and 40 ms after a space or Enter
+(see the architecture), and the same run passes: the Polish line, the
+Backspace, the 600 digits matching one for one (6.5 s), and Stop clicked on
+the floating bar. (That run still refused with Chatt in front; Chatt's own
+fields have taken typing since.)
+
+The second run that day, with `CHATT_W_CHATT=1`, found that Chatt's own
+window always reported `field=none` and froze for 400 ms on every ping
+(`rtt=405ms` in the log): UI Automation asked the platform thread that was
+waiting for its answer. The native side no longer asks about its own window,
+Dart fills in the field from the widget tree, and the run passes: Notepad
+exact as before, `do Chatt` typed into Chatt's search field and deleted
+(`field=text`, `applied=true`), `rtt=7ms` with Chatt in front, Stop on the
+bar.
+
+A review of that change found that a long packet typed into Chatt's own
+window could carry an Enter onto a file card that came up in the middle, and
+that Stop let a packet already being typed run to its end. After
+`holdOwnApp` and the Stop counter, the third run (`CHATT_W_CHATT=1
+CHATT_STOP_W_TRAKCIE=1`) passes the same steps, and Stop pressed during the
+3000 fives left 1494 of them in Notepad, the count still the same 5 seconds
+later; the sender got `applied=false` and then `no_grant`.
+
+The run with `CHATT_ADMIN=1` the same day: Notepad started as administrator
+gave `elevated=true` and `active=false`, ` ADMIN` was refused at once
+(`applied=false`) and its file stayed empty; the administrator's Notepad
+brought to the front during the sevens left 994 of them in the ordinary
+Notepad, the count unchanged 3 seconds later, and the packet's reply said
+`applied=false`, `elevated=true`. A script cannot click an elevated window,
+and Windows refuses to bring it to the front from a script without a key
+press of its own first (a lone Alt does it).
+
+### `tool/klawiatura_telefon_test.dart`
+The keyboard on a phone someone uses every day: this process is the sender,
+the Chatt app on the phone (over USB, `CHATT_DEVICE`) the receiver. It sends
+no message and types only into a new contact form, checking before every
+packet that the target is still that form; at the end it deletes what it
+typed, closes the form without saving and puts the phone's keyboards back as
+they were. Pairing goes through adb tunnels; with `CHATT_PHONE_IP` the session
+and the measurements go over Wi-Fi straight to the phone. Steps: pairing by
+code, consent on the card with the Chatt keyboard picked, text with Polish
+letters, Backspace and an emoji in the form, then 30 seconds of idle pings,
+100 characters one by one every 100 ms and 50 characters every 20 ms; then the
+same session follows the focus through other apps (the Settings search, a new
+calendar event's title, the contact form again), each field checked and
+cleared; typing into Chatt's own search field, the lock screen (skipped with
+`CHATT_BLOKADA=0`, otherwise it waits for you to unlock and types again
+afterwards) and the end of the session. Error messages there give only the
+number of nodes on the screen (`ukryjTrescEkranu` in `tool/uiautomator.dart`):
+the screen of an everyday phone holds private conversations.
+
+The runs on 16 October 2026: a Pixel 9 Pro with Android 17, first on 2.4 GHz
+Wi-Fi (channel 6), later the same day on 5 GHz (channel 48, 5240 MHz, the
+same network, a 585 Mbit/s link), the PC on Ethernet in the same network.
+100 characters a run: three runs on 2.4 GHz, six on 5 GHz.
+
+| What | 2.4 GHz p50 | 2.4 GHz p95 | 5 GHz p50 | 5 GHz p95 |
+|---|---|---|---|---|
+| a character, from sending to the answer | 28 to 29 ms | 34 to 39 ms | 28 to 30 ms | 33 to 38 ms |
+| a character, the packet's exchange alone (the sender's `rtt`, three runs) | not measured | not measured | 28 ms | 32 to 37 ms |
+| an idle ping, once a second | 67 to 110 ms | 137 to 170 ms | 77 to 123 ms | 152 to 450 ms |
+
+Typing stays well under the 60 ms the plan allowed, and 5 GHz changes nothing
+that matters: a character costs about 28 ms on either band, so the band is not
+what limits it. The script's own waiting adds about 1 ms, so those 28 ms are
+the packet's whole round trip, typing on the phone included. Fifty characters
+queued 20 ms apart on 5 GHz went as 48 to 50 packets: nearly every answer came
+back before the next character was due; at 100 ms a character every one went
+as its own packet. The idle pings are slower because the phone's Wi-Fi dozes
+between them; while you type, the radio stays awake. The first session took three taps on the phone (Accept, Chatt keyboard
+in the picker, the field), and the lock screen showed the ordinary keyboard
+with no Chatt bar. Within one session the typing went into the Settings
+search, a calendar event's title and a contact form in turn, with no new
+consent and no new picker. Typing over the radio is measured by the next
+tool.
+
+### `tool/klawiatura_bt_pomiar.dart`
+The same measurement over Bluetooth. `flutter test` has no radio (the
+`chatt/bluetooth` channel lives in the runner), so this one runs as a Windows
+app: the sender with an in-memory database, the Chatt app on a phone on USB
+the receiver, adb only for taps and for checking what is on the screen. It is
+as careful with an everyday phone as the tool above: it sends no message,
+types only into a new contact form after checking the target before every
+packet, deletes what it typed, closes the form without saving, puts the
+system keyboards back, and logs the number of nodes on the screen, never its
+content. When the app's Bluetooth add-on is not listening (an RFCOMM socket
+"Chatt" in `dumpsys bluetooth_manager`), it switches it on in the app's
+settings and off again at the end. It reaches the phone at its radio address
+only, pairs by code (it taps "They match" itself), accepts the card, picks the
+Chatt keyboard, checks that the session goes over `bluetooth`, and measures
+as the tool above: pings at rest for 30 seconds, 100 characters 100 ms apart,
+50 characters queued 20 ms apart.
+
+```
+set ADB=C:\...\platform-tools\adb.exe
+set CHATT_DEVICE=<id from adb devices>
+flutter run -d windows -t tool/klawiatura_bt_pomiar.dart --dart-define=CHATT_BT_ADDR=<phone radio address>
+```
+
+The phone's radio address: `adb shell settings get secure bluetooth_address`.
+With `--dart-define=CHATT_PHONE_IP=<address>` the same session goes over
+Wi-Fi instead: the comparison with the same sender in the same process.
+
+The runs on 16 October 2026: the same Pixel 9 Pro, the PC's built-in radio
+next to it, three runs over Bluetooth and one over Wi-Fi (5 GHz) in the same
+tool.
+
+| What | Bluetooth p50 | Bluetooth p95 | Wi-Fi p50 | Wi-Fi p95 |
+|---|---|---|---|---|
+| a character, from sending to the answer | 70 to 78 ms | 187 to 243 ms | 28 ms | 34 ms |
+| a character, the packet's exchange alone | 68 to 77 ms | 185 to 243 ms | 27 ms | 34 ms |
+| an idle ping, once a second | 58 to 95 ms | 178 to 185 ms | 80 ms | 172 ms |
+
+A character over the radio takes about 2.5 times as long as over Wi-Fi, and
+one in twenty waits around 200 ms, which is visible while typing; the 60 ms
+of the plan holds only for the network. Fast typing does not pile up: fifty
+characters queued 20 ms apart went as 17 or 18 packets over the radio (0.34
+to 0.36 a character, 2.2 to 2.3 s in all), because what comes in while a
+packet is on its way leaves in the next one. Over Wi-Fi the same series went
+one packet a character. At rest the radio is no slower than Wi-Fi: Wi-Fi
+dozes between the pings, the radio link stays up.
 
 ### `tool/bt_rozmowa_check.dart`
 A conversation over the radio, on real hardware. It raises the whole app stack
@@ -531,7 +974,22 @@ the engine (`RepaintBoundary.toImage`). There are no private conversations in
 the screenshots, and the result is the same on every machine.
 `CHATT_SHOTS_LANG=en` gives the English version. One trap: the harness replaces
 `HttpClient` with a fake answering 400, so the script restores the real one
-(`HttpOverrides.global = null`).
+(`HttpOverrides.global = null`). Three more tests, run alone with
+`--plain-name klawiatury`, take the keyboard add-on for `docs/keyboard.md`:
+the sender's screen typing to a phone (06); the keyboard button in the
+conversation (09), "Typing without asking" in the security sheet (10) and
+the sender's screen in every state, driven by a link the test controls
+(waiting 11, a password field 12, Compose 13, paused 14, an administrator's
+window 15, the link dropped 16); and the consent card on this PC (07) with
+the "Typing" bar over the add-on's card (08). They do all their networking
+before `pumpWidget`: a request sent under the harness's fake clock can fail on
+a pooled connection, though the same run outside the harness takes
+milliseconds. Before every capture the script repaints every node with
+shadows on (cards in scrolled lists sit on layers of their own and kept the
+outline the harness draws while shadows are off), and it loads Consolas as the
+`monospace` font for the fingerprints. The floating bar (17) is the one
+picture taken from the live desktop: `GetWindowRect` of the
+`ChattRemoteInputBar` window during a session, cropped to the bar alone.
 
 ### `tool/store_assets.py`
 Draws the README banner (`docs/promo.png`), the only graphic in the repository
@@ -553,6 +1011,17 @@ all without a password. On an encrypted database it answers "cannot be read".
 ## What the tests will not check
 
 Deliberate holes in coverage, to be checked by hand at release time:
+
+- **Typing into a real field.** `flutter test` has no native side, so
+  `SendInput` on Windows and the Chatt keyboard on Android are never reached
+  there. The Android side is covered by `tool/klawiatura_android_e2e_test.dart`
+  on an emulator; the Windows side by `tool/klawiatura_check.dart` and
+  `tool/klawiatura_e2e_test.dart`, run by hand.
+- **The keyboard over a real Bluetooth link**, for the same reason as any other
+  Bluetooth traffic.
+- **The keyboard's 8-hour limit, the card's two-minute timeout and the cap of
+  8 waiting requests**: no test waits that long or raises nine cards. The idle
+  clock has a test of its own, with a shortened duration.
 
 - **Router behaviour**: client isolation on a guest network, broadcasts between
   the 2.4 and 5 GHz bands, masks other than /24 (the scanner computes the

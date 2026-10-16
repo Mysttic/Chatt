@@ -19,6 +19,20 @@ class TrayIcon with TrayListener, WindowListener {
 
   bool _iconReady = false;
 
+  /// Napisy z [apply], potrzebne przy każdym przebudowaniu menu.
+  String _tooltip = 'Chatt';
+  String _showLabel = '';
+  String _quitLabel = '';
+
+  /// Trwa pisanie z innego urządzenia: ikona ma inny wygląd, podpowiedź mówi,
+  /// kto pisze, a w menu jest Stop. `null` znaczy, że nikt nie pisze.
+  String? _typingTooltip;
+  String? _typingStopLabel;
+  String _iconPath = 'assets/tray_icon.ico';
+
+  /// Wołane przez pozycję „Zatrzymaj zdalną klawiaturę" w menu.
+  void Function()? onStopTyping;
+
   /// Przechwycenie zamknięcia okna. Woła się raz, przed `runApp`, bo od tej
   /// chwili użytkownik może kliknąć krzyżyk.
   Future<void> attach() async {
@@ -37,25 +51,50 @@ class TrayIcon with TrayListener, WindowListener {
     required String quitLabel,
   }) async {
     if (!supported) return;
+    _tooltip = tooltip;
+    _showLabel = showLabel;
+    _quitLabel = quitLabel;
+    await _rebuild();
+  }
+
+  /// Pisanie z innego urządzenia trwa ([tooltip] i [stopLabel] podane) albo
+  /// się skończyło (oba `null`). Na PC obsługiwanym dotykiem zasobnik jest
+  /// mały, więc ikona zmienia wygląd, a Stop siedzi także w jej menu.
+  Future<void> setTyping({String? tooltip, String? stopLabel}) async {
+    if (!supported) return;
+    _typingTooltip = tooltip;
+    _typingStopLabel = stopLabel;
+    await _rebuild();
+  }
+
+  Future<void> _rebuild() async {
+    final tooltip = _typingTooltip ?? _tooltip;
+    final icon = _typingTooltip == null
+        ? 'assets/tray_icon.ico'
+        : 'assets/tray_icon_typing.ico';
     // Podpowiedź przed ikoną, choć wygląda to na odwróconą kolejność:
     // wtyczka przepisuje zapamiętaną podpowiedź do zgłoszenia ikony, a
     // Windows zapisuje tę pierwszą wartość u siebie na stałe (widać ją potem
     // na liście ikon zasobnika). Ustawiona dopiero po ikonie zostawia tam
     // śmieci z niezainicjowanego bufora.
     await trayManager.setToolTip(tooltip);
-    if (!_iconReady) {
-      await trayManager.setIcon('assets/tray_icon.ico');
+    if (!_iconReady || icon != _iconPath) {
+      await trayManager.setIcon(icon);
       _iconReady = true;
+      _iconPath = icon;
       await trayManager.setToolTip(tooltip);
     }
+    final stop = _typingStopLabel;
     await trayManager.setContextMenu(Menu(items: [
-      MenuItem(key: _show, label: showLabel),
+      MenuItem(key: _show, label: _showLabel),
+      if (stop != null) MenuItem(key: _stopTyping, label: stop),
       MenuItem.separator(),
-      MenuItem(key: _quit, label: quitLabel),
+      MenuItem(key: _quit, label: _quitLabel),
     ]));
   }
 
   static const _show = 'pokaz';
+  static const _stopTyping = 'zatrzymaj-pisanie';
   static const _quit = 'zamknij';
 
   @override
@@ -66,7 +105,7 @@ class TrayIcon with TrayListener, WindowListener {
   }
 
   @override
-  void onTrayIconMouseDown() => _showWindow();
+  void onTrayIconMouseDown() => showWindow();
 
   @override
   void onTrayIconRightMouseDown() => trayManager.popUpContextMenu();
@@ -75,13 +114,18 @@ class TrayIcon with TrayListener, WindowListener {
   void onTrayMenuItemClick(MenuItem menuItem) {
     switch (menuItem.key) {
       case _show:
-        _showWindow();
+        showWindow();
+      case _stopTyping:
+        onStopTyping?.call();
       case _quit:
         quit();
     }
   }
 
-  Future<void> _showWindow() async {
+  /// Wyciąga okno z zasobnika (albo z paska zadań) na wierzch.
+  Future<void> showWindow() async {
+    if (!supported) return;
+    if (await windowManager.isMinimized()) await windowManager.restore();
     await windowManager.show();
     await windowManager.focus();
   }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Klawiatura Chatt (issue #35): jeden podtyp bez języka, bo klawiatura
+     niczego nie rysuje i wpisuje to, co przyszło z drugiego urządzenia. -->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:supportsSwitchingToNextInputMethod="true">
+    <subtype
+        android:label="@string/ime_name"
+        android:imeSubtypeMode="keyboard"
+        android:imeSubtypeLocale=""
+        android:isAsciiCapable="true" />
+</input-method>

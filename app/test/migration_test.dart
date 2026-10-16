@@ -120,6 +120,84 @@ void main() {
     expect(ustawienia.wifiEnabled, isTrue);
   });
 
+  /// Schemat 13 dokłada dodatek klawiatury. Ten sam dowód co przy 12: baza
+  /// sprzed zmiany otwiera się z całą zawartością, a trzy nowe przełączniki
+  /// stoją wyłączone: pisanie na urządzeniu włącza wyłącznie użytkownik.
+  test('przejście na schemat 13 nie rusza danych i nie włącza klawiatury',
+      () async {
+    final katalog = Directory.systemTemp.createTempSync('chatt-migracja-13');
+    addTearDown(() => katalog.deleteSync(recursive: true));
+    final plik = File(p.join(katalog.path, 'chatt.db'));
+
+    final pierwsza = ChattDb(NativeDatabase(plik));
+    final peer = await pierwsza.upsertPeer(
+      guid: 'guid-1',
+      name: 'Alicja',
+      welcomeMessage: 'cześć',
+      host: '192.168.0.2',
+      port: 47780,
+      btAddress: 'AA:BB:CC:DD:EE:FF',
+    );
+    await pierwsza.setPeerVerified(peer.id, true);
+    await pierwsza.setPeerAutoAccept(peer.id, true);
+    final rozmowa = await pierwsza.ensureConversation(peer.id);
+    await pierwsza.insertOutgoing(
+      conversationId: rozmowa,
+      messageGuid: 'wiadomosc-1',
+      body: 'wiadomość sprzed migracji',
+    );
+    await pierwsza.ensureSettings(
+      identityFactory: () async => ('klucz', 'guid-ja'),
+      defaultNickname: 'Ja',
+      defaultPort: 47777,
+    );
+    await pierwsza.saveBluetoothAddon(true);
+    await pierwsza.close();
+
+    // Baza jak sprzed zmiany: kolumny klawiatury znikają, licznik wersji
+    // wraca na 12.
+    final surowa = raw.sqlite3.open(plik.path);
+    surowa.execute('ALTER TABLE settings DROP COLUMN keyboard_enabled;');
+    surowa.execute('ALTER TABLE settings DROP COLUMN remote_input_receive;');
+    surowa.execute('ALTER TABLE peers DROP COLUMN remote_input;');
+    surowa.execute('PRAGMA user_version = 12;');
+    surowa.close();
+
+    final druga = ChattDb(NativeDatabase(plik));
+    addTearDown(druga.close);
+
+    final po = await druga.allPeers();
+    expect(po, hasLength(1), reason: 'rozmówca nie może zniknąć');
+    expect(po.single.name, 'Alicja');
+    expect(po.single.host, '192.168.0.2');
+    expect(po.single.port, 47780);
+    expect(po.single.btAddress, 'AA:BB:CC:DD:EE:FF');
+    expect(po.single.verified, isTrue,
+        reason: 'potwierdzona tożsamość zostaje potwierdzona');
+    expect(po.single.autoAccept, isTrue,
+        reason: 'zgoda na pliki sprzed aktualizacji zostaje');
+    expect(po.single.remoteInput, isFalse,
+        reason: 'pisanie bez pytania włącza wyłącznie użytkownik');
+
+    final wiadomosci = await druga.watchMessages(rozmowa).first;
+    expect(wiadomosci, hasLength(1));
+    expect(wiadomosci.single.body, 'wiadomość sprzed migracji');
+
+    final ustawienia = await druga.getSettings();
+    expect(ustawienia, isNotNull);
+    expect(ustawienia!.nickname, 'Ja');
+    expect(ustawienia.bluetoothEnabled, isTrue,
+        reason: 'dodatek Bluetooth zostaje, jak był');
+    expect(ustawienia.keyboardEnabled, isFalse,
+        reason: 'aktualizacja nie włącza dodatku klawiatury');
+    expect(ustawienia.remoteInputReceive, isFalse,
+        reason: 'ani zgody na bycie wpisywanym');
+
+    final wersja =
+        await druga.customSelect('PRAGMA user_version;').getSingle();
+    expect(wersja.read<int>('user_version'), 13);
+  });
+
   /// Rozmówca poznany wyłącznie przez radio nie ma adresu w sieci, a rozmówca
   /// poznany przez sieć nie ma adresu radia. Spotkanie jedną drogą nie może
   /// wymazać tego, co wiemy o drugiej: inaczej każdy skan Bluetooth kasowałby

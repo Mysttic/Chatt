@@ -6,6 +6,11 @@ Chatt joins two devices on the same Wi-Fi network: a Windows PC and an Android
 phone. There is no account, no login and no server in the middle. Messages and
 files go straight from one device to the other.
 
+Two add-ons, both off until you turn them on, go further: **Bluetooth** carries
+the same conversation over the radio with no shared network, and **Keyboard
+from a PC** lets the PC's keyboard type into a field on the phone or on another
+PC.
+
 ## First run
 
 1. Start Chatt on both devices and put them on **the same Wi-Fi network**. The
@@ -288,6 +293,140 @@ the phone was paired with it.
 Bluetooth listening with the screen off on Android has not been checked on
 hardware yet.
 
+## Typing from a PC's keyboard
+
+The add-on has a page of its own, step by step, with pictures from Windows
+and Android: [Keyboard from a PC](keyboard.md). Below is the short version.
+
+A phone, a tablet or a PC run by touch alone has no keyboard worth the name.
+The **Keyboard from a PC** add-on lends it the PC's: you point at a field on
+that device with a tap or a click, and what you type on the PC lands in that
+field, in any app. Chatt shows nothing of the other screen and moves nothing on
+it; you look at the device itself.
+
+What travels: text (Polish letters and new lines included), Backspace, Delete,
+Enter and, on Android, the field's own action (Search, Send, Next, Done), and
+the text on the PC's clipboard. Shortcuts with Ctrl, Alt or Win, Tab, Esc, the
+arrows, Home and End, and the mouse stay at home. A PC types on an Android phone
+or tablet and on another Windows PC, over the network and, with the Bluetooth
+add-on on, over the radio too.
+
+<img src="screenshots/windows/en/06_klawiatura_pisanie.png" alt="Typing on a phone from a PC" width="760">
+
+**Turning it on.** Settings, **Add-ons**, **Keyboard from a PC**, off from the
+start. On the PC that types, that one switch is all. On the device you want to
+type on, the add-on's card holds a second switch, **Allow typing on this
+device**, also off from the start: turning the add-on on at your PC lets nobody
+type on that PC. While the add-on is off, no other screen shows it.
+
+Both devices need each other's identity confirmed (the green shield, see
+[Encryption and identity confirmation](#encryption-and-identity-confirmation)).
+Typing includes passwords, so it goes only between devices that have checked
+each other's keys.
+
+**The Chatt keyboard on Android.** Android lets an app type into the fields of
+other apps through a keyboard, so the add-on brings one: the Chatt keyboard,
+which has no keys. It is on the system's list of keyboards only while the
+add-on is on, and it has to be turned on once in the system: **Turn on the
+Chatt keyboard** on the add-on's card opens the system's keyboard settings.
+Android shows two warnings on the way:
+
+- that a keyboard can collect everything typed with it, passwords included.
+  The Chatt keyboard sends nothing from your fields: it types what comes from
+  the device you allowed, during a session you accepted;
+- that the app cannot start after a restart until the phone is unlocked.
+
+The [privacy policy](privacy-policy.md) lists what the keyboard looks at.
+
+Your usual keyboard stays the one you type with. The Chatt keyboard takes over
+for a session and gives the place back when it ends.
+
+**Starting.** Open the conversation with the other device and pick the
+keyboard button at the top. It is there only with the add-on on, and it works
+only with a green shield. The **Typing on X** screen asks the other device and
+waits. Over there a card appears: "X wants to type on this device", with
+**Reject**, **Accept** and a **Don't ask again for this device** box. The focus
+sits on Reject, so an Enter pressed by accident refuses. Without an answer the
+request ends after two minutes.
+
+<img src="screenshots/windows/en/07_klawiatura_zgoda.png" alt="The consent card on a PC" width="760">
+
+**On an Android phone**, **Accept** opens the keyboard picker, unless the
+Chatt keyboard is already the current one: pick **Chatt keyboard**. Chatt then steps aside, back to the app you were in, and you tap
+the field you want to fill. Where the keyboard was, a bar shows who is typing
+and into which app ("Typing: PC → Contacts"), with **Switch keyboard** and
+**Stop**. When the session ends, your previous keyboard comes back by itself.
+With "Don't ask again" ticked and Chatt in the background, a notification
+"Switch the keyboard to Chatt" comes; tap it. Typing follows you from app to
+app, Chatt included, until the session ends. Nothing is typed while the phone
+is locked or its screen is off. A lock screen with a PIN keeps the Chatt
+keyboard; one with a text password gets your normal keyboard back so you can
+type the password, and after you unlock, "Switch the keyboard to Chatt" comes
+again: one tap and the typing goes on. The permanent Chatt notification says who
+is typing for as long as the session lasts.
+
+**On a Windows PC** the text goes into the window in front, wherever its cursor
+is. Point at the field with a click, or with a finger on a touch screen. A bar
+with **Stop** stays on top of the screen for the whole session and never takes
+the focus from your field, and the tray icon gets a badge and **Stop remote
+keyboard** in its menu. A card that comes while Chatt hides in the tray brings
+the window out and sends it back after you answer. On a touch PC the touch
+keyboard may slide out when you tap a field; it does not get in the way, and you
+can close it.
+
+Inside Chatt itself a bar over every screen says who is typing, with Stop.
+
+<img src="screenshots/windows/en/08_klawiatura_odbior.png" alt="The Typing bar and the add-on's card" width="760">
+
+**On the PC that types**, the screen has two modes:
+
+- **Live** sends every character as you type it. Enter is the field's Enter
+  (or Search, Send, Next on Android), Shift+Enter a new line, Backspace and
+  Delete delete over there, Ctrl+V pastes. The field on your screen echoes what
+  went out since the last Enter, with the cursor held at its end; moving it
+  would not move the cursor over there.
+- **Compose** lets you write the whole text first and send it with **Send** or
+  Ctrl+Enter, ticking **Then Enter** when the field should be submitted after
+  it.
+
+**Paste from clipboard** sends the PC's clipboard text in either mode.
+
+A new line is the one thing that lands differently on a Windows PC: it
+arrives there as a plain Enter. In a text editor that is a new line; in a chat
+app where Enter sends, it sends.
+
+The line at the top says where the typing goes ("Typing into: Notes") or why
+nothing gets typed: a locked screen, a window running as administrator, no
+field, a question waiting on either device. While
+nothing can land, the field takes no typing. Until the other side reports an
+ordinary text field, the echo and the Compose field show dots: for a password
+field, and for a field Chatt cannot tell, which happens in some Windows apps.
+What you typed under the dots stays dotted until it leaves the field.
+
+**Stopping.** Stop on the bar, on the Chatt keyboard, in the tray menu or in
+the app, on either side; closing the typing screen on the PC; turning off the
+add-on or **Allow typing on this device**. A session also ends by itself after
+half an hour without typing, and after eight hours in any case. A session that
+broke off (the link went down, Stop over there) leaves the screen open with
+**Reconnect**.
+
+**Without asking.** "Don't ask again" on the card, or **Typing without asking**
+in the conversation's security panel (there only with the add-on on), lets
+that one device start typing without the card. The bars and Stop show as
+always. It works only with a green shield and goes away with the device when
+you delete its conversation (and the device with it) from the list.
+
+**What does not work.** Lock screens, and on Android a screen that is off. On
+Windows,
+windows running as administrator, User Account Control prompts and the sign-in
+screen: Windows lets no ordinary program type there, and the PC that types
+says so. Chatt's question cards: while one waits on either device, nothing is
+typed, so a remote Enter never answers a card. Chatt's own text fields take
+typing like any other app's.
+
+Chatt saves nothing of what you type, on either side. It travels encrypted, the
+same way messages do, and only between the two devices.
+
 ## Encryption and identity confirmation
 
 **A conversation is encrypted from the first message**, including with a device
@@ -322,7 +461,7 @@ There are two ways to confirm an identity:
   a file request from a device with an unconfirmed identity carries a warning,
   and a request to confirm an already known device again is marked in red.
 
-The same panel holds two things that belong to a peer:
+The same panel holds the things that belong to a peer:
 
 - **Rename.** A device announces its own name, so a PC often arrives as
   something like `DESKTOP-8F2A1C`. Give it a name of your own and that is what
@@ -333,6 +472,9 @@ The same panel holds two things that belong to a peer:
   conversation with no consent card. The switch only works with a green shield,
   and it goes off by itself if the confirmation ever goes away: the consent was
   given to a confirmed identity.
+- **Typing without asking**, there only with the Keyboard from a PC add-on on:
+  that device starts typing here without the card, under the same rules (see
+  [Typing from a PC's keyboard](#typing-from-a-pcs-keyboard)).
 
 ## Background listening on Android
 

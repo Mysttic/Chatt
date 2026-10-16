@@ -70,11 +70,12 @@ jobs:
 
           # pubspec.yaml musi mówić to samo, bo stamtąd biorą się versionName
           # i versionCode Androida. Rozjazd znaczy, że ktoś podniósł numer
-          # tylko w jednym miejscu.
+          # tylko w jednym miejscu. Trzeci plik, lib/core/version.dart,
+          # pilnuje test/version_test.dart.
           pelna=$(grep -m1 '^version:' app/pubspec.yaml | sed 's/^version:[[:space:]]*//')
           if [ "${pelna%%+*}" != "$wersja" ]; then
             echo "::error::VERSION.md mówi $wersja, a app/pubspec.yaml $pelna."
-            echo "::error::Podnieś oba naraz: cd app && python tool/wersja.py $wersja"
+            echo "::error::Numer musi być ten sam w VERSION.md, app/pubspec.yaml i app/lib/core/version.dart. Stan wszystkich trzech: cd app && python tool/wersja.py"
             exit 1
           fi
 

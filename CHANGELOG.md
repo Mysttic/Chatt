@@ -8,6 +8,152 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.10.0] - 2026-10-16
+
+A second add-on: typing on a PC's keyboard into the field that has focus on
+another device, in any app, for phones, tablets and touch-only PCs with no
+keyboard of their own. Windows types into the window in front, Android through
+a keyboard of Chatt's own, and every session starts with consent on the
+receiving device.
+
+**Keyboard from a PC, in short.** Turn the add-on on in Settings, Add-ons, on
+both devices, and on the device you want to type on also "Allow typing on
+this device" (on Android, turn the Chatt keyboard on once in the system, from
+the add-on's card). Then open the conversation with that device on the PC and
+pick the keyboard button at the top. Over there a card asks for consent; on
+Android, Accept also offers the keyboard picker. Tap the field you want, and
+what you type on the PC lands there: Live sends each character as you type
+it, Compose sends a whole text in one go, and Paste from clipboard sends the
+PC's clipboard text. On Windows a floating bar with Stop stays on top for the
+whole session; on Android the Chatt keyboard's bar with Stop shows where the
+keyboard usually is, and the permanent notification says who is typing until
+the session ends. A line on the PC says where the typing goes or why nothing
+gets typed. Only between devices with a confirmed identity, encrypted like
+messages, over the network or the radio, and nothing typed is stored
+anywhere. Every step is pictured in
+[docs/keyboard.md](docs/keyboard.md) ([polski](docs/keyboard.pl.md)).
+
+### Added
+- **Keyboard from a PC, the second add-on.** Settings → Add-ons gains a card
+  for it, off by default and under the rules the Bluetooth add-on set: while it
+  is off no other screen shows it and its native channel gets no call apart
+  from the switch itself. With it on, the card holds a second switch, "Allow
+  typing on this device", which also starts off: turning the add-on on at the
+  PC that types lets nobody type on that PC. Turning the add-on off turns
+  receiving off in the same step, so turning it on again does not quietly
+  bring receiving back.
+- **A consent card for every typing session.** Only a device with a confirmed
+  identity can ask. The card puts the focus on Reject, so an Enter pressed
+  while typing elsewhere can only refuse, and two minutes of silence count as
+  no answer. A "Don't ask again for this device" checkbox on the card, and
+  "Typing without asking" in the conversation's security sheet, skip the card
+  for one verified device. While a session lasts, a bar above the whole app
+  shows who is typing and where, with Stop.
+- **The sender's screen.** A keyboard button in the conversation's bar, there
+  only with the add-on on and active only for a verified device, opens a
+  screen of its own. Live mode sends each character as it is typed: Enter is
+  the field's action, Shift+Enter a newline, Backspace and Delete delete over
+  there. Compose mode sends a whole text at once. Paste from clipboard sends
+  the clipboard's text. The field is masked until the other side reports an
+  ordinary text field, and a password typed under the mask stays masked;
+  undo shortcuts and suggestions are off. Typing is possible only while the
+  other side can take it: a status line says where the typing goes or why
+  nothing is typed (a locked screen, an administrator's window, no field, a
+  question waiting on either device), and a session that broke off can be
+  reconnected.
+- **`POST /input-session` and `POST /input`**, on both roads, the network and
+  the radio. A session starts with a request; the sender's packets then carry
+  text, Backspace, Delete and the field's action (Enter, or Search, Send, Go,
+  Next, Previous and Done on Android), one packet in flight, with everything that queued
+  up meanwhile merged into the next. A packet that got no answer goes again
+  under the same number and lands once. The protocol version stays 5: a peer
+  without these routes answers 404.
+- Schema v13: `settings.keyboardEnabled`, `settings.remoteInputReceive` and
+  `peers.remoteInput` ("don't ask again" per device), all false. The last one
+  can be set only for a verified device and goes with the shield, like
+  `autoAccept`.
+- `chatt/remoteinput`, the channel to the native receivers: `status`, `apply`,
+  `setSession`, `holdOwnApp`, `setImeEnabled`, `showIndicator` and
+  `hideIndicator`, plus
+  `stopRequested` from the native side.
+- **Typing on Windows.** A PC with Windows 10 or 11, touch screen or not, types
+  what arrives into the window with the focus (`SendInput`, independent of the
+  keyboard layout), one character at a time: 10 ms apart and 40 ms after a
+  space or Enter, because the Windows 11 Notepad lost or repeated characters
+  typed faster, Polish letters most of all. It refuses while the lock screen
+  or an administrator's window is in front; Chatt's own window takes typing
+  like any other, except while a question card waits there or the PC is
+  itself typing on another device. Stop cuts even a long paste short at
+  once. The sender learns
+  the program's name and whether the field is a password (UI Automation). A
+  floating bar with Stop stays on top for the whole session without ever taking
+  the focus, the tray icon gets a badge and a Stop in its menu, and a consent
+  card pulls the hidden window out and sends it back after the answer.
+- **Typing on Android through the Chatt keyboard.** The add-on brings a
+  keyboard with no keys: a bar saying who types and where, with "Switch
+  keyboard" and Stop. It types into the focused field of any app, Chatt and
+  password fields included, following the focus from app to app, and refuses
+  on a locked screen. After a lock screen with a text password, which gets the
+  ordinary keyboard back, "Switch the keyboard to Chatt" comes again once the
+  phone is unlocked.
+  It is listed among the system's keyboards only while the add-on is on; the
+  add-on's card leads to turning it on once. A consent accepted on the card
+  offers the keyboard picker and steps out of the way; the previous keyboard
+  comes back when the session ends. The permanent notification says who is
+  typing for the whole session.
+
+### Security
+- **The first sealed replies in the protocol.** Both routes answer 200 and
+  403 inside an envelope, refusals included, padded like the requests to 512
+  bytes and above that to a multiple of 64, so one keystroke looks like any
+  other. The plain answers left (409, 400, 404, 413, 500) say nothing about the
+  add-on. An
+  unverified sender hears `rejected` whatever the settings, so only a verified
+  device can learn that the add-on is on.
+- **Consent is checked again on every packet**: the shield, the add-on and the
+  receive switch, read from the database. A grant lives in memory, ends after
+  30 minutes without typing or 8 hours in all, and is bound to a token the
+  receiver draws, so a packet recorded earlier types nothing. A request id
+  works once, remembered per sender and only for verified senders, so a flood
+  of requests from elsewhere cannot make a recorded one count again.
+- **Nothing is typed while a card waits** on the receiving device, so a remote
+  Enter cannot answer a question nobody read.
+- **The typed text is stored nowhere** on either side: no database, no log, no
+  app state.
+- **A handshake answer cannot take over another session's number.** The
+  responder picks the session number, and numbers travel in the clear. The
+  side that opened the handshake refuses a number that already names a session
+  on its side, so another device's incoming session keeps its key.
+- The threat model grows: the add-on gives a verified device typing on an
+  unlocked, running device, over the radio too when Bluetooth is on.
+  `docs/architecture.md` and `docs/SECURITY.md` say what that means for a
+  stolen verified device.
+
+### Changed
+- **A page of its own for the keyboard**: `docs/keyboard.md` and
+  `docs/keyboard.pl.md`, step by step with screenshots from Windows (both
+  languages) and Android: turning it on, the Chatt keyboard and Android's
+  two warnings, consent, the picker, Live and Compose, passwords, the bars and
+  notifications on the device being typed on, every status line, lock
+  screens, stopping, typing without asking, Bluetooth, security, the measured
+  speed and a troubleshooting table. The READMEs, the documentation index and
+  the guide link to it.
+- **Both READMEs, the user guide and the privacy policy cover the add-ons.**
+  The READMEs gain an Add-ons section for Bluetooth and the keyboard, the guide
+  a section on typing from a PC's keyboard in both languages, and the privacy
+  policy the Bluetooth permissions and name, the Chatt keyboard and the typed
+  text, which Chatt stores nowhere. The bug report form lists both add-ons.
+- `docs/building.md` and `VERSION.md` name all three files that carry the
+  version number, `app/lib/core/version.dart` included, and so does the
+  release workflow's error when the numbers disagree.
+- The add-on's card on Android says that the Chatt keyboard sends nothing
+  from your fields. It does look at the kind of field and whether something
+  is selected, which "reads no fields" left out.
+
+### Fixed
+- The conversation's security sheet scrolls. On a low window or with a large
+  font its switches and pairing buttons ran off the bottom of the screen.
+
 ## [0.9.0] - 2026-10-14
 
 A conversation can travel over Bluetooth, so two devices talk with nothing
@@ -727,6 +873,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Mysttic/Chatt/compare/v0.7.1...v0.8.0

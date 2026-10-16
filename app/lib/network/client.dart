@@ -145,6 +145,25 @@ class PeerClient {
         : Delivery.failed;
   }
 
+  /// Prośba o sesję zdalnej klawiatury (albo jej wycofanie). Odpowiedź jest
+  /// zapieczętowana, więc wraca surowa: otwiera ją ten, kto ma klucz sesji.
+  /// Limit czasu obejmuje kartę zgody u odbiorcy.
+  Future<TransportReply> requestInputSession({
+    required PeerRoute route,
+    required Map<String, Object?> payload,
+    Duration timeout = remoteInputRequestTimeout,
+  }) =>
+      _json(route, '/input-session', payload, timeout);
+
+  /// Paczka operacji zdalnej klawiatury. Odpowiedź jak przy
+  /// [requestInputSession].
+  Future<TransportReply> sendInput({
+    required PeerRoute route,
+    required Map<String, Object?> payload,
+    Duration timeout = remoteInputPacketTimeout,
+  }) =>
+      _json(route, '/input', payload, timeout);
+
   Future<TransportReply> _json(
     PeerRoute route,
     String path,

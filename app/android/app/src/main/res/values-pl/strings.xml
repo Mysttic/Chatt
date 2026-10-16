@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ime_name">Klawiatura Chatt</string>
+    <string name="ime_idle">Klawiatura Chatt: nikt nie pisze</string>
+    <string name="ime_typing">Pisze: %1$s</string>
+    <string name="ime_switch">Przełącz klawiaturę</string>
+    <string name="ime_stop">Stop</string>
+    <string name="ime_channel">Zdalna klawiatura</string>
+</resources>

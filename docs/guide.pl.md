@@ -11,6 +11,9 @@ Wi‑Fi. Dodatek **Bluetooth**, domyślnie wyłączony, dokłada drugą drogę d
 urządzeń w zasięgu radia (około 10 metrów). Z włączonym dodatkiem obie drogi
 działają naraz, a aplikacja sama wybiera, którą pójdzie.
 
+Drugi dodatek, **Klawiatura z PC**, też domyślnie wyłączony, pozwala pisać
+klawiaturą komputera w polu na telefonie albo na innym komputerze.
+
 ## Pierwsze uruchomienie
 
 1. Uruchom Chatt na obu urządzeniach i podłącz je do **tej samej sieci Wi‑Fi**.
@@ -112,6 +115,146 @@ drogi przy rozmówcy nie ma, wybór dzieje się sam.
 razy wolniej niż przez Wi‑Fi: megabajt idzie od 6 do 12 sekund. Krótka
 wiadomość wraca w 22 do 25 ms, więc pisania nie odróżnisz od tego przez sieć.
 Bolą dopiero pliki.
+
+## Dodatek „Klawiatura z PC”
+
+Dodatek ma własną stronę, krok po kroku, z obrazkami z Windows i z Androida:
+[Klawiatura z PC](keyboard.pl.md). Niżej jest wersja skrócona.
+
+Telefon, tablet albo komputer obsługiwany samym dotykiem nie ma porządnej
+klawiatury. Dodatek **Klawiatura z PC** pożycza mu klawiaturę komputera:
+wskazujesz pole na tamtym urządzeniu stuknięciem albo kliknięciem, a to, co
+piszesz na komputerze, trafia do tego pola, w dowolnej aplikacji. Chatt nie
+pokazuje tamtego ekranu i niczym na nim nie rusza; patrzysz na samo
+urządzenie.
+
+Przechodzi tekst (z polskimi znakami i nowymi liniami), Backspace, Delete,
+Enter, a na Androidzie także akcja pola (Szukaj, Wyślij, Dalej, Gotowe), oraz
+tekst ze schowka komputera. Skróty z Ctrl, Alt i Win, Tab, Esc, strzałki, Home
+i End oraz mysz zostają w domu. Komputer pisze na telefonie albo tablecie
+z Androidem i na innym komputerze z Windows, przez sieć, a przy włączonym
+dodatku Bluetooth także przez radio.
+
+<img src="screenshots/windows/pl/06_klawiatura_pisanie.png" alt="Pisanie z komputera na telefonie" width="760">
+
+**Włączenie.** Ustawienia, **Dodatki**, **Klawiatura z PC**, wyłączony od
+początku. Na komputerze, z którego się pisze, ten jeden przełącznik
+wystarcza. Na urządzeniu, na którym ma się pisać, karta dodatku ma drugi
+przełącznik, **Pozwól pisać na tym urządzeniu**, też wyłączony od początku:
+włączenie dodatku na Twoim komputerze nikogo nie wpuszcza do pisania na tym
+komputerze. Dopóki dodatek jest wyłączony, żaden inny ekran go nie pokazuje.
+
+Oba urządzenia muszą mieć nawzajem potwierdzoną tożsamość (zielona tarcza,
+patrz [Szyfrowanie i potwierdzanie tożsamości](#szyfrowanie-i-potwierdzanie-tożsamości)).
+Pisanie obejmuje hasła, więc idzie wyłącznie między urządzeniami, które
+sprawdziły nawzajem swoje klucze.
+
+**Klawiatura Chatt na Androidzie.** Android pozwala aplikacji pisać w polach
+innych aplikacji przez klawiaturę, więc dodatek przynosi własną: klawiaturę
+Chatt, która nie ma klawiszy. Na systemowej liście klawiatur stoi wyłącznie
+przy włączonym dodatku, a w systemie trzeba ją raz włączyć: przycisk **Włącz
+klawiaturę Chatt** na karcie dodatku otwiera systemowe ustawienia klawiatur.
+Android ostrzega po drodze dwa razy:
+
+- że klawiatura może zbierać wszystko, co się nią pisze, także hasła.
+  Klawiatura Chatt niczego z Twoich pól nie wysyła: wpisuje to, co przyjdzie
+  od urządzenia, któremu pozwolisz pisać, w trakcie sesji, na którą się
+  zgodzisz;
+- że po ponownym uruchomieniu telefonu aplikacja nie wystartuje, dopóki go
+  nie odblokujesz.
+
+Na co klawiatura patrzy, opisuje [polityka prywatności](privacy-policy.md)
+(po angielsku).
+
+Na co dzień piszesz dalej swoją klawiaturą. Klawiatura Chatt przejmuje
+miejsce na czas sesji i oddaje je, gdy sesja się skończy.
+
+**Początek.** Otwórz rozmowę z drugim urządzeniem i wybierz przycisk
+klawiatury u góry. Jest tam tylko przy włączonym dodatku i działa tylko przy
+zielonej tarczy. Ekran **Piszesz na: X** prosi drugie urządzenie i czeka. Tam
+pojawia się karta „X chce pisać na tym urządzeniu” z przyciskami **Odrzuć**
+i **Akceptuj** oraz polem **Nie pytaj więcej dla tego urządzenia**. Fokus stoi
+na Odrzuć, więc przypadkowy Enter odmawia. Bez odpowiedzi prośba gaśnie po
+dwóch minutach.
+
+<img src="screenshots/windows/pl/07_klawiatura_zgoda.png" alt="Karta zgody na komputerze" width="760">
+
+**Na telefonie z Androidem** **Akceptuj** otwiera okno wyboru klawiatury, o ile
+klawiatura Chatt nie jest już wybrana: wybierz **Klawiatura Chatt**. Chatt schodzi wtedy na bok, do aplikacji, w której
+byłeś, a Ty stukasz pole do wypełnienia. Tam, gdzie była klawiatura, pojawia
+się pasek z tym, kto pisze i do jakiej aplikacji („Pisze: PC → Kontakty”),
+z przyciskami **Przełącz klawiaturę** i **Stop**. Po końcu sesji wraca sama
+poprzednia klawiatura. Przy zaznaczonym „Nie pytaj więcej” i Chatcie w tle
+przychodzi powiadomienie „Przełącz klawiaturę na Chatt”; dotknij go. Pisanie
+idzie za Tobą z aplikacji do aplikacji, także do Chatt, aż do końca sesji.
+Przy zablokowanym albo wygaszonym ekranie nic się nie wpisuje. Ekran blokady
+z PIN-em zostawia klawiaturę Chatt; ekran z hasłem tekstowym dostaje zwykłą
+klawiaturę, żeby dało się wpisać hasło, a po odblokowaniu znów przychodzi
+„Przełącz klawiaturę na Chatt”: jedno dotknięcie i pisanie trwa dalej. Stałe powiadomienie
+Chatt mówi przez całą sesję, kto pisze.
+
+**Na komputerze z Windows** tekst trafia do okna na wierzchu, tam, gdzie stoi
+jego kursor. Pole wskazujesz kliknięciem, a na ekranie dotykowym palcem. Przez
+całą sesję na wierzchu ekranu stoi pasek ze **Stopem**, który nigdy nie zabiera
+fokusu Twojemu polu, a ikona w zasobniku dostaje plakietkę i pozycję
+**Zatrzymaj zdalną klawiaturę** w menu. Karta, która przyjdzie, gdy Chatt siedzi
+w zasobniku, wyciąga okno i chowa je z powrotem po odpowiedzi. Na komputerze
+z ekranem dotykowym po stuknięciu w pole może wysunąć się klawiatura dotykowa;
+nie przeszkadza, a zamknąć ją możesz.
+
+W samym Chatcie nad każdym ekranem stoi pasek z tym, kto pisze, i ze Stopem.
+
+<img src="screenshots/windows/pl/08_klawiatura_odbior.png" alt="Pasek „Pisze” i karta dodatku" width="760">
+
+**Na komputerze, z którego piszesz**, ekran ma dwa tryby:
+
+- **Znak po znaku** wysyła każdy znak w chwili pisania. Enter to Enter pola
+  (albo Szukaj, Wyślij, Dalej na Androidzie), Shift+Enter nowa linia, Backspace
+  i Delete kasują po tamtej stronie, Ctrl+V wkleja. Pole na Twoim ekranie
+  pokazuje echo tego, co poszło od ostatniego Entera, z kursorem przypiętym na
+  końcu; przesunięcie go nie przesunęłoby kursora po tamtej stronie.
+- **Całość naraz** pozwala najpierw napisać cały tekst i wysłać go przyciskiem
+  **Wyślij** albo Ctrl+Enter, z zaznaczonym **Potem Enter**, gdy pole ma zostać
+  zatwierdzone.
+
+**Wklej ze schowka** wysyła tekst ze schowka komputera w obu trybach.
+
+Nowa linia to jedyna rzecz, która na komputerze z Windows ląduje inaczej:
+przychodzi tam jako zwykły Enter. W edytorze tekstu to nowa linia,
+a w komunikatorze, który wysyła Enterem, wysyła wiadomość.
+
+Wiersz u góry mówi, dokąd idzie pisanie („Pisze do: Notatki”), albo czemu nic
+się nie wpisze: zablokowany ekran, okno z uprawnieniami administratora, brak
+pola, pytanie czekające na którymś z urządzeń. Dopóki tekst nie ma dokąd trafić, pole nie przyjmuje pisania.
+Dopóki druga strona nie zgłosi zwykłego pola tekstowego, echo i pole „Całość
+naraz” pokazują kropki: przy polu hasła i przy polu, którego rodzaju Chatt nie
+rozpozna, co zdarza się w niektórych programach na Windowsie. To, co wpisałeś
+pod kropkami, zostaje pod nimi, dopóki nie zniknie z pola.
+
+**Koniec.** Stop na pasku, na klawiaturze Chatt, w menu zasobnika albo
+w aplikacji, po każdej stronie; zamknięcie ekranu pisania na komputerze;
+wyłączenie dodatku albo **Pozwól pisać na tym urządzeniu**. Sesja kończy się
+też sama po pół godzinie bez pisania i w każdym razie po ośmiu godzinach. Sesja,
+która się zerwała (padło łącze, Stop po tamtej stronie), zostawia ekran
+otwarty z przyciskiem **Połącz ponownie**.
+
+**Bez pytania.** „Nie pytaj więcej” na karcie albo **Pisanie bez pytania**
+w panelu bezpieczeństwa rozmowy (widoczne tylko przy włączonym dodatku)
+pozwala temu jednemu urządzeniu zacząć pisać bez karty. Paski i Stop pokazują
+się jak zawsze. Działa wyłącznie przy zielonej tarczy i znika razem
+z urządzeniem, gdy usuniesz z listy rozmowę z nim (a z nią urządzenie).
+
+**Czego nie ma.** Ekranu blokady, a na Androidzie także wygaszonego ekranu. Na
+Windowsie okien
+z uprawnieniami administratora, okien Kontroli konta użytkownika i ekranu
+logowania: Windows nie pozwala zwykłemu programowi tam pisać, a komputer,
+z którego piszesz, mówi o tym. Kart z pytaniami Chatt: gdy któraś czeka na
+którymkolwiek z urządzeń, nic się nie wpisuje, więc zdalny Enter nigdy nie
+odpowie na kartę. Pola tekstowe samego Chatt przyjmują pisanie jak pola każdej
+innej aplikacji.
+
+Chatt nie zapisuje niczego z tego, co piszesz, po żadnej stronie. Tekst jedzie
+zaszyfrowany, tak jak wiadomości, i wyłącznie między tymi dwoma urządzeniami.
 
 ## Wiadomości
 
@@ -322,7 +465,7 @@ kontakcie. Po co ta ostrożność, widać na sprzęcie: ten sam komputer potrafi
 pokazać się telefonowi pod dwoma różnymi adresami radia, zależnie od tego, czy
 telefon był z nim sparowany.
 
-W tym samym panelu siedzą dwie rzeczy, które należą do rozmówcy:
+W tym samym panelu siedzą rzeczy, które należą do rozmówcy:
 
 - **Zmień nazwę.** Urządzenie rozgłasza własną nazwę, więc komputer trafia na
   listę jako coś w rodzaju `DESKTOP-8F2A1C`. Nadaj mu swoją i to ją zobaczysz
@@ -333,6 +476,9 @@ W tym samym panelu siedzą dwie rzeczy, które należą do rozmówcy:
   do rozmowy, bez karty z pytaniem. Przełącznik działa wyłącznie przy zielonej
   tarczy i gaśnie sam, gdy potwierdzenie zniknie: zgoda dotyczyła potwierdzonej
   tożsamości.
+- **Pisanie bez pytania**, widoczne tylko przy włączonym dodatku Klawiatura
+  z PC: to urządzenie zaczyna pisać tutaj bez karty, na tych samych zasadach
+  (patrz [Dodatek „Klawiatura z PC”](#dodatek-klawiatura-z-pc)).
 
 ## Nasłuch w tle na Androidzie
 

@@ -8,8 +8,8 @@ import '../l10n_context.dart';
 import 'common.dart';
 import 'toasts.dart';
 
-/// Prośby wymagające decyzji „tu i teraz": zgoda na odbiór pliku i kod
-/// parowania. Wiszą nad całą aplikacją, bo mogą przyjść, gdy jesteśmy na
+/// Prośby wymagające decyzji „tu i teraz": zgoda na odbiór pliku, kod
+/// parowania i prośba o pisanie na tym urządzeniu. Wiszą nad całą aplikacją, bo mogą przyjść, gdy jesteśmy na
 /// dowolnym ekranie, a prośba o plik pojawia się ZANIM nadawca prześle
 /// choćby bajt.
 class PromptOverlay extends ConsumerWidget {
@@ -91,6 +91,18 @@ class PromptOverlay extends ConsumerWidget {
                         ],
                       );
                     },
+                  ),
+                  ValueListenableBuilder<List<PendingRemoteInput>>(
+                    valueListenable: services.pendingRemoteInput,
+                    builder: (context, prosby, _) => prosby.isEmpty
+                        ? const SizedBox.shrink()
+                        // Klucz po prośbie, z tego samego powodu co przy
+                        // pliku: nowa prośba nie dziedziczy fokusu po starej.
+                        : _RemoteInputCard(
+                            key: ValueKey(prosby.first.id),
+                            request: prosby.first,
+                            services: services,
+                          ),
                   ),
                 ],
               ),
@@ -265,12 +277,15 @@ class _OfferCardState extends State<_OfferCard> {
     super.initState();
     // Karta wyskakuje nad całą aplikacją, poza zakresem tabulatora, więc bez
     // ogniska nie da się jej odpowiedzieć z klawiatury w ogóle. Ognisko
-    // dostaje więc zawsze, tylko przy paczce nie „Przyjmij wszystkie", a
-    // „Odrzuć": Enter wciśnięty do wysłania wiadomości ma najwyżej odmówić,
-    // a nie przyjąć kilkadziesiąt plików naraz.
+    // dostaje więc zawsze, tylko przy paczce „Odrzuć": Enter wciśnięty do
+    // wysłania wiadomości ma przy kilkudziesięciu plikach najwyżej odmówić.
+    // To samo przy zdalnym pisaniu na tym urządzeniu: Enter z drugiego
+    // urządzenia, który wyprzedził wstrzymanie, ma najwyżej odmówić.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      (widget.offer.batch == null ? _acceptFocus : _rejectFocus).requestFocus();
+      final ostroznie = widget.offer.batch != null ||
+          widget.services.incomingRemoteInput.value != null;
+      (ostroznie ? _rejectFocus : _acceptFocus).requestFocus();
     });
   }
 
@@ -406,6 +421,107 @@ class _OfferCardState extends State<_OfferCard> {
                   child: Text(batch == null
                       ? context.l10n.accept
                       : context.l10n.acceptAll),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Prośba o pisanie na tym urządzeniu.
+///
+/// Fokus dostaje „Odrzuć": karta wyskakuje w chwili, gdy ktoś może właśnie
+/// pisać w innym polu, a Enter wciśnięty wtedy ma najwyżej odmówić. Zgoda
+/// wymaga świadomego kliknięcia.
+class _RemoteInputCard extends StatefulWidget {
+  final PendingRemoteInput request;
+  final AppServices services;
+
+  const _RemoteInputCard(
+      {super.key, required this.request, required this.services});
+
+  @override
+  State<_RemoteInputCard> createState() => _RemoteInputCardState();
+}
+
+class _RemoteInputCardState extends State<_RemoteInputCard> {
+  final _rejectFocus = FocusNode(debugLabel: 'odrzuć pisanie');
+
+  /// „Nie pytaj więcej dla tego urządzenia": zgoda zapisana przy rozmówcy.
+  bool _pamietaj = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Jak przy karcie pliku: `autofocus` nie sięga poddrzewa z
+    // `MaterialApp.builder`, więc fokus bierzemy ręcznie.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _rejectFocus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _rejectFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final request = widget.request;
+    final services = widget.services;
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 6,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.keyboard_outlined, color: scheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.l10n.remoteInputRequestTitle(request.peerName),
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                // Prosić może tylko urządzenie z potwierdzoną tożsamością.
+                const Icon(Icons.verified_user, color: Colors.green, size: 20),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(context.l10n.remoteInputRequestBody),
+            const SizedBox(height: 4),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _pamietaj,
+              onChanged: (value) => setState(() => _pamietaj = value ?? false),
+              title: Text(context.l10n.remoteInputDontAskAgain),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  focusNode: _rejectFocus,
+                  onPressed: () =>
+                      services.respondToRemoteInput(request.id, accept: false),
+                  child: Text(context.l10n.reject),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () => services.respondToRemoteInput(request.id,
+                      accept: true, remember: _pamietaj),
+                  child: Text(context.l10n.accept),
                 ),
               ],
             ),

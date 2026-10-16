@@ -29,6 +29,7 @@ ConversationSummary _summary({required String name, String? lastBody}) =>
         port: 47780,
         verified: false,
         autoAccept: false,
+        remoteInput: false,
         firstSeen: DateTime(2026, 9, 3),
         lastSeen: DateTime(2026, 9, 3),
       ),

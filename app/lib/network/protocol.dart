@@ -683,6 +683,667 @@ class PairMessage {
   }
 }
 
+// --- Zdalna klawiatura: POST /input-session, POST /input -------------------
+// Dodatek „Klawiatura z PC": nadawca pisze, a tekst ląduje w polu, które ma
+// fokus na urządzeniu odbiorcy. Dwa kroki:
+//
+//   1. POST /input-session: prośba o sesję. Odbiorca sprawdza bramki
+//      (dodatek, przełącznik odbioru, zweryfikowany nadawca), pyta
+//      użytkownika i przy zgodzie odsyła losowy [InputSessionReply.token].
+//   2. POST /input: paczki operacji z tym tokenem i rosnącym `seq`. Jedna
+//      paczka w locie, a to, co nadawca uzbierał w tym czasie, jedzie
+//      sklejone w następnej.
+//
+// Obie odpowiedzi są **zapieczętowane** kluczem sesji, także odmowy: jawne
+// zostają tylko 409 (brak sesji, nie ma czym pieczętować), 404 (starsza
+// wersja), 400 (zły kształt), 413 i 500. Odpowiedź nie niesie `from`, więc
+// odbita do serwera nadawcy nie przejdzie przez `_openEnvelope`, a pole
+// `reply` odróżnia ją od zapytania zapieczętowanego tym samym kluczem.
+
+/// Prośba o sesję i wycofanie prośby, na którą odbiorca jeszcze nie odpowiedział.
+const String inputSessionRequest = 'request';
+const String inputSessionCancel = 'cancel';
+
+/// Powody odmowy w odpowiedzi na [InputSessionRequest].
+///
+/// [inputRejected] dostaje każdy niezweryfikowany nadawca, cokolwiek leży
+/// w ustawieniach, więc z zewnątrz nie da się poznać, czy dodatek jest
+/// włączony. [inputNotEnabled] słyszy tylko zweryfikowany.
+const String inputRejected = 'rejected';
+const String inputNotEnabled = 'not_enabled';
+const String inputNoAnswer = 'no-answer';
+const String inputBusy = 'busy';
+const String inputCancelled = 'cancelled';
+
+/// Powody odmowy w odpowiedzi na [RemoteInputPacket]. [inputNoGrant] kończy
+/// sesję nadawcy: tokenu nie ma, wygasł albo odbiorca nacisnął Stop.
+const String inputNoGrant = 'no_grant';
+const String inputStaleSeq = 'stale_seq';
+
+/// Paczka przyszła, ale nic z niej nie wpisano, bo u odbiorcy wisi karta
+/// z pytaniem: zdalny Enter nie ma prawa odpowiadać na cudze karty.
+const String inputPaused = 'paused';
+
+/// Wartości pola `reply` w zapieczętowanych odpowiedziach.
+const String replyInputSession = 'input-session';
+const String replyInput = 'input';
+
+/// Ile jednostek UTF-16 tekstu najwyżej w jednej paczce, łącznie we
+/// wszystkich operacjach `insert`. Dłuższe wklejenie jedzie kilkoma.
+const int maxInputTextUnits = 4096;
+
+/// Ile znaków najwyżej kasuje jedna operacja `bs` albo `del`.
+const int maxInputDeleteRun = 64;
+
+/// Ile znaków najwyżej kasuje jedna paczka, łącznie.
+const int maxInputDeletes = 4096;
+
+/// Ile operacji najwyżej w jednej paczce.
+const int maxInputOps = 256;
+
+/// Górna granica ciała `/input` i `/input-session` na drucie. Paczka
+/// z kompletem tekstu to kilkanaście kilobajtów po zaszyfrowaniu i base64;
+/// bez tej granicy serwer czytałby i odszyfrowywał megabajt, zanim odrzuci
+/// kształt.
+const int maxInputBodyBytes = 32 * 1024;
+
+/// Ładunek jest dopełniany do wielokrotności tylu bajtów (pole `pad`).
+/// GCM nie zmienia długości, więc bez tego długość koperty zdradzałaby
+/// liczbę wpisanych znaków i nazwę aplikacji w odpowiedzi.
+const int inputPadBlock = 64;
+
+/// I nigdy poniżej tylu bajtów. Paczka z jednym znakiem, z jednym `bs` i sam
+/// ping mają wtedy tę samą długość, a każda odpowiedź mieści się w tym
+/// rozmiarze bez względu na rodzaj pola i nazwę aplikacji (patrz
+/// [RemoteInputTarget.fromJson]).
+const int inputPadMinimum = 512;
+
+/// Jak długo nadawca czeka na odpowiedź na prośbę. Karta u odbiorcy wisi
+/// [remoteInputAnswerTimeout], reszta to zapas na drogę.
+const Duration remoteInputRequestTimeout = Duration(seconds: 150);
+
+/// Jak długo karta zgody czeka na decyzję.
+const Duration remoteInputAnswerTimeout = Duration(minutes: 2);
+
+/// Limit czasu jednej paczki. Po nim ta sama paczka idzie jeszcze raz,
+/// z tym samym `seq`.
+const Duration remoteInputPacketTimeout = Duration(seconds: 2);
+
+/// Ile najwyżej trwa wpisanie jednego znaku (albo jednego Backspace) po
+/// stronie odbiorcy. Windows wpisuje znak po znaku, 10 ms po znaku i 40 ms
+/// po spacji i Enterze, bo część aplikacji gubi znaki wysłane szybciej;
+/// zapas jest na wolniejszy zegar.
+const Duration remoteInputTypingPerUnit = Duration(milliseconds: 50);
+
+/// Czas wpisania paczki u odbiorcy, ponad zwykły limit odpowiedzi. Nadawca
+/// dolicza go do limitu czasu paczki, a odbiorca do limitu wywołania kanału.
+Duration remoteInputTypingTime(List<RemoteInputOp> ops) {
+  var jednostki = 0;
+  for (final op in ops) {
+    if (op.kind.types) jednostki += op.text.length + op.count + 1;
+  }
+  return remoteInputTypingPerUnit * jednostki;
+}
+
+/// Zgoda gaśnie po tylu minutach bez operacji. Pingi się nie liczą.
+const Duration remoteInputIdle = Duration(minutes: 30);
+
+/// I po tylu godzinach od wydania, cokolwiek się dzieje.
+const Duration remoteInputMaxLife = Duration(hours: 8);
+
+/// Kształt identyfikatora sesji pisania i tokenu.
+final RegExp _inputTokenShape = RegExp(r'^[A-Za-z0-9+/=]{1,64}$');
+
+/// Platformy, które nadawca może podać w prośbie. Inna wartość znaczy
+/// „nie podano", bez odrzucania prośby.
+const Set<String> _inputPlatforms = {
+  'windows',
+  'android',
+  'linux',
+  'macos',
+  'ios',
+};
+
+/// Czy tekst nadaje się do wpisania: bez znaków sterujących poza nową linią
+/// i bez samotnych połówek surogatów. Tab też odpada, bo na Windows to
+/// przejście do następnej kontrolki, a nawigacja jest poza zakresem dodatku.
+bool isTypableText(String text) {
+  for (var i = 0; i < text.length; i++) {
+    final unit = text.codeUnitAt(i);
+    if (unit == 0x0A) continue;
+    if (unit < 0x20 || (unit >= 0x7F && unit <= 0x9F)) return false;
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      // Wysoka połówka musi mieć zaraz za sobą niską.
+      if (i + 1 >= text.length) return false;
+      final next = text.codeUnitAt(i + 1);
+      if (next < 0xDC00 || next > 0xDFFF) return false;
+      i++;
+      continue;
+    }
+    if (unit >= 0xDC00 && unit <= 0xDFFF) return false;
+  }
+  return true;
+}
+
+/// Tekst od użytkownika nadawcy w postaci, którą odbiorca przyjmie: końce
+/// linii jako `\n`, tabulator jako spacja, bez innych znaków sterujących
+/// i bez samotnych połówek surogatów.
+String typableText(String raw) {
+  final out = StringBuffer();
+  final text = raw.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  for (var i = 0; i < text.length; i++) {
+    final unit = text.codeUnitAt(i);
+    if (unit == 0x0A) {
+      out.writeCharCode(unit);
+    } else if (unit == 0x09) {
+      out.write(' ');
+    } else if (unit < 0x20 || (unit >= 0x7F && unit <= 0x9F)) {
+      continue;
+    } else if (unit >= 0xD800 && unit <= 0xDBFF) {
+      if (i + 1 < text.length) {
+        final next = text.codeUnitAt(i + 1);
+        if (next >= 0xDC00 && next <= 0xDFFF) {
+          out.writeCharCode(unit);
+          out.writeCharCode(next);
+          i++;
+        }
+      }
+    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      continue;
+    } else {
+      out.writeCharCode(unit);
+    }
+  }
+  return out.toString();
+}
+
+/// Dopełnia ładunek polem `pad` do co najmniej [inputPadMinimum] bajtów,
+/// a powyżej do wielokrotności [inputPadBlock], po zakodowaniu w JSON.
+Map<String, Object?> padInputPayload(Map<String, Object?> payload) {
+  final bez = {...payload, 'pad': ''};
+  final dlugosc = utf8.encode(jsonEncode(bez)).length;
+  final brak = dlugosc < inputPadMinimum
+      ? inputPadMinimum - dlugosc
+      : (inputPadBlock - dlugosc % inputPadBlock) % inputPadBlock;
+  return {...payload, 'pad': ' ' * brak};
+}
+
+/// Rodzaj operacji zdalnej klawiatury, z nazwą na drucie.
+enum RemoteInputOpKind {
+  insert('insert'),
+  backspace('bs'),
+  delete('del'),
+  action('action'),
+  ping('ping'),
+  stop('stop');
+
+  final String wire;
+  const RemoteInputOpKind(this.wire);
+
+  static RemoteInputOpKind? fromWire(Object? value) {
+    for (final kind in values) {
+      if (kind.wire == value) return kind;
+    }
+    return null;
+  }
+
+  /// Czy operacja coś wpisuje albo kasuje, czyli trafia do ujścia.
+  bool get types =>
+      this == insert || this == backspace || this == delete || this == action;
+}
+
+/// Jedna operacja: wpisanie tekstu, skasowanie znaków przed albo za kursorem,
+/// akcja pola (Enter), ping albo koniec sesji. Innych nie ma: skróty, Tab,
+/// strzałki i Esc są poza zakresem dodatku.
+class RemoteInputOp {
+  final RemoteInputOpKind kind;
+
+  /// Tekst dla [RemoteInputOpKind.insert], pusty dla reszty.
+  final String text;
+
+  /// Liczba **punktów kodowych** dla `bs` i `del`, zero dla reszty: jedno
+  /// `bs` kasuje emoji w całości.
+  final int count;
+
+  const RemoteInputOp._(this.kind, {this.text = '', this.count = 0});
+
+  const RemoteInputOp.insert(String text)
+      : this._(RemoteInputOpKind.insert, text: text);
+  const RemoteInputOp.backspace([int count = 1])
+      : this._(RemoteInputOpKind.backspace, count: count);
+  const RemoteInputOp.delete([int count = 1])
+      : this._(RemoteInputOpKind.delete, count: count);
+  const RemoteInputOp.action() : this._(RemoteInputOpKind.action);
+  const RemoteInputOp.ping() : this._(RemoteInputOpKind.ping);
+  const RemoteInputOp.stop() : this._(RemoteInputOpKind.stop);
+
+  Map<String, Object?> toJson() => {
+        't': kind.wire,
+        if (kind == RemoteInputOpKind.insert) 's': text,
+        if (kind == RemoteInputOpKind.backspace ||
+            kind == RemoteInputOpKind.delete)
+          'n': count,
+      };
+
+  /// `null`, gdy operacja ma zły kształt. Odbiorca odrzuca wtedy całą
+  /// paczkę: połowa paczki wpisana to gorzej niż żadna.
+  static RemoteInputOp? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final kind = RemoteInputOpKind.fromWire(json['t']);
+    switch (kind) {
+      case null:
+        return null;
+      case RemoteInputOpKind.insert:
+        final s = json['s'];
+        if (s is! String ||
+            s.isEmpty ||
+            s.length > maxInputTextUnits ||
+            !isTypableText(s)) {
+          return null;
+        }
+        return RemoteInputOp.insert(s);
+      case RemoteInputOpKind.backspace:
+      case RemoteInputOpKind.delete:
+        final n = json['n'];
+        if (n is! int || n < 1 || n > maxInputDeleteRun) return null;
+        return kind == RemoteInputOpKind.backspace
+            ? RemoteInputOp.backspace(n)
+            : RemoteInputOp.delete(n);
+      case RemoteInputOpKind.action:
+        return const RemoteInputOp.action();
+      case RemoteInputOpKind.ping:
+        return const RemoteInputOp.ping();
+      case RemoteInputOpKind.stop:
+        return const RemoteInputOp.stop();
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is RemoteInputOp &&
+      other.kind == kind &&
+      other.text == text &&
+      other.count == count;
+
+  @override
+  int get hashCode => Object.hash(kind, text, count);
+
+  /// Bez tekstu: ten napis trafia do logów i komunikatów testów.
+  @override
+  String toString() => switch (kind) {
+        RemoteInputOpKind.insert => 'insert(${text.length})',
+        RemoteInputOpKind.backspace => 'bs($count)',
+        RemoteInputOpKind.delete => 'del($count)',
+        _ => kind.wire,
+      };
+}
+
+/// Ile bajtów (w JSON-ie) najwyżej mają nazwa pakietu i nazwa aplikacji
+/// w celu. Najdłuższa odpowiedź bez nich ma niecałe 300 bajtów, więc dwie
+/// takie nazwy mieszczą się w [inputPadMinimum].
+const int _maxTargetLabelBytes = 96;
+
+/// Rodzaj pola z fokusem u odbiorcy. Przy [password] nadawca zasłania echo.
+enum RemoteInputField { text, password, none }
+
+/// Akcja pola z fokusem na Androidzie (`imeOptions`). Windows zawsze mówi
+/// [none] i tam akcja to zwykły Enter.
+enum RemoteInputAction { search, send, go, done, next, previous, none }
+
+/// Stan celu u odbiorcy: dokąd trafi to, co nadawca wpisze. Nadawca nie
+/// dostaje nic poza tym, co potrzebne do pisania: rodzaj pola, akcja
+/// i nazwa aplikacji.
+class RemoteInputTarget {
+  /// Czy jest pole, do którego da się teraz pisać.
+  final bool active;
+  final RemoteInputField field;
+  final RemoteInputAction action;
+
+  /// Pakiet (Android) albo nazwa pliku programu (Windows).
+  final String app;
+
+  /// Nazwa aplikacji do pokazania: etykieta aplikacji na Androidzie, nazwa
+  /// programu na Windows (opis z zasobu wersji, inaczej nazwa pliku). Nigdy
+  /// tytuł okna: ten niesie treść (nazwę dokumentu, temat wiadomości, tytuł
+  /// strony), a odczyt treści u odbiorcy jest poza zakresem dodatku.
+  final String appLabel;
+
+  /// Fokus jest w samym Chatcie. To tylko informacja dla nadawcy: pola
+  /// Chatta przyjmują pisanie jak każde inne, a karty z pytaniem chroni
+  /// [inputPaused] (przy wiszącej karcie nic się nie wpisuje).
+  final bool ownApp;
+
+  /// Ekran zablokowany albo wygaszony.
+  final bool locked;
+
+  /// Okno z uprawnieniami administratora na Windows, do którego `SendInput`
+  /// nie wpisze (i nie powie, że nie wpisał).
+  final bool elevated;
+
+  const RemoteInputTarget({
+    this.active = false,
+    this.field = RemoteInputField.none,
+    this.action = RemoteInputAction.none,
+    this.app = '',
+    this.appLabel = '',
+    this.ownApp = false,
+    this.locked = false,
+    this.elevated = false,
+  });
+
+  /// Nie ma dokąd pisać (platforma bez ujścia, brak odpowiedzi strony
+  /// natywnej).
+  static const RemoteInputTarget none = RemoteInputTarget();
+
+  Map<String, Object?> toJson() => {
+        'active': active,
+        'field': field.name,
+        'action': action.name,
+        'app': app,
+        'appLabel': appLabel,
+        'ownApp': ownApp,
+        'locked': locked,
+        'elevated': elevated,
+      };
+
+  /// Wyrozumiale: cel przychodzi od zweryfikowanego odbiorcy albo od
+  /// własnej strony natywnej. Nieznana wartość to „nie wiadomo", a napisy
+  /// są przycinane do [_maxTargetLabelBytes] bajtów w JSON-ie, po całych
+  /// znakach: idą na ekran, a odpowiedź z nimi ma się zmieścić
+  /// w [inputPadMinimum] bajtach także przy nazwach pisanych cyrylicą czy
+  /// znakami CJK.
+  static RemoteInputTarget fromJson(Object? json) {
+    if (json is! Map) return none;
+    String napis(Object? value) {
+      if (value is! String) return '';
+      final przyciete = StringBuffer();
+      var bajty = 0;
+      for (final punkt in value.runes) {
+        final znak = String.fromCharCode(punkt);
+        // Długość w JSON-ie, bez cudzysłowów: znaki ucieczki też się liczą.
+        final ile = utf8.encode(jsonEncode(znak)).length - 2;
+        if (bajty + ile > _maxTargetLabelBytes) break;
+        przyciete.write(znak);
+        bajty += ile;
+      }
+      return przyciete.toString();
+    }
+
+    return RemoteInputTarget(
+      active: json['active'] == true,
+      field: RemoteInputField.values.firstWhere(
+          (f) => f.name == json['field'],
+          orElse: () => RemoteInputField.none),
+      action: RemoteInputAction.values.firstWhere(
+          (a) => a.name == json['action'],
+          orElse: () => RemoteInputAction.none),
+      app: napis(json['app']),
+      appLabel: napis(json['appLabel']),
+      ownApp: json['ownApp'] == true,
+      locked: json['locked'] == true,
+      elevated: json['elevated'] == true,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is RemoteInputTarget &&
+      other.active == active &&
+      other.field == field &&
+      other.action == action &&
+      other.app == app &&
+      other.appLabel == appLabel &&
+      other.ownApp == ownApp &&
+      other.locked == locked &&
+      other.elevated == elevated;
+
+  @override
+  int get hashCode => Object.hash(
+      active, field, action, app, appLabel, ownApp, locked, elevated);
+}
+
+/// `POST /input-session`: prośba o sesję pisania albo jej wycofanie.
+class InputSessionRequest {
+  final DeviceIdentity from;
+
+  /// [inputSessionRequest] albo [inputSessionCancel].
+  final String op;
+
+  /// Identyfikator tej sesji, losowany przez nadawcę. Jednorazowy: odbiorca
+  /// pamięta zużyte i powtórzonej prośby nie pokaże drugi raz.
+  final String input;
+
+  /// System nadawcy, do pokazania na karcie. `null` = nie podano.
+  final String? platform;
+
+  const InputSessionRequest({
+    required this.from,
+    required this.op,
+    required this.input,
+    this.platform,
+  });
+
+  Map<String, Object?> toJson() => {
+        'from': from.toJson(),
+        'op': op,
+        'input': input,
+        if (platform != null) 'platform': platform,
+      };
+
+  static InputSessionRequest? fromJson(Map<String, Object?> json) {
+    final from = DeviceIdentity.fromJson(json['from']);
+    final op = json['op'];
+    final input = json['input'];
+    if (from == null ||
+        (op != inputSessionRequest && op != inputSessionCancel) ||
+        !isSafeMessageGuid(input)) {
+      return null;
+    }
+    final platform = json['platform'];
+    return InputSessionRequest(
+      from: from,
+      op: op as String,
+      input: input as String,
+      platform: _inputPlatforms.contains(platform) ? platform as String : null,
+    );
+  }
+}
+
+/// Odpowiedź na [InputSessionRequest], zawsze zapieczętowana.
+class InputSessionReply {
+  final bool accepted;
+  final String input;
+
+  /// Losowany przez odbiorcę przy zgodzie. Każda paczka musi go nieść.
+  final String? token;
+
+  /// Powód odmowy ([inputRejected], [inputNotEnabled], ...).
+  final String? reason;
+  final RemoteInputTarget target;
+
+  const InputSessionReply({
+    required this.accepted,
+    required this.input,
+    this.token,
+    this.reason,
+    this.target = RemoteInputTarget.none,
+  });
+
+  Map<String, Object?> toJson() => {
+        'reply': replyInputSession,
+        'ok': accepted,
+        'accepted': accepted,
+        'input': input,
+        if (token != null) 'token': token,
+        if (reason != null) 'reason': reason,
+        if (accepted) 'target': target.toJson(),
+      };
+
+  /// `null`, gdy to nie jest odpowiedź na prośbę [input]: inny kształt,
+  /// inna sesja pisania albo zgoda bez tokenu.
+  static InputSessionReply? fromJson(Map<String, Object?>? json,
+      {required String input}) {
+    if (json == null ||
+        json['reply'] != replyInputSession ||
+        json['input'] != input ||
+        json.containsKey('from')) {
+      return null;
+    }
+    final accepted = json['accepted'];
+    if (accepted is! bool) return null;
+    final token = json['token'];
+    if (accepted &&
+        (token is! String || !_inputTokenShape.hasMatch(token))) {
+      return null;
+    }
+    final reason = json['reason'];
+    return InputSessionReply(
+      accepted: accepted,
+      input: input,
+      token: accepted ? token as String : null,
+      reason: reason is String ? reason : null,
+      target: RemoteInputTarget.fromJson(json['target']),
+    );
+  }
+}
+
+/// `POST /input`: paczka operacji w ramach przyznanej sesji.
+class RemoteInputPacket {
+  final DeviceIdentity from;
+  final String input;
+  final String token;
+
+  /// Numer paczki, od 1, rosnący w ramach sesji. Powtórzona paczka (po
+  /// limicie czasu) ma ten sam numer i odbiorca nie wpisuje jej drugi raz.
+  final int seq;
+  final List<RemoteInputOp> ops;
+
+  const RemoteInputPacket({
+    required this.from,
+    required this.input,
+    required this.token,
+    required this.seq,
+    required this.ops,
+  });
+
+  Map<String, Object?> toJson() => {
+        'from': from.toJson(),
+        'input': input,
+        'token': token,
+        'seq': seq,
+        'ops': [for (final op in ops) op.toJson()],
+      };
+
+  /// `null` przy złym kształcie czegokolwiek: typy, zakresy, nieznana
+  /// operacja, tekst ze znakami sterującymi, przekroczone limity paczki,
+  /// `stop` gdzie indziej niż na końcu.
+  static RemoteInputPacket? fromJson(Map<String, Object?> json) {
+    final from = DeviceIdentity.fromJson(json['from']);
+    final input = json['input'];
+    final token = json['token'];
+    final seq = json['seq'];
+    final rawOps = json['ops'];
+    final pad = json['pad'];
+    if (from == null ||
+        !isSafeMessageGuid(input) ||
+        token is! String ||
+        !_inputTokenShape.hasMatch(token) ||
+        seq is! int ||
+        seq < 1 ||
+        rawOps is! List ||
+        rawOps.isEmpty ||
+        rawOps.length > maxInputOps ||
+        (json.containsKey('pad') && pad is! String)) {
+      return null;
+    }
+    final ops = <RemoteInputOp>[];
+    var tekst = 0;
+    var kasowanie = 0;
+    for (var i = 0; i < rawOps.length; i++) {
+      final op = RemoteInputOp.fromJson(rawOps[i]);
+      if (op == null) return null;
+      if (op.kind == RemoteInputOpKind.stop && i != rawOps.length - 1) {
+        return null;
+      }
+      tekst += op.text.length;
+      kasowanie += op.count;
+      if (tekst > maxInputTextUnits || kasowanie > maxInputDeletes) {
+        return null;
+      }
+      ops.add(op);
+    }
+    return RemoteInputPacket(
+      from: from,
+      input: input as String,
+      token: token,
+      seq: seq,
+      ops: List.unmodifiable(ops),
+    );
+  }
+}
+
+/// Odpowiedź na [RemoteInputPacket], zawsze zapieczętowana.
+class RemoteInputReply {
+  /// `false` przy odmowie (403): [reason] mówi, czy to koniec sesji.
+  final bool ok;
+  final String input;
+  final int seq;
+
+  /// Czy operacje zostały wpisane. `false` przy `ok` znaczy, że paczka
+  /// przyszła, ale odbiorca nie miał dokąd pisać albo czekał na kartę.
+  final bool applied;
+
+  /// To jest powtórzona paczka, wpisana już za pierwszym razem.
+  final bool duplicate;
+  final String? reason;
+  final RemoteInputTarget target;
+
+  const RemoteInputReply({
+    required this.ok,
+    required this.input,
+    required this.seq,
+    this.applied = false,
+    this.duplicate = false,
+    this.reason,
+    this.target = RemoteInputTarget.none,
+  });
+
+  Map<String, Object?> toJson() => {
+        'reply': replyInput,
+        'ok': ok,
+        'input': input,
+        'seq': seq,
+        'applied': applied,
+        if (duplicate) 'duplicate': true,
+        if (reason != null) 'reason': reason,
+        if (ok) 'target': target.toJson(),
+      };
+
+  /// `null`, gdy to nie jest odpowiedź na paczkę [seq] sesji [input].
+  static RemoteInputReply? fromJson(Map<String, Object?>? json,
+      {required String input, required int seq}) {
+    if (json == null ||
+        json['reply'] != replyInput ||
+        json['input'] != input ||
+        json['seq'] != seq ||
+        json.containsKey('from')) {
+      return null;
+    }
+    final ok = json['ok'];
+    if (ok is! bool) return null;
+    final reason = json['reason'];
+    return RemoteInputReply(
+      ok: ok,
+      input: input,
+      seq: seq,
+      applied: json['applied'] == true,
+      duplicate: json['duplicate'] == true,
+      reason: reason is String ? reason : null,
+      target: RemoteInputTarget.fromJson(json['target']),
+    );
+  }
+}
+
 /// Wynik zapisu pliku po stronie odbiorcy, mapowany na kod HTTP w server.dart.
 enum FileReceiveResult {
   /// Komplet zapisany i zweryfikowany (200).

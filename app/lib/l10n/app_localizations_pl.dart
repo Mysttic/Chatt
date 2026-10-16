@@ -837,6 +837,234 @@ class AppLocalizationsPl extends AppLocalizations {
       'Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.';
 
   @override
+  String get keyboardAddon => 'Klawiatura z PC';
+
+  @override
+  String get keyboardAddonHelp =>
+      'Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.';
+
+  @override
+  String get remoteInputReceive => 'Pozwól pisać na tym urządzeniu';
+
+  @override
+  String get remoteInputReceiveHelp =>
+      'Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.';
+
+  @override
+  String get remoteInputSafety =>
+      'Drugie urządzenie pisze tu jak zwykła klawiatura: może wysłać wiadomość, zatwierdzić formularz, wpisać hasło. Sesja trwa do Stopu albo do pół godziny bez pisania.';
+
+  @override
+  String get remoteInputUnsupported =>
+      'Pisanie z innego urządzenia przyjmują Android i Windows.';
+
+  @override
+  String remoteInputRequestTitle(Object name) {
+    return '$name chce pisać na tym urządzeniu';
+  }
+
+  @override
+  String get remoteInputRequestBody =>
+      'Tekst trafi do pola, które ma fokus, w dowolnej aplikacji, aż do Stopu.';
+
+  @override
+  String remoteInputActive(Object name) {
+    return 'Pisze: $name';
+  }
+
+  @override
+  String get remoteInputStop => 'Stop';
+
+  @override
+  String remoteInputBarTarget(Object name, Object app) {
+    return 'Pisze: $name → $app';
+  }
+
+  @override
+  String get trayRemoteInputStop => 'Zatrzymaj zdalną klawiaturę';
+
+  @override
+  String get remoteInputSwitchTitle => 'Przełącz klawiaturę na Chatt';
+
+  @override
+  String remoteInputSwitchBody(Object name) {
+    return '$name pisze na tym urządzeniu. Dotknij i wybierz klawiaturę Chatt.';
+  }
+
+  @override
+  String get remoteInputImeOff =>
+      'Pisanie z innego urządzenia przechodzi przez klawiaturę Chatt. Włącz ją raz w ustawieniach systemu.';
+
+  @override
+  String get remoteInputImeWarning =>
+      'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt niczego z Twoich pól nie wysyła: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.';
+
+  @override
+  String get remoteInputImeEnable => 'Włącz klawiaturę Chatt';
+
+  @override
+  String get remoteInputImeNotSelected =>
+      'Na czas pisania wybierz klawiaturę Chatt. Po sesji wraca poprzednia.';
+
+  @override
+  String get remoteInputImePick => 'Wybierz klawiaturę';
+
+  @override
+  String get remoteInputImeReady => 'Klawiatura Chatt jest włączona.';
+
+  @override
+  String get remoteInputSendHint =>
+      'Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz klawiaturę u góry ekranu.';
+
+  @override
+  String get remoteInputDontAskAgain => 'Nie pytaj więcej dla tego urządzenia';
+
+  @override
+  String remoteInputBannerTarget(Object name, Object app) {
+    return '$name pisze do: $app';
+  }
+
+  @override
+  String get remoteInputAllowTitle => 'Pisanie bez pytania';
+
+  @override
+  String get remoteInputAllowBody =>
+      'To urządzenie zaczyna pisać tutaj bez karty zgody. Pasek „Pisze” ze Stopem pokazuje się jak zawsze. Działa tylko przy potwierdzonej tożsamości i włączonym pisaniu w dodatku „Klawiatura z PC”.';
+
+  @override
+  String get remoteKeyboardOpen => 'Pisz na tamtym urządzeniu';
+
+  @override
+  String get remoteKeyboardNeedsVerified =>
+      'Pisanie na tamtym urządzeniu wymaga potwierdzonej tożsamości';
+
+  @override
+  String remoteKeyboardTitle(Object name) {
+    return 'Piszesz na: $name';
+  }
+
+  @override
+  String remoteKeyboardWaiting(Object name) {
+    return 'Czekam na zgodę na urządzeniu $name. Otwórz tam Chatt.';
+  }
+
+  @override
+  String get remoteKeyboardWaitingHint =>
+      'Telefon z Androidem pokaże powiadomienie, jeśli Chatt ma zgodę na powiadomienia.';
+
+  @override
+  String remoteKeyboardTarget(Object app) {
+    return 'Pisze do: $app';
+  }
+
+  @override
+  String remoteKeyboardTargetPassword(Object app) {
+    return 'Pisze do: $app · pole hasła';
+  }
+
+  @override
+  String get remoteKeyboardNoField =>
+      'Brak pola do pisania. Stuknij pole na tamtym urządzeniu; na Androidzie z wybraną klawiaturą Chatt.';
+
+  @override
+  String get remoteKeyboardElevated =>
+      'Okno z uprawnieniami administratora. Tam nic się nie wpisze.';
+
+  @override
+  String get remoteKeyboardLocked =>
+      'Tamto urządzenie jest zablokowane albo ma wygaszony ekran.';
+
+  @override
+  String get remoteKeyboardPaused =>
+      'Wstrzymane: na tamtym urządzeniu czeka pytanie. Pisanie wróci po odpowiedzi.';
+
+  @override
+  String get remoteKeyboardLocalCard =>
+      'Odpowiedz na pytanie u góry, potem pisz dalej.';
+
+  @override
+  String remoteKeyboardEnded(Object name) {
+    return 'Sesję zakończono na urządzeniu $name.';
+  }
+
+  @override
+  String get remoteKeyboardLost => 'Połączenie zerwane.';
+
+  @override
+  String get remoteKeyboardReconnect => 'Połącz ponownie';
+
+  @override
+  String get remoteKeyboardModeLive => 'Znak po znaku';
+
+  @override
+  String get remoteKeyboardModeCompose => 'Całość naraz';
+
+  @override
+  String get remoteKeyboardLiveHint =>
+      'Pisz tutaj. Każdy znak od razu trafia na tamto urządzenie.';
+
+  @override
+  String get remoteKeyboardKeysHint =>
+      'Enter zatwierdza pole, Shift+Enter to nowa linia, Backspace i Delete kasują na tamtym urządzeniu.';
+
+  @override
+  String get remoteKeyboardComposeHint => 'Napisz tekst i wyślij go w całości.';
+
+  @override
+  String get remoteKeyboardSend => 'Wyślij';
+
+  @override
+  String get remoteKeyboardThenEnter => 'Potem Enter';
+
+  @override
+  String get remoteKeyboardPaste => 'Wklej ze schowka';
+
+  @override
+  String get remoteKeyboardClipboardEmpty => 'W schowku nie ma tekstu.';
+
+  @override
+  String get remoteKeyboardTooLong =>
+      'Za dużo tekstu naraz. Wyślij go w częściach.';
+
+  @override
+  String remoteKeyboardRejected(Object name) {
+    return 'Urządzenie $name odmówiło.';
+  }
+
+  @override
+  String remoteKeyboardNotEnabled(Object name) {
+    return 'Na urządzeniu $name pisanie jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.';
+  }
+
+  @override
+  String remoteKeyboardNoAnswer(Object name) {
+    return 'Urządzenie $name nie odpowiedziało na prośbę.';
+  }
+
+  @override
+  String remoteKeyboardBusy(Object name) {
+    return 'Na urządzeniu $name pisze już ktoś inny.';
+  }
+
+  @override
+  String remoteKeyboardOlderPeer(Object name) {
+    return 'Urządzenie $name ma starszą wersję Chatt, bez zdalnej klawiatury.';
+  }
+
+  @override
+  String remoteKeyboardUnreachable(Object name) {
+    return 'Nie udało się połączyć z urządzeniem $name.';
+  }
+
+  @override
+  String get remoteKeyboardNotVerified =>
+      'Najpierw potwierdź tożsamość tego urządzenia.';
+
+  @override
+  String get remoteKeyboardAddonOff =>
+      'Dodatek „Klawiatura z PC” jest wyłączony.';
+
+  @override
   String get viaWifi => 'przez sieć';
 
   @override

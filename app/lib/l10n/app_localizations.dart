@@ -1478,6 +1478,354 @@ abstract class AppLocalizations {
   /// **'Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.'**
   String get transportBluetoothDiscoverable;
 
+  /// No description provided for @keyboardAddon.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klawiatura z PC'**
+  String get keyboardAddon;
+
+  /// No description provided for @keyboardAddonHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.'**
+  String get keyboardAddonHelp;
+
+  /// No description provided for @remoteInputReceive.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pozwól pisać na tym urządzeniu'**
+  String get remoteInputReceive;
+
+  /// No description provided for @remoteInputReceiveHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.'**
+  String get remoteInputReceiveHelp;
+
+  /// No description provided for @remoteInputSafety.
+  ///
+  /// In pl, this message translates to:
+  /// **'Drugie urządzenie pisze tu jak zwykła klawiatura: może wysłać wiadomość, zatwierdzić formularz, wpisać hasło. Sesja trwa do Stopu albo do pół godziny bez pisania.'**
+  String get remoteInputSafety;
+
+  /// No description provided for @remoteInputUnsupported.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie z innego urządzenia przyjmują Android i Windows.'**
+  String get remoteInputUnsupported;
+
+  /// No description provided for @remoteInputRequestTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} chce pisać na tym urządzeniu'**
+  String remoteInputRequestTitle(Object name);
+
+  /// No description provided for @remoteInputRequestBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tekst trafi do pola, które ma fokus, w dowolnej aplikacji, aż do Stopu.'**
+  String get remoteInputRequestBody;
+
+  /// No description provided for @remoteInputActive.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisze: {name}'**
+  String remoteInputActive(Object name);
+
+  /// No description provided for @remoteInputStop.
+  ///
+  /// In pl, this message translates to:
+  /// **'Stop'**
+  String get remoteInputStop;
+
+  /// No description provided for @remoteInputBarTarget.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisze: {name} → {app}'**
+  String remoteInputBarTarget(Object name, Object app);
+
+  /// No description provided for @trayRemoteInputStop.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zatrzymaj zdalną klawiaturę'**
+  String get trayRemoteInputStop;
+
+  /// No description provided for @remoteInputSwitchTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przełącz klawiaturę na Chatt'**
+  String get remoteInputSwitchTitle;
+
+  /// No description provided for @remoteInputSwitchBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} pisze na tym urządzeniu. Dotknij i wybierz klawiaturę Chatt.'**
+  String remoteInputSwitchBody(Object name);
+
+  /// No description provided for @remoteInputImeOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie z innego urządzenia przechodzi przez klawiaturę Chatt. Włącz ją raz w ustawieniach systemu.'**
+  String get remoteInputImeOff;
+
+  /// No description provided for @remoteInputImeWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt niczego z Twoich pól nie wysyła: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.'**
+  String get remoteInputImeWarning;
+
+  /// No description provided for @remoteInputImeEnable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Włącz klawiaturę Chatt'**
+  String get remoteInputImeEnable;
+
+  /// No description provided for @remoteInputImeNotSelected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Na czas pisania wybierz klawiaturę Chatt. Po sesji wraca poprzednia.'**
+  String get remoteInputImeNotSelected;
+
+  /// No description provided for @remoteInputImePick.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz klawiaturę'**
+  String get remoteInputImePick;
+
+  /// No description provided for @remoteInputImeReady.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klawiatura Chatt jest włączona.'**
+  String get remoteInputImeReady;
+
+  /// No description provided for @remoteInputSendHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz klawiaturę u góry ekranu.'**
+  String get remoteInputSendHint;
+
+  /// No description provided for @remoteInputDontAskAgain.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie pytaj więcej dla tego urządzenia'**
+  String get remoteInputDontAskAgain;
+
+  /// No description provided for @remoteInputBannerTarget.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} pisze do: {app}'**
+  String remoteInputBannerTarget(Object name, Object app);
+
+  /// No description provided for @remoteInputAllowTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie bez pytania'**
+  String get remoteInputAllowTitle;
+
+  /// No description provided for @remoteInputAllowBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'To urządzenie zaczyna pisać tutaj bez karty zgody. Pasek „Pisze” ze Stopem pokazuje się jak zawsze. Działa tylko przy potwierdzonej tożsamości i włączonym pisaniu w dodatku „Klawiatura z PC”.'**
+  String get remoteInputAllowBody;
+
+  /// No description provided for @remoteKeyboardOpen.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisz na tamtym urządzeniu'**
+  String get remoteKeyboardOpen;
+
+  /// No description provided for @remoteKeyboardNeedsVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie na tamtym urządzeniu wymaga potwierdzonej tożsamości'**
+  String get remoteKeyboardNeedsVerified;
+
+  /// No description provided for @remoteKeyboardTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Piszesz na: {name}'**
+  String remoteKeyboardTitle(Object name);
+
+  /// No description provided for @remoteKeyboardWaiting.
+  ///
+  /// In pl, this message translates to:
+  /// **'Czekam na zgodę na urządzeniu {name}. Otwórz tam Chatt.'**
+  String remoteKeyboardWaiting(Object name);
+
+  /// No description provided for @remoteKeyboardWaitingHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Telefon z Androidem pokaże powiadomienie, jeśli Chatt ma zgodę na powiadomienia.'**
+  String get remoteKeyboardWaitingHint;
+
+  /// No description provided for @remoteKeyboardTarget.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisze do: {app}'**
+  String remoteKeyboardTarget(Object app);
+
+  /// No description provided for @remoteKeyboardTargetPassword.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisze do: {app} · pole hasła'**
+  String remoteKeyboardTargetPassword(Object app);
+
+  /// No description provided for @remoteKeyboardNoField.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak pola do pisania. Stuknij pole na tamtym urządzeniu; na Androidzie z wybraną klawiaturą Chatt.'**
+  String get remoteKeyboardNoField;
+
+  /// No description provided for @remoteKeyboardElevated.
+  ///
+  /// In pl, this message translates to:
+  /// **'Okno z uprawnieniami administratora. Tam nic się nie wpisze.'**
+  String get remoteKeyboardElevated;
+
+  /// No description provided for @remoteKeyboardLocked.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tamto urządzenie jest zablokowane albo ma wygaszony ekran.'**
+  String get remoteKeyboardLocked;
+
+  /// No description provided for @remoteKeyboardPaused.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wstrzymane: na tamtym urządzeniu czeka pytanie. Pisanie wróci po odpowiedzi.'**
+  String get remoteKeyboardPaused;
+
+  /// No description provided for @remoteKeyboardLocalCard.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odpowiedz na pytanie u góry, potem pisz dalej.'**
+  String get remoteKeyboardLocalCard;
+
+  /// No description provided for @remoteKeyboardEnded.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sesję zakończono na urządzeniu {name}.'**
+  String remoteKeyboardEnded(Object name);
+
+  /// No description provided for @remoteKeyboardLost.
+  ///
+  /// In pl, this message translates to:
+  /// **'Połączenie zerwane.'**
+  String get remoteKeyboardLost;
+
+  /// No description provided for @remoteKeyboardReconnect.
+  ///
+  /// In pl, this message translates to:
+  /// **'Połącz ponownie'**
+  String get remoteKeyboardReconnect;
+
+  /// No description provided for @remoteKeyboardModeLive.
+  ///
+  /// In pl, this message translates to:
+  /// **'Znak po znaku'**
+  String get remoteKeyboardModeLive;
+
+  /// No description provided for @remoteKeyboardModeCompose.
+  ///
+  /// In pl, this message translates to:
+  /// **'Całość naraz'**
+  String get remoteKeyboardModeCompose;
+
+  /// No description provided for @remoteKeyboardLiveHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisz tutaj. Każdy znak od razu trafia na tamto urządzenie.'**
+  String get remoteKeyboardLiveHint;
+
+  /// No description provided for @remoteKeyboardKeysHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Enter zatwierdza pole, Shift+Enter to nowa linia, Backspace i Delete kasują na tamtym urządzeniu.'**
+  String get remoteKeyboardKeysHint;
+
+  /// No description provided for @remoteKeyboardComposeHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Napisz tekst i wyślij go w całości.'**
+  String get remoteKeyboardComposeHint;
+
+  /// No description provided for @remoteKeyboardSend.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyślij'**
+  String get remoteKeyboardSend;
+
+  /// No description provided for @remoteKeyboardThenEnter.
+  ///
+  /// In pl, this message translates to:
+  /// **'Potem Enter'**
+  String get remoteKeyboardThenEnter;
+
+  /// No description provided for @remoteKeyboardPaste.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wklej ze schowka'**
+  String get remoteKeyboardPaste;
+
+  /// No description provided for @remoteKeyboardClipboardEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'W schowku nie ma tekstu.'**
+  String get remoteKeyboardClipboardEmpty;
+
+  /// No description provided for @remoteKeyboardTooLong.
+  ///
+  /// In pl, this message translates to:
+  /// **'Za dużo tekstu naraz. Wyślij go w częściach.'**
+  String get remoteKeyboardTooLong;
+
+  /// No description provided for @remoteKeyboardRejected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Urządzenie {name} odmówiło.'**
+  String remoteKeyboardRejected(Object name);
+
+  /// No description provided for @remoteKeyboardNotEnabled.
+  ///
+  /// In pl, this message translates to:
+  /// **'Na urządzeniu {name} pisanie jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.'**
+  String remoteKeyboardNotEnabled(Object name);
+
+  /// No description provided for @remoteKeyboardNoAnswer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Urządzenie {name} nie odpowiedziało na prośbę.'**
+  String remoteKeyboardNoAnswer(Object name);
+
+  /// No description provided for @remoteKeyboardBusy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Na urządzeniu {name} pisze już ktoś inny.'**
+  String remoteKeyboardBusy(Object name);
+
+  /// No description provided for @remoteKeyboardOlderPeer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Urządzenie {name} ma starszą wersję Chatt, bez zdalnej klawiatury.'**
+  String remoteKeyboardOlderPeer(Object name);
+
+  /// No description provided for @remoteKeyboardUnreachable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się połączyć z urządzeniem {name}.'**
+  String remoteKeyboardUnreachable(Object name);
+
+  /// No description provided for @remoteKeyboardNotVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Najpierw potwierdź tożsamość tego urządzenia.'**
+  String get remoteKeyboardNotVerified;
+
+  /// No description provided for @remoteKeyboardAddonOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dodatek „Klawiatura z PC” jest wyłączony.'**
+  String get remoteKeyboardAddonOff;
+
   /// No description provided for @viaWifi.
   ///
   /// In pl, this message translates to:
