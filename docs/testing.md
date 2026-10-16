@@ -692,9 +692,18 @@ Enter, so nothing goes out) and the text is deleted again; switching the
 add-on off takes the Chatt
 keyboard off the system's list, and switching it on brings it back. Shared
 helpers for the device scenarios live in `tool/uiautomator.dart`. With
-`CHATT_SHOTS=1` the run also saves the consent card, the Chatt keyboard's bar
-while typing and the "Typing" bar into `docs/screenshots/android/` (`and23` to
-`and25`); without it the run changes nothing in the repository.
+`CHATT_SHOTS=1` the run also saves the pictures of `docs/keyboard.md` into
+`docs/screenshots/android/` (`and23` to `and30`). It first turns the Chatt
+keyboard on the way a user does, in the system's keyboard settings, and saves
+the add-on's card and Android's warnings (the second one only when Android
+shows it). The Contacts step then saves the keyboard picker and the Chatt
+keyboard's bar while typing, the emulator-only password step the "Switch the
+keyboard to Chatt" notification, and the step in Chatt's own message field
+the consent card and the "Typing" bar in the app. The notification picture is
+cropped to Chatt's two notifications only on a Windows host, with rows fixed
+for the Pixel 9 Pro emulator (1280x2856), and on a phone the run saves no
+`and30`. The sender is called "Office PC" then. Without the variable the run
+changes nothing in the repository.
 
 The run on the emulator (Pixel 9 Pro, API 37) found two things the unit tests
 cannot: the navigation bar drawn over the keyboard bar, with the
@@ -965,13 +974,22 @@ the engine (`RepaintBoundary.toImage`). There are no private conversations in
 the screenshots, and the result is the same on every machine.
 `CHATT_SHOTS_LANG=en` gives the English version. One trap: the harness replaces
 `HttpClient` with a fake answering 400, so the script restores the real one
-(`HttpOverrides.global = null`). Two more tests, run alone with
-`--plain-name klawiatury`, take the keyboard add-on: one the sender's screen
-typing to a phone (06), the other the consent card on this PC (07) and the
-"Typing" bar over the add-on's card (08). They do all their networking before
-`pumpWidget`: a request sent under the harness's fake clock can fail on a
-pooled connection, though the same run outside the harness takes
-milliseconds.
+(`HttpOverrides.global = null`). Three more tests, run alone with
+`--plain-name klawiatury`, take the keyboard add-on for `docs/keyboard.md`:
+the sender's screen typing to a phone (06); the keyboard button in the
+conversation (09), "Typing without asking" in the security sheet (10) and
+the sender's screen in every state, driven by a link the test controls
+(waiting 11, a password field 12, Compose 13, paused 14, an administrator's
+window 15, the link dropped 16); and the consent card on this PC (07) with
+the "Typing" bar over the add-on's card (08). They do all their networking
+before `pumpWidget`: a request sent under the harness's fake clock can fail on
+a pooled connection, though the same run outside the harness takes
+milliseconds. Before every capture the script repaints every node with
+shadows on (cards in scrolled lists sit on layers of their own and kept the
+outline the harness draws while shadows are off), and it loads Consolas as the
+`monospace` font for the fingerprints. The floating bar (17) is the one
+picture taken from the live desktop: `GetWindowRect` of the
+`ChattRemoteInputBar` window during a session, cropped to the bar alone.
 
 ### `tool/store_assets.py`
 Draws the README banner (`docs/promo.png`), the only graphic in the repository

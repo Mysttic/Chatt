@@ -1142,8 +1142,10 @@ clips `app` and `appLabel` at 96 bytes of JSON, whole characters only.
   to the current keyboard, so Chatt cannot switch keyboards from the
   background.
 - **Chatt's own fields take typing.** The keyboard works as a keyboard
-  everywhere the user goes, Chatt included, so a remote Enter in Chatt's
-  message field sends a message, as it would in any other messenger. Chatt's
+  everywhere the user goes, Chatt included. On Windows a remote Enter in
+  Chatt's message field sends a message, as it would in any other messenger;
+  on Android that field holds several lines, so the Chatt keyboard's Enter
+  starts a new line there and the message goes out with the Send button. Chatt's
   cards (a file, a pairing code, a typing request) stay out of reach: while
   any card waits, the packet is answered `paused` and nothing is typed, and
   `holdOwnApp` stops a packet already being typed into Chatt's window before

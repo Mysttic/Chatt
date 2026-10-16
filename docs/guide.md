@@ -295,6 +295,9 @@ hardware yet.
 
 ## Typing from a PC's keyboard
 
+The add-on has a page of its own, step by step, with pictures from Windows
+and Android: [Keyboard from a PC](keyboard.md). Below is the short version.
+
 A phone, a tablet or a PC run by touch alone has no keyboard worth the name.
 The **Keyboard from a PC** add-on lends it the PC's: you point at a field on
 that device with a tap or a click, and what you type on the PC lands in that
@@ -410,7 +413,8 @@ broke off (the link went down, Stop over there) leaves the screen open with
 **Without asking.** "Don't ask again" on the card, or **Typing without asking**
 in the conversation's security panel (there only with the add-on on), lets
 that one device start typing without the card. The bars and Stop show as
-always. It works only with a green shield and goes off with the confirmation.
+always. It works only with a green shield and goes away with the device when
+you delete its conversation (and the device with it) from the list.
 
 **What does not work.** Lock screens, and on Android a screen that is off. On
 Windows,

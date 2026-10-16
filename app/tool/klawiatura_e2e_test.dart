@@ -94,7 +94,8 @@ void main() {
     final nadawca = await AppServices.start(
       executor: NativeDatabase.memory(),
       portOverride: 0,
-      nameOverride: 'Nadawca e2e',
+      // Inna nazwa przy zrzutach do dokumentacji (CHATT_NAZWA_NADAWCY).
+      nameOverride: Platform.environment['CHATT_NAZWA_NADAWCY'] ?? 'Nadawca e2e',
       enableDiscovery: false,
       receivedDirOverride: p.join(katalog.path, 'odebrane'),
     );

@@ -84,7 +84,9 @@ pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
 |---|---|
 | <img src="docs/screenshots/windows/pl/06_klawiatura_pisanie.png" alt="Pisanie z komputera na telefonie" width="380"> | <img src="docs/screenshots/windows/pl/07_klawiatura_zgoda.png" alt="Karta zgody" width="380"> |
 
-Oba opisuje [instrukcja obsługi](docs/guide.pl.md).
+Oba opisuje [instrukcja obsługi](docs/guide.pl.md); klawiatura ma własną
+stronę, krok po kroku, z obrazkami z obu systemów:
+[Klawiatura z PC](docs/keyboard.pl.md).
 
 Platformy: **Windows** i **Android**. Oba urządzenia muszą być w tej samej
 sieci albo, z dodatkiem Bluetooth, w zasięgu radia. Trybu przez internet nie

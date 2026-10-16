@@ -16,6 +16,23 @@ keyboard of their own. Windows types into the window in front, Android through
 a keyboard of Chatt's own, and every session starts with consent on the
 receiving device.
 
+**Keyboard from a PC, in short.** Turn the add-on on in Settings, Add-ons, on
+both devices, and on the device you want to type on also "Allow typing on
+this device" (on Android, turn the Chatt keyboard on once in the system, from
+the add-on's card). Then open the conversation with that device on the PC and
+pick the keyboard button at the top. Over there a card asks for consent; on
+Android, Accept also offers the keyboard picker. Tap the field you want, and
+what you type on the PC lands there: Live sends each character as you type
+it, Compose sends a whole text in one go, and Paste from clipboard sends the
+PC's clipboard text. On Windows a floating bar with Stop stays on top for the
+whole session; on Android the Chatt keyboard's bar with Stop shows where the
+keyboard usually is, and the permanent notification says who is typing until
+the session ends. A line on the PC says where the typing goes or why nothing
+gets typed. Only between devices with a confirmed identity, encrypted like
+messages, over the network or the radio, and nothing typed is stored
+anywhere. Every step is pictured in
+[docs/keyboard.md](docs/keyboard.md) ([polski](docs/keyboard.pl.md)).
+
 ### Added
 - **Keyboard from a PC, the second add-on.** Settings → Add-ons gains a card
   for it, off by default and under the rules the Bluetooth add-on set: while it
@@ -113,6 +130,14 @@ receiving device.
   stolen verified device.
 
 ### Changed
+- **A page of its own for the keyboard**: `docs/keyboard.md` and
+  `docs/keyboard.pl.md`, step by step with screenshots from Windows (both
+  languages) and Android: turning it on, the Chatt keyboard and Android's
+  two warnings, consent, the picker, Live and Compose, passwords, the bars and
+  notifications on the device being typed on, every status line, lock
+  screens, stopping, typing without asking, Bluetooth, security, the measured
+  speed and a troubleshooting table. The READMEs, the documentation index and
+  the guide link to it.
 - **Both READMEs, the user guide and the privacy policy cover the add-ons.**
   The READMEs gain an Add-ons section for Bluetooth and the keyboard, the guide
   a section on typing from a PC's keyboard in both languages, and the privacy

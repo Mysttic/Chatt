@@ -118,6 +118,9 @@ Bolą dopiero pliki.
 
 ## Dodatek „Klawiatura z PC”
 
+Dodatek ma własną stronę, krok po kroku, z obrazkami z Windows i z Androida:
+[Klawiatura z PC](keyboard.pl.md). Niżej jest wersja skrócona.
+
 Telefon, tablet albo komputer obsługiwany samym dotykiem nie ma porządnej
 klawiatury. Dodatek **Klawiatura z PC** pożycza mu klawiaturę komputera:
 wskazujesz pole na tamtym urządzeniu stuknięciem albo kliknięciem, a to, co
@@ -238,8 +241,8 @@ otwarty z przyciskiem **Połącz ponownie**.
 **Bez pytania.** „Nie pytaj więcej” na karcie albo **Pisanie bez pytania**
 w panelu bezpieczeństwa rozmowy (widoczne tylko przy włączonym dodatku)
 pozwala temu jednemu urządzeniu zacząć pisać bez karty. Paski i Stop pokazują
-się jak zawsze. Działa wyłącznie przy zielonej tarczy i gaśnie razem
-z potwierdzeniem.
+się jak zawsze. Działa wyłącznie przy zielonej tarczy i znika razem
+z urządzeniem, gdy usuniesz z listy rozmowę z nim (a z nią urządzenie).
 
 **Czego nie ma.** Ekranu blokady, a na Androidzie także wygaszonego ekranu. Na
 Windowsie okien

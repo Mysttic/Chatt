@@ -98,7 +98,9 @@ nothing.
 |---|---|
 | <img src="docs/screenshots/windows/en/06_klawiatura_pisanie.png" alt="Typing on a phone from a PC" width="380"> | <img src="docs/screenshots/windows/en/07_klawiatura_zgoda.png" alt="The consent card" width="380"> |
 
-Both are described in the [user guide](docs/guide.md).
+Both are described in the [user guide](docs/guide.md); the keyboard has a
+page of its own, step by step with pictures from both systems:
+[Keyboard from a PC](docs/keyboard.md).
 
 Platforms: **Windows** and **Android**. Both devices must be on the same
 network, or within radio range with the Bluetooth add-on. There is no internet
