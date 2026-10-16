@@ -12,6 +12,8 @@ body:
         - Files
         - Encryption or identity confirmation
         - Background listening (Android service, Windows tray)
+        - Bluetooth add-on
+        - Keyboard from a PC add-on (typing on another device)
         - Settings, appearance, language
         - Build, CI or release package
         - Documentation
@@ -34,6 +36,7 @@ body:
         - Android
         - Both
         - Between a Windows PC and an Android phone
+        - Between two Windows PCs
     validations:
       required: true
   - type: textarea

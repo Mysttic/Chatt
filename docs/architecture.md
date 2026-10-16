@@ -504,9 +504,8 @@ of its own: in the conversation's field Enter sends a message.
   masked until it leaves the field (Enter, Send, a mode switch), even when the
   focus over there moves on to an ordinary field.
 - **The status line** says where the typing goes ("Typing into: Notes",
-  "· password field") or why nothing gets typed: Chatt in front over there,
-  a locked or dark screen, an administrator's window, no field, a card waiting
-  over there (`paused`). With the Bluetooth add-on on it shows the road, and
+  "· password field") or why nothing gets typed: a locked or dark screen, an
+  administrator's window, no field, a card waiting over there (`paused`). With the Bluetooth add-on on it shows the road, and
   always the round trip.
 - **A card on this device** (a file offer, a pairing code, a typing request)
   stops the typing, and the status line says so. A card takes the focus a
@@ -556,6 +555,7 @@ of the channel, is its default. Tests put in their own sink through
 | `status` | none | the target |
 | `apply` | `{ops: [...]}`, only `insert`, `bs`, `del` and `action` | the target plus `applied` |
 | `setSession` | `{active, peerName}` | none |
+| `holdOwnApp` | `{on}` | none |
 | `setImeEnabled` | `{on}` | `{ok}` |
 | `showIndicator` | `{text, stop}` | `{ok}` |
 | `hideIndicator` | none | `{ok}` |
@@ -569,14 +569,22 @@ keyboard component on and off, so with the add-on off Chatt is absent from the
 system's list of keyboards. `setSession` comes when a grant starts and ends, so
 the native side can show or hide its indicator, and `status` and `apply` only
 under a grant. The sink refuses by itself, answering `applied: false`, when the
-focus is in Chatt (`ownApp`: a remote Enter sends no message and clicks no
-card), when the screen is locked or dark (`locked`), and on Windows in front of
-an elevated window (`elevated`), where `SendInput` types nothing and reports
-nothing. The channel never throws: a missing native side, a
+screen is locked or dark (`locked`), and on Windows in front of an elevated
+window (`elevated`), where `SendInput` types nothing and reports nothing.
+Chatt's own fields take typing like any other (`ownApp` only tells the sender
+that Chatt is in front), except while `holdOwnApp` is on: Dart turns it on
+under a grant the moment a card starts waiting (a file, a pairing code, a
+typing request) or this device starts typing on another one, and off when
+that is over. While it is on, the native side reports Chatt's own window as
+not active, and on Windows a packet that is being typed into it stops before
+its next key, so a remote Enter never lands on a card that came up in the
+middle of a long paste. A device's own typing screen would otherwise forward
+what is typed into it to the third device, and two sessions in opposite
+directions would echo forever. The channel never throws: a missing native side, a
 `PlatformException` or a test without a binding all end as "nowhere to type",
 and on a platform other than Android and Windows it makes no call. A call that
 gets no answer within 5 seconds ends the same way, so a native side that hangs
-cannot hold up the packets behind it; `apply` gets 20 ms more for every
+cannot hold up the packets behind it; `apply` gets 50 ms more for every
 character and every Backspace or Delete in the packet
 (`remoteInputTypingTime`), because typing is paced, and the sender adds the
 same to the packet's time limit.
@@ -617,10 +625,18 @@ password fields and WebViews included, which is why the add-on goes this way.
   `bs` removes a whole emoji, with key events as the fallback for a field that
   refuses; `action` is `performEditorAction` with the field's action (Search,
   Send, Go, Next, Previous, Done) and Enter when the field has none.
-- **Refusals:** a field of Chatt's own (`ownApp`), a locked keyguard or a
-  screen that is off (`locked`), and no bound field at all. When the keyboard
-  starts input under the keyguard, it switches back to the previous keyboard
-  at once, so a password lock screen never meets a keyboard without keys.
+- **Refusals:** a locked keyguard or a screen that is off (`locked`), and no
+  bound field at all. Chatt's own fields take typing like any other app's.
+  When the keyboard starts input in the lock screen's password field (a
+  SystemUI field, or any password field while the keyguard is locked), it
+  switches back to the previous keyboard at once, so a password lock screen
+  never meets a keyboard without keys. During a grant the native side then
+  calls `keyboardLost` and Dart posts "Switch the keyboard to Chatt" right
+  away: the notification waits for the unlock, and one tap brings the typing
+  back. (Waiting for `ACTION_USER_PRESENT` does not work: once the keyboard is
+  unbound Android defers that broadcast to Chatt's cached process.) A field of
+  an app under a lock screen without a password keeps the Chatt keyboard, and
+  a PIN pad is not a keyboard, so with a PIN the Chatt keyboard simply stays.
 - **The end of a grant** switches back to the keyboard the user had before
   (`switchToPreviousInputMethod`).
 - **Picking the keyboard.** Android shows its keyboard picker only to the
@@ -653,31 +669,46 @@ screen or not.
   independent of the keyboard layout and with no modifier key; a newline,
   `action` and Enter are `VK_RETURN`, Backspace `VK_BACK`, Delete the extended
   `VK_DELETE`.
-- **One character at a time, a millisecond apart.** A burst of events in one
-  `SendInput` call, or one call per character with no pause, garbles the text
-  in WinUI apps: the Windows 11 Notepad typed the last letter over and over
-  after the first few. With 1 ms between characters it typed every one,
-  Polish letters included. Typing runs on its own thread with
-  `timeBeginPeriod(1)`, and the reply goes back through a message-only window,
-  the one place where a channel call may be answered. Before each character the
-  sink checks whether the foreground window changed; when the new one is
-  Chatt, the lock screen or an elevated window, the rest of the packet is
-  dropped and `applied` is false.
+- **One character at a time, 10 ms apart, 40 ms after a space or Enter.** A
+  character sent with `KEYEVENTF_UNICODE` arrives as `VK_PACKET`, and the app
+  reads it only when it handles the event; the next `SendInput` overwrites it.
+  An app that falls behind loses characters or repeats the last one. The
+  Windows 11 Notepad (WinUI, with its spell checker) falls behind at word
+  boundaries: checked live, 1 ms between characters turned "Chatt ąęł 124"
+  into "Chatt 4444443", 10 ms still lost a letter after a space, and 10 ms
+  with 40 ms after spaces and Enter typed twelve lines of Polish text without
+  a mistake. Typing runs on its own thread with `timeBeginPeriod(1)`, and the
+  reply goes back through a message-only window, the one place where a
+  channel call may be answered. Before each character the sink checks whether
+  the foreground window changed or `holdOwnApp` is on; when the target is no
+  longer active (the lock screen, an elevated window, Chatt's own window on
+  hold), the rest of the packet is dropped and `applied` is false. Stop on
+  the bar or in the tray, and the end of the grant, bump a counter that the
+  typing thread checks before each character too, so even a 4096-character
+  paste stops at once.
 - **The target.** The foreground window's process gives `app` (the file name)
   and `appLabel` (the version resource's `FileDescription`, or else the file
   name); a Store app behind `ApplicationFrameHost.exe` is looked up in its
-  child window. Any running `chatt.exe` counts as `ownApp`. `locked` means the
+  child window. Any running `chatt.exe` counts as `ownApp`, which is only
+  information for the sender: typing goes there too. `locked` means the
   input desktop is not `Default` (the lock screen, a UAC prompt) or cannot be
   opened. `elevated` compares integrity levels: `SendInput` cannot reach a
   window above its own and reports nothing, and a process whose token cannot
-  even be read is treated as above.
+  even be read is treated as above. Only this process's own window skips the
+  check; another Chatt instance run as administrator is `elevated` like any
+  other program.
 - **The kind of field** comes from UI Automation (`GetFocusedElement`:
   `IsPassword` gives `password`, an Edit or Document control `text`, anything
   else `none`). It runs on a thread of its own with its own COM apartment and
   the `IUIAutomation2` limits at 400 ms, and the platform thread waits at most
   600 ms; an app that hangs gives `none`, and while the thread is still stuck
   on the last question, the answer is `none` at once. The thread starts at the
-  first question, which only a grant asks.
+  first question, which only a grant asks. Chatt's own window is never asked:
+  UI Automation would ask the platform thread that is waiting for the answer,
+  so the question timed out with `none` and froze the window for 400 ms on
+  every ping. The native side reports `ownWindow` instead, and Dart fills in
+  the field from the widget tree (`focusedFieldKind`: an `EditableText` with
+  the focus is `text`, `password` when obscured, `none` when read-only).
 - **The floating bar** ("Typing: Alicja → Notepad" with Stop) stays on top
   for the whole grant, also with the Chatt window in the tray. It never takes
   the focus (`WS_EX_NOACTIVATE`, `MA_NOACTIVATE`, `PA_NOACTIVATE`), like the
@@ -1110,11 +1141,18 @@ clips `app` and `appLabel` at 96 bytes of JSON, whole characters only.
   session. Android shows the keyboard picker only to the window with focus or
   to the current keyboard, so Chatt cannot switch keyboards from the
   background.
-- **Chatt's own fields are guarded in native code.** A remote Enter in the
-  message field would send a message, so the sinks refuse to type while the
-  focus is in Chatt (`ownApp`, any running instance on Windows). That refusal
-  comes with the sinks themselves in phases 2 and 3; the Dart side holds
-  packets back only while a card is waiting.
+- **Chatt's own fields take typing.** The keyboard works as a keyboard
+  everywhere the user goes, Chatt included. On Windows a remote Enter in
+  Chatt's message field sends a message, as it would in any other messenger;
+  on Android that field holds several lines, so the Chatt keyboard's Enter
+  starts a new line there and the message goes out with the Send button. Chatt's
+  cards (a file, a pairing code, a typing request) stay out of reach: while
+  any card waits, the packet is answered `paused` and nothing is typed, and
+  `holdOwnApp` stops a packet already being typed into Chatt's window before
+  its next key. A file card that comes up during a grant takes the focus on
+  Reject, so an Enter that got there first can only refuse. The same hold
+  covers a device that is itself typing on another one, so its own typing
+  screen never relays or echoes what it receives.
 
 ## Android: background listening
 

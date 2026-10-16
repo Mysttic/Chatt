@@ -1571,7 +1571,7 @@ abstract class AppLocalizations {
   /// No description provided for @remoteInputImeWarning.
   ///
   /// In pl, this message translates to:
-  /// **'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt nie czyta pól: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.'**
+  /// **'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt niczego z Twoich pól nie wysyła: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.'**
   String get remoteInputImeWarning;
 
   /// No description provided for @remoteInputImeEnable.
@@ -1615,12 +1615,6 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'{name} pisze do: {app}'**
   String remoteInputBannerTarget(Object name, Object app);
-
-  /// No description provided for @remoteInputOwnAppNote.
-  ///
-  /// In pl, this message translates to:
-  /// **'Nic się nie wpisze, dopóki Chatt jest na wierzchu.'**
-  String get remoteInputOwnAppNote;
 
   /// No description provided for @remoteInputAllowTitle.
   ///
@@ -1681,12 +1675,6 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Brak pola do pisania. Stuknij pole na tamtym urządzeniu; na Androidzie z wybraną klawiaturą Chatt.'**
   String get remoteKeyboardNoField;
-
-  /// No description provided for @remoteKeyboardOwnApp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Na tamtym urządzeniu na wierzchu jest Chatt. Przejdź tam do aplikacji, w której chcesz pisać.'**
-  String get remoteKeyboardOwnApp;
 
   /// No description provided for @remoteKeyboardElevated.
   ///

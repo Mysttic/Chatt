@@ -897,7 +897,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get remoteInputImeWarning =>
-      'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt nie czyta pól: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.';
+      'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt niczego z Twoich pól nie wysyła: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.';
 
   @override
   String get remoteInputImeEnable => 'Włącz klawiaturę Chatt';
@@ -923,10 +923,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String remoteInputBannerTarget(Object name, Object app) {
     return '$name pisze do: $app';
   }
-
-  @override
-  String get remoteInputOwnAppNote =>
-      'Nic się nie wpisze, dopóki Chatt jest na wierzchu.';
 
   @override
   String get remoteInputAllowTitle => 'Pisanie bez pytania';
@@ -969,10 +965,6 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get remoteKeyboardNoField =>
       'Brak pola do pisania. Stuknij pole na tamtym urządzeniu; na Androidzie z wybraną klawiaturą Chatt.';
-
-  @override
-  String get remoteKeyboardOwnApp =>
-      'Na tamtym urządzeniu na wierzchu jest Chatt. Przejdź tam do aplikacji, w której chcesz pisać.';
 
   @override
   String get remoteKeyboardElevated =>

@@ -894,7 +894,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remoteInputImeWarning =>
-      'Android will warn that a keyboard can collect what you type. The Chatt keyboard reads no fields: it types what comes from the device you allow to type.';
+      'Android will warn that a keyboard can collect what you type. The Chatt keyboard sends nothing from your fields: it types what comes from the device you allow to type.';
 
   @override
   String get remoteInputImeEnable => 'Turn on the Chatt keyboard';
@@ -920,10 +920,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String remoteInputBannerTarget(Object name, Object app) {
     return '$name is typing into $app';
   }
-
-  @override
-  String get remoteInputOwnAppNote =>
-      'Nothing is typed while Chatt is in front.';
 
   @override
   String get remoteInputAllowTitle => 'Typing without asking';
@@ -966,10 +962,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get remoteKeyboardNoField =>
       'No field to type into. Tap a field on that device; on Android, with the Chatt keyboard picked.';
-
-  @override
-  String get remoteKeyboardOwnApp =>
-      'Chatt is in front on that device. Switch there to the app you want to type in.';
 
   @override
   String get remoteKeyboardElevated =>

@@ -125,9 +125,16 @@ class ChattInputMethod : InputMethodService() {
 
     override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        // Ekran blokady z hasłem wpisuje się bieżącą klawiaturą, a ta nie ma
-        // klawiszy: wracamy do poprzedniej, żeby dało się odblokować telefon.
-        if (getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) {
+        // Pole hasła na ekranie blokady wpisuje się bieżącą klawiaturą, a ta
+        // nie ma klawiszy: wracamy do poprzedniej, żeby dało się odblokować
+        // telefon, a powiadomienie zaprasza potem z powrotem. Pole aplikacji
+        // pod ekranem blokady bez hasła klawiatury nie zabiera: pisanie i tak
+        // stoi, dopóki ekran jest zablokowany, a po odblokowaniu wraca samo.
+        val blokada = getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
+        val ekranBlokady = attribute.packageName == "com.android.systemui" ||
+            ChattRemoteInput.isPassword(attribute)
+        if (blokada && ekranBlokady) {
+            ChattRemoteInput.keyboardYieldedToLock()
             switchBack()
         }
         ChattService.retryStart(this)

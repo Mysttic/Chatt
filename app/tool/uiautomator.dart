@@ -5,6 +5,7 @@
 // Zmienne: ADB (ścieżka do adb), CHATT_DEVICE (id urządzenia z `adb devices`,
 // domyślnie emulator-5554).
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -14,12 +15,27 @@ String get deviceId => Platform.environment['CHATT_DEVICE'] ?? 'emulator-5554';
 /// Wyjście adb czytamy jako UTF-8. Przy kodowaniu systemowym Windows
 /// „Odrzuć" ze zrzutu drzewa widoków wracało jako „OdrzuÄ‡" i żadne
 /// wyszukiwanie po polskiej etykiecie nie trafiało.
-Future<ProcessResult> adb(List<String> args) => Process.run(
-      adbPath,
-      ['-s', deviceId, ...args],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-    );
+///
+/// Każde wywołanie ma limit czasu. `uiautomator dump` potrafi zawisnąć na
+/// telefonie (czeka na „spokojne" okno, którego nie ma), a wtedy razem z nim
+/// wisiał cały scenariusz, a zawieszone klienty adb zatykały serwer adb.
+/// Po limicie proces adb jest zabijany, a wynik ma kod -1.
+Future<ProcessResult> adb(List<String> args,
+    {Duration limit = const Duration(seconds: 30)}) async {
+  final proces = await Process.start(adbPath, ['-s', deviceId, ...args]);
+  final wyjscie = proces.stdout.transform(utf8.decoder).join();
+  final bledy = proces.stderr.transform(utf8.decoder).join();
+  final kod = await proces.exitCode.timeout(limit, onTimeout: () {
+    proces.kill();
+    return -1;
+  });
+  return ProcessResult(
+    proces.pid,
+    kod,
+    await wyjscie.timeout(const Duration(seconds: 2), onTimeout: () => ''),
+    await bledy.timeout(const Duration(seconds: 2), onTimeout: () => ''),
+  );
+}
 
 /// Jeden węzeł drzewa widoków: to, po czym go szukamy, i jego środek.
 class UiNode {
@@ -73,7 +89,12 @@ Future<List<UiNode>?> uiNodes() async {
       'shell', 'uiautomator', 'dump',
       if (proba.isEven) '--windows',
       dump,
-    ]);
+    ], limit: const Duration(seconds: 15));
+    if (dumped.exitCode == -1) {
+      // Zawieszony zrzut na urządzeniu blokuje następne: zabić go tam.
+      await adb(['shell', 'pkill', '-f', 'uiautomator']);
+      continue;
+    }
     if (!'${dumped.stdout}'.contains(dump)) continue;
     final xml = (await adb(['shell', 'cat', dump])).stdout as String;
     final wezly = <UiNode>[];
@@ -102,34 +123,66 @@ Future<List<UiNode>?> uiNodes() async {
 /// [timeout] nic takiego się nie pojawiło. [fragment] dopasowuje po kawałku
 /// opisu, bo Flutter potrafi scalić całą kartę czy wiersz listy w jeden węzeł.
 /// Ta sama etykieta bywa na ekranie kilka razy; [ostatni] bierze najniższą.
+/// [pakiet] zawęża szukanie do jednej aplikacji: na telefonie, którego ktoś
+/// używa, „Ustawienia" stoją też w menu klawiatury.
 Future<(int, int)?> findWidget(
   String label, {
   Duration timeout = const Duration(seconds: 15),
   bool fragment = false,
   bool ostatni = false,
+  String? pakiet,
+}) async =>
+    (await findAnyWidget([label],
+            timeout: timeout,
+            fragment: fragment,
+            ostatni: ostatni,
+            pakiet: pakiet))
+        ?.$2;
+
+/// Jak [findWidget], dla kilku etykiet naraz (wersje językowe): każdy zrzut
+/// drzewa sprawdza wszystkie, więc każda ma cały [timeout]. Zwraca etykietę,
+/// która się znalazła, i środek widgetu.
+Future<(String, (int, int))?> findAnyWidget(
+  List<String> etykiety, {
+  Duration timeout = const Duration(seconds: 15),
+  bool fragment = false,
+  bool ostatni = false,
+  String? pakiet,
 }) async {
   final koniec = DateTime.now().add(timeout);
   do {
     final wezly = await uiNodes() ?? const <UiNode>[];
-    (int, int)? znaleziony;
-    for (final w in wezly) {
-      final pasuje = fragment
-          ? (w.desc.contains(label) || w.text.contains(label))
-          : (w.desc == label || w.text == label);
-      if (!pasuje) continue;
-      znaleziony = (w.x, w.y);
-      if (!ostatni) return znaleziony;
+    for (final label in etykiety) {
+      (int, int)? znaleziony;
+      for (final w in wezly) {
+        if (pakiet != null && w.package != pakiet) continue;
+        final pasuje = fragment
+            ? (w.desc.contains(label) || w.text.contains(label))
+            : (w.desc == label || w.text == label);
+        if (!pasuje) continue;
+        znaleziony = (w.x, w.y);
+        if (!ostatni) break;
+      }
+      if (znaleziony != null) return (label, znaleziony);
     }
-    if (znaleziony != null) return znaleziony;
     await Future<void>.delayed(const Duration(milliseconds: 500));
   } while (DateTime.now().isBefore(koniec));
   return null;
 }
 
+/// Na telefonie, którego ktoś używa na co dzień, ekran niesie cudze
+/// rozmowy: wtedy komunikaty błędów mówią tylko, ile węzłów widać.
+bool ukryjTrescEkranu = false;
+
 /// Etykiety widoczne na ekranie, do komunikatu błędu, żeby nie trzeba było
 /// zgadywać, na czym test się potknął.
 Future<String> widocznaTresc() async {
   final wezly = await uiNodes();
+  if (ukryjTrescEkranu) {
+    return wezly == null
+        ? 'nie udało się zrzucić drzewa'
+        : '${wezly.length} węzłów (treść ukryta)';
+  }
   if (wezly == null) return 'nie udało się zrzucić drzewa';
   return wezly
       .map((w) => w.desc.isNotEmpty ? w.desc : w.text)
@@ -151,30 +204,26 @@ Future<void> stuknijEtykiete(
   bool ostatni = false,
   bool azZniknie = false,
   Duration timeout = const Duration(seconds: 15),
+  String? pakiet,
 }) async {
-  for (final etykieta in etykiety) {
-    var gdzie = await findWidget(
-      etykieta,
-      fragment: fragment,
-      ostatni: ostatni,
-      timeout: etykieta == etykiety.first
-          ? timeout
-          : const Duration(seconds: 1),
-    );
-    if (gdzie == null) continue;
-    for (var proba = 0; proba < 3 && gdzie != null; proba++) {
-      await adb(['shell', 'input', 'tap', '${gdzie.$1}', '${gdzie.$2}']);
-      await Future<void>.delayed(const Duration(seconds: 1));
-      if (!azZniknie) return;
-      gdzie = await findWidget(etykieta,
-          fragment: fragment,
-          ostatni: ostatni,
-          timeout: const Duration(seconds: 1));
-    }
-    return;
+  final trafienie = await findAnyWidget(etykiety,
+      fragment: fragment, ostatni: ostatni, timeout: timeout, pakiet: pakiet);
+  if (trafienie == null) {
+    throw StateError('Nie znalazłem na ekranie: ${etykiety.first}. '
+        'Co widać: ${await widocznaTresc()}');
   }
-  throw StateError('Nie znalazłem na ekranie: ${etykiety.first}. '
-      'Co widać: ${await widocznaTresc()}');
+  final etykieta = trafienie.$1;
+  (int, int)? gdzie = trafienie.$2;
+  for (var proba = 0; proba < 3 && gdzie != null; proba++) {
+    await adb(['shell', 'input', 'tap', '${gdzie.$1}', '${gdzie.$2}']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (!azZniknie) return;
+    gdzie = await findWidget(etykieta,
+        fragment: fragment,
+        ostatni: ostatni,
+        pakiet: pakiet,
+        timeout: const Duration(seconds: 2));
+  }
 }
 
 /// Pole tekstowe z fokusem i jego treść (`text=` z drzewa widoków). Puste
@@ -218,6 +267,65 @@ Future<void> stuknijPole({int ktore = 0}) async {
   } while (DateTime.now().isBefore(koniec));
   throw StateError('Nie ma na ekranie pola tekstowego nr $ktore. '
       'Co widać: ${await widocznaTresc()}');
+}
+
+/// Czeka, aż prośba [prosba] się rozstrzygnie albo w aplikacji [pakiet]
+/// pojawi się jedna z [etykiety]. Zwraca wynik prośby, gdy przyszedł, a `null`,
+/// gdy pojawiła się etykieta. Zrzuty idą po kolei: dwa `uiautomator dump`
+/// naraz wywracają się na urządzeniu („UiAutomationService already
+/// registered").
+Future<T?> czekajNaKarteAlbo<T>(Future<T> prosba, List<String> etykiety,
+    {required String pakiet,
+    Duration timeout = const Duration(seconds: 30)}) async {
+  T? wynik;
+  var gotowe = false;
+  unawaited(prosba.then((w) {
+    wynik = w;
+    gotowe = true;
+  }));
+  final koniec = DateTime.now().add(timeout);
+  while (!gotowe && DateTime.now().isBefore(koniec)) {
+    if (await findAnyWidget(etykiety,
+            pakiet: pakiet, timeout: const Duration(seconds: 1)) !=
+        null) {
+      return null;
+    }
+  }
+  return wynik;
+}
+
+/// Dodatek „Klawiatura z PC" i „Pozwól pisać na tym urządzeniu" w aplikacji
+/// [pakiet], gdy prośba o sesję dostała `not_enabled`. Stuka wyłącznie
+/// w elementy tej aplikacji. Wyłączony dodatek gasi też odbiór, więc gdy
+/// przełącznika odbioru nie widać, najpierw idzie sam dodatek.
+Future<void> wlaczDodatekKlawiatury(String pakiet) async {
+  await adb([
+    'shell', 'monkey', '-p', pakiet, '-c',
+    'android.intent.category.LAUNCHER', '1',
+  ]);
+  await Future<void>.delayed(const Duration(seconds: 2));
+  await stuknijEtykiete(['Settings', 'Ustawienia'], pakiet: pakiet);
+  Future<bool> widac(List<String> etykiety) async =>
+      await findAnyWidget(etykiety,
+          fragment: true, pakiet: pakiet, timeout: const Duration(seconds: 2)) !=
+      null;
+
+  const dodatek = ['Keyboard from a PC', 'Klawiatura z PC'];
+  const odbior = [
+    'Allow typing on this device',
+    'Pozwól pisać na tym urządzeniu',
+  ];
+  for (var i = 0; i < 10 && !await widac(dodatek); i++) {
+    await adb(['shell', 'input', 'swipe', '640', '2200', '640', '1000', '300']);
+  }
+  if (!await widac(odbior)) {
+    await stuknijEtykiete(dodatek, fragment: true, pakiet: pakiet);
+  }
+  for (var i = 0; i < 4 && !await widac(odbior); i++) {
+    await adb(['shell', 'input', 'swipe', '640', '2000', '640', '1500', '300']);
+  }
+  await stuknijEtykiete(odbior, fragment: true, pakiet: pakiet);
+  await Future<void>.delayed(const Duration(seconds: 2));
 }
 
 /// Zrzut ekranu urządzenia do pliku (do dokumentacji i podglądu, co się stało).

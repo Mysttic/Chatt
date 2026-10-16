@@ -24,7 +24,7 @@
 // pliku, bez ścieżki), np. `cmd.exe`, `msedge.exe`.
 //
 // Ręcznie przy okazji: okno Chatta na wierzchu ma dać `ownApp: true`
-// i `applied: false`, Notatnik uruchomiony jako administrator
+// i rodzaj pola z fokusem, Notatnik uruchomiony jako administrator
 // `elevated: true`, a pole hasła na stronie WWW `field: password`.
 
 import 'dart:async';

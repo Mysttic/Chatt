@@ -769,6 +769,9 @@ class _Ujscie implements RemoteInputSink {
   }
 
   @override
+  Future<void> holdOwnApp(bool on) async {}
+
+  @override
   Future<void> setSession({required bool active, String peerName = ''}) async =>
       wywolania.add('setSession:$active');
 

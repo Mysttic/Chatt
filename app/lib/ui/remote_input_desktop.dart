@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../core/remote_input.dart';
 import '../core/tray.dart';
 import '../l10n/app_localizations.dart';
+import '../network/protocol.dart' show RemoteInputField;
 import '../services/app_services.dart';
 
 /// Okno aplikacji widziane z zewnątrz: czy jest na ekranie, i jak je wyciągnąć
@@ -34,6 +36,21 @@ class _WindowManagerWindow implements DesktopWindow {
 
   @override
   Future<void> minimize() => windowManager.minimize();
+}
+
+/// Rodzaj pola z fokusem w oknie Chatta: pole tekstowe, pole hasła albo
+/// nic (także pole tylko do odczytu). O to pyta kanał, gdy na wierzchu jest
+/// samo okno Chatta.
+RemoteInputField focusedFieldKind() {
+  final kontekst = FocusManager.instance.primaryFocus?.context;
+  if (kontekst == null || !kontekst.mounted) return RemoteInputField.none;
+  final pole = kontekst is StatefulElement && kontekst.state is EditableTextState
+      ? kontekst.state as EditableTextState
+      : kontekst.findAncestorStateOfType<EditableTextState>();
+  if (pole == null || pole.widget.readOnly) return RemoteInputField.none;
+  return pole.widget.obscureText
+      ? RemoteInputField.password
+      : RemoteInputField.text;
 }
 
 /// Dodatek klawiatury na Windows poza oknem aplikacji.
@@ -86,12 +103,16 @@ class RemoteInputDesktop {
     services.incomingRemoteInput.addListener(_onIncoming);
     services.pendingRemoteInput.addListener(_onPending);
     RemoteInputChannel.listen(onStop: services.stopIncomingRemoteInput);
+    RemoteInputChannel.ownWindowField = focusedFieldKind;
     TrayIcon.instance.onStopTyping = services.stopIncomingRemoteInput;
   }
 
   void detach() {
     services.incomingRemoteInput.removeListener(_onIncoming);
     services.pendingRemoteInput.removeListener(_onPending);
+    if (RemoteInputChannel.ownWindowField == focusedFieldKind) {
+      RemoteInputChannel.ownWindowField = null;
+    }
   }
 
   /// Zmiana języka: pasek i zasobnik dostają nowe napisy.

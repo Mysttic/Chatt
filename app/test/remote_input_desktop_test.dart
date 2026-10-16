@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:chatt/core/remote_input.dart';
 import 'package:chatt/l10n/app_localizations.dart';
 import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
@@ -123,6 +124,14 @@ void main() {
     expect(pasek.last, 'ukryj');
     expect(zasobnik.last, 'zwykly');
     expect(okno.ruchy, isEmpty, reason: 'sama zgoda nie rusza okna');
+  });
+
+  test('przyłączenie daje kanałowi pole z własnego okna, odłączenie je '
+      'zabiera', () {
+    expect(RemoteInputChannel.ownWindowField, focusedFieldKind);
+    klawiatura.detach();
+    expect(RemoteInputChannel.ownWindowField, isNull);
+    klawiatura.attach();
   });
 
   test('bez tekstów nic się nie pokazuje, a zmiana języka odświeża napisy',

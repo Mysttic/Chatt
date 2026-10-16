@@ -10,7 +10,7 @@
 //   flutter test tool/windows_shots.dart
 //   set CHATT_SHOTS_LANG=en && flutter test tool/windows_shots.dart
 //
-// Same zrzuty dodatku „Klawiatura z PC":
+// Same zrzuty dodatku „Klawiatura z PC" (06 do 16):
 //   flutter test tool/windows_shots.dart --plain-name klawiatury
 //
 // Wynik: docs/screenshots/windows/{pl,en}/*.png
@@ -56,8 +56,15 @@ const Map<String, String> _pl = {
   'ustawienia': 'Ustawienia',
   'telefon': 'Telefon Anny',
   'notatki': 'Notatki',
-  'notatnik': 'Notatnik',
+  'notatnik': 'Notepad',
   'pisanie': 'Spotkanie przesunięte na 15:00, sala 2',
+  'haslo': 'tajne-haslo-123',
+  'calosc': 'Lista zakupów:\nchleb, mleko, jajka\nkawa',
+  'chrome': 'Google Chrome',
+  'tarcza': 'Szyfrowane i potwierdzone',
+  'tryb': 'Całość naraz',
+  'live': 'Znak po znaku',
+  'zEnterem': 'Potem Enter',
 };
 
 const Map<String, String> _en = {
@@ -74,6 +81,13 @@ const Map<String, String> _en = {
   'notatki': 'Notes',
   'notatnik': 'Notepad',
   'pisanie': 'Meeting moved to 3 pm, room 2',
+  'haslo': 'secret-password-123',
+  'calosc': 'Shopping list:\nbread, milk, eggs\ncoffee',
+  'chrome': 'Google Chrome',
+  'tarcza': 'Encrypted and confirmed',
+  'tryb': 'Compose',
+  'live': 'Live',
+  'zEnterem': 'Then Enter',
 };
 
 final String jezyk = Platform.environment['CHATT_SHOTS_LANG'] ?? 'pl';
@@ -108,9 +122,17 @@ Future<void> zrzut(WidgetTester tester, GlobalKey klucz, String nazwa) async {
   // ciemną obwódkę, a zrzut ma wyglądać jak aplikacja. Flagę oddajemy od razu,
   // bo framework sprawdza jej stan po ciele testu, jeszcze przed tearDown.
   ByteData? bajty;
+  // Każdy węzeł od nowa: karty i przyciski leżą we własnych warstwach
+  // (listy przewijane mają swoje granice odmalowania), a po odmalowaniu
+  // samej granicy zrzutu zostałyby w nich obwódki harnessu.
+  void odmaluj(RenderObject wezel) {
+    wezel.markNeedsPaint();
+    wezel.visitChildren(odmaluj);
+  }
+
   try {
     debugDisableShadows = false;
-    boundary.markNeedsPaint();
+    odmaluj(boundary);
     await tester.pump();
     bajty = await tester.runAsync(() async {
       final obraz = await boundary.toImage();
@@ -118,7 +140,7 @@ Future<void> zrzut(WidgetTester tester, GlobalKey klucz, String nazwa) async {
     });
   } finally {
     debugDisableShadows = true;
-    boundary.markNeedsPaint();
+    odmaluj(boundary);
     await tester.pump();
   }
   final plik = File(p.join(shots.path, '$nazwa.png'))
@@ -162,6 +184,15 @@ Future<void> wczytajCzcionki() async {
   final ikony = FontLoader('MaterialIcons')
     ..addFont(plik('MaterialIcons-Regular.otf'));
   await ikony.load();
+  // Odciski w panelu bezpieczeństwa idą krojem „monospace" z systemu.
+  // Harness go nie zna; bierzemy Consolas z Windows, tylko do zrzutu.
+  final consolas = File(r'C:\Windows\Fonts\consola.ttf');
+  if (consolas.existsSync()) {
+    final staly = FontLoader('monospace')
+      ..addFont(Future.value(
+          consolas.readAsBytesSync().buffer.asByteData()));
+    await staly.load();
+  }
 }
 
 Future<AppServices> rozmowca(
@@ -220,6 +251,9 @@ class _Ujscie implements RemoteInputSink {
       (applied: true, target: cel);
 
   @override
+  Future<void> holdOwnApp(bool on) async {}
+
+  @override
   Future<void> setSession({required bool active, String peerName = ''}) async {}
 
   @override
@@ -240,6 +274,25 @@ class _GotowaSesja implements RemoteKeyboardLink {
 
   @override
   Future<RemoteInputStart> start() async => RemoteInputStart.accepted;
+
+  @override
+  bool send(List<RemoteInputOp> ops) => true;
+
+  @override
+  Future<void> stop() async {}
+}
+
+/// Sesja sterowana z ręki: ekran nadawcy pokazuje każdy stan, jaki
+/// [stan] mu poda, a prośba czeka, aż test ją rozstrzygnie.
+class _SterowanaSesja implements RemoteKeyboardLink {
+  final stan = ValueNotifier<OutgoingRemoteInput?>(null);
+  final zgoda = Completer<RemoteInputStart>();
+
+  @override
+  ValueListenable<OutgoingRemoteInput?> get state => stan;
+
+  @override
+  Future<RemoteInputStart> start() => zgoda.future;
 
   @override
   bool send(List<RemoteInputOp> ops) => true;
@@ -390,7 +443,7 @@ void main() {
   // Dodatek „Klawiatura z PC". Cała sieć (parowanie, prośba, zgoda) idzie
   // przed `pumpWidget`, w prawdziwym czasie: prośba wysłana spod udawanego
   // zegara harnessu potrafi paść na połączeniu z puli, choć ten sam przebieg
-  // poza harnessem trwa milisekundy. Stąd dwa testy, każdy z siecią na start.
+  // poza harnessem trwa milisekundy. Stąd trzy testy, każdy z siecią na start.
 
   /// Wspólny początek: harness, katalog na zrzuty i katalog roboczy.
   Future<Directory> przygotuj(WidgetTester tester) async {
@@ -476,6 +529,124 @@ void main() {
 
     await tester.runAsync(() async {
       await ja.stopRemoteInput();
+      await telefon.dispose();
+      await ja.dispose();
+    });
+    await tester.pump(const Duration(seconds: 20));
+  });
+
+  testWidgets('zrzuty klawiatury z PC: przycisk, panel i stany nadawcy',
+      (tester) async {
+    final work = await przygotuj(tester);
+    late AppServices ja;
+    late AppServices telefon;
+    late Peer telefonUMnie;
+
+    await tester.runAsync(() async {
+      ja = await mojKomputer(work);
+      telefon = await rozmowca(t['telefon']!, work);
+      telefonUMnie = await sparuj(ja, telefon);
+      await ja.openConversationWith(telefonUMnie);
+      await ja.setKeyboardAddon(true);
+      await ja.setRemoteInputReceive(true);
+    });
+
+    final klucz = GlobalKey();
+    await aplikacja(tester, klucz, ja, [telefon]);
+    await odczekaj(tester);
+
+    // Rozmowa z przyciskiem klawiatury w pasku.
+    await tester.tap(find.text(t['telefon']!).first);
+    await zrzut(tester, klucz, '09_klawiatura_przycisk');
+
+    // Panel bezpieczeństwa rozmowy z „Pisaniem bez pytania".
+    await tester.tap(find.byTooltip(t['tarcza']!).last);
+    await odczekaj(tester);
+    await zrzut(tester, klucz, '10_klawiatura_bez_pytania');
+    Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+    await odczekaj(tester);
+
+    // Ekran nadawcy, prośba jeszcze bez odpowiedzi.
+    final sesja = _SterowanaSesja();
+    Navigator.of(tester.element(find.byType(Scaffold).first),
+            rootNavigator: true)
+        .push(MaterialPageRoute<void>(
+      builder: (_) => RemoteKeyboardScreen(peer: telefonUMnie, link: sesja),
+    ));
+    await odczekaj(tester);
+    await zrzut(tester, klucz, '11_klawiatura_czekanie');
+
+    OutgoingRemoteInput stanSesji(OutgoingRemoteInputState stan,
+            RemoteInputTarget cel, {String? powod}) =>
+        OutgoingRemoteInput(
+          peerGuid: telefonUMnie.guid,
+          peerName: telefonUMnie.displayName,
+          state: stan,
+          target: cel,
+          rtt: const Duration(milliseconds: 28),
+          reason: powod,
+        );
+    final notatki = RemoteInputTarget(
+      active: true,
+      field: RemoteInputField.text,
+      app: 'com.google.android.keep',
+      appLabel: t['notatki']!,
+    );
+    final pole = find.descendant(
+      of: find.byType(RemoteKeyboardScreen),
+      matching: find.byType(TextField),
+    );
+
+    // Zgoda jest, fokus po drugiej stronie w polu hasła: echo w kropkach.
+    sesja.stan.value = stanSesji(
+      OutgoingRemoteInputState.active,
+      RemoteInputTarget(
+        active: true,
+        field: RemoteInputField.password,
+        app: 'com.android.chrome',
+        appLabel: t['chrome']!,
+      ),
+    );
+    sesja.zgoda.complete(RemoteInputStart.accepted);
+    await odczekaj(tester);
+    await tester.enterText(pole, t['haslo']!);
+    await zrzut(tester, klucz, '12_klawiatura_haslo');
+
+    // „Całość naraz" w zwykłym polu, z Enterem na końcu.
+    await tester.enterText(pole, '');
+    sesja.stan.value = stanSesji(OutgoingRemoteInputState.active, notatki);
+    await odczekaj(tester);
+    await tester.tap(find.text(t['tryb']!));
+    await odczekaj(tester);
+    await tester.enterText(pole, t['calosc']!);
+    await tester.tap(find.text(t['zEnterem']!));
+    await zrzut(tester, klucz, '13_klawiatura_calosc');
+
+    // Dalej znowu „znak po znaku", z pustym polem: same paski stanu.
+    await tester.enterText(pole, '');
+    await tester.tap(find.text(t['live']!));
+    await odczekaj(tester);
+
+    // Po drugiej stronie czeka pytanie.
+    sesja.stan.value = stanSesji(OutgoingRemoteInputState.paused, notatki);
+    await zrzut(tester, klucz, '14_klawiatura_wstrzymane');
+
+    // Okno administratora na wierzchu po drugiej stronie.
+    sesja.stan.value = stanSesji(
+      OutgoingRemoteInputState.active,
+      RemoteInputTarget(
+        elevated: true,
+        app: 'notepad.exe',
+        appLabel: t['notatnik']!,
+      ),
+    );
+    await zrzut(tester, klucz, '15_klawiatura_administrator');
+
+    // Łącze zerwane: „Połącz ponownie".
+    sesja.stan.value = stanSesji(OutgoingRemoteInputState.disconnected, notatki);
+    await zrzut(tester, klucz, '16_klawiatura_zerwane');
+
+    await tester.runAsync(() async {
       await telefon.dispose();
       await ja.dispose();
     });

@@ -374,8 +374,6 @@ void main() {
         expect(find.text(napis), findsOneWidget, reason: napis);
       }
 
-      await cel(const RemoteInputTarget(active: true, ownApp: true),
-          teksty.remoteKeyboardOwnApp);
       await cel(const RemoteInputTarget(locked: true),
           teksty.remoteKeyboardLocked);
       await cel(const RemoteInputTarget(active: true, elevated: true),
@@ -730,6 +728,26 @@ void main() {
       expect(pole(tester).obscureText, isFalse);
       expect(pole(tester).focusNode!.hasFocus, isTrue);
       expect(tester.testTextInput.hasAnyClients, isTrue);
+
+      await sprzatnij(tester);
+    });
+
+    testWidgets('pole samego Chatt przyjmuje pisanie jak każde inne',
+        (tester) async {
+      await uruchom(tester);
+      await zgoda(
+          tester,
+          const RemoteInputTarget(
+            active: true,
+            field: RemoteInputField.text,
+            app: 'com.mysttic.chatt',
+            appLabel: 'Chatt',
+            ownApp: true,
+          ));
+      expect(find.text(teksty.remoteKeyboardTarget('Chatt')), findsOneWidget);
+      expect(pole(tester).readOnly, isFalse);
+      await tester.enterText(echo(), 'do Chatt');
+      expect(lacze.wyslane, [_wpisz('do Chatt')]);
 
       await sprzatnij(tester);
     });

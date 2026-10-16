@@ -226,7 +226,8 @@ class _RemoteKeyboardScreenState extends ConsumerState<RemoteKeyboardScreen> {
   }
 
   /// Pisanie ma dokąd trafić: sesja trwa i nie stoi, po drugiej stronie jest
-  /// pole, które przyjmie tekst, a tutaj żadna karta nie czeka na odpowiedź.
+  /// pole, które przyjmie tekst (także pole samego Chatt), a tutaj żadna
+  /// karta nie czeka na odpowiedź.
   /// Inaczej pola są tylko do odczytu: tekst wpisany w próżnię zostałby
   /// w echu bez odpowiednika po drugiej stronie, i następny Backspace
   /// kasowałby tam cudzy tekst.
@@ -239,7 +240,7 @@ class _RemoteKeyboardScreenState extends ConsumerState<RemoteKeyboardScreen> {
       return false;
     }
     final cel = stan.target;
-    return cel.active && !cel.locked && !cel.ownApp && !cel.elevated;
+    return cel.active && !cel.locked && !cel.elevated;
   }
 
   /// Druga strona nie powiedziała wprost, że to zwykłe pole tekstowe.
@@ -722,9 +723,6 @@ class _RemoteKeyboardScreenState extends ConsumerState<RemoteKeyboardScreen> {
         tekst: teksty.remoteKeyboardLocked,
         uwaga: true,
       );
-    }
-    if (cel.ownApp) {
-      return (ikona: Icons.block, tekst: teksty.remoteKeyboardOwnApp, uwaga: true);
     }
     if (cel.elevated) {
       return (

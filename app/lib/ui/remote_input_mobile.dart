@@ -13,8 +13,9 @@ import '../services/app_services.dart';
 /// pisze i dokąd. Zgoda kliknięta na karcie pokazuje okno wyboru klawiatury
 /// (gdy Chatt nie jest bieżącą) i chowa aplikację, żeby było widać pole, do
 /// którego pójdzie pisanie. Zgoda bez karty („nie pytaj więcej") zostawia
-/// powiadomienie „Przełącz klawiaturę na Chatt". Karta, która przyszła przy
-/// zamkniętym oknie, daje znać powiadomieniem.
+/// powiadomienie „Przełącz klawiaturę na Chatt", tak samo jak odblokowanie
+/// telefonu, przed którym klawiatura Chatt oddała miejsce ekranowi blokady.
+/// Karta, która przyszła przy zamkniętym oknie, daje znać powiadomieniem.
 ///
 /// Przy wyłączonym dodatku nic z tego się nie dzieje, bo nie ma ani zgody,
 /// ani kart.
@@ -68,7 +69,10 @@ class RemoteInputMobile {
   void attach() {
     services.incomingRemoteInput.addListener(_onIncoming);
     services.pendingRemoteInput.addListener(_onPending);
-    RemoteInputChannel.listen(onStop: services.stopIncomingRemoteInput);
+    RemoteInputChannel.listen(
+      onStop: services.stopIncomingRemoteInput,
+      onKeyboardLost: keyboardLost,
+    );
   }
 
   void detach() {
@@ -124,6 +128,18 @@ class RemoteInputMobile {
       final body = l.remoteInputSwitchBody(grant.peerName);
       _run(() => notifySwitchKeyboard(title: title, body: body));
     }
+  }
+
+  /// Klawiatura Chatt oddała miejsce polu hasła na ekranie blokady.
+  /// Powiadomienie czeka do odblokowania, a jedno dotknięcie przywraca
+  /// pisanie.
+  void keyboardLost() {
+    final grant = services.incomingRemoteInput.value;
+    final l = texts();
+    if (grant == null || l == null) return;
+    final title = l.remoteInputSwitchTitle;
+    final body = l.remoteInputSwitchBody(grant.peerName);
+    _run(() => notifySwitchKeyboard(title: title, body: body));
   }
 
   void _onPending() {

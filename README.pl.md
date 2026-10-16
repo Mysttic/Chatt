@@ -61,9 +61,37 @@
 - **Polski i angielski**, motyw jasny/ciemny/systemowy, jedno i drugie zapisane
   w bazie.
 
+## Dodatki
+
+Funkcje, których większość osób nie potrzebuje, każda za własnym
+przełącznikiem w Ustawieniach, wyłączonym od początku. Wyłączony dodatek nie
+pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
+
+- **Bluetooth**: te same wiadomości i pliki przez radio, bez routera i bez
+  wspólnej sieci, dla urządzeń w promieniu około dziesięciu metrów. Krótka
+  wiadomość wraca równie szybko jak przez Wi‑Fi; pliki idą kilkadziesiąt razy
+  wolniej.
+- **Klawiatura z PC**: klawiatura komputera pisze w polu z fokusem na
+  telefonie albo tablecie z Androidem (przez klawiaturę Chatt bez klawiszy)
+  albo na innym komputerze z Windows, w dowolnej aplikacji. Sesja zaczyna się
+  dopiero po zgodzie na urządzeniu, na którym się pisze (karta za każdym razem
+  albo „Nie pytaj więcej” dla jednego potwierdzonego urządzenia), a pasek ze
+  Stopem stoi tam do jej końca. Przechodzi tekst, Backspace, Delete, Enter i schowek
+  komputera; skróty i mysz zostają w domu. Tylko klawiatura, szyfrowana, bez
+  konta, między urządzeniami, które już się nawzajem potwierdziły.
+
+| Pisanie z komputera na telefonie | Karta zgody |
+|---|---|
+| <img src="docs/screenshots/windows/pl/06_klawiatura_pisanie.png" alt="Pisanie z komputera na telefonie" width="380"> | <img src="docs/screenshots/windows/pl/07_klawiatura_zgoda.png" alt="Karta zgody" width="380"> |
+
+Oba opisuje [instrukcja obsługi](docs/guide.pl.md); klawiatura ma własną
+stronę, krok po kroku, z obrazkami z obu systemów:
+[Klawiatura z PC](docs/keyboard.pl.md).
+
 Platformy: **Windows** i **Android**. Oba urządzenia muszą być w tej samej
-sieci. Trybu przez internet nie ma i nie będzie: cały sens polega na tym, że
-nic samo nie wychodzi poza Twoją sieć. Wyjątki są dwa i oba stoją wyłączone,
+sieci albo, z dodatkiem Bluetooth, w zasięgu radia. Trybu przez internet nie
+ma i nie będzie: cały sens polega na tym, że nic samo nie wychodzi poza Twoją
+sieć. Wyjątki są dwa i oba stoją wyłączone,
 dopóki sam ich nie włączysz: pytanie do GitHuba o nowsze wydanie i podglądy
 stron pod odnośnikami w wiadomościach.
 
@@ -98,7 +126,7 @@ Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 94 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie
+flutter test        # 387 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura
 flutter analyze
 ```
 

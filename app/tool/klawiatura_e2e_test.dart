@@ -1,10 +1,12 @@
 // Klawiatura z PC na żywo, na jednym komputerze: ten proces jest nadawcą,
 // a odbiorcą jest zwykła aplikacja Chatt uruchomiona obok.
 //
-// Nadawca nie ma jeszcze ekranu (to faza 4), więc pisze stąd: paruje się
-// z aplikacją kodem, prosi o sesję i po odliczeniu wysyła tekst, Backspace,
-// Delete, Enter i długie wklejenie. Tester w tym czasie klika w aplikacji
-// i wyciąga na wierzch okno, do którego ma trafić pisanie.
+// Pisze stąd, bez ekranu nadawcy: paruje się z aplikacją kodem, prosi
+// o sesję i wysyła tekst, Backspace, Enter i długie wklejenie. Tester w tym
+// czasie klika w aplikacji i wyciąga na wierzch Notatnik. Skrypt pisze
+// wyłącznie wtedy, gdy cel to `notepad.exe`, a przy CHATT_W_CHATT=1 także
+// w polu tekstowym Chatt (krok 5): każda paczka jest sprawdzana, więc tekst
+// nie trafi do przypadkowego okna.
 //
 // Przygotowanie: aplikacja Chatt z dodatkiem „Klawiatura z PC" i przełącznikiem
 // „Pozwól pisać na tym urządzeniu" włączonymi (Ustawienia → Dodatki). Jej port
@@ -21,14 +23,23 @@
 //      karty i potem wraca;
 //   3. pływający pasek „Pisze: Nadawca e2e" ze Stopem i inna ikona
 //      w zasobniku;
-//   4. w ciągu 10 sekund wyciągnąć na wierzch Notatnik (albo cmd, albo pole
-//      w przeglądarce): pojawi się `Chatt ąęł 123`, nowa linia, `koniec`,
-//      a w trzeciej linii długi wiersz cyfr (wklejenie);
-//   5. Stop na pasku albo koniec skryptu: pasek i ikona znikają.
+//   4. w ciągu minuty kliknąć w Notatnik: pojawi się `Chatt ąęł 123`, nowa
+//      linia, `koniec`, a w trzeciej linii długi wiersz cyfr (wklejenie);
+//   5. kliknąć w okno Chatt: cel to `ownApp`, a pisanie dalej możliwe; przy
+//      CHATT_W_CHATT=1 (tylko z instancją testową) kliknąć jeszcze w pole
+//      tekstowe Chatt, np. szukanie: skrypt wpisuje tam `do Chatt` i po
+//      10 s kasuje to Backspace'em;
+//   6. Stop na pływającym pasku: pasek i ikona znikają, nadawca dostaje
+//      `no_grant`. Przy CHATT_STOP_W_TRAKCIE=1 najpierw jeszcze raz kliknąć
+//      w Notatnik: skrypt wysyła 3000 piątek jedną paczką (pół minuty
+//      pisania), a Stop wciśnięty w trakcie ma je od razu uciąć.
 //
-// Okno samego Chatta na wierzchu daje odmowę (`ownApp`), Notatnik
-// uruchomiony jako administrator też (`elevated`); skrypt wypisuje cel po
-// każdej paczce.
+// Notatnik uruchomiony jako administrator daje odmowę (`elevated`); skrypt
+// wypisuje cel po każdej paczce. Przy CHATT_ADMIN=1 po kroku 4 sprawdza to
+// sam: czeka na Notatnik administratora na wierzchu (zgoda UAC), wysyła
+// ` ADMIN` i oczekuje odmowy, a potem przy zwykłym Notatniku wysyła 3000
+// siódemek jedną paczką: wyciągnięty w trakcie Notatnik administratora ma
+// uciąć resztę paczki (`applied: false`).
 @Timeout(Duration(minutes: 10))
 library;
 
@@ -44,6 +55,17 @@ import 'package:chatt/services/app_services.dart';
 
 final int portAplikacji =
     int.tryParse(Platform.environment['CHATT_KLAWIATURA_PORT'] ?? '') ?? 47780;
+
+/// Pisanie w polu samej aplikacji Chatt, tylko na życzenie: odbiorcą ma być
+/// wtedy instancja testowa (CHATT_DATA_DIR), żeby tekst nie trafił
+/// w prawdziwą rozmowę.
+final bool wChatt = Platform.environment['CHATT_W_CHATT'] == '1';
+
+/// Notatnik uruchomiony jako administrator: odmowa i ucięta paczka.
+final bool admin = Platform.environment['CHATT_ADMIN'] == '1';
+
+/// Stop w trakcie długiej paczki: pisanie ma się urwać od razu.
+final bool stopWTrakcie = Platform.environment['CHATT_STOP_W_TRAKCIE'] == '1';
 
 void wypisz(String linia) => stdout.writeln(linia);
 
@@ -72,7 +94,8 @@ void main() {
     final nadawca = await AppServices.start(
       executor: NativeDatabase.memory(),
       portOverride: 0,
-      nameOverride: 'Nadawca e2e',
+      // Inna nazwa przy zrzutach do dokumentacji (CHATT_NAZWA_NADAWCY).
+      nameOverride: Platform.environment['CHATT_NAZWA_NADAWCY'] ?? 'Nadawca e2e',
       enableDiscovery: false,
       receivedDirOverride: p.join(katalog.path, 'odebrane'),
     );
@@ -106,15 +129,26 @@ void main() {
     expect(start, RemoteInputStart.accepted);
     wypisz(opis(nadawca.outgoingRemoteInput.value));
 
-    for (var i = 10; i > 0; i--) {
-      wypisz('wyciągnij okno docelowe na wierzch: $i');
-      await Future<void>.delayed(const Duration(seconds: 1));
+    bool wNotatniku() {
+      final cel = nadawca.outgoingRemoteInput.value?.target;
+      return cel != null &&
+          cel.active &&
+          cel.app.toLowerCase() == 'notepad.exe';
     }
 
+    wypisz('kliknij w Notatnik (czekam do minuty)');
+    await czekaj(wNotatniku, const Duration(minutes: 1), 'Notatnik na wierzchu');
+    wypisz(opis(nadawca.outgoingRemoteInput.value));
+
     Future<void> wyslij(List<RemoteInputOp> ops) async {
+      if (!wNotatniku()) fail('cel to nie Notatnik, nic nie wysyłam');
+      final przed = nadawca.outgoingRemoteInput.value!.typedReplies;
       expect(nadawca.sendRemoteInput(ops), isTrue);
-      // Jedna paczka w locie: czekamy, aż kolejka nadawcy opustoszeje.
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await czekaj(
+        () => (nadawca.outgoingRemoteInput.value?.typedReplies ?? przed) > przed,
+        const Duration(seconds: 30),
+        'odpowiedź na paczkę',
+      );
       wypisz(opis(nadawca.outgoingRemoteInput.value));
     }
 
@@ -127,20 +161,111 @@ void main() {
     await wyslij(const [RemoteInputOp.action()]);
     // Wklejenie: jeden długi tekst, który nadawca dzieli na paczki.
     final wklejenie = List.generate(600, (i) => '${i % 10}').join();
+    final zegar = Stopwatch()..start();
     await wyslij([RemoteInputOp.insert(wklejenie)]);
-    await czekaj(
-      () =>
-          nadawca.outgoingRemoteInput.value?.state !=
-              OutgoingRemoteInputState.active ||
-          nadawca.outgoingRemoteInput.value?.applied == true,
-      const Duration(minutes: 1),
-      'wklejenie',
-    );
-    await Future<void>.delayed(const Duration(seconds: 3));
-    wypisz(opis(nadawca.outgoingRemoteInput.value));
+    wypisz('wklejenie 600 znaków: ${zegar.elapsedMilliseconds} ms, '
+        'paczek z tekstem: ${nadawca.outgoingRemoteInput.value!.typedReplies}');
 
-    wypisz('przez 30 s można wcisnąć Stop na pasku');
-    final koniec = DateTime.now().add(const Duration(seconds: 30));
+    if (admin) {
+      bool wAdminie() {
+        final cel = nadawca.outgoingRemoteInput.value?.target;
+        return cel != null &&
+            cel.elevated &&
+            !cel.active &&
+            cel.app.toLowerCase() == 'notepad.exe';
+      }
+
+      Future<OutgoingRemoteInput> odpowiedzPo(int przed, Duration ile) async {
+        await czekaj(
+          () =>
+              (nadawca.outgoingRemoteInput.value?.typedReplies ?? przed) > przed,
+          ile,
+          'odpowiedź na paczkę',
+        );
+        return nadawca.outgoingRemoteInput.value!;
+      }
+
+      wypisz('uruchom Notatnik jako administrator, na wierzchu (czekam do '
+          '2 minut)');
+      await czekaj(wAdminie, const Duration(minutes: 2),
+          'Notatnik administratora na wierzchu');
+      wypisz('administrator: ${opis(nadawca.outgoingRemoteInput.value)}');
+      // SendInput nic by tam nie wpisał i nic by o tym nie powiedział:
+      // odmowa idzie od razu, bez wpisywania.
+      var przed = nadawca.outgoingRemoteInput.value!.typedReplies;
+      expect(nadawca.sendRemoteInput(const [RemoteInputOp.insert(' ADMIN')]),
+          isTrue);
+      var po = await odpowiedzPo(przed, const Duration(seconds: 30));
+      wypisz('administrator po paczce: ${opis(po)}');
+      expect(po.applied, isFalse, reason: 'okno administratora: odmowa');
+      expect(po.target.elevated, isTrue);
+
+      wypisz('kliknij w zwykły Notatnik (czekam do minuty); w trakcie '
+          'siódemek wyciągnij Notatnik administratora');
+      await czekaj(wNotatniku, const Duration(minutes: 1),
+          'zwykły Notatnik na wierzchu');
+      przed = nadawca.outgoingRemoteInput.value!.typedReplies;
+      expect(nadawca.sendRemoteInput([RemoteInputOp.insert('7' * 3000)]),
+          isTrue);
+      po = await odpowiedzPo(przed, const Duration(minutes: 2));
+      wypisz('siódemki: ${opis(po)}');
+      expect(po.applied, isFalse,
+          reason: 'reszta paczki przepadła przy oknie administratora');
+      expect(po.target.elevated, isTrue);
+    }
+
+    wypisz('kliknij w okno Chatt (czekam do minuty)');
+    await czekaj(
+      () => nadawca.outgoingRemoteInput.value?.target.ownApp ?? false,
+      const Duration(minutes: 1),
+      'Chatt na wierzchu',
+    );
+    wypisz('Chatt na wierzchu: ${opis(nadawca.outgoingRemoteInput.value)}');
+    expect(nadawca.outgoingRemoteInput.value!.target.active, isTrue,
+        reason: 'okno Chatt przyjmuje pisanie jak każde inne');
+
+    if (wChatt) {
+      bool wPoluChatt() {
+        final cel = nadawca.outgoingRemoteInput.value?.target;
+        return cel != null &&
+            cel.active &&
+            cel.ownApp &&
+            cel.field == RemoteInputField.text;
+      }
+
+      wypisz('kliknij w pole tekstowe Chatt (czekam do minuty)');
+      await czekaj(wPoluChatt, const Duration(minutes: 1), 'pole Chatt');
+      Future<void> wyslijDoChatt(List<RemoteInputOp> ops) async {
+        if (!wPoluChatt()) fail('cel to nie pole Chatt, nic nie wysyłam');
+        final przed = nadawca.outgoingRemoteInput.value!.typedReplies;
+        expect(nadawca.sendRemoteInput(ops), isTrue);
+        await czekaj(
+          () =>
+              (nadawca.outgoingRemoteInput.value?.typedReplies ?? przed) > przed,
+          const Duration(seconds: 30),
+          'odpowiedź z pola Chatt',
+        );
+        wypisz('pole Chatt: ${opis(nadawca.outgoingRemoteInput.value)}');
+        expect(nadawca.outgoingRemoteInput.value!.applied, isTrue,
+            reason: 'pole Chatt przyjmuje pisanie');
+      }
+
+      await wyslijDoChatt(const [RemoteInputOp.insert('do Chatt')]);
+      wypisz('w polu Chatt powinno być „do Chatt"; za 10 s kasuję');
+      await Future<void>.delayed(const Duration(seconds: 10));
+      await wyslijDoChatt(const [RemoteInputOp.backspace(8)]);
+    }
+
+    if (stopWTrakcie) {
+      wypisz('kliknij w Notatnik (czekam do minuty), potem Stop w trakcie '
+          'pisania piątek');
+      await czekaj(
+          wNotatniku, const Duration(minutes: 1), 'Notatnik na wierzchu');
+      expect(nadawca.sendRemoteInput([RemoteInputOp.insert('5' * 3000)]),
+          isTrue);
+    }
+    wypisz('przez minutę można wcisnąć Stop na pasku');
+    final koniec = DateTime.now().add(const Duration(minutes: 1));
     while (DateTime.now().isBefore(koniec) &&
         nadawca.outgoingRemoteInput.value?.state !=
             OutgoingRemoteInputState.disconnected) {

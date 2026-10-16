@@ -20,15 +20,21 @@
 //      klawiatury „Chatt keyboard"/„Klawiatura Chatt"; aplikacja schodzi na dół;
 //   4. formularz nowego kontaktu: tekst z polskimi znakami, Backspace, akcja
 //      pola (Dalej) przenosi fokus do nazwiska;
-//   5. Stop na pasku klawiatury: nadawca dostaje no_grant, wraca poprzednia
+//   5. (emulator) hasło blokady: klawiatura Chatt oddaje miejsce, po
+//      odblokowaniu powiadomienie „Switch the keyboard to Chatt" przywraca ją;
+//   6. Stop na pasku klawiatury: nadawca dostaje no_grant, wraca poprzednia
 //      klawiatura;
-//   6. nowa sesja i pole wiadomości w samym Chatcie: odmowa (`ownApp`), żadna
-//      wiadomość nie wychodzi.
+//   7. nowa sesja i pole wiadomości w samym Chatcie: tekst trafia i tam (bez
+//      Entera, więc nic nie wychodzi), po czym znika z pola.
 //
 // Zmienne: ADB, CHATT_DEVICE (patrz `tool/uiautomator.dart`), CHATT_PROXY_PORT,
-// CHATT_SHOTS=1 (zrzuty karty zgody, paska klawiatury i paska „Pisze" do
-// docs/screenshots/android/; bez niej przebieg niczego w repozytorium nie
-// zmienia).
+// CHATT_SHOTS=1 (zrzuty do docs/screenshots/android/: karta dodatku
+// z „Turn on the Chatt keyboard", oba systemowe ostrzeżenia przy włączaniu
+// klawiatury, karta zgody, okno wyboru klawiatury, pasek klawiatury Chatt
+// przy pisaniu, powiadomienie „Switch the keyboard to Chatt" i pasek „Pisze"
+// w aplikacji; nadawca nazywa się wtedy „Office PC". Klawiaturę Chatt
+// skrypt włącza wtedy tak jak użytkownik, w ustawieniach systemu. Bez tej
+// zmiennej przebieg niczego w repozytorium nie zmienia).
 @Timeout(Duration(minutes: 10))
 library;
 
@@ -51,6 +57,12 @@ final int deviceProxyPort =
 
 const String appPackage = 'com.mysttic.chatt';
 const String imeId = '$appPackage/.ChattInputMethod';
+
+/// Zrzuty do dokumentacji (CHATT_SHOTS=1).
+final bool zrzuty = Platform.environment['CHATT_SHOTS'] == '1';
+
+/// Nadawca na zrzutach ma nazwę po angielsku, jak reszta zrzutów Androida.
+final String nazwaHosta = zrzuty ? 'Office PC' : 'Komputer PC';
 
 Future<String> biezacaKlawiatura() async =>
     ((await adb(['shell', 'settings', 'get', 'secure', 'default_input_method']))
@@ -91,6 +103,23 @@ void main() {
     return (await host.db.peerByGuid(telefon.guid))!;
   }
 
+  /// Zostawia w zrzucie [nazwa] pas od [gora] do [dol] pikseli, na całą
+  /// szerokość. Tylko na Windows (System.Drawing); gdzie indziej zrzut
+  /// zostaje cały.
+  Future<void> przytnijZrzut(String nazwa, int gora, int dol) async {
+    if (!zrzuty || !Platform.isWindows) return;
+    final plik = p.absolute(
+        p.join('..', 'docs', 'screenshots', 'android', '$nazwa.png'));
+    final skrypt = 'Add-Type -AssemblyName System.Drawing; '
+        '\$b = [System.Drawing.Bitmap]::FromFile("$plik"); '
+        '\$w = \$b.Clone((New-Object System.Drawing.Rectangle(0, $gora, '
+        '\$b.Width, ${dol - gora})), \$b.PixelFormat); '
+        '\$b.Dispose(); '
+        '\$w.Save("$plik", [System.Drawing.Imaging.ImageFormat]::Png); '
+        '\$w.Dispose()';
+    await Process.run('powershell', ['-NoProfile', '-Command', skrypt]);
+  }
+
   /// Zrzut do dokumentacji; powstaje wyłącznie przy CHATT_SHOTS=1.
   Future<void> zrzutDoDokumentacji(String nazwa) async {
     if (Platform.environment['CHATT_SHOTS'] != '1') return;
@@ -100,8 +129,20 @@ void main() {
 
   /// Prośba o sesję ze zgodą na karcie i wyborem klawiatury Chatt, gdy nie
   /// jest bieżąca. [zrzut] to nazwa zrzutu karty do dokumentacji.
-  Future<void> sesja({String? zrzut}) async {
-    final start = host.startRemoteInput(telefon);
+  Future<void> sesja({String? zrzut, String? zrzutWyboru}) async {
+    var start = host.startRemoteInput(telefon);
+    // Aplikacja z czystymi danymi (nowa instalacja, emulator po starcie
+    // z migawki) ma dodatek wyłączony: wtedy włącza go sam test.
+    final odmowa = await czekajNaKarteAlbo(start, ['Accept', 'Akceptuj'],
+        pakiet: appPackage);
+    if (odmowa == RemoteInputStart.notEnabled) {
+      await wlaczDodatekKlawiatury(appPackage);
+      await adb([
+        'shell', 'monkey', '-p', appPackage, '-c',
+        'android.intent.category.LAUNCHER', '1',
+      ]);
+      start = host.startRemoteInput(telefon);
+    }
     if (zrzut != null) {
       await findWidget('Accept') ??
           await findWidget('Akceptuj', timeout: const Duration(seconds: 1));
@@ -110,6 +151,12 @@ void main() {
     await stuknijEtykiete(['Accept', 'Akceptuj'], azZniknie: true);
     expect(await start, RemoteInputStart.accepted);
     if (await biezacaKlawiatura() != imeId) {
+      if (zrzutWyboru != null) {
+        await findWidget('Chatt keyboard',
+            timeout: const Duration(seconds: 10));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        await zrzutDoDokumentacji(zrzutWyboru);
+      }
       // Okno wyboru ma nagłówek z nazwą klawiatury i pod nim wiersz z jej
       // podtypem o tej samej nazwie; stuknąć trzeba w wiersz, czyli niższy.
       await stuknijEtykiete(['Chatt keyboard', 'Klawiatura Chatt'],
@@ -127,7 +174,9 @@ void main() {
     expect(reverse.exitCode, 0, reason: '${reverse.stderr}');
     // Klawiatura Chatt włączona w systemie (komponent włącza dodatek). Adb
     // robi to bez okienka z ostrzeżeniem; w przewodniku robi to użytkownik.
-    await adb(['shell', 'ime', 'enable', imeId]);
+    // Przy zrzutach odwrotnie: klawiatura wyłączona, a włącza ją pierwszy
+    // krok, przez ustawienia systemu, z oboma ostrzeżeniami na zrzutach.
+    await adb(['shell', 'ime', zrzuty ? 'disable' : 'enable', imeId]);
     await adb(['shell', 'am', 'force-stop', appPackage]);
     await adb([
       'shell', 'monkey', '-p', appPackage, '-c',
@@ -137,7 +186,7 @@ void main() {
     host = await AppServices.start(
       executor: NativeDatabase.memory(),
       portOverride: hostPort,
-      nameOverride: 'Komputer PC',
+      nameOverride: nazwaHosta,
       enableDiscovery: false,
       receivedDirOverride: p.join(work.path, 'received'),
     );
@@ -180,6 +229,69 @@ void main() {
     work.deleteSync(recursive: true);
   });
 
+  test(
+      'zrzuty: karta dodatku i włączenie klawiatury Chatt w systemie, tak jak '
+      'robi to użytkownik',
+      skip: zrzuty ? false : 'tylko przy CHATT_SHOTS=1', () async {
+    await adb([
+      'shell', 'monkey', '-p', appPackage, '-c',
+      'android.intent.category.LAUNCHER', '1',
+    ]);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    // Aplikacja wraca na ekranie, na którym ją zostawiono: najpierw lista.
+    for (var i = 0; i < 3; i++) {
+      final wstecz = await findAnyWidget(['Back', 'Wstecz'],
+          pakiet: appPackage, timeout: const Duration(seconds: 2));
+      if (wstecz == null) break;
+      await adb(['shell', 'input', 'tap', '${wstecz.$2.$1}', '${wstecz.$2.$2}']);
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
+    await stuknijEtykiete(['Settings', 'Ustawienia'], pakiet: appPackage);
+    const wlacz = ['Turn on the Chatt keyboard', 'Włącz klawiaturę Chatt'];
+    for (var i = 0; i < 12; i++) {
+      if (await findAnyWidget(wlacz,
+              pakiet: appPackage, timeout: const Duration(seconds: 2)) !=
+          null) {
+        break;
+      }
+      await adb(['shell', 'input', 'swipe', '640', '2200', '640', '1400', '300']);
+    }
+    final przycisk = await findAnyWidget(wlacz, pakiet: appPackage);
+    expect(przycisk, isNotNull,
+        reason: 'na karcie dodatku nie ma „Turn on the Chatt keyboard"');
+    // Przycisk na dole kadru, nad nim cała karta z tytułem.
+    await adb([
+      'shell', 'input', 'swipe', '640', '${przycisk!.$2.$2}', '640', '2550',
+      '800',
+    ]);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    await zrzutDoDokumentacji('and26_klawiatura_dodatek');
+
+    await stuknijEtykiete(wlacz, pakiet: appPackage);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    // Lista klawiatur w ustawieniach systemu: przełącznik klawiatury Chatt
+    // to ostatni węzeł z jej nazwą (po tytule i podpisie).
+    await stuknijEtykiete(['Chatt keyboard'],
+        ostatni: true, pakiet: 'com.android.settings');
+    expect(await findWidget('OK'), isNotNull);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await zrzutDoDokumentacji('and27_klawiatura_ostrzezenie');
+    await stuknijEtykiete(['OK'], pakiet: 'com.android.settings');
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (await findWidget('OK', timeout: const Duration(seconds: 3)) != null) {
+      await zrzutDoDokumentacji('and28_klawiatura_po_restarcie');
+      await stuknijEtykiete(['OK'], pakiet: 'com.android.settings');
+    }
+    await czekaj(() async {
+      final lista =
+          (await adb(['shell', 'ime', 'list', '-s'])).stdout as String;
+      return lista.contains(imeId);
+    }, 'klawiatura Chatt włączona w systemie');
+    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+  });
+
   test('przed parowaniem: odmowa bez karty', () async {
     expect(await host.startRemoteInput(telefon), RemoteInputStart.notVerified);
     // ignore: invalid_use_of_visible_for_testing_member
@@ -216,7 +328,15 @@ void main() {
   });
 
   test('zgoda, wybór klawiatury i pisanie w Kontaktach', () async {
-    await sesja();
+    if (zrzuty) {
+      // Okno wyboru klawiatury nad jedną rozmową: lista rozmów na
+      // urządzeniu testowym zbiera po rozmówcy z każdego przebiegu.
+      final rozmowa = await host.openConversationWith(telefon);
+      await host.sendText(rozmowa, 'Meeting moved to 3 pm, room 2');
+      await stuknijEtykiete([nazwaHosta], fragment: true, pakiet: appPackage);
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
+    await sesja(zrzutWyboru: 'and29_klawiatura_wybor');
     // Po zgodzie aplikacja schodzi na dół.
     await czekaj(() async {
       final top = (await adb(['shell', 'dumpsys', 'activity', 'activities']))
@@ -258,6 +378,9 @@ void main() {
     );
     await czekaj(() => jestPoleZTekstem('Chatt ąęł 123'),
         'tekst w polu imienia');
+    // Pasek klawiatury Chatt pod polem, zanim akcja pola go schowa.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await zrzutDoDokumentacji('and24_klawiatura_pisze');
 
     // Akcja pola to akcja z `imeOptions`: przy „Dalej" fokus idzie do
     // następnego pola, przy „Gotowe" (pole imienia w nowszych Kontaktach)
@@ -274,7 +397,6 @@ void main() {
       'tekst po akcji pola',
     );
     await screenshot(p.join(work.path, 'kontakt.png'));
-    await zrzutDoDokumentacji('and24_klawiatura_pisze');
   });
 
   test('zablokowany ekran: odmowa i nic się nie wpisuje', () async {
@@ -292,6 +414,70 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 2));
     expect(await jestPoleZTekstem('Chatt ąęł 123 Klawiatura'), isTrue,
         reason: 'nic z zablokowanego ekranu nie trafiło do pola');
+    expect(await biezacaKlawiatura(), imeId,
+        reason: 'ekran blokady bez hasła zostawia klawiaturę Chatt');
+    final powiadomienia =
+        (await adb(['shell', 'dumpsys', 'notification', '--noredact'])).stdout
+            as String;
+    expect(
+        powiadomienia.contains('id=7301') &&
+            powiadomienia.contains('pkg=$appPackage'),
+        isFalse,
+        reason: 'bez hasła nie ma powiadomienia o przełączeniu klawiatury');
+  });
+
+  test(
+      'hasło na ekranie blokady: klawiatura oddaje miejsce, po odblokowaniu '
+      'powiadomienie przywraca ją jednym dotknięciem',
+      // Hasło blokady ustawia się wyłącznie na emulatorze, nigdy na telefonie
+      // kogoś, kto go używa.
+      skip: deviceId.startsWith('emulator-') ? false : 'tylko emulator',
+      () async {
+    const haslo = 'chatt1234';
+    await adb(['shell', 'locksettings', 'set-password', haslo]);
+    try {
+      expect(await biezacaKlawiatura(), imeId);
+      await adb(['shell', 'input', 'keyevent', 'KEYCODE_SLEEP']);
+      await Future<void>.delayed(const Duration(seconds: 2));
+      await adb(['shell', 'input', 'keyevent', 'KEYCODE_WAKEUP']);
+      await Future<void>.delayed(const Duration(seconds: 1));
+      // Pole hasła na ekranie blokady: przesunięcie w górę.
+      await adb(['shell', 'input', 'swipe', '640', '2400', '640', '800', '300']);
+      await czekaj(() async => await biezacaKlawiatura() != imeId,
+          'klawiatura Chatt oddaje miejsce na ekranie blokady');
+      await adb(['shell', 'input', 'text', haslo]);
+      await adb(['shell', 'input', 'keyevent', 'KEYCODE_ENTER']);
+      await czekaj(() async {
+        final okna = (await adb(['shell', 'dumpsys', 'window'])).stdout as String;
+        return okna.contains('isKeyguardShowing=false');
+      }, 'odblokowanie');
+      await czekaj(() async {
+        final powiadomienia =
+            (await adb(['shell', 'dumpsys', 'notification', '--noredact']))
+                .stdout as String;
+        return powiadomienia.contains('id=7301') &&
+            powiadomienia.contains('pkg=$appPackage');
+      }, 'powiadomienie „Przełącz klawiaturę na Chatt"');
+      await adb(['shell', 'cmd', 'statusbar', 'expand-notifications']);
+      if (zrzuty) {
+        await findWidget('Switch the keyboard to Chatt',
+            fragment: true, timeout: const Duration(seconds: 10));
+        await Future<void>.delayed(const Duration(seconds: 1));
+        await zrzutDoDokumentacji('and30_klawiatura_powiadomienie');
+        // Same dwa powiadomienia Chatt, bez kafelków i bez powiadomień
+        // samego emulatora (Pixel 9 Pro, 1280×2856).
+        await przytnijZrzut('and30_klawiatura_powiadomienie', 680, 1492);
+      }
+      await stuknijEtykiete(
+          ['Switch the keyboard to Chatt', 'Przełącz klawiaturę na Chatt'],
+          fragment: true);
+      await stuknijEtykiete(['Chatt keyboard', 'Klawiatura Chatt'],
+          ostatni: true);
+      await czekaj(() async => await biezacaKlawiatura() == imeId,
+          'klawiatura Chatt z powrotem bieżącą');
+    } finally {
+      await adb(['shell', 'locksettings', 'clear', '--old', haslo]);
+    }
   });
 
   test('Stop na pasku klawiatury kończy sesję po obu stronach', () async {
@@ -312,7 +498,7 @@ void main() {
     await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
   });
 
-  test('pole wiadomości w samym Chatcie: odmowa, nic nie wychodzi', () async {
+  test('pole wiadomości w samym Chatcie: pisanie trafia i tam', () async {
     await adb([
       'shell', 'monkey', '-p', appPackage, '-c',
       'android.intent.category.LAUNCHER', '1',
@@ -320,8 +506,9 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 2));
     // Rozmowa z hostem powstała przy parowaniu.
     final rozmowa = await host.openConversationWith(telefon);
-    await host.sendText(rozmowa, 'Rozmowa do testu klawiatury');
-    await stuknijEtykiete(['Komputer PC'], fragment: true);
+    await host.sendText(rozmowa,
+        zrzuty ? 'Can you check the room for tomorrow?' : 'Rozmowa do testu klawiatury');
+    await stuknijEtykiete([nazwaHosta], fragment: true);
     // Karta zgody nad jedną rozmową: lista rozmów na urządzeniu testowym
     // zbiera po jednym „Komputerze PC" z każdego przebiegu.
     await sesja(zrzut: 'and23_klawiatura_zgoda');
@@ -338,25 +525,18 @@ void main() {
       final cel = host.outgoingRemoteInput.value?.target;
       return cel != null && cel.ownApp;
     }, 'cel u nadawcy: własne pole Chatta', ile: const Duration(seconds: 10));
-    // Pasek „Pisze" u góry aplikacji mówi, że przy Chatcie na wierzchu nic
-    // się nie wpisze.
-    await zrzutDoDokumentacji('and25_klawiatura_pasek');
-
     final przed = (await host.db.watchMessages(rozmowa).first).length;
-    expect(
-      host.sendRemoteInput(const [
-        RemoteInputOp.insert('nie wysyłaj'),
-        RemoteInputOp.action(),
-      ]),
-      isTrue,
-    );
-    await czekaj(
-      () async => host.outgoingRemoteInput.value?.applied == false,
-      'odmowa wpisania',
-    );
-    await Future<void>.delayed(const Duration(seconds: 2));
+    expect(host.sendRemoteInput(const [RemoteInputOp.insert('do Chatt')]),
+        isTrue);
+    await czekaj(() async => (await poleZFokusem())?.text.contains('do Chatt') ??
+        false, 'tekst w polu wiadomości Chatt');
+    // Pasek „Pisze" u góry aplikacji i tekst w polu wiadomości.
+    await zrzutDoDokumentacji('and25_klawiatura_pasek');
+    expect(host.sendRemoteInput(const [RemoteInputOp.backspace(8)]), isTrue);
+    await czekaj(() async => !((await poleZFokusem())?.text.contains('do Chatt') ??
+        false), 'pole wiadomości z powrotem puste');
     expect((await host.db.watchMessages(rozmowa).first).length, przed,
-        reason: 'zdalny Enter w polu Chatta nie wysłał wiadomości');
+        reason: 'bez Entera nic nie wyszło');
     await host.stopRemoteInput();
   });
 

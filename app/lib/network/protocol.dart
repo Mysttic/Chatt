@@ -770,9 +770,10 @@ const Duration remoteInputAnswerTimeout = Duration(minutes: 2);
 const Duration remoteInputPacketTimeout = Duration(seconds: 2);
 
 /// Ile najwyżej trwa wpisanie jednego znaku (albo jednego Backspace) po
-/// stronie odbiorcy. Windows wpisuje znak po znaku z milisekundą przerwy, bo
-/// część aplikacji gubi znaki wysłane serią; zapas jest na wolniejszy zegar.
-const Duration remoteInputTypingPerUnit = Duration(milliseconds: 20);
+/// stronie odbiorcy. Windows wpisuje znak po znaku, 10 ms po znaku i 40 ms
+/// po spacji i Enterze, bo część aplikacji gubi znaki wysłane szybciej;
+/// zapas jest na wolniejszy zegar.
+const Duration remoteInputTypingPerUnit = Duration(milliseconds: 50);
 
 /// Czas wpisania paczki u odbiorcy, ponad zwykły limit odpowiedzi. Nadawca
 /// dolicza go do limitu czasu paczki, a odbiorca do limitu wywołania kanału.
@@ -1007,8 +1008,9 @@ class RemoteInputTarget {
   /// strony), a odczyt treści u odbiorcy jest poza zakresem dodatku.
   final String appLabel;
 
-  /// Fokus jest w samym Chatcie. Odbiorca wtedy nie wpisuje: zdalny Enter
-  /// nie wyśle wiadomości i nie kliknie karty.
+  /// Fokus jest w samym Chatcie. To tylko informacja dla nadawcy: pola
+  /// Chatta przyjmują pisanie jak każde inne, a karty z pytaniem chroni
+  /// [inputPaused] (przy wiszącej karcie nic się nie wpisuje).
   final bool ownApp;
 
   /// Ekran zablokowany albo wygaszony.

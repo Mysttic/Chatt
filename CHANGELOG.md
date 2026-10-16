@@ -16,6 +16,23 @@ keyboard of their own. Windows types into the window in front, Android through
 a keyboard of Chatt's own, and every session starts with consent on the
 receiving device.
 
+**Keyboard from a PC, in short.** Turn the add-on on in Settings, Add-ons, on
+both devices, and on the device you want to type on also "Allow typing on
+this device" (on Android, turn the Chatt keyboard on once in the system, from
+the add-on's card). Then open the conversation with that device on the PC and
+pick the keyboard button at the top. Over there a card asks for consent; on
+Android, Accept also offers the keyboard picker. Tap the field you want, and
+what you type on the PC lands there: Live sends each character as you type
+it, Compose sends a whole text in one go, and Paste from clipboard sends the
+PC's clipboard text. On Windows a floating bar with Stop stays on top for the
+whole session; on Android the Chatt keyboard's bar with Stop shows where the
+keyboard usually is, and the permanent notification says who is typing until
+the session ends. A line on the PC says where the typing goes or why nothing
+gets typed. Only between devices with a confirmed identity, encrypted like
+messages, over the network or the radio, and nothing typed is stored
+anywhere. Every step is pictured in
+[docs/keyboard.md](docs/keyboard.md) ([polski](docs/keyboard.pl.md)).
+
 ### Added
 - **Keyboard from a PC, the second add-on.** Settings → Add-ons gains a card
   for it, off by default and under the rules the Bluetooth add-on set: while it
@@ -41,9 +58,9 @@ receiving device.
   ordinary text field, and a password typed under the mask stays masked;
   undo shortcuts and suggestions are off. Typing is possible only while the
   other side can take it: a status line says where the typing goes or why
-  nothing is typed (Chatt in front there, a locked screen, an administrator's
-  window, no field, a question waiting on either device), and a session that
-  broke off can be reconnected.
+  nothing is typed (a locked screen, an administrator's window, no field, a
+  question waiting on either device), and a session that broke off can be
+  reconnected.
 - **`POST /input-session` and `POST /input`**, on both roads, the network and
   the radio. A session starts with a request; the sender's packets then carry
   text, Backspace, Delete and the field's action (Enter, or Search, Send, Go,
@@ -56,20 +73,29 @@ receiving device.
   can be set only for a verified device and goes with the shield, like
   `autoAccept`.
 - `chatt/remoteinput`, the channel to the native receivers: `status`, `apply`,
-  `setSession`, `setImeEnabled`, `showIndicator` and `hideIndicator`, plus
+  `setSession`, `holdOwnApp`, `setImeEnabled`, `showIndicator` and
+  `hideIndicator`, plus
   `stopRequested` from the native side.
 - **Typing on Windows.** A PC with Windows 10 or 11, touch screen or not, types
-  what arrives into the window with the focus, one character at a time
-  (`SendInput`, independent of the keyboard layout), and refuses while Chatt,
-  the lock screen or an administrator's window is in front. The sender learns
+  what arrives into the window with the focus (`SendInput`, independent of the
+  keyboard layout), one character at a time: 10 ms apart and 40 ms after a
+  space or Enter, because the Windows 11 Notepad lost or repeated characters
+  typed faster, Polish letters most of all. It refuses while the lock screen
+  or an administrator's window is in front; Chatt's own window takes typing
+  like any other, except while a question card waits there or the PC is
+  itself typing on another device. Stop cuts even a long paste short at
+  once. The sender learns
   the program's name and whether the field is a password (UI Automation). A
   floating bar with Stop stays on top for the whole session without ever taking
   the focus, the tray icon gets a badge and a Stop in its menu, and a consent
   card pulls the hidden window out and sends it back after the answer.
 - **Typing on Android through the Chatt keyboard.** The add-on brings a
   keyboard with no keys: a bar saying who types and where, with "Switch
-  keyboard" and Stop. It types into the focused field of any app, password
-  fields included, and refuses in Chatt's own fields and on a locked screen.
+  keyboard" and Stop. It types into the focused field of any app, Chatt and
+  password fields included, following the focus from app to app, and refuses
+  on a locked screen. After a lock screen with a text password, which gets the
+  ordinary keyboard back, "Switch the keyboard to Chatt" comes again once the
+  phone is unlocked.
   It is listed among the system's keyboards only while the add-on is on; the
   add-on's card leads to turning it on once. A consent accepted on the card
   offers the keyboard picker and steps out of the way; the previous keyboard
@@ -102,6 +128,27 @@ receiving device.
   unlocked, running device, over the radio too when Bluetooth is on.
   `docs/architecture.md` and `docs/SECURITY.md` say what that means for a
   stolen verified device.
+
+### Changed
+- **A page of its own for the keyboard**: `docs/keyboard.md` and
+  `docs/keyboard.pl.md`, step by step with screenshots from Windows (both
+  languages) and Android: turning it on, the Chatt keyboard and Android's
+  two warnings, consent, the picker, Live and Compose, passwords, the bars and
+  notifications on the device being typed on, every status line, lock
+  screens, stopping, typing without asking, Bluetooth, security, the measured
+  speed and a troubleshooting table. The READMEs, the documentation index and
+  the guide link to it.
+- **Both READMEs, the user guide and the privacy policy cover the add-ons.**
+  The READMEs gain an Add-ons section for Bluetooth and the keyboard, the guide
+  a section on typing from a PC's keyboard in both languages, and the privacy
+  policy the Bluetooth permissions and name, the Chatt keyboard and the typed
+  text, which Chatt stores nowhere. The bug report form lists both add-ons.
+- `docs/building.md` and `VERSION.md` name all three files that carry the
+  version number, `app/lib/core/version.dart` included, and so does the
+  release workflow's error when the numbers disagree.
+- The add-on's card on Android says that the Chatt keyboard sends nothing
+  from your fields. It does look at the kind of field and whether something
+  is selected, which "reads no fields" left out.
 
 ### Fixed
 - The conversation's security sheet scrolls. On a low window or with a large

@@ -309,7 +309,12 @@ class _Outgoing {
 class _RemoteInput {
   final AppServices _s;
 
-  _RemoteInput(this._s);
+  _RemoteInput(this._s) {
+    _s.pendingOffers.addListener(_syncHold);
+    _s.pendingPairings.addListener(_syncHold);
+    pending.addListener(_syncHold);
+    outgoing.addListener(_syncHold);
+  }
 
   late RemoteInputPolicy _policy = _askUser;
   RemoteInputSink _sink = const RemoteInputChannel();
@@ -351,6 +356,25 @@ class _RemoteInput {
   int _askSeq = 0;
   _Outgoing? _out;
   bool _closed = false;
+
+  /// Ostatnio wysłane do ujścia „pola Chatta bez pisania". `null`: nic
+  /// jeszcze nie poszło w tej zgodzie.
+  bool? _heldOwn;
+
+  /// Pola samego Chatta bez pisania, dopóki wisi karta z pytaniem albo to
+  /// urządzenie samo pisze na innym (jego ekran pisania odesłałby tekst
+  /// dalej, a dwie sesje w obie strony kręciłyby się w kółko). Słuchacze
+  /// wołają to od razu przy zmianie, więc ujście wie o karcie, zanim ta
+  /// weźmie fokus klatkę później: paczka, która właśnie wpisuje się w okno
+  /// Chatta, urywa się przed Enterem. Poza zgodą nic nie idzie, bo nic się
+  /// nie wpisuje.
+  void _syncHold() {
+    if (_closed || _grant == null) return;
+    final on = _s._anyPromptPending || _out != null;
+    if (on == _heldOwn) return;
+    _heldOwn = on;
+    unawaited(_sink.holdOwnApp(on));
+  }
 
   void _set<T>(ValueNotifier<T> notifier, T value) {
     if (!_closed) notifier.value = value;
@@ -618,6 +642,8 @@ class _RemoteInput {
     );
     _grant = nowy;
     _startGrantClock();
+    _heldOwn = null;
+    _syncHold();
     await _sink.setSession(active: true, peerName: nowy.peerName);
     final cel = await _sink.status();
     // Zgoda cofnięta w trakcie rozmowy z ujściem (Stop, wyłączony dodatek).
@@ -817,6 +843,7 @@ class _RemoteInput {
     _grantClock = null;
     if (_grant == null) return;
     _grant = null;
+    _heldOwn = null;
     _set(incoming, null);
     unawaited(_sink.setSession(active: false));
   }
@@ -1247,6 +1274,8 @@ class _RemoteInput {
       o.queue.clear();
       if (!o.done.isCompleted) o.done.complete();
     }
+    _s.pendingOffers.removeListener(_syncHold);
+    _s.pendingPairings.removeListener(_syncHold);
     keyboardAddon.dispose();
     pending.dispose();
     incoming.dispose();

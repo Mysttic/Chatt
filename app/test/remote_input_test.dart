@@ -23,6 +23,9 @@ class _Ujscie implements RemoteInputSink {
   /// Nazwa nadawcy z ostatniego `setSession(active: true)`.
   String? nazwa;
 
+  /// Kolejne `holdOwnApp`, poza [wywolania], które liczą pisanie.
+  final wstrzymania = <bool>[];
+
   RemoteInputTarget cel = const RemoteInputTarget(
     active: true,
     field: RemoteInputField.text,
@@ -74,6 +77,9 @@ class _Ujscie implements RemoteInputSink {
     }
     return (applied: true, target: cel);
   }
+
+  @override
+  Future<void> holdOwnApp(bool on) async => wstrzymania.add(on);
 
   @override
   Future<void> setSession({required bool active, String peerName = ''}) async {
@@ -1429,6 +1435,51 @@ void main() {
         );
         expect(s.alicja.outgoingRemoteInput.value!.applied, isTrue);
         expect(s.ujscie.ops, const [RemoteInputOp.insert('y')]);
+      },
+    );
+
+    test(
+      'karta u odbiorcy i jego własna sesja pisania wstrzymują pola samego '
+      'Chatta w ujściu, a poza zgodą nic nie idzie',
+      () async {
+        const plik = PendingFileOffer(
+          messageGuid: 'plik-1',
+          peerName: 'Alicja',
+          fileName: 'umowa.pdf',
+          fileSize: 1024,
+          resumeFrom: 0,
+          conversationId: 1,
+        );
+        final s = await scena();
+        s.bartek.pendingOffers.value = const [plik];
+        expect(s.ujscie.wstrzymania, isEmpty, reason: 'bez zgody nic nie idzie');
+        s.bartek.pendingOffers.value = const [];
+
+        expect(await s.alicja.startRemoteInput(s.bartekUAlicji),
+            RemoteInputStart.accepted);
+        expect(s.ujscie.wstrzymania, [false],
+            reason: 'stan idzie na początku zgody');
+
+        // Od razu przy zmianie, zanim karta weźmie fokus klatkę później.
+        s.bartek.pendingOffers.value = const [plik];
+        expect(s.ujscie.wstrzymania.last, isTrue);
+        s.bartek.pendingOffers.value = const [];
+        expect(s.ujscie.wstrzymania.last, isFalse);
+
+        // Bartek sam zaczyna pisać na Alicji: jego ekran pisania odesłałby
+        // dalej to, co Alicja mu wpisze.
+        final przed = s.ujscie.wstrzymania.length;
+        final start =
+            await s.bartek.startRemoteInput(await rozmowca(s.bartek, s.alicja));
+        expect(start, RemoteInputStart.notEnabled,
+            reason: 'Alicja nie przyjmuje pisania');
+        expect(s.ujscie.wstrzymania.sublist(przed), [true, false]);
+
+        s.bartek.stopIncomingRemoteInput();
+        final poZgodzie = s.ujscie.wstrzymania.length;
+        s.bartek.pendingOffers.value = const [plik];
+        expect(s.ujscie.wstrzymania.length, poZgodzie,
+            reason: 'po zgodzie znowu nic nie idzie');
       },
     );
 
