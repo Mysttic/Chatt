@@ -169,10 +169,19 @@ Future<(String, (int, int))?> findAnyWidget(
   return null;
 }
 
+/// Na telefonie, którego ktoś używa na co dzień, ekran niesie cudze
+/// rozmowy: wtedy komunikaty błędów mówią tylko, ile węzłów widać.
+bool ukryjTrescEkranu = false;
+
 /// Etykiety widoczne na ekranie, do komunikatu błędu, żeby nie trzeba było
 /// zgadywać, na czym test się potknął.
 Future<String> widocznaTresc() async {
   final wezly = await uiNodes();
+  if (ukryjTrescEkranu) {
+    return wezly == null
+        ? 'nie udało się zrzucić drzewa'
+        : '${wezly.length} węzłów (treść ukryta)';
+  }
   if (wezly == null) return 'nie udało się zrzucić drzewa';
   return wezly
       .map((w) => w.desc.isNotEmpty ? w.desc : w.text)

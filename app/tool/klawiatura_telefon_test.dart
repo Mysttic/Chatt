@@ -108,15 +108,47 @@ void main() {
     return stan()!;
   }
 
-  /// Pisze wyłącznie, gdy po drugiej stronie jest pole formularza kontaktu.
-  Future<OutgoingRemoteInput> wpiszDoKontaktu(List<RemoteInputOp> ops) async {
+  /// Pisze wyłącznie, gdy pole z fokusem należy do aplikacji [pakiet].
+  Future<OutgoingRemoteInput> wpiszW(
+      String pakiet, List<RemoteInputOp> ops) async {
     final cel = stan()?.target;
-    if (cel == null || !cel.app.contains(kontakty) || !cel.active) {
-      fail('cel to nie formularz kontaktu (${cel?.app}), nic nie wysyłam');
+    if (cel == null || cel.app != pakiet || !cel.active) {
+      fail('cel to nie $pakiet (${cel?.app}), nic nie wysyłam');
     }
     final przed = stan()!.typedReplies;
     expect(host.sendRemoteInput(ops), isTrue);
     return odpowiedz(przed);
+  }
+
+  Future<OutgoingRemoteInput> wpiszDoKontaktu(List<RemoteInputOp> ops) =>
+      wpiszW(kontakty, ops);
+
+  /// Jedno pole w aplikacji [pakiet]: otwarcie, pisanie, sprawdzenie tekstu
+  /// w polu, skasowanie go i zamknięcie bez zapisu.
+  Future<void> poleW(String pakiet, List<String> otworz, String tekst) async {
+    await adb(['shell', 'am', 'force-stop', pakiet]);
+    await adb(['shell', 'am', 'start', ...otworz]);
+    await Future<void>.delayed(const Duration(seconds: 2));
+    await stuknijPole();
+    await czekaj(() async {
+      final cel = stan()?.target;
+      return cel != null && cel.active && cel.app == pakiet;
+    }, 'pole w $pakiet', ile: const Duration(seconds: 15));
+    final klawiatura = await biezacaKlawiatura();
+    await wpiszW(pakiet, [RemoteInputOp.insert(tekst)]);
+    await czekaj(() async => (await poleZFokusem())?.text.contains(tekst) ?? false,
+        'tekst w polu $pakiet');
+    print('$pakiet „${stan()!.target.appLabel}": tekst w polu, '
+        'pole=${stan()!.target.field.name} akcja=${stan()!.target.action.name}, '
+        'klawiatura: ${klawiatura == imeId ? 'Chatt' : klawiatura}');
+    await wpiszW(pakiet, [RemoteInputOp.backspace(tekst.runes.length)]);
+    await czekaj(
+        () async => !((await poleZFokusem())?.text.contains(tekst) ?? false),
+        'pole $pakiet wyczyszczone');
+    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    await adb(['shell', 'am', 'force-stop', pakiet]);
   }
 
   Future<void> stuknij(List<String> etykiety,
@@ -160,6 +192,9 @@ void main() {
   }
 
   setUpAll(() async {
+    // Ekran telefonu niesie prywatne rozmowy: do logów idzie tylko liczba
+    // węzłów.
+    ukryjTrescEkranu = true;
     work = Directory.systemTemp.createTempSync('chatt_klawiatura_telefon');
     klawiaturyPrzed = await ustawienie('enabled_input_methods');
     klawiaturaPrzed = await biezacaKlawiatura();
@@ -376,6 +411,29 @@ void main() {
     wpisaneWFormularzu = 0;
   });
 
+  test('pisanie wszędzie: kolejne aplikacje w jednej sesji', () async {
+    // Klawiatura Chatt zostaje bieżąca, więc pisanie idzie za fokusem do
+    // każdej aplikacji, bez nowej zgody i bez okna wyboru.
+    await poleW('com.google.android.settings.intelligence',
+        ['-a', 'android.settings.APP_SEARCH_SETTINGS'], 'Chatt ąęł ustawienia');
+    await poleW(
+        'com.google.android.calendar',
+        [
+          '-a', 'android.intent.action.INSERT', '-t',
+          'vnd.android.cursor.item/event', '-p', 'com.google.android.calendar',
+        ],
+        'Chatt ąęł kalendarz');
+    await poleW(
+        kontakty,
+        [
+          '-a', 'android.intent.action.INSERT', '-t',
+          'vnd.android.cursor.dir/contact',
+        ],
+        'Chatt ąęł znowu kontakty');
+    expect(stan()!.state, OutgoingRemoteInputState.active,
+        reason: 'ta sama sesja przez wszystkie aplikacje');
+  });
+
   test('własne pole Chatt: odmowa, nic się nie wpisuje', () async {
     await adb([
       'shell', 'monkey', '-p', appPackage, '-c',
@@ -392,8 +450,14 @@ void main() {
       await adb(['shell', 'input', 'tap', '${wstecz.$2.$1}', '${wstecz.$2.$2}']);
       await Future<void>.delayed(const Duration(seconds: 1));
     }
-    await stuknijEtykiete(['Szukaj rozmowy', 'Search conversations'],
-        pakiet: appPackage);
+    // Szukanie bywa otwarte z poprzedniego razu: wtedy pole już jest.
+    final szukaj = await findAnyWidget(['Szukaj rozmowy', 'Search conversations'],
+        pakiet: appPackage, timeout: const Duration(seconds: 5));
+    if (szukaj != null) {
+      await adb(['shell', 'input', 'tap', '${szukaj.$2.$1}', '${szukaj.$2.$2}']);
+      await Future<void>.delayed(const Duration(seconds: 1));
+    }
+    await stuknijPole();
     await czekaj(() async => stan()?.target.ownApp ?? false,
         'cel u nadawcy: własne pole Chatt',
         ile: const Duration(seconds: 10));
@@ -403,6 +467,12 @@ void main() {
     expect(po.applied, isFalse, reason: 'w polu Chatt nic się nie wpisuje');
     expect((await poleZFokusem())?.text ?? '', isNot(contains('NIE')));
     print('własne pole Chatt: applied=${po.applied} ownApp=${po.target.ownApp}');
+    // Szukanie z powrotem zamknięte, lista rozmów jak przed testem.
+    final zamknij = await findAnyWidget(['Zamknij', 'Close'],
+        pakiet: appPackage, timeout: const Duration(seconds: 3));
+    if (zamknij != null) {
+      await adb(['shell', 'input', 'tap', '${zamknij.$2.$1}', '${zamknij.$2.$2}']);
+    }
     await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
     await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
   });
@@ -430,6 +500,10 @@ void main() {
       await czekaj(() async => !await ekranBlokady(), 'odblokowanie',
           ile: const Duration(minutes: 3));
     }
+    // Po odblokowaniu pisanie trwa dalej, bez nowej zgody.
+    print('po odblokowaniu klawiatura: ${await biezacaKlawiatura()}');
+    await poleW('com.google.android.settings.intelligence',
+        ['-a', 'android.settings.APP_SEARCH_SETTINGS'], 'Chatt po blokadzie');
   });
 
   test('koniec sesji: wraca poprzednia klawiatura', () async {

@@ -719,9 +719,14 @@ they were. Pairing goes through adb tunnels; with `CHATT_PHONE_IP` the session
 and the measurements go over Wi-Fi straight to the phone. Steps: pairing by
 code, consent on the card with the Chatt keyboard picked, text with Polish
 letters, Backspace and an emoji in the form, then 30 seconds of idle pings,
-100 characters one by one every 100 ms and 50 characters every 20 ms, a refusal
-in Chatt's own search field, the lock screen (skipped with `CHATT_BLOKADA=0`,
-otherwise it waits for you to unlock) and the end of the session.
+100 characters one by one every 100 ms and 50 characters every 20 ms; then the
+same session follows the focus through other apps (the Settings search, a new
+calendar event's title, the contact form again), each field checked and
+cleared; a refusal in Chatt's own search field, the lock screen (skipped with
+`CHATT_BLOKADA=0`, otherwise it waits for you to unlock and types again
+afterwards) and the end of the session. Error messages there give only the
+number of nodes on the screen (`ukryjTrescEkranu` in `tool/uiautomator.dart`):
+the screen of an everyday phone holds private conversations.
 
 The run on 16 October 2026: a Pixel 9 Pro with Android 17 on 2.4 GHz Wi-Fi
 (channel 6), the PC on Ethernet in the same network.
@@ -736,7 +741,9 @@ because the phone's Wi-Fi dozes between them; while you type, the radio stays
 awake. One packet per character at that pace: nothing waited long enough to be
 merged. The first session took three taps on the phone (Accept, Chatt keyboard
 in the picker, the field), and the lock screen showed the ordinary keyboard
-with no Chatt bar. The radio (the Bluetooth add-on) and 5 GHz Wi-Fi are still
+with no Chatt bar. Within one session the typing went into the Settings
+search, a calendar event's title and a contact form in turn, with no new
+consent and no new picker. The radio (the Bluetooth add-on) and 5 GHz Wi-Fi are still
 to be measured.
 
 ### `tool/bt_rozmowa_check.dart`
