@@ -1550,6 +1550,54 @@ abstract class AppLocalizations {
   /// **'Zatrzymaj zdalną klawiaturę'**
   String get trayRemoteInputStop;
 
+  /// No description provided for @remoteInputSwitchTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przełącz klawiaturę na Chatt'**
+  String get remoteInputSwitchTitle;
+
+  /// No description provided for @remoteInputSwitchBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} pisze na tym urządzeniu. Dotknij i wybierz klawiaturę Chatt.'**
+  String remoteInputSwitchBody(Object name);
+
+  /// No description provided for @remoteInputImeOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie z innego urządzenia przechodzi przez klawiaturę Chatt. Włącz ją raz w ustawieniach systemu.'**
+  String get remoteInputImeOff;
+
+  /// No description provided for @remoteInputImeWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt nie czyta pól: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.'**
+  String get remoteInputImeWarning;
+
+  /// No description provided for @remoteInputImeEnable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Włącz klawiaturę Chatt'**
+  String get remoteInputImeEnable;
+
+  /// No description provided for @remoteInputImeNotSelected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Na czas pisania wybierz klawiaturę Chatt. Po sesji wraca poprzednia.'**
+  String get remoteInputImeNotSelected;
+
+  /// No description provided for @remoteInputImePick.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz klawiaturę'**
+  String get remoteInputImePick;
+
+  /// No description provided for @remoteInputImeReady.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klawiatura Chatt jest włączona.'**
+  String get remoteInputImeReady;
+
   /// No description provided for @viaWifi.
   ///
   /// In pl, this message translates to:

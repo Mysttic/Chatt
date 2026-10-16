@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **346 `flutter test` tests** check everything that can be
+The split is simple: **349 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -594,7 +594,39 @@ The native bar, the tray and the window are replaced by recorders:
   minimised one goes back to the taskbar; a window already on screen is left
   alone
 
+### The keyboard on Android outside the app (`test/remote_input_mobile_test.dart`, 3 tests)
+- a grant accepted on the card shows the bar text and asks for the keyboard
+  picker once; the following packets only change the text; the end hides it
+- a grant without a card while the app is in the background posts "Switch the
+  keyboard to Chatt"
+- a card arriving with the window closed gets one notification, and none
+  while the app is in front
+
 ## Scenarios on live hardware
+
+### `tool/klawiatura_android_e2e_test.dart`
+The Chatt keyboard on a live device: this process is the sender, the app on
+the emulator or phone is the receiver, through the same adb tunnels as
+`tool/android_e2e_test.dart`. With the add-on and receiving on in the app (the
+script enables the keyboard itself with `adb shell ime enable`):
+`flutter test tool/klawiatura_android_e2e_test.dart`. Seven steps, all
+asserted: a request before pairing is refused with no card; pairing by code;
+a request accepted on the card brings up the keyboard picker, Chatt is picked
+and the app moves to the back; in a new contact form the text with Polish
+letters, a Backspace and the field's action arrive (read back with
+`uiautomator dump`); with the screen off the target says `locked` and nothing
+is typed; Stop on the keyboard bar ends the session on both sides and the
+previous keyboard comes back; in Chatt's own message field typing is refused
+(`ownApp`) and no message goes out; switching the add-on off takes the Chatt
+keyboard off the system's list, and switching it on brings it back. Shared
+helpers for the device scenarios live in `tool/uiautomator.dart`.
+
+The run on the emulator (Pixel 9 Pro, API 37) found two things the unit tests
+cannot: the navigation bar drawn over the keyboard bar, with the
+keyboard-switch button on top of Stop, and a pairing reply that went nowhere
+through the tunnel, because every request from the device rewrites the port
+the host keeps for it (the script pairs host first and then pins the tunnel
+port back).
 
 ### `tool/klawiatura_check.dart`
 The `chatt/remoteinput` sink on a live Windows runner, with no consent and no
@@ -740,9 +772,10 @@ all without a password. On an encrypted database it answers "cannot be read".
 Deliberate holes in coverage, to be checked by hand at release time:
 
 - **Typing into a real field.** `flutter test` has no native side, so
-  `SendInput` on Windows and the Chatt keyboard on Android (the sinks of the
-  keyboard add-on, phases 2 and 3 of issue #35) are never reached; neither are
-  their own refusals (Chatt's own window, a locked screen, an elevated window).
+  `SendInput` on Windows and the Chatt keyboard on Android are never reached
+  there. The Android side is covered by `tool/klawiatura_android_e2e_test.dart`
+  on an emulator; the Windows side by `tool/klawiatura_check.dart` and
+  `tool/klawiatura_e2e_test.dart`, run by hand.
 - **The keyboard over a real Bluetooth link**, for the same reason as any other
   Bluetooth traffic.
 - **The keyboard's 8-hour limit, the card's two-minute timeout and the cap of

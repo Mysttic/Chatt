@@ -82,6 +82,23 @@
             android:name=".ChattService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+        <!-- Klawiatura Chatt, ujście dodatku „Klawiatura z PC" (issue #35).
+             Wyłączona w manifeście: włącza ją wyłącznie przełącznik dodatku
+             w aplikacji, więc bez dodatku Chatt nie figuruje na liście
+             klawiatur systemu. Ten sam proces co silnik Fluttera. -->
+        <service
+            android:name=".ChattInputMethod"
+            android:enabled="false"
+            android:label="@string/ime_name"
+            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/method" />
+        </service>
         <!-- Odebrane pliki wychodzą do innych aplikacji jako content://,
              bo zwykła ścieżka od API 24 kończy się FileUriExposedException. -->
         <provider

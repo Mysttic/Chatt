@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Napisy klawiatury Chatt, których nie da się wziąć z Darta: nazwa na
+     liście klawiatur systemu i pasek bez trwającej zgody. W trakcie zgody
+     napis i Stop przychodzą z Darta, w języku aplikacji. -->
+<resources>
+    <string name="ime_name">Chatt keyboard</string>
+    <string name="ime_idle">Chatt keyboard: nobody is typing</string>
+    <string name="ime_typing">Typing: %1$s</string>
+    <string name="ime_switch">Switch keyboard</string>
+    <string name="ime_stop">Stop</string>
+    <string name="ime_channel">Remote keyboard</string>
+</resources>

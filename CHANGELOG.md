@@ -51,6 +51,15 @@ receivers for Windows and Android and the sender's screen land.
   floating bar with Stop stays on top for the whole session without ever taking
   the focus, the tray icon gets a badge and a Stop in its menu, and a consent
   card pulls the hidden window out and sends it back after the answer.
+- **Typing on Android through the Chatt keyboard.** The add-on brings a
+  keyboard with no keys: a bar saying who types and where, with "Switch
+  keyboard" and Stop. It types into the focused field of any app, password
+  fields included, and refuses in Chatt's own fields and on a locked screen.
+  It is listed among the system's keyboards only while the add-on is on; the
+  add-on's card leads to turning it on once. A consent accepted on the card
+  offers the keyboard picker and steps out of the way; the previous keyboard
+  comes back when the session ends. The permanent notification says who is
+  typing for the whole session.
 
 ### Security
 - **The first sealed replies in the protocol.** Both routes answer 200 and

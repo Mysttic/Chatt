@@ -881,6 +881,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trayRemoteInputStop => 'Stop remote keyboard';
 
   @override
+  String get remoteInputSwitchTitle => 'Switch the keyboard to Chatt';
+
+  @override
+  String remoteInputSwitchBody(Object name) {
+    return '$name is typing on this device. Tap and pick the Chatt keyboard.';
+  }
+
+  @override
+  String get remoteInputImeOff =>
+      'Typing from another device goes through the Chatt keyboard. Turn it on once in the system settings.';
+
+  @override
+  String get remoteInputImeWarning =>
+      'Android will warn that a keyboard can collect what you type. The Chatt keyboard reads no fields: it types what comes from the device you allow to type.';
+
+  @override
+  String get remoteInputImeEnable => 'Turn on the Chatt keyboard';
+
+  @override
+  String get remoteInputImeNotSelected =>
+      'Pick the Chatt keyboard for the time of typing. The previous one comes back after the session.';
+
+  @override
+  String get remoteInputImePick => 'Pick keyboard';
+
+  @override
+  String get remoteInputImeReady => 'The Chatt keyboard is on.';
+
+  @override
   String get viaWifi => 'over the network';
 
   @override

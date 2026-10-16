@@ -138,6 +138,11 @@ object ChattChannels {
         // niczego nie uruchamia: kanał woła wyłącznie dodatek Bluetooth,
         // włączony w ustawieniach Chatta.
         ChattBluetooth.install(context, messenger)
+
+        // Klawiatura z PC (issue #35), kanał "chatt/remoteinput". Tak samo:
+        // milczy, dopóki dodatek i odbiór są wyłączone, a klawiatura Chatt
+        // jest wtedy wyłączonym komponentem.
+        ChattRemoteInput.install(context, messenger)
     }
 
     /**

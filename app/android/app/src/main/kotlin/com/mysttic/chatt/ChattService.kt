@@ -36,10 +36,12 @@ class ChattService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        running = true
         acquireWifiLocks()
     }
 
     override fun onDestroy() {
+        running = false
         releaseWifiLocks()
         super.onDestroy()
     }
@@ -49,7 +51,16 @@ class ChattService : Service() {
         // w aplikacji, a nie za językiem systemu.
         intent?.getStringExtra(EXTRA_TITLE)?.let { title = it }
         intent?.getStringExtra(EXTRA_BODY)?.let { body = it }
-        startForeground(NOTIFICATION_ID, buildNotification())
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (error: Exception) {
+            // System nie przepuścił usługi pierwszoplanowej (start z tła na
+            // Androidzie 12+). Wyjątek stąd zabiłby cały proces, a w nim
+            // klawiaturę Chatt; spróbujemy ponownie, gdy system pozwoli.
+            running = false
+            stopSelf()
+            return START_NOT_STICKY
+        }
         // Gdyby system nas jednak ubił (skrajny brak pamięci), niech wróci.
         return START_STICKY
     }
@@ -120,7 +131,9 @@ class ChattService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
-            .setContentText(body)
+            // W trakcie zdalnego pisania stałe powiadomienie mówi, kto pisze
+            // i dokąd: to wskaźnik widoczny także przy zamkniętym oknie.
+            .setContentText(status ?: body)
             .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -135,7 +148,37 @@ class ChattService : Service() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_BODY = "body"
 
+        /** Czy usługa chodzi jako pierwszoplanowa. */
+        @Volatile var running = false
+            private set
+
+        /** Ostatnie teksty z Darta, do ponowienia startu bez Darta. */
+        @Volatile private var lastTitle: String? = null
+        @Volatile private var lastBody: String? = null
+
+        /** „Pisze: …" w miejscu zwykłego tekstu powiadomienia, `null` = brak. */
+        @Volatile private var status: String? = null
+
+        /**
+         * Ponowienie startu, gdy pierwsza próba dostała odmowę. Proces
+         * obudzony przez związanie klawiatury startuje `main()` za wcześnie,
+         * zanim system uzna aplikację za widoczną.
+         */
+        fun retryStart(context: Context) {
+            if (running || lastTitle == null) return
+            start(context, lastTitle, lastBody)
+        }
+
+        /** Podmienia tekst stałego powiadomienia na czas zdalnego pisania. */
+        fun setStatus(context: Context, text: String?) {
+            if (status == text) return
+            status = text
+            if (running) start(context, null, null)
+        }
+
         fun start(context: Context, title: String?, body: String?): Boolean = try {
+            if (title != null) lastTitle = title
+            if (body != null) lastBody = body
             val intent = Intent(context, ChattService::class.java)
                 .putExtra(EXTRA_TITLE, title)
                 .putExtra(EXTRA_BODY, body)

@@ -126,6 +126,38 @@ class RemoteInputChannel implements RemoteInputSink {
   static Future<bool> hideIndicator() async =>
       (await _call('hideIndicator'))?['ok'] == true;
 
+  /// Android: czy klawiatura Chatt jest włączona w systemie i czy jest
+  /// bieżącą klawiaturą. Na innych platformach obie odpowiedzi to `false`.
+  static Future<({bool enabled, bool selected})> imeState() async {
+    final json = await _call('status');
+    return (
+      enabled: json?['imeEnabled'] == true,
+      selected: json?['imeSelected'] == true,
+    );
+  }
+
+  /// Android: ekran klawiatur w ustawieniach systemu.
+  static Future<bool> openImeSettings() async =>
+      (await _call('openImeSettings'))?['ok'] == true;
+
+  /// Android: systemowe okno wyboru klawiatury.
+  static Future<bool> showImePicker() async =>
+      (await _call('showImePicker'))?['ok'] == true;
+
+  /// Android: zgoda kliknięta na karcie. Okno wyboru klawiatury, gdy Chatt
+  /// nie jest bieżącą, a potem zejście aplikacji na dół.
+  static Future<bool> afterAccept() async =>
+      (await _call('afterAccept'))?['ok'] == true;
+
+  /// Android: zgoda bez karty, a klawiatura Chatt nie jest bieżąca.
+  static Future<bool> notifySwitchKeyboard({
+    required String title,
+    required String body,
+  }) async =>
+      (await _call('notifySwitchKeyboard', {'title': title, 'body': body}))?[
+          'ok'] ==
+      true;
+
   /// Wywołania od strony natywnej: Stop stuknięty na pasku. Rejestracja
   /// niczego po drugiej stronie nie woła.
   static void listen({required void Function() onStop}) {
