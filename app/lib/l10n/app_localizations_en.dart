@@ -894,7 +894,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remoteInputImeWarning =>
-      'Android will warn that a keyboard can collect what you type. The Chatt keyboard reads no fields: it types what comes from the device you allow to type.';
+      'Android will warn that a keyboard can collect what you type. The Chatt keyboard sends nothing from your fields: it types what comes from the device you allow to type.';
 
   @override
   String get remoteInputImeEnable => 'Turn on the Chatt keyboard';

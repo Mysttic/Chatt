@@ -6,7 +6,7 @@ Start with the page that matches what you are doing.
 
 | Page | What is inside |
 |---|---|
-| [User guide](guide.md) ([polski](guide.pl.md)) | finding devices, messages and their statuses, files with consent and resuming, confirming an identity, background listening, what to do when a scan finds nothing |
+| [User guide](guide.md) ([polski](guide.pl.md)) | finding devices, messages and their statuses, files with consent and resuming, confirming an identity, background listening, what to do when a scan finds nothing, the add-ons: Bluetooth and Keyboard from a PC |
 | [Privacy policy](privacy-policy.md) | what the app does with data, which is: keeps it on your two devices |
 
 ## Working on it

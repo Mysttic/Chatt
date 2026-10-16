@@ -897,7 +897,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get remoteInputImeWarning =>
-      'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt nie czyta pól: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.';
+      'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt niczego z Twoich pól nie wysyła: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.';
 
   @override
   String get remoteInputImeEnable => 'Włącz klawiaturę Chatt';

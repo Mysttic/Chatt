@@ -30,8 +30,9 @@
 Sending a link from your phone to your PC through a chat app, or emailing a
 photo to your own address, routes your stuff through someone else's server.
 LocalSend moves files and keeps no conversation. KDE Connect joins a phone to
-a desktop for notifications, the clipboard and remote control. Chatt fills the
-gap between them:
+a desktop for notifications, the clipboard and remote control, Phone Link
+drives the whole phone with a mouse, and Input Leap shares one keyboard and
+mouse between PCs. Chatt fills the gap between them:
 
 - **A conversation with history.** It stays, it is searchable, and both
   devices see the same thing.
@@ -43,6 +44,11 @@ gap between them:
   The app works with no internet at all. Exactly two things can reach outside,
   and both stay switched off until you switch them on: a question to GitHub
   about a newer release, and previews for links in messages.
+- **A keyboard for the device that has none.** An add-on lets the PC's
+  keyboard type into the field you point at on a phone, a tablet or a PC run
+  by touch. Only a keyboard, encrypted, with no account, between devices that
+  already confirmed each other, and only after consent on the device being
+  typed on.
 
 ## What it does
 
@@ -72,9 +78,32 @@ gap between them:
   per‑message delete, two‑pane layout on wide windows, backgrounds, light and
   dark themes, English and Polish.
 
+## Add-ons
+
+Features most people never need, each behind its own switch in Settings, off
+from the start. An add-on that is off shows on no other screen and starts
+nothing.
+
+- **Bluetooth**: the same messages and files over the radio, with no router
+  and no shared network, for devices within some ten metres. A short message
+  comes back as fast as over Wi-Fi; files are tens of times slower.
+- **Keyboard from a PC**: the PC's keyboard types into the field that has the
+  focus on an Android phone or tablet (through a Chatt keyboard with no keys)
+  or on another Windows PC, in any app. A session starts only after consent
+  on the device being typed on (a card each time, or "Don't ask again" for one
+  confirmed device), and a bar with Stop stays there for as long as it lasts. Text, Backspace, Delete, Enter and the PC's clipboard travel;
+  shortcuts and the mouse stay home.
+
+| Typing on a phone from a PC | The consent card |
+|---|---|
+| <img src="docs/screenshots/windows/en/06_klawiatura_pisanie.png" alt="Typing on a phone from a PC" width="380"> | <img src="docs/screenshots/windows/en/07_klawiatura_zgoda.png" alt="The consent card" width="380"> |
+
+Both are described in the [user guide](docs/guide.md).
+
 Platforms: **Windows** and **Android**. Both devices must be on the same
-network. There is no internet mode, and there will not be one: the whole
-point is that nothing leaves your network.
+network, or within radio range with the Bluetooth add-on. There is no internet
+mode, and there will not be one: the whole point is that nothing leaves your
+network.
 
 ## Download
 
@@ -116,7 +145,7 @@ The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 94 tests: database, discovery, messages, files, identity, encryption, attacker on the wire
+flutter test        # 380 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard
 flutter analyze
 ```
 

@@ -370,7 +370,7 @@
     "placeholders": { "name": {} }
   },
   "remoteInputImeOff": "Pisanie z innego urządzenia przechodzi przez klawiaturę Chatt. Włącz ją raz w ustawieniach systemu.",
-  "remoteInputImeWarning": "Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt nie czyta pól: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.",
+  "remoteInputImeWarning": "Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt niczego z Twoich pól nie wysyła: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.",
   "remoteInputImeEnable": "Włącz klawiaturę Chatt",
   "remoteInputImeNotSelected": "Na czas pisania wybierz klawiaturę Chatt. Po sesji wraca poprzednia.",
   "remoteInputImePick": "Wybierz klawiaturę",

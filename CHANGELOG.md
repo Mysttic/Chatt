@@ -103,6 +103,19 @@ receiving device.
   `docs/architecture.md` and `docs/SECURITY.md` say what that means for a
   stolen verified device.
 
+### Changed
+- **Both READMEs, the user guide and the privacy policy cover the add-ons.**
+  The READMEs gain an Add-ons section for Bluetooth and the keyboard, the guide
+  a section on typing from a PC's keyboard in both languages, and the privacy
+  policy the Bluetooth permissions and name, the Chatt keyboard and the typed
+  text, which Chatt stores nowhere. The bug report form lists both add-ons.
+- `docs/building.md` and `VERSION.md` name all three files that carry the
+  version number, `app/lib/core/version.dart` included, and so does the
+  release workflow's error when the numbers disagree.
+- The add-on's card on Android says that the Chatt keyboard sends nothing
+  from your fields. It does look at the kind of field and whether something
+  is selected, which "reads no fields" left out.
+
 ### Fixed
 - The conversation's security sheet scrolls. On a low window or with a large
   font its switches and pairing buttons ran off the bottom of the screen.

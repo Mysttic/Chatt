@@ -80,7 +80,7 @@ in the tray**, so "close it" means "Close Chatt" from the icon menu, or
 
 The installer is built with [Inno Setup 6](https://jrsoftware.org/isdl.php).
 The script is in `app\windows\installer\chatt.iss` and the version number comes
-from outside, to keep it out of a third place:
+from outside, to keep it out of a fourth place:
 
 ```
 choco install innosetup -y
@@ -171,8 +171,17 @@ The manifest permissions and what they are for:
 | `INTERNET`, `ACCESS_NETWORK_STATE` | the HTTP server and client on the local network |
 | `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE` | MulticastLock, without which the Wi-Fi stack filters broadcasts out and discovery dies |
 | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` | listening with the window closed |
-| `POST_NOTIFICATIONS` | message notifications |
+| `POST_NOTIFICATIONS` | message notifications, and the Keyboard from a PC add-on's typing request and "Switch the keyboard to Chatt" |
 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | the exemption request, called only from settings |
+| `REQUEST_INSTALL_PACKAGES` | handing a downloaded update to the system installer |
+| `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN` (`neverForLocation`) | the Bluetooth add-on, asked only when it goes on |
+| `BLUETOOTH`, `BLUETOOTH_ADMIN`, `ACCESS_FINE_LOCATION` (up to API 30) | the Bluetooth add-on on Android 11 and older: the first two come with the install, and a radio search there needs location, which Chatt never asks for, so the other device is added by its radio address |
+| `CAMERA` (added by `mobile_scanner`) | scanning the pairing QR code, only when asked |
+
+The Chatt keyboard (`ChattInputMethod`, the Keyboard from a PC add-on) needs no
+permission of its own. Its service is guarded by `BIND_INPUT_METHOD`, which
+only the system holds, and it is disabled in the manifest until the add-on
+turns it on.
 
 ## Version number
 
@@ -186,18 +195,24 @@ after `+` is the `versionCode`, which has to grow with every release. Flutter
 copies both values into the native projects, so there is nothing to change in
 Gradle or in the Windows files.
 
-Both files have to say the same thing, so they are bumped with one command:
+The third is `appVersion` in `app/lib/core/version.dart`: the number the app
+shows in its bar and in Settings, and compares with the newest release when it
+checks for updates.
+
+All three files have to say the same thing, so they are bumped with one
+command:
 
 ```
 cd app
 python tool/wersja.py 0.5.0
 ```
 
-The script raises the number in `VERSION.md` and in `pubspec.yaml`, and
-increments the build number by one. With no argument it only prints the current
-state and complains if the two disagree. The release workflow checks the same
-thing and stops with a readable error if somebody raised the number in one
-place only.
+The script raises the number in `VERSION.md`, `pubspec.yaml` and
+`version.dart`, and increments the build number by one. With no argument it
+only prints the current state and complains if the three disagree. The release
+workflow compares `VERSION.md` with `pubspec.yaml` and stops with a readable
+error if somebody raised the number in one place only, and
+`test/version_test.dart` holds `version.dart` to both.
 
 ## Branches and automation on GitHub
 
@@ -357,4 +372,10 @@ network:
 - [ ] a phone with the app closed and the screen off still receives;
 - [ ] the Windows installer walks the whole road: install, Start menu shortcut,
       run, uninstall (the conversation history has to survive);
-- [ ] after restarting the app the conversations and settings are in place.
+- [ ] after restarting the app the conversations and settings are in place;
+- [ ] the remote keyboard Windows → Android, Windows → a Windows PC with a touch
+      screen and Android → Windows between physical devices, over the network
+      and over Bluetooth: consent, typing with Polish letters, Stop on both
+      sides; Notepad run as administrator is refused with a message; with the
+      add-on off nothing of it shows and the Chatt keyboard is off the system's
+      list.

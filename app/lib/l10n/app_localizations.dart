@@ -1571,7 +1571,7 @@ abstract class AppLocalizations {
   /// No description provided for @remoteInputImeWarning.
   ///
   /// In pl, this message translates to:
-  /// **'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt nie czyta pól: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.'**
+  /// **'Android ostrzeże, że klawiatura może zbierać wpisywany tekst. Klawiatura Chatt niczego z Twoich pól nie wysyła: wpisuje to, co przyjdzie od urządzenia, któremu pozwolisz pisać.'**
   String get remoteInputImeWarning;
 
   /// No description provided for @remoteInputImeEnable.

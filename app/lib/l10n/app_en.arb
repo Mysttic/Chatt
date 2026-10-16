@@ -270,7 +270,7 @@
   "remoteInputSwitchTitle": "Switch the keyboard to Chatt",
   "remoteInputSwitchBody": "{name} is typing on this device. Tap and pick the Chatt keyboard.",
   "remoteInputImeOff": "Typing from another device goes through the Chatt keyboard. Turn it on once in the system settings.",
-  "remoteInputImeWarning": "Android will warn that a keyboard can collect what you type. The Chatt keyboard reads no fields: it types what comes from the device you allow to type.",
+  "remoteInputImeWarning": "Android will warn that a keyboard can collect what you type. The Chatt keyboard sends nothing from your fields: it types what comes from the device you allow to type.",
   "remoteInputImeEnable": "Turn on the Chatt keyboard",
   "remoteInputImeNotSelected": "Pick the Chatt keyboard for the time of typing. The previous one comes back after the session.",
   "remoteInputImePick": "Pick keyboard",
