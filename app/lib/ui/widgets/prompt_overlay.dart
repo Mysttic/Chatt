@@ -277,12 +277,15 @@ class _OfferCardState extends State<_OfferCard> {
     super.initState();
     // Karta wyskakuje nad całą aplikacją, poza zakresem tabulatora, więc bez
     // ogniska nie da się jej odpowiedzieć z klawiatury w ogóle. Ognisko
-    // dostaje więc zawsze, tylko przy paczce nie „Przyjmij wszystkie", a
-    // „Odrzuć": Enter wciśnięty do wysłania wiadomości ma najwyżej odmówić,
-    // a nie przyjąć kilkadziesiąt plików naraz.
+    // dostaje więc zawsze, tylko przy paczce „Odrzuć": Enter wciśnięty do
+    // wysłania wiadomości ma przy kilkudziesięciu plikach najwyżej odmówić.
+    // To samo przy zdalnym pisaniu na tym urządzeniu: Enter z drugiego
+    // urządzenia, który wyprzedził wstrzymanie, ma najwyżej odmówić.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      (widget.offer.batch == null ? _acceptFocus : _rejectFocus).requestFocus();
+      final ostroznie = widget.offer.batch != null ||
+          widget.services.incomingRemoteInput.value != null;
+      (ostroznie ? _rejectFocus : _acceptFocus).requestFocus();
     });
   }
 

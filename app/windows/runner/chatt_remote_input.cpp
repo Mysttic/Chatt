@@ -8,6 +8,7 @@
 #include <uiautomation.h>
 #include <wrl/client.h>
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -63,12 +64,24 @@ std::wstring BaseName(const std::wstring& path) {
 struct Target {
   bool active = false;
   bool own_app = false;
+  // Na wierzchu okno tego właśnie procesu.
+  bool own_window = false;
   bool locked = false;
   bool elevated = false;
   std::string field = "none";
   std::string app;
   std::string app_label;
 };
+
+// Okno samego Chatta chwilowo bez pisania (ustawia Dart przez holdOwnApp):
+// wisi karta z pytaniem, której zdalny Enter nie ma prawa odpowiedzieć, albo
+// to urządzenie samo pisze na innym, a jego ekran pisania odesłałby wpisany
+// tekst dalej.
+std::atomic<bool> g_hold_own{false};
+
+// Rośnie przy Stopie i końcu zgody: paczka, która jeszcze się wpisuje,
+// urywa się przy następnym znaku.
+std::atomic<uint32_t> g_typing_generation{0};
 
 // Ekran blokady i okno UAC to osobne pulpity. Do nich SendInput nie sięga,
 // a przy zablokowanym ekranie OpenInputDesktop w ogóle się nie udaje.
@@ -337,12 +350,21 @@ Target ReadTarget(bool with_field) {
   // Każda instancja Chatta. Pisać w niej wolno jak w każdym innym oknie,
   // a karty z pytaniem chroni Dart: przy wiszącej karcie nic się nie wpisuje.
   // Nadawca dostaje tylko informację, że na wierzchu jest Chatt.
-  target.own_app = pid == ::GetCurrentProcessId() ||
+  target.own_window = pid == ::GetCurrentProcessId();
+  target.own_app = target.own_window ||
                    (!name.empty() && ::_wcsicmp(name.c_str(),
                                                 OwnExeName().c_str()) == 0);
-  target.elevated = !target.own_app && IsElevatedAboveUs(pid);
-  target.active = !target.elevated;
-  if (with_field && target.active) {
+  // Inna instancja Chatta uruchomiona jako administrator jest poza zasięgiem
+  // jak każdy inny program: SendInput nic by do niej nie wpisał.
+  target.elevated = !target.own_window && IsElevatedAboveUs(pid);
+  target.active =
+      !target.elevated && !(target.own_window && g_hold_own.load());
+  // O własne okno UI Automation pyta wątek platformy, czyli ten, który tu
+  // czeka na odpowiedź: pytanie kończyło się po limicie czasu z "none",
+  // a okno Chatta stało przez ten czas przy każdym pingu (sprawdzone na
+  // żywo: 400 ms co sekundę). Rodzaj pola we własnym oknie podaje Dart
+  // z drzewa widżetów.
+  if (with_field && target.active && !target.own_window) {
     target.field = QueryField();
   }
   return target;
@@ -357,6 +379,8 @@ EncodableMap TargetMap(const Target& target) {
       {EncodableValue("app"), EncodableValue(target.app)},
       {EncodableValue("appLabel"), EncodableValue(target.app_label)},
       {EncodableValue("ownApp"), EncodableValue(target.own_app)},
+      // Tylko dla Darta: pole we własnym oknie ustala on sam.
+      {EncodableValue("ownWindow"), EncodableValue(target.own_window)},
       {EncodableValue("locked"), EncodableValue(target.locked)},
       {EncodableValue("elevated"), EncodableValue(target.elevated)},
   };
@@ -472,10 +496,16 @@ bool KoniecSlowa(const INPUT& down) {
 }
 
 // Okno z fokusem pilnujemy po drodze: gdy fokus przejdzie na ekran blokady
-// albo do okna administratora, reszta paczki przepada.
-bool TypePaced(const std::vector<INPUT>& inputs, HWND window) {
+// albo do okna administratora, gdy w oknie Chatta, do którego właśnie się
+// pisze, wyskoczy karta z pytaniem, albo gdy padnie Stop, reszta paczki
+// przepada.
+bool TypePaced(const std::vector<INPUT>& inputs, HWND window,
+               uint32_t generation) {
   for (size_t i = 0; i + 1 < inputs.size(); i += 2) {
-    if (::GetForegroundWindow() != window) {
+    if (g_typing_generation.load() != generation) {
+      return false;
+    }
+    if (::GetForegroundWindow() != window || g_hold_own.load()) {
       if (!ReadTarget(false).active) {
         return false;
       }
@@ -495,6 +525,7 @@ bool TypePaced(const std::vector<INPUT>& inputs, HWND window) {
 struct TypingJob {
   std::vector<INPUT> inputs;
   HWND window = nullptr;
+  uint32_t generation = 0;
   bool applied = false;
   std::unique_ptr<flutter::MethodResult<EncodableValue>> result;
 };
@@ -536,7 +567,7 @@ void TypeInBackground(std::unique_ptr<TypingJob> job) {
     // Bez tego Sleep śpi do najbliższego tyknięcia zegara, czyli nawet
     // 15 ms ponad zadaną przerwę.
     ::timeBeginPeriod(1);
-    raw->applied = TypePaced(raw->inputs, raw->window);
+    raw->applied = TypePaced(raw->inputs, raw->window, raw->generation);
     ::timeEndPeriod(1);
     ::PostMessageW(g_messages, kTypingDone, 0, reinterpret_cast<LPARAM>(raw));
   }).detach();
@@ -668,6 +699,7 @@ void HideBar() {
 }
 
 void StopPressed() {
+  g_typing_generation.fetch_add(1);
   HideBar();
   if (g_channel != nullptr) {
     g_channel->InvokeMethod("stopRequested", nullptr);
@@ -807,7 +839,7 @@ void RegisterChattRemoteInput(flutter::FlutterEngine* engine) {
                   ? nullptr
                   : std::get_if<EncodableList>(Field(*arguments, "ops"));
           // Cel sprawdzany tuż przed wpisaniem: między paczkami fokus mógł
-          // przejść do Chatta, na ekran blokady albo do okna administratora.
+          // przejść na ekran blokady albo do okna administratora.
           const Target before = ReadTarget(false);
           auto job = std::make_unique<TypingJob>();
           const bool built = ops != nullptr && BuildInputs(*ops, job->inputs);
@@ -820,6 +852,7 @@ void RegisterChattRemoteInput(flutter::FlutterEngine* engine) {
             return;
           }
           job->window = ::GetForegroundWindow();
+          job->generation = g_typing_generation.load();
           job->result = std::move(result);
           TypeInBackground(std::move(job));
           return;
@@ -834,8 +867,19 @@ void RegisterChattRemoteInput(flutter::FlutterEngine* engine) {
           // Koniec zgody chowa pasek, cokolwiek powie Dart: pasek bez zgody
           // straszyłby kogoś, kto już nic nie pisze.
           if (active == nullptr || !*active) {
+            g_typing_generation.fetch_add(1);
             HideBar();
           }
+          result->Success(EncodableValue(EncodableMap{}));
+          return;
+        }
+
+        if (method == "holdOwnApp") {
+          const auto* arguments = std::get_if<EncodableMap>(call.arguments());
+          const auto* on = arguments == nullptr
+                               ? nullptr
+                               : std::get_if<bool>(Field(*arguments, "on"));
+          g_hold_own.store(on != nullptr && *on);
           result->Success(EncodableValue(EncodableMap{}));
           return;
         }

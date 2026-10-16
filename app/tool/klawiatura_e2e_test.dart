@@ -4,8 +4,9 @@
 // Pisze stąd, bez ekranu nadawcy: paruje się z aplikacją kodem, prosi
 // o sesję i wysyła tekst, Backspace, Enter i długie wklejenie. Tester w tym
 // czasie klika w aplikacji i wyciąga na wierzch Notatnik. Skrypt pisze
-// wyłącznie wtedy, gdy cel to `notepad.exe`: każda paczka jest sprawdzana,
-// więc tekst nie trafi do przypadkowego okna.
+// wyłącznie wtedy, gdy cel to `notepad.exe`, a przy CHATT_W_CHATT=1 także
+// w polu tekstowym Chatt (krok 5): każda paczka jest sprawdzana, więc tekst
+// nie trafi do przypadkowego okna.
 //
 // Przygotowanie: aplikacja Chatt z dodatkiem „Klawiatura z PC" i przełącznikiem
 // „Pozwól pisać na tym urządzeniu" włączonymi (Ustawienia → Dodatki). Jej port
@@ -24,10 +25,14 @@
 //      w zasobniku;
 //   4. w ciągu minuty kliknąć w Notatnik: pojawi się `Chatt ąęł 123`, nowa
 //      linia, `koniec`, a w trzeciej linii długi wiersz cyfr (wklejenie);
-//   5. kliknąć w okno Chatt: cel to `ownApp`, a pisanie dalej możliwe
-//      (skrypt niczego tam nie wpisuje);
+//   5. kliknąć w okno Chatt: cel to `ownApp`, a pisanie dalej możliwe; przy
+//      CHATT_W_CHATT=1 (tylko z instancją testową) kliknąć jeszcze w pole
+//      tekstowe Chatt, np. szukanie: skrypt wpisuje tam `do Chatt` i po
+//      10 s kasuje to Backspace'em;
 //   6. Stop na pływającym pasku: pasek i ikona znikają, nadawca dostaje
-//      `no_grant`.
+//      `no_grant`. Przy CHATT_STOP_W_TRAKCIE=1 najpierw jeszcze raz kliknąć
+//      w Notatnik: skrypt wysyła 3000 piątek jedną paczką (pół minuty
+//      pisania), a Stop wciśnięty w trakcie ma je od razu uciąć.
 //
 // Notatnik uruchomiony jako administrator daje odmowę (`elevated`); skrypt
 // wypisuje cel po każdej paczce.
@@ -46,6 +51,14 @@ import 'package:chatt/services/app_services.dart';
 
 final int portAplikacji =
     int.tryParse(Platform.environment['CHATT_KLAWIATURA_PORT'] ?? '') ?? 47780;
+
+/// Pisanie w polu samej aplikacji Chatt, tylko na życzenie: odbiorcą ma być
+/// wtedy instancja testowa (CHATT_DATA_DIR), żeby tekst nie trafił
+/// w prawdziwą rozmowę.
+final bool wChatt = Platform.environment['CHATT_W_CHATT'] == '1';
+
+/// Stop w trakcie długiej paczki: pisanie ma się urwać od razu.
+final bool stopWTrakcie = Platform.environment['CHATT_STOP_W_TRAKCIE'] == '1';
 
 void wypisz(String linia) => stdout.writeln(linia);
 
@@ -155,6 +168,46 @@ void main() {
     expect(nadawca.outgoingRemoteInput.value!.target.active, isTrue,
         reason: 'okno Chatt przyjmuje pisanie jak każde inne');
 
+    if (wChatt) {
+      bool wPoluChatt() {
+        final cel = nadawca.outgoingRemoteInput.value?.target;
+        return cel != null &&
+            cel.active &&
+            cel.ownApp &&
+            cel.field == RemoteInputField.text;
+      }
+
+      wypisz('kliknij w pole tekstowe Chatt (czekam do minuty)');
+      await czekaj(wPoluChatt, const Duration(minutes: 1), 'pole Chatt');
+      Future<void> wyslijDoChatt(List<RemoteInputOp> ops) async {
+        if (!wPoluChatt()) fail('cel to nie pole Chatt, nic nie wysyłam');
+        final przed = nadawca.outgoingRemoteInput.value!.typedReplies;
+        expect(nadawca.sendRemoteInput(ops), isTrue);
+        await czekaj(
+          () =>
+              (nadawca.outgoingRemoteInput.value?.typedReplies ?? przed) > przed,
+          const Duration(seconds: 30),
+          'odpowiedź z pola Chatt',
+        );
+        wypisz('pole Chatt: ${opis(nadawca.outgoingRemoteInput.value)}');
+        expect(nadawca.outgoingRemoteInput.value!.applied, isTrue,
+            reason: 'pole Chatt przyjmuje pisanie');
+      }
+
+      await wyslijDoChatt(const [RemoteInputOp.insert('do Chatt')]);
+      wypisz('w polu Chatt powinno być „do Chatt"; za 10 s kasuję');
+      await Future<void>.delayed(const Duration(seconds: 10));
+      await wyslijDoChatt(const [RemoteInputOp.backspace(8)]);
+    }
+
+    if (stopWTrakcie) {
+      wypisz('kliknij w Notatnik (czekam do minuty), potem Stop w trakcie '
+          'pisania piątek');
+      await czekaj(
+          wNotatniku, const Duration(minutes: 1), 'Notatnik na wierzchu');
+      expect(nadawca.sendRemoteInput([RemoteInputOp.insert('5' * 3000)]),
+          isTrue);
+    }
     wypisz('przez minutę można wcisnąć Stop na pasku');
     final koniec = DateTime.now().add(const Duration(minutes: 1));
     while (DateTime.now().isBefore(koniec) &&

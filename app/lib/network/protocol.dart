@@ -1008,8 +1008,9 @@ class RemoteInputTarget {
   /// strony), a odczyt treści u odbiorcy jest poza zakresem dodatku.
   final String appLabel;
 
-  /// Fokus jest w samym Chatcie. Odbiorca wtedy nie wpisuje: zdalny Enter
-  /// nie wyśle wiadomości i nie kliknie karty.
+  /// Fokus jest w samym Chatcie. To tylko informacja dla nadawcy: pola
+  /// Chatta przyjmują pisanie jak każde inne, a karty z pytaniem chroni
+  /// [inputPaused] (przy wiszącej karcie nic się nie wpisuje).
   final bool ownApp;
 
   /// Ekran zablokowany albo wygaszony.

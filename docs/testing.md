@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **382 `flutter test` tests** check everything that can be
+The split is simple: **387 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -500,15 +500,17 @@ thing keeping the channel silent:
 - an add-on saved in the database comes up with the app without a single call,
   and a verified peer then gets a grant
 
-### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 11 tests)
+### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 12 tests)
 - the add-on's card is a single switch while the add-on is off; the receive
   switch appears with the add-on and goes away with it
 - turning receiving on with the real switches shows the safety note; turning
   the add-on off removes both and writes receiving off
 - a live grant from a second instance shows the "Typing: Alicja" bar above the
   app with Stop, and Stop ends the grant (the sender's next packet bounces)
-- the bar names the app being typed into, says that nothing is typed while
-  Chatt is in front, and disappears with the add-on
+- the bar names the app being typed into, Chatt itself included, and
+  disappears with the add-on
+- a file card puts the focus on Accept, and on Reject while someone types on
+  this device
 - the overlay shows no keyboard card with the add-on off, even when a verified
   peer asks; the conversation list and the conversation screen show no
   keyboard icon
@@ -561,7 +563,7 @@ the screen sends and lets the test set the state:
 - a mask change in Compose keeps the field focused and connected to the
   keyboard
 
-### The remote keyboard (`test/remote_input_test.dart`, 50 tests)
+### The remote keyboard (`test/remote_input_test.dart`, 51 tests)
 Two or three live instances paired with each other, the receiver with an
 in-memory sink. A request for a session:
 - with consent, the operations reach the sink in order, Polish letters and a
@@ -615,6 +617,9 @@ Packets:
 - a file offer or a pairing code waiting on the receiver pauses typing (the
   sender sees `paused`, nothing is typed) and typing comes back after it; pings
   keep reporting the pause while the card is up and leave "typed" as it was
+- under a grant the sink hears `holdOwnApp` at once when a card starts waiting
+  and when this device starts typing on another one, and again when that is
+  over; outside a grant nothing goes
 - after `forgetPeer`, the shield removed, receiving or the add-on switched off,
   or receiving written off in the database behind the service's back, the
   sender's next packet gets `no_grant` and the sink stays as it was
@@ -631,8 +636,10 @@ The sender's queue:
   and app names of 64 Chinese characters or emoji, cut without splitting a
   character
 
-### The keyboard on the Windows desktop (`test/remote_input_desktop_test.dart`, 5 tests)
+### The keyboard on the Windows desktop (`test/remote_input_desktop_test.dart`, 6 tests)
 The native bar, the tray and the window are replaced by recorders:
+- attaching gives the channel the field kind of Chatt's own window, and
+  detaching takes it back
 - a grant shows the bar and the tray badge with the sender's name, and the
   target's program name once there is one; the same text twice makes one call;
   the end of the grant hides both; a grant alone does not move the window
@@ -641,6 +648,14 @@ The native bar, the tray and the window are replaced by recorders:
 - a consent card pulls a hidden window out and hides it after the answer; a
   minimised one goes back to the taskbar; a window already on screen is left
   alone
+
+### Chatt's own window on Windows (`test/remote_input_own_window_test.dart`, 2 tests)
+- the focused field from the widget tree: a text field is `text`, an obscured
+  one `password`, a read-only one and a button `none`, and so is no focus
+- the channel puts that kind into the target only when the native side says
+  `ownWindow` and the target is active; another program or another Chatt
+  instance keeps the native answer, and so does a platform where the app sets
+  nothing
 
 ### The keyboard on Android outside the app (`test/remote_input_mobile_test.dart`, 4 tests)
 - a grant accepted on the card shows the bar text and asks for the keyboard
@@ -700,8 +715,9 @@ in front, then shows the floating bar, types `Chatt ąęł 124`, a Backspace, `3
 Enter and `koniec`, and waits 30 seconds for Stop on the bar. Notepad has to
 show two lines, `Chatt ąęł 123` and `koniec`; Stop prints `STOP`, hides the bar
 and leaves Notepad with the focus. By hand at the same time: Chatt itself in
-front gives `ownApp=true`, Notepad run as administrator `elevated=true`, a
-password field on a web page `field=password`.
+front gives `ownApp=true` and the kind of its focused field, Notepad run as
+administrator `elevated=true`, a password field on a web page
+`field=password`.
 
 ### `tool/klawiatura_e2e_test.dart`
 The whole road on one PC: `flutter test tool/klawiatura_e2e_test.dart` is the
@@ -711,8 +727,13 @@ instance with its own `CHATT_DATA_DIR` keeps the everyday database out of it.
 The script pairs by code (confirm "They match" in the app), asks for a session
 (accept the card), waits up to a minute for Notepad to come to the front, and
 sends text, Backspace, Enter and a 600-character paste, each packet only while
-the target is `notepad.exe`. Then it waits for the Chatt window in front and checks that the target is
-`ownApp` and still open to typing, and for Stop on the floating bar. The app's
+the target is `notepad.exe`. Then it waits for the Chatt window in front and
+checks that the target is `ownApp` and still open to typing; with
+`CHATT_W_CHATT=1` (a test instance only) it also waits for a click into a
+Chatt text field, types `do Chatt` there and deletes it 10 seconds later.
+Last, it waits for Stop on the floating bar; with `CHATT_STOP_W_TRAKCIE=1` it
+first waits for Notepad again and sends 3000 fives in one packet, half a
+minute of typing, for Stop to cut short. The app's
 window, hidden in the tray, comes out for the cards and goes back after them;
 the bar and the tray badge stay for the session.
 
@@ -723,6 +744,23 @@ of typing wrong: with 1 ms between characters "Chatt ąęł 124" landed as
 Backspace, the 600 digits matching one for one (6.5 s), and Stop clicked on
 the floating bar. (That run still refused with Chatt in front; Chatt's own
 fields have taken typing since.)
+
+The second run that day, with `CHATT_W_CHATT=1`, found that Chatt's own
+window always reported `field=none` and froze for 400 ms on every ping
+(`rtt=405ms` in the log): UI Automation asked the platform thread that was
+waiting for its answer. The native side no longer asks about its own window,
+Dart fills in the field from the widget tree, and the run passes: Notepad
+exact as before, `do Chatt` typed into Chatt's search field and deleted
+(`field=text`, `applied=true`), `rtt=7ms` with Chatt in front, Stop on the
+bar.
+
+A review of that change found that a long packet typed into Chatt's own
+window could carry an Enter onto a file card that came up in the middle, and
+that Stop let a packet already being typed run to its end. After
+`holdOwnApp` and the Stop counter, the third run (`CHATT_W_CHATT=1
+CHATT_STOP_W_TRAKCIE=1`) passes the same steps, and Stop pressed during the
+3000 fives left 1494 of them in Notepad, the count still the same 5 seconds
+later; the sender got `applied=false` and then `no_grant`.
 
 ### `tool/klawiatura_telefon_test.dart`
 The keyboard on a phone someone uses every day: this process is the sender,

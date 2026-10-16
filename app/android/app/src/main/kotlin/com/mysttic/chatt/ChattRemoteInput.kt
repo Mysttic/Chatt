@@ -69,6 +69,14 @@ object ChattRemoteInput {
     private enum class Picker { NONE, REQUESTED, SHOWN, OPEN }
     private var picker = Picker.NONE
 
+    /**
+     * Pola samego Chatta chwilowo bez pisania (ustawia Dart): wisi karta
+     * z pytaniem albo to urządzenie samo pisze na innym, a jego ekran
+     * pisania odesłałby wpisany tekst dalej.
+     */
+    @Volatile
+    private var holdOwnApp = false
+
     fun install(context: Context, messenger: BinaryMessenger) {
         appContext = context.applicationContext
         val kanal = MethodChannel(messenger, CHANNEL)
@@ -82,6 +90,10 @@ object ChattRemoteInput {
                         call.argument<Boolean>("active") == true,
                         call.argument<String>("peerName") ?: "",
                     )
+                    result.success(emptyMap<String, Any?>())
+                }
+                "holdOwnApp" -> {
+                    holdOwnApp = call.argument<Boolean>("on") == true
                     result.success(emptyMap<String, Any?>())
                 }
                 "setImeEnabled" -> result.success(
@@ -287,10 +299,10 @@ object ChattRemoteInput {
         val zablokowany = context != null && (
             context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true ||
                 context.getSystemService(PowerManager::class.java)?.isInteractive == false)
-        // Własne pola Chatta przyjmują pisanie jak każde inne; karty
-        // z pytaniem chroni Dart (przy wiszącej karcie nic się nie wpisuje).
+        // Własne pola Chatta przyjmują pisanie jak każde inne, chyba że Dart
+        // je wstrzymał (karta z pytaniem, własna sesja pisania).
         val wlasne = context != null && pakiet == context.packageName
-        val aktywne = polaczone && !zablokowany
+        val aktywne = polaczone && !zablokowany && !(wlasne && holdOwnApp)
         return mutableMapOf(
             "active" to aktywne,
             "field" to when {

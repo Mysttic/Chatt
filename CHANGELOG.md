@@ -56,7 +56,8 @@ receiving device.
   can be set only for a verified device and goes with the shield, like
   `autoAccept`.
 - `chatt/remoteinput`, the channel to the native receivers: `status`, `apply`,
-  `setSession`, `setImeEnabled`, `showIndicator` and `hideIndicator`, plus
+  `setSession`, `holdOwnApp`, `setImeEnabled`, `showIndicator` and
+  `hideIndicator`, plus
   `stopRequested` from the native side.
 - **Typing on Windows.** A PC with Windows 10 or 11, touch screen or not, types
   what arrives into the window with the focus (`SendInput`, independent of the
@@ -64,7 +65,9 @@ receiving device.
   space or Enter, because the Windows 11 Notepad lost or repeated characters
   typed faster, Polish letters most of all. It refuses while the lock screen
   or an administrator's window is in front; Chatt's own window takes typing
-  like any other. The sender learns
+  like any other, except while a question card waits there or the PC is
+  itself typing on another device. Stop cuts even a long paste short at
+  once. The sender learns
   the program's name and whether the field is a password (UI Automation). A
   floating bar with Stop stays on top for the whole session without ever taking
   the focus, the tray icon gets a badge and a Stop in its menu, and a consent

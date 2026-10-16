@@ -432,6 +432,57 @@ void main() {
     await sprzatnij(tester, [alicja, bartek]);
   });
 
+  testWidgets('karta pliku przy zdalnym pisaniu daje fokus na Odrzuć, bez '
+      'niego na Przyjmij', (tester) async {
+    final services = await uruchom(tester, 'Bartek');
+    await tester.pumpWidget(nakladka(services));
+    await tester.pump();
+
+    /// Czy [przycisk] świeżo pokazanej karty pliku ma fokus.
+    Future<bool> fokusNa(String przycisk, String guid) async {
+      services.pendingOffers.value = [
+        PendingFileOffer(
+          messageGuid: guid,
+          peerName: 'Alicja',
+          fileName: 'umowa.pdf',
+          fileSize: 1024,
+          resumeFrom: 0,
+          conversationId: 1,
+        ),
+      ];
+      await tester.pump();
+      // Fokus przychodzi klatkę po pokazaniu karty.
+      await tester.pump();
+      final znaleziony = find.ancestor(
+        of: find.text(przycisk),
+        matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+      );
+      expect(znaleziony, findsOneWidget);
+      final ma = tester
+          .widget<ButtonStyleButton>(znaleziony)
+          .focusNode!
+          .hasPrimaryFocus;
+      services.pendingOffers.value = const [];
+      await tester.pump();
+      return ma;
+    }
+
+    expect(await fokusNa('Accept', 'plik-1'), isTrue);
+
+    // Zdalny Enter, który wyprzedził wstrzymanie, ma najwyżej odmówić.
+    services.incomingRemoteInput.value = IncomingRemoteInput(
+      peerGuid: 'guid-alicja',
+      peerName: 'Alicja',
+      started: DateTime(2026),
+      target: const RemoteInputTarget(active: true, ownApp: true),
+    );
+    expect(await fokusNa('Reject', 'plik-2'), isTrue);
+    services.incomingRemoteInput.value = null;
+    await tester.pump();
+
+    await sprzatnij(tester, [services]);
+  });
+
   testWidgets('pasek „Pisze" mówi, dokąd idzie pisanie, i znika razem '
       'z dodatkiem', (tester) async {
     final services = await uruchom(tester, 'Bartek');

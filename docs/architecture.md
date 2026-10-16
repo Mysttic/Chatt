@@ -555,6 +555,7 @@ of the channel, is its default. Tests put in their own sink through
 | `status` | none | the target |
 | `apply` | `{ops: [...]}`, only `insert`, `bs`, `del` and `action` | the target plus `applied` |
 | `setSession` | `{active, peerName}` | none |
+| `holdOwnApp` | `{on}` | none |
 | `setImeEnabled` | `{on}` | `{ok}` |
 | `showIndicator` | `{text, stop}` | `{ok}` |
 | `hideIndicator` | none | `{ok}` |
@@ -571,8 +572,15 @@ under a grant. The sink refuses by itself, answering `applied: false`, when the
 screen is locked or dark (`locked`), and on Windows in front of an elevated
 window (`elevated`), where `SendInput` types nothing and reports nothing.
 Chatt's own fields take typing like any other (`ownApp` only tells the sender
-that Chatt is in front); its cards are safe because nothing is typed while a
-card waits. The channel never throws: a missing native side, a
+that Chatt is in front), except while `holdOwnApp` is on: Dart turns it on
+under a grant the moment a card starts waiting (a file, a pairing code, a
+typing request) or this device starts typing on another one, and off when
+that is over. While it is on, the native side reports Chatt's own window as
+not active, and on Windows a packet that is being typed into it stops before
+its next key, so a remote Enter never lands on a card that came up in the
+middle of a long paste. A device's own typing screen would otherwise forward
+what is typed into it to the third device, and two sessions in opposite
+directions would echo forever. The channel never throws: a missing native side, a
 `PlatformException` or a test without a binding all end as "nowhere to type",
 and on a platform other than Android and Windows it makes no call. A call that
 gets no answer within 5 seconds ends the same way, so a native side that hangs
@@ -669,11 +677,15 @@ screen or not.
   boundaries: checked live, 1 ms between characters turned "Chatt ąęł 124"
   into "Chatt 4444443", 10 ms still lost a letter after a space, and 10 ms
   with 40 ms after spaces and Enter typed twelve lines of Polish text without
-  a mistake. Typing runs on its own thread with `timeBeginPeriod(1)`, and the reply goes back through a message-only window,
-  the one place where a channel call may be answered. Before each character the
-  sink checks whether the foreground window changed; when the new one is
-  Chatt, the lock screen or an elevated window, the rest of the packet is
-  dropped and `applied` is false.
+  a mistake. Typing runs on its own thread with `timeBeginPeriod(1)`, and the
+  reply goes back through a message-only window, the one place where a
+  channel call may be answered. Before each character the sink checks whether
+  the foreground window changed or `holdOwnApp` is on; when the target is no
+  longer active (the lock screen, an elevated window, Chatt's own window on
+  hold), the rest of the packet is dropped and `applied` is false. Stop on
+  the bar or in the tray, and the end of the grant, bump a counter that the
+  typing thread checks before each character too, so even a 4096-character
+  paste stops at once.
 - **The target.** The foreground window's process gives `app` (the file name)
   and `appLabel` (the version resource's `FileDescription`, or else the file
   name); a Store app behind `ApplicationFrameHost.exe` is looked up in its
@@ -682,14 +694,21 @@ screen or not.
   input desktop is not `Default` (the lock screen, a UAC prompt) or cannot be
   opened. `elevated` compares integrity levels: `SendInput` cannot reach a
   window above its own and reports nothing, and a process whose token cannot
-  even be read is treated as above.
+  even be read is treated as above. Only this process's own window skips the
+  check; another Chatt instance run as administrator is `elevated` like any
+  other program.
 - **The kind of field** comes from UI Automation (`GetFocusedElement`:
   `IsPassword` gives `password`, an Edit or Document control `text`, anything
   else `none`). It runs on a thread of its own with its own COM apartment and
   the `IUIAutomation2` limits at 400 ms, and the platform thread waits at most
   600 ms; an app that hangs gives `none`, and while the thread is still stuck
   on the last question, the answer is `none` at once. The thread starts at the
-  first question, which only a grant asks.
+  first question, which only a grant asks. Chatt's own window is never asked:
+  UI Automation would ask the platform thread that is waiting for the answer,
+  so the question timed out with `none` and froze the window for 400 ms on
+  every ping. The native side reports `ownWindow` instead, and Dart fills in
+  the field from the widget tree (`focusedFieldKind`: an `EditableText` with
+  the focus is `text`, `password` when obscured, `none` when read-only).
 - **The floating bar** ("Typing: Alicja → Notepad" with Stop) stays on top
   for the whole grant, also with the Chatt window in the tray. It never takes
   the focus (`WS_EX_NOACTIVATE`, `MA_NOACTIVATE`, `PA_NOACTIVATE`), like the
@@ -1126,7 +1145,12 @@ clips `app` and `appLabel` at 96 bytes of JSON, whole characters only.
   everywhere the user goes, Chatt included, so a remote Enter in Chatt's
   message field sends a message, as it would in any other messenger. Chatt's
   cards (a file, a pairing code, a typing request) stay out of reach: while
-  any card waits, the packet is answered `paused` and nothing is typed.
+  any card waits, the packet is answered `paused` and nothing is typed, and
+  `holdOwnApp` stops a packet already being typed into Chatt's window before
+  its next key. A file card that comes up during a grant takes the focus on
+  Reject, so an Enter that got there first can only refuse. The same hold
+  covers a device that is itself typing on another one, so its own typing
+  screen never relays or echoes what it receives.
 
 ## Android: background listening
 
