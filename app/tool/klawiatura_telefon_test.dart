@@ -329,11 +329,16 @@ void main() {
     sub.removeListener(naPing);
 
     // Znak po znaku w tempie spokojnego pisania (co 100 ms), każdy osobno.
+    // Dwa pomiary: czas tego skryptu od wysłania do odpowiedzi (z luzem
+    // odpytywania) i sam czas wymiany paczki u nadawcy (`rtt`).
     final znaki = <int>[];
+    final wymiany = <int>[];
     for (var i = 0; i < ileZnakow; i++) {
       final zegar = Stopwatch()..start();
-      await wpiszDoKontaktu([RemoteInputOp.insert(String.fromCharCode(0x61 + i % 26))]);
+      final po = await wpiszDoKontaktu(
+          [RemoteInputOp.insert(String.fromCharCode(0x61 + i % 26))]);
       znaki.add(zegar.elapsedMilliseconds);
+      if (po.rtt != null) wymiany.add(po.rtt!.inMilliseconds);
       wpisaneWFormularzu++;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
@@ -364,6 +369,7 @@ void main() {
 
     print(statystyka('RTT pingu', pingi));
     print(statystyka('znak (wysłanie do odpowiedzi, co 100 ms)', znaki));
+    print(statystyka('znak, sama wymiana paczki (rtt nadawcy)', wymiany));
     print('seria 50 znaków co 20 ms: $paczkiSerii paczek '
         '(${(paczkiSerii / 50).toStringAsFixed(2)} paczki na znak), '
         'całość ${seria.elapsedMilliseconds} ms');

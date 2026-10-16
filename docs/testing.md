@@ -795,23 +795,30 @@ afterwards) and the end of the session. Error messages there give only the
 number of nodes on the screen (`ukryjTrescEkranu` in `tool/uiautomator.dart`):
 the screen of an everyday phone holds private conversations.
 
-The run on 16 October 2026: a Pixel 9 Pro with Android 17 on 2.4 GHz Wi-Fi
-(channel 6), the PC on Ethernet in the same network.
+The runs on 16 October 2026: a Pixel 9 Pro with Android 17, first on 2.4 GHz
+Wi-Fi (channel 6), later the same day on 5 GHz (channel 48, 5240 MHz, the
+same network, a 585 Mbit/s link), the PC on Ethernet in the same network.
+100 characters a run: three runs on 2.4 GHz, six on 5 GHz.
 
-| What | p50 | p95 |
-|---|---|---|
-| a character, from sending to the answer (three runs of 100) | 28 to 29 ms | 34 to 39 ms |
-| an idle ping, once a second | 67 to 110 ms | 137 to 170 ms |
+| What | 2.4 GHz p50 | 2.4 GHz p95 | 5 GHz p50 | 5 GHz p95 |
+|---|---|---|---|---|
+| a character, from sending to the answer | 28 to 29 ms | 34 to 39 ms | 28 to 30 ms | 33 to 38 ms |
+| a character, the packet's exchange alone (the sender's `rtt`, three runs) | not measured | not measured | 28 ms | 32 to 37 ms |
+| an idle ping, once a second | 67 to 110 ms | 137 to 170 ms | 77 to 123 ms | 152 to 450 ms |
 
-Typing stays well under the 60 ms the plan allowed. The idle pings are slower
-because the phone's Wi-Fi dozes between them; while you type, the radio stays
-awake. One packet per character at that pace: nothing waited long enough to be
-merged. The first session took three taps on the phone (Accept, Chatt keyboard
+Typing stays well under the 60 ms the plan allowed, and 5 GHz changes nothing
+that matters: a character costs about 28 ms on either band, so the band is not
+what limits it. The script's own waiting adds about 1 ms, so those 28 ms are
+the packet's whole round trip, typing on the phone included. Fifty characters
+queued 20 ms apart on 5 GHz went as 48 to 50 packets: nearly every answer came
+back before the next character was due; at 100 ms a character every one went
+as its own packet. The idle pings are slower because the phone's Wi-Fi dozes
+between them; while you type, the radio stays awake. The first session took three taps on the phone (Accept, Chatt keyboard
 in the picker, the field), and the lock screen showed the ordinary keyboard
 with no Chatt bar. Within one session the typing went into the Settings
 search, a calendar event's title and a contact form in turn, with no new
-consent and no new picker. The radio (the Bluetooth add-on) and 5 GHz Wi-Fi are still
-to be measured.
+consent and no new picker. The radio (the Bluetooth add-on) is still to be
+measured.
 
 ### `tool/bt_rozmowa_check.dart`
 A conversation over the radio, on real hardware. It raises the whole app stack
