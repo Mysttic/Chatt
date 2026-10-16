@@ -35,7 +35,11 @@
 //      pisania), a Stop wciśnięty w trakcie ma je od razu uciąć.
 //
 // Notatnik uruchomiony jako administrator daje odmowę (`elevated`); skrypt
-// wypisuje cel po każdej paczce.
+// wypisuje cel po każdej paczce. Przy CHATT_ADMIN=1 po kroku 4 sprawdza to
+// sam: czeka na Notatnik administratora na wierzchu (zgoda UAC), wysyła
+// ` ADMIN` i oczekuje odmowy, a potem przy zwykłym Notatniku wysyła 3000
+// siódemek jedną paczką: wyciągnięty w trakcie Notatnik administratora ma
+// uciąć resztę paczki (`applied: false`).
 @Timeout(Duration(minutes: 10))
 library;
 
@@ -56,6 +60,9 @@ final int portAplikacji =
 /// wtedy instancja testowa (CHATT_DATA_DIR), żeby tekst nie trafił
 /// w prawdziwą rozmowę.
 final bool wChatt = Platform.environment['CHATT_W_CHATT'] == '1';
+
+/// Notatnik uruchomiony jako administrator: odmowa i ucięta paczka.
+final bool admin = Platform.environment['CHATT_ADMIN'] == '1';
 
 /// Stop w trakcie długiej paczki: pisanie ma się urwać od razu.
 final bool stopWTrakcie = Platform.environment['CHATT_STOP_W_TRAKCIE'] == '1';
@@ -157,6 +164,54 @@ void main() {
     await wyslij([RemoteInputOp.insert(wklejenie)]);
     wypisz('wklejenie 600 znaków: ${zegar.elapsedMilliseconds} ms, '
         'paczek z tekstem: ${nadawca.outgoingRemoteInput.value!.typedReplies}');
+
+    if (admin) {
+      bool wAdminie() {
+        final cel = nadawca.outgoingRemoteInput.value?.target;
+        return cel != null &&
+            cel.elevated &&
+            !cel.active &&
+            cel.app.toLowerCase() == 'notepad.exe';
+      }
+
+      Future<OutgoingRemoteInput> odpowiedzPo(int przed, Duration ile) async {
+        await czekaj(
+          () =>
+              (nadawca.outgoingRemoteInput.value?.typedReplies ?? przed) > przed,
+          ile,
+          'odpowiedź na paczkę',
+        );
+        return nadawca.outgoingRemoteInput.value!;
+      }
+
+      wypisz('uruchom Notatnik jako administrator, na wierzchu (czekam do '
+          '2 minut)');
+      await czekaj(wAdminie, const Duration(minutes: 2),
+          'Notatnik administratora na wierzchu');
+      wypisz('administrator: ${opis(nadawca.outgoingRemoteInput.value)}');
+      // SendInput nic by tam nie wpisał i nic by o tym nie powiedział:
+      // odmowa idzie od razu, bez wpisywania.
+      var przed = nadawca.outgoingRemoteInput.value!.typedReplies;
+      expect(nadawca.sendRemoteInput(const [RemoteInputOp.insert(' ADMIN')]),
+          isTrue);
+      var po = await odpowiedzPo(przed, const Duration(seconds: 30));
+      wypisz('administrator po paczce: ${opis(po)}');
+      expect(po.applied, isFalse, reason: 'okno administratora: odmowa');
+      expect(po.target.elevated, isTrue);
+
+      wypisz('kliknij w zwykły Notatnik (czekam do minuty); w trakcie '
+          'siódemek wyciągnij Notatnik administratora');
+      await czekaj(wNotatniku, const Duration(minutes: 1),
+          'zwykły Notatnik na wierzchu');
+      przed = nadawca.outgoingRemoteInput.value!.typedReplies;
+      expect(nadawca.sendRemoteInput([RemoteInputOp.insert('7' * 3000)]),
+          isTrue);
+      po = await odpowiedzPo(przed, const Duration(minutes: 2));
+      wypisz('siódemki: ${opis(po)}');
+      expect(po.applied, isFalse,
+          reason: 'reszta paczki przepadła przy oknie administratora');
+      expect(po.target.elevated, isTrue);
+    }
 
     wypisz('kliknij w okno Chatt (czekam do minuty)');
     await czekaj(

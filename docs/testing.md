@@ -727,8 +727,13 @@ instance with its own `CHATT_DATA_DIR` keeps the everyday database out of it.
 The script pairs by code (confirm "They match" in the app), asks for a session
 (accept the card), waits up to a minute for Notepad to come to the front, and
 sends text, Backspace, Enter and a 600-character paste, each packet only while
-the target is `notepad.exe`. Then it waits for the Chatt window in front and
-checks that the target is `ownApp` and still open to typing; with
+the target is `notepad.exe`. With `CHATT_ADMIN=1` it then waits for Notepad
+run as administrator in front (the UAC prompt is yours to answer), sends
+` ADMIN` and expects a refusal with `elevated`, and sends 3000 sevens into the
+ordinary Notepad in one packet: bringing the administrator's Notepad to the
+front halfway has to drop the rest (`applied: false`). Then it waits for the
+Chatt window in front and checks that the target is `ownApp` and still open
+to typing; with
 `CHATT_W_CHATT=1` (a test instance only) it also waits for a click into a
 Chatt text field, types `do Chatt` there and deletes it 10 seconds later.
 Last, it waits for Stop on the floating bar; with `CHATT_STOP_W_TRAKCIE=1` it
@@ -761,6 +766,15 @@ that Stop let a packet already being typed run to its end. After
 CHATT_STOP_W_TRAKCIE=1`) passes the same steps, and Stop pressed during the
 3000 fives left 1494 of them in Notepad, the count still the same 5 seconds
 later; the sender got `applied=false` and then `no_grant`.
+
+The run with `CHATT_ADMIN=1` the same day: Notepad started as administrator
+gave `elevated=true` and `active=false`, ` ADMIN` was refused at once
+(`applied=false`) and its file stayed empty; the administrator's Notepad
+brought to the front during the sevens left 994 of them in the ordinary
+Notepad, the count unchanged 3 seconds later, and the packet's reply said
+`applied=false`, `elevated=true`. A script cannot click an elevated window,
+and Windows refuses to bring it to the front from a script without a key
+press of its own first (a lone Alt does it).
 
 ### `tool/klawiatura_telefon_test.dart`
 The keyboard on a phone someone uses every day: this process is the sender,
