@@ -334,13 +334,14 @@ Target ReadTarget(bool with_field) {
   const std::wstring name = BaseName(path);
   target.app = Narrow(name);
   target.app_label = path.empty() ? std::string() : Narrow(ProgramName(path));
-  // Każda instancja Chatta, nie tylko ta: zdalny Enter w polu wiadomości
-  // wysłałby wiadomość albo kliknął kartę z pytaniem.
+  // Każda instancja Chatta. Pisać w niej wolno jak w każdym innym oknie,
+  // a karty z pytaniem chroni Dart: przy wiszącej karcie nic się nie wpisuje.
+  // Nadawca dostaje tylko informację, że na wierzchu jest Chatt.
   target.own_app = pid == ::GetCurrentProcessId() ||
                    (!name.empty() && ::_wcsicmp(name.c_str(),
                                                 OwnExeName().c_str()) == 0);
   target.elevated = !target.own_app && IsElevatedAboveUs(pid);
-  target.active = !target.own_app && !target.elevated;
+  target.active = !target.elevated;
   if (with_field && target.active) {
     target.field = QueryField();
   }
@@ -470,8 +471,8 @@ bool KoniecSlowa(const INPUT& down) {
   return down.ki.wVk == VK_RETURN;
 }
 
-// Okno z fokusem pilnujemy po drodze: gdy fokus przejdzie do Chatta, na ekran
-// blokady albo do okna administratora, reszta paczki przepada.
+// Okno z fokusem pilnujemy po drodze: gdy fokus przejdzie na ekran blokady
+// albo do okna administratora, reszta paczki przepada.
 bool TypePaced(const std::vector<INPUT>& inputs, HWND window) {
   for (size_t i = 0; i + 1 < inputs.size(); i += 2) {
     if (::GetForegroundWindow() != window) {

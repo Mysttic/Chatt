@@ -41,9 +41,9 @@ receiving device.
   ordinary text field, and a password typed under the mask stays masked;
   undo shortcuts and suggestions are off. Typing is possible only while the
   other side can take it: a status line says where the typing goes or why
-  nothing is typed (Chatt in front there, a locked screen, an administrator's
-  window, no field, a question waiting on either device), and a session that
-  broke off can be reconnected.
+  nothing is typed (a locked screen, an administrator's window, no field, a
+  question waiting on either device), and a session that broke off can be
+  reconnected.
 - **`POST /input-session` and `POST /input`**, on both roads, the network and
   the radio. A session starts with a request; the sender's packets then carry
   text, Backspace, Delete and the field's action (Enter, or Search, Send, Go,
@@ -62,16 +62,20 @@ receiving device.
   what arrives into the window with the focus (`SendInput`, independent of the
   keyboard layout), one character at a time: 10 ms apart and 40 ms after a
   space or Enter, because the Windows 11 Notepad lost or repeated characters
-  typed faster, Polish letters most of all. It refuses while Chatt, the lock
-  screen or an administrator's window is in front. The sender learns
+  typed faster, Polish letters most of all. It refuses while the lock screen
+  or an administrator's window is in front; Chatt's own window takes typing
+  like any other. The sender learns
   the program's name and whether the field is a password (UI Automation). A
   floating bar with Stop stays on top for the whole session without ever taking
   the focus, the tray icon gets a badge and a Stop in its menu, and a consent
   card pulls the hidden window out and sends it back after the answer.
 - **Typing on Android through the Chatt keyboard.** The add-on brings a
   keyboard with no keys: a bar saying who types and where, with "Switch
-  keyboard" and Stop. It types into the focused field of any app, password
-  fields included, and refuses in Chatt's own fields and on a locked screen.
+  keyboard" and Stop. It types into the focused field of any app, Chatt and
+  password fields included, following the focus from app to app, and refuses
+  on a locked screen. After a lock screen with a text password, which gets the
+  ordinary keyboard back, "Switch the keyboard to Chatt" comes again once the
+  phone is unlocked.
   It is listed among the system's keyboards only while the add-on is on; the
   add-on's card leads to turning it on once. A consent accepted on the card
   offers the keyboard picker and steps out of the way; the previous keyboard

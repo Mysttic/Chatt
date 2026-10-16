@@ -158,39 +158,6 @@ void main() {
     dotkniecia++;
   }
 
-  /// Dodatek i odbiór w aplikacji na telefonie, gdy są wyłączone.
-  Future<void> wlaczDodatek() async {
-    await adb([
-      'shell', 'monkey', '-p', appPackage, '-c',
-      'android.intent.category.LAUNCHER', '1',
-    ]);
-    await Future<void>.delayed(const Duration(seconds: 2));
-    await stuknijEtykiete(['Settings', 'Ustawienia'], pakiet: appPackage);
-    Future<bool> widac(List<String> etykiety) async =>
-        await findAnyWidget(etykiety,
-            fragment: true,
-            pakiet: appPackage,
-            timeout: const Duration(seconds: 2)) !=
-        null;
-
-    const dodatek = ['Keyboard from a PC', 'Klawiatura z PC'];
-    const odbior = [
-      'Allow typing on this device',
-      'Pozwól pisać na tym urządzeniu',
-    ];
-    for (var i = 0; i < 10 && !await widac(dodatek); i++) {
-      await adb(['shell', 'input', 'swipe', '640', '2200', '640', '1000', '300']);
-    }
-    if (!await widac(odbior)) {
-      await stuknijEtykiete(dodatek, fragment: true, pakiet: appPackage);
-    }
-    for (var i = 0; i < 4 && !await widac(odbior); i++) {
-      await adb(['shell', 'input', 'swipe', '640', '2000', '640', '1500', '300']);
-    }
-    await stuknijEtykiete(odbior, fragment: true, pakiet: appPackage);
-    await Future<void>.delayed(const Duration(seconds: 2));
-  }
-
   setUpAll(() async {
     // Ekran telefonu niesie prywatne rozmowy: do logów idzie tylko liczba
     // węzłów.
@@ -296,17 +263,12 @@ void main() {
 
   test('zgoda na karcie, wybór klawiatury Chatt', () async {
     var start = host.startRemoteInput(telefon);
-    final zgodaAlboOdmowa = await Future.any([
-      start,
-      findAnyWidget(['Accept', 'Akceptuj'],
-              pakiet: appPackage, timeout: const Duration(seconds: 30))
-          .then((g) => g == null
-              ? RemoteInputStart.noAnswer
-              : RemoteInputStart.accepted),
-    ]);
+    final zgodaAlboOdmowa = await czekajNaKarteAlbo(
+        start, ['Accept', 'Akceptuj'],
+        pakiet: appPackage);
     if (zgodaAlboOdmowa == RemoteInputStart.notEnabled) {
       print('dodatek albo odbiór wyłączony w aplikacji: włączam');
-      await wlaczDodatek();
+      await wlaczDodatekKlawiatury(appPackage);
       await adb([
         'shell', 'monkey', '-p', appPackage, '-c',
         'android.intent.category.LAUNCHER', '1',
@@ -434,7 +396,7 @@ void main() {
         reason: 'ta sama sesja przez wszystkie aplikacje');
   });
 
-  test('własne pole Chatt: odmowa, nic się nie wpisuje', () async {
+  test('własne pole Chatt: pisanie trafia i tam', () async {
     await adb([
       'shell', 'monkey', '-p', appPackage, '-c',
       'android.intent.category.LAUNCHER', '1',
@@ -458,14 +420,16 @@ void main() {
       await Future<void>.delayed(const Duration(seconds: 1));
     }
     await stuknijPole();
-    await czekaj(() async => stan()?.target.ownApp ?? false,
-        'cel u nadawcy: własne pole Chatt',
-        ile: const Duration(seconds: 10));
-    final przed = stan()!.typedReplies;
-    expect(host.sendRemoteInput(const [RemoteInputOp.insert(' NIE')]), isTrue);
-    final po = await odpowiedz(przed);
-    expect(po.applied, isFalse, reason: 'w polu Chatt nic się nie wpisuje');
-    expect((await poleZFokusem())?.text ?? '', isNot(contains('NIE')));
+    await czekaj(() async {
+      final cel = stan()?.target;
+      return cel != null && cel.ownApp && cel.active;
+    }, 'cel u nadawcy: własne pole Chatt', ile: const Duration(seconds: 10));
+    // Pole szukania tylko filtruje listę: tekst w nim niczego nie zmienia.
+    final po = await wpiszW(appPackage, const [RemoteInputOp.insert('do Chatt')]);
+    expect(po.applied, isTrue, reason: 'pole Chatt przyjmuje pisanie');
+    await czekaj(() async => (await poleZFokusem())?.text.contains('do Chatt') ??
+        false, 'tekst w polu szukania Chatt');
+    await wpiszW(appPackage, const [RemoteInputOp.backspace(8)]);
     print('własne pole Chatt: applied=${po.applied} ownApp=${po.target.ownApp}');
     // Szukanie z powrotem zamknięte, lista rozmów jak przed testem.
     final zamknij = await findAnyWidget(['Zamknij', 'Close'],

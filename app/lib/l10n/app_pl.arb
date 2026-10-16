@@ -381,7 +381,6 @@
   "@remoteInputBannerTarget": {
     "placeholders": { "name": {}, "app": {} }
   },
-  "remoteInputOwnAppNote": "Nic się nie wpisze, dopóki Chatt jest na wierzchu.",
   "remoteInputAllowTitle": "Pisanie bez pytania",
   "remoteInputAllowBody": "To urządzenie zaczyna pisać tutaj bez karty zgody. Pasek „Pisze” ze Stopem pokazuje się jak zawsze. Działa tylko przy potwierdzonej tożsamości i włączonym pisaniu w dodatku „Klawiatura z PC”.",
   "remoteKeyboardOpen": "Pisz na tamtym urządzeniu",
@@ -404,7 +403,6 @@
     "placeholders": { "app": {} }
   },
   "remoteKeyboardNoField": "Brak pola do pisania. Stuknij pole na tamtym urządzeniu; na Androidzie z wybraną klawiaturą Chatt.",
-  "remoteKeyboardOwnApp": "Na tamtym urządzeniu na wierzchu jest Chatt. Przejdź tam do aplikacji, w której chcesz pisać.",
   "remoteKeyboardElevated": "Okno z uprawnieniami administratora. Tam nic się nie wpisze.",
   "remoteKeyboardLocked": "Tamto urządzenie jest zablokowane albo ma wygaszony ekran.",
   "remoteKeyboardPaused": "Wstrzymane: na tamtym urządzeniu czeka pytanie. Pisanie wróci po odpowiedzi.",

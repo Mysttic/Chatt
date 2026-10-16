@@ -448,9 +448,9 @@ void main() {
     );
     await tester.pump();
     expect(find.text('Alicja is typing into Notepad'), findsOneWidget);
-    expect(find.text(teksty.remoteInputOwnAppNote), findsNothing);
+    expect(find.text(teksty.remoteKeyboardElevated), findsNothing);
 
-    // Chatt na wierzchu: nic się nie wpisze i pasek to mówi.
+    // Chatt na wierzchu: pisanie trafia także do jego pól.
     services.incomingRemoteInput.value = IncomingRemoteInput(
       peerGuid: 'guid-alicja',
       peerName: 'Alicja',
@@ -459,8 +459,7 @@ void main() {
           active: true, ownApp: true, appLabel: 'Chatt'),
     );
     await tester.pump();
-    expect(find.text('Typing: Alicja'), findsOneWidget);
-    expect(find.text(teksty.remoteInputOwnAppNote), findsOneWidget);
+    expect(find.text('Alicja is typing into Chatt'), findsOneWidget);
 
     // Okno administratora na wierzchu: nie jest celem pisania, bo nic się
     // do niego nie wpisze.

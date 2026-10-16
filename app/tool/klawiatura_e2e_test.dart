@@ -24,14 +24,13 @@
 //      w zasobniku;
 //   4. w ciągu minuty kliknąć w Notatnik: pojawi się `Chatt ąęł 123`, nowa
 //      linia, `koniec`, a w trzeciej linii długi wiersz cyfr (wklejenie);
-//   5. kliknąć w okno Chatt: skrypt wysyła ` NIE` i oczekuje odmowy
-//      (`ownApp`), w polu nic się nie pojawia;
+//   5. kliknąć w okno Chatt: cel to `ownApp`, a pisanie dalej możliwe
+//      (skrypt niczego tam nie wpisuje);
 //   6. Stop na pływającym pasku: pasek i ikona znikają, nadawca dostaje
 //      `no_grant`.
 //
-// Okno samego Chatta na wierzchu daje odmowę (`ownApp`), Notatnik
-// uruchomiony jako administrator też (`elevated`); skrypt wypisuje cel po
-// każdej paczce.
+// Notatnik uruchomiony jako administrator daje odmowę (`elevated`); skrypt
+// wypisuje cel po każdej paczce.
 @Timeout(Duration(minutes: 10))
 library;
 
@@ -152,19 +151,9 @@ void main() {
       const Duration(minutes: 1),
       'Chatt na wierzchu',
     );
-    final przedOdmowa = nadawca.outgoingRemoteInput.value!.typedReplies;
-    expect(nadawca.sendRemoteInput(const [RemoteInputOp.insert(' NIE')]),
-        isTrue);
-    await czekaj(
-      () =>
-          (nadawca.outgoingRemoteInput.value?.typedReplies ?? przedOdmowa) >
-          przedOdmowa,
-      const Duration(seconds: 30),
-      'odpowiedź z Chatta na wierzchu',
-    );
     wypisz('Chatt na wierzchu: ${opis(nadawca.outgoingRemoteInput.value)}');
-    expect(nadawca.outgoingRemoteInput.value!.applied, isFalse,
-        reason: 'w oknie Chatt nic się nie wpisuje');
+    expect(nadawca.outgoingRemoteInput.value!.target.active, isTrue,
+        reason: 'okno Chatt przyjmuje pisanie jak każde inne');
 
     wypisz('przez minutę można wcisnąć Stop na pasku');
     final koniec = DateTime.now().add(const Duration(minutes: 1));

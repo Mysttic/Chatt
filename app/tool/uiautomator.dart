@@ -5,6 +5,7 @@
 // Zmienne: ADB (ścieżka do adb), CHATT_DEVICE (id urządzenia z `adb devices`,
 // domyślnie emulator-5554).
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -266,6 +267,65 @@ Future<void> stuknijPole({int ktore = 0}) async {
   } while (DateTime.now().isBefore(koniec));
   throw StateError('Nie ma na ekranie pola tekstowego nr $ktore. '
       'Co widać: ${await widocznaTresc()}');
+}
+
+/// Czeka, aż prośba [prosba] się rozstrzygnie albo w aplikacji [pakiet]
+/// pojawi się jedna z [etykiety]. Zwraca wynik prośby, gdy przyszedł, a `null`,
+/// gdy pojawiła się etykieta. Zrzuty idą po kolei: dwa `uiautomator dump`
+/// naraz wywracają się na urządzeniu („UiAutomationService already
+/// registered").
+Future<T?> czekajNaKarteAlbo<T>(Future<T> prosba, List<String> etykiety,
+    {required String pakiet,
+    Duration timeout = const Duration(seconds: 30)}) async {
+  T? wynik;
+  var gotowe = false;
+  unawaited(prosba.then((w) {
+    wynik = w;
+    gotowe = true;
+  }));
+  final koniec = DateTime.now().add(timeout);
+  while (!gotowe && DateTime.now().isBefore(koniec)) {
+    if (await findAnyWidget(etykiety,
+            pakiet: pakiet, timeout: const Duration(seconds: 1)) !=
+        null) {
+      return null;
+    }
+  }
+  return wynik;
+}
+
+/// Dodatek „Klawiatura z PC" i „Pozwól pisać na tym urządzeniu" w aplikacji
+/// [pakiet], gdy prośba o sesję dostała `not_enabled`. Stuka wyłącznie
+/// w elementy tej aplikacji. Wyłączony dodatek gasi też odbiór, więc gdy
+/// przełącznika odbioru nie widać, najpierw idzie sam dodatek.
+Future<void> wlaczDodatekKlawiatury(String pakiet) async {
+  await adb([
+    'shell', 'monkey', '-p', pakiet, '-c',
+    'android.intent.category.LAUNCHER', '1',
+  ]);
+  await Future<void>.delayed(const Duration(seconds: 2));
+  await stuknijEtykiete(['Settings', 'Ustawienia'], pakiet: pakiet);
+  Future<bool> widac(List<String> etykiety) async =>
+      await findAnyWidget(etykiety,
+          fragment: true, pakiet: pakiet, timeout: const Duration(seconds: 2)) !=
+      null;
+
+  const dodatek = ['Keyboard from a PC', 'Klawiatura z PC'];
+  const odbior = [
+    'Allow typing on this device',
+    'Pozwól pisać na tym urządzeniu',
+  ];
+  for (var i = 0; i < 10 && !await widac(dodatek); i++) {
+    await adb(['shell', 'input', 'swipe', '640', '2200', '640', '1000', '300']);
+  }
+  if (!await widac(odbior)) {
+    await stuknijEtykiete(dodatek, fragment: true, pakiet: pakiet);
+  }
+  for (var i = 0; i < 4 && !await widac(odbior); i++) {
+    await adb(['shell', 'input', 'swipe', '640', '2000', '640', '1500', '300']);
+  }
+  await stuknijEtykiete(odbior, fragment: true, pakiet: pakiet);
+  await Future<void>.delayed(const Duration(seconds: 2));
 }
 
 /// Zrzut ekranu urządzenia do pliku (do dokumentacji i podglądu, co się stało).

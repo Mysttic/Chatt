@@ -182,8 +182,12 @@ byłeś, a Ty stukasz pole do wypełnienia. Tam, gdzie była klawiatura, pojawia
 się pasek z tym, kto pisze i do jakiej aplikacji („Pisze: PC → Kontakty”),
 z przyciskami **Przełącz klawiaturę** i **Stop**. Po końcu sesji wraca sama
 poprzednia klawiatura. Przy zaznaczonym „Nie pytaj więcej” i Chatcie w tle
-przychodzi powiadomienie „Przełącz klawiaturę na Chatt”; dotknij go. Ekran blokady zawsze dostaje z powrotem zwykłą klawiaturę, a przy
-zablokowanym albo wygaszonym ekranie nic się nie wpisuje. Stałe powiadomienie
+przychodzi powiadomienie „Przełącz klawiaturę na Chatt”; dotknij go. Pisanie
+idzie za Tobą z aplikacji do aplikacji, także do Chatt, aż do końca sesji.
+Przy zablokowanym albo wygaszonym ekranie nic się nie wpisuje. Ekran blokady
+z PIN-em zostawia klawiaturę Chatt; ekran z hasłem tekstowym dostaje zwykłą
+klawiaturę, żeby dało się wpisać hasło, a po odblokowaniu znów przychodzi
+„Przełącz klawiaturę na Chatt”: jedno dotknięcie i pisanie trwa dalej. Stałe powiadomienie
 Chatt mówi przez całą sesję, kto pisze.
 
 **Na komputerze z Windows** tekst trafia do okna na wierzchu, tam, gdzie stoi
@@ -217,9 +221,8 @@ przychodzi tam jako zwykły Enter. W edytorze tekstu to nowa linia,
 a w komunikatorze, który wysyła Enterem, wysyła wiadomość.
 
 Wiersz u góry mówi, dokąd idzie pisanie („Pisze do: Notatki”), albo czemu nic
-się nie wpisze: Chatt na wierzchu po tamtej stronie, zablokowany ekran, okno
-z uprawnieniami administratora, brak pola, pytanie czekające na którymś
-z urządzeń. Dopóki tekst nie ma dokąd trafić, pole nie przyjmuje pisania.
+się nie wpisze: zablokowany ekran, okno z uprawnieniami administratora, brak
+pola, pytanie czekające na którymś z urządzeń. Dopóki tekst nie ma dokąd trafić, pole nie przyjmuje pisania.
 Dopóki druga strona nie zgłosi zwykłego pola tekstowego, echo i pole „Całość
 naraz” pokazują kropki: przy polu hasła i przy polu, którego rodzaju Chatt nie
 rozpozna, co zdarza się w niektórych programach na Windowsie. To, co wpisałeś
@@ -242,10 +245,10 @@ z potwierdzeniem.
 Windowsie okien
 z uprawnieniami administratora, okien Kontroli konta użytkownika i ekranu
 logowania: Windows nie pozwala zwykłemu programowi tam pisać, a komputer,
-z którego piszesz, mówi o tym. Własnych pól Chatt na urządzeniu, na którym się
-pisze: zdalny Enter nigdy nie wyśle tam wiadomości Chatt ani nie odpowie na
-kartę, a pasek u góry Chatt mówi, że przy Chatcie na wierzchu nic się nie
-wpisuje.
+z którego piszesz, mówi o tym. Kart z pytaniami Chatt: gdy któraś czeka na
+którymkolwiek z urządzeń, nic się nie wpisuje, więc zdalny Enter nigdy nie
+odpowie na kartę. Pola tekstowe samego Chatt przyjmują pisanie jak pola każdej
+innej aplikacji.
 
 Chatt nie zapisuje niczego z tego, co piszesz, po żadnej stronie. Tekst jedzie
 zaszyfrowany, tak jak wiadomości, i wyłącznie między tymi dwoma urządzeniami.

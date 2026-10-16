@@ -922,10 +922,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get remoteInputOwnAppNote =>
-      'Nothing is typed while Chatt is in front.';
-
-  @override
   String get remoteInputAllowTitle => 'Typing without asking';
 
   @override
@@ -966,10 +962,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get remoteKeyboardNoField =>
       'No field to type into. Tap a field on that device; on Android, with the Chatt keyboard picked.';
-
-  @override
-  String get remoteKeyboardOwnApp =>
-      'Chatt is in front on that device. Switch there to the app you want to type in.';
 
   @override
   String get remoteKeyboardElevated =>

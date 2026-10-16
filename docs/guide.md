@@ -354,9 +354,12 @@ the field you want to fill. Where the keyboard was, a bar shows who is typing
 and into which app ("Typing: PC → Contacts"), with **Switch keyboard** and
 **Stop**. When the session ends, your previous keyboard comes back by itself.
 With "Don't ask again" ticked and Chatt in the background, a notification
-"Switch the keyboard to Chatt" comes; tap it. The lock
-screen always gets your normal keyboard back, and nothing is typed while the
-phone is locked or its screen is off. The permanent Chatt notification says who
+"Switch the keyboard to Chatt" comes; tap it. Typing follows you from app to
+app, Chatt included, until the session ends. Nothing is typed while the phone
+is locked or its screen is off. A lock screen with a PIN keeps the Chatt
+keyboard; one with a text password gets your normal keyboard back so you can
+type the password, and after you unlock, "Switch the keyboard to Chatt" comes
+again: one tap and the typing goes on. The permanent Chatt notification says who
 is typing for as long as the session lasts.
 
 **On a Windows PC** the text goes into the window in front, wherever its cursor
@@ -390,8 +393,8 @@ arrives there as a plain Enter. In a text editor that is a new line; in a chat
 app where Enter sends, it sends.
 
 The line at the top says where the typing goes ("Typing into: Notes") or why
-nothing gets typed: Chatt in front over there, a locked screen, a window
-running as administrator, no field, a question waiting on either device. While
+nothing gets typed: a locked screen, a window running as administrator, no
+field, a question waiting on either device. While
 nothing can land, the field takes no typing. Until the other side reports an
 ordinary text field, the echo and the Compose field show dots: for a password
 field, and for a field Chatt cannot tell, which happens in some Windows apps.
@@ -413,9 +416,9 @@ always. It works only with a green shield and goes off with the confirmation.
 Windows,
 windows running as administrator, User Account Control prompts and the sign-in
 screen: Windows lets no ordinary program type there, and the PC that types
-says so. Chatt's own fields on the device being typed on: a remote Enter never
-sends a Chatt message or answers a card there, and the bar at the top of Chatt
-says that nothing is typed while Chatt is in front.
+says so. Chatt's question cards: while one waits on either device, nothing is
+typed, so a remote Enter never answers a card. Chatt's own text fields take
+typing like any other app's.
 
 Chatt saves nothing of what you type, on either side. It travels encrypted, the
 same way messages do, and only between the two devices.

@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **380 `flutter test` tests** check everything that can be
+The split is simple: **382 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -521,7 +521,7 @@ thing keeping the channel silent:
 - "Typing without asking" in the security sheet shows only with the add-on,
   writes `remoteInput`, and goes off and inactive when the confirmation goes
 
-### The sender's screen (`test/remote_keyboard_screen_test.dart`, 27 tests)
+### The sender's screen (`test/remote_keyboard_screen_test.dart`, 28 tests)
 Through a session without a network (`RemoteKeyboardLink`), which records what
 the screen sends and lets the test set the state:
 - `echoOps`: an append is text, a cut from the end is Backspace, a changed
@@ -535,8 +535,9 @@ the screen sends and lets the test set the state:
   Home and Tab change nothing and keep the focus in the field
 - the echo is masked for a password and for a field of unknown kind, and only
   `field: text` uncovers it
-- the status line explains Chatt in front, a locked screen, an administrator's
-  window, no field and `paused`
+- the status line explains a locked screen, an administrator's window, no
+  field and `paused`
+- a field of Chatt itself takes typing like any other
 - a broken session leaves the field read-only with Reconnect, which asks
   again and lets typing go on
 - too much text at once brings the echo back and says so
@@ -641,13 +642,16 @@ The native bar, the tray and the window are replaced by recorders:
   minimised one goes back to the taskbar; a window already on screen is left
   alone
 
-### The keyboard on Android outside the app (`test/remote_input_mobile_test.dart`, 3 tests)
+### The keyboard on Android outside the app (`test/remote_input_mobile_test.dart`, 4 tests)
 - a grant accepted on the card shows the bar text and asks for the keyboard
   picker once; the following packets only change the text; the end hides it
 - a grant without a card while the app is in the background posts "Switch the
   keyboard to Chatt"
 - a card arriving with the window closed gets one notification, and none
   while the app is in front
+- the Chatt keyboard stepping aside for the lock screen's password field
+  posts "Switch the keyboard to Chatt" during a grant, and nothing without
+  one
 
 ## Scenarios on live hardware
 
@@ -656,15 +660,21 @@ The Chatt keyboard on a live device: this process is the sender, the app on
 the emulator or phone is the receiver, through the same adb tunnels as
 `tool/android_e2e_test.dart`. With the add-on and receiving on in the app (the
 script enables the keyboard itself with `adb shell ime enable`):
-`flutter test tool/klawiatura_android_e2e_test.dart`. Seven steps, all
+`flutter test tool/klawiatura_android_e2e_test.dart`. Eight steps, all
 asserted: a request before pairing is refused with no card; pairing by code;
 a request accepted on the card brings up the keyboard picker, Chatt is picked
 and the app moves to the back; in a new contact form the text with Polish
 letters, a Backspace and the field's action arrive (read back with
 `uiautomator dump`); with the screen off the target says `locked` and nothing
-is typed; Stop on the keyboard bar ends the session on both sides and the
-previous keyboard comes back; in Chatt's own message field typing is refused
-(`ownApp`) and no message goes out; switching the add-on off takes the Chatt
+is typed, and a lock screen without a password leaves the Chatt keyboard
+current with no notification; on the emulator only, with a text password set
+for the step and cleared after it, the Chatt keyboard steps aside on the lock
+screen, the password unlocks the phone, and a tap on "Switch the keyboard to
+Chatt" and on the Chatt keyboard in the picker brings it back; Stop on the
+keyboard bar ends the session on both sides and the
+previous keyboard comes back; Chatt's own message field takes the text (no
+Enter, so nothing goes out) and the text is deleted again; switching the
+add-on off takes the Chatt
 keyboard off the system's list, and switching it on brings it back. Shared
 helpers for the device scenarios live in `tool/uiautomator.dart`. With
 `CHATT_SHOTS=1` the run also saves the consent card, the Chatt keyboard's bar
@@ -676,7 +686,11 @@ cannot: the navigation bar drawn over the keyboard bar, with the
 keyboard-switch button on top of Stop, and a pairing reply that went nowhere
 through the tunnel, because every request from the device rewrites the port
 the host keeps for it (the script pairs host first and then pins the tunnel
-port back).
+port back). The password step found a third: a tap on the notification
+opened Chatt, but Android dropped the keyboard picker it asked for
+(`Ignoring showInputMethodPickerFromClient`), because the window's focus
+reaches the input method manager only after the activity hears about it. The
+picker now goes 300 ms after the focus.
 
 ### `tool/klawiatura_check.dart`
 The `chatt/remoteinput` sink on a live Windows runner, with no consent and no
@@ -697,8 +711,8 @@ instance with its own `CHATT_DATA_DIR` keeps the everyday database out of it.
 The script pairs by code (confirm "They match" in the app), asks for a session
 (accept the card), waits up to a minute for Notepad to come to the front, and
 sends text, Backspace, Enter and a 600-character paste, each packet only while
-the target is `notepad.exe`. Then it waits for the Chatt window in front and
-expects a refusal (`ownApp`), and for Stop on the floating bar. The app's
+the target is `notepad.exe`. Then it waits for the Chatt window in front and checks that the target is
+`ownApp` and still open to typing, and for Stop on the floating bar. The app's
 window, hidden in the tray, comes out for the cards and goes back after them;
 the bar and the tray badge stay for the session.
 
@@ -706,8 +720,9 @@ The run on 16 October 2026 (Windows 11, the Windows 11 Notepad) found the pace
 of typing wrong: with 1 ms between characters "Chatt ąęł 124" landed as
 "Chatt 4444443". Now it types 10 ms apart and 40 ms after a space or Enter
 (see the architecture), and the same run passes: the Polish line, the
-Backspace, the 600 digits matching one for one (6.5 s), the refusal with
-Chatt in front, and Stop clicked on the floating bar.
+Backspace, the 600 digits matching one for one (6.5 s), and Stop clicked on
+the floating bar. (That run still refused with Chatt in front; Chatt's own
+fields have taken typing since.)
 
 ### `tool/klawiatura_telefon_test.dart`
 The keyboard on a phone someone uses every day: this process is the sender,
@@ -722,7 +737,7 @@ letters, Backspace and an emoji in the form, then 30 seconds of idle pings,
 100 characters one by one every 100 ms and 50 characters every 20 ms; then the
 same session follows the focus through other apps (the Settings search, a new
 calendar event's title, the contact form again), each field checked and
-cleared; a refusal in Chatt's own search field, the lock screen (skipped with
+cleared; typing into Chatt's own search field, the lock screen (skipped with
 `CHATT_BLOKADA=0`, otherwise it waits for you to unlock and types again
 afterwards) and the end of the session. Error messages there give only the
 number of nodes on the screen (`ukryjTrescEkranu` in `tool/uiautomator.dart`):

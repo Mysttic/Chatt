@@ -925,10 +925,6 @@ class AppLocalizationsPl extends AppLocalizations {
   }
 
   @override
-  String get remoteInputOwnAppNote =>
-      'Nic się nie wpisze, dopóki Chatt jest na wierzchu.';
-
-  @override
   String get remoteInputAllowTitle => 'Pisanie bez pytania';
 
   @override
@@ -969,10 +965,6 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get remoteKeyboardNoField =>
       'Brak pola do pisania. Stuknij pole na tamtym urządzeniu; na Androidzie z wybraną klawiaturą Chatt.';
-
-  @override
-  String get remoteKeyboardOwnApp =>
-      'Na tamtym urządzeniu na wierzchu jest Chatt. Przejdź tam do aplikacji, w której chcesz pisać.';
 
   @override
   String get remoteKeyboardElevated =>

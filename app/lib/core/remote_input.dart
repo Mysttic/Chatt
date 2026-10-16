@@ -158,13 +158,18 @@ class RemoteInputChannel implements RemoteInputSink {
           'ok'] ==
       true;
 
-  /// Wywołania od strony natywnej: Stop stuknięty na pasku. Rejestracja
-  /// niczego po drugiej stronie nie woła.
-  static void listen({required void Function() onStop}) {
+  /// Wywołania od strony natywnej: Stop stuknięty na pasku i (Android)
+  /// klawiatura Chatt, która po ekranie blokady nie jest już bieżąca.
+  /// Rejestracja niczego po drugiej stronie nie woła.
+  static void listen({
+    required void Function() onStop,
+    void Function()? onKeyboardLost,
+  }) {
     if (!isSupported) return;
     try {
       _channel.setMethodCallHandler((call) async {
         if (call.method == 'stopRequested') onStop();
+        if (call.method == 'keyboardLost') onKeyboardLost?.call();
         return null;
       });
     } catch (_) {

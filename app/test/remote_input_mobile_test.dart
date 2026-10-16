@@ -122,4 +122,23 @@ void main() {
     await klawiatura.settled;
     expect(wywolania, hasLength(1));
   });
+
+  test('klawiatura oddana polu hasła na ekranie blokady: powiadomienie '
+      'o przełączeniu, bez zgody nic', () async {
+    klawiatura.keyboardLost();
+    await klawiatura.settled;
+    expect(wywolania, isEmpty, reason: 'bez zgody nie ma czego przywracać');
+
+    services.incomingRemoteInput.value = zgoda(label: 'Kontakty');
+    await klawiatura.settled;
+    wywolania.clear();
+    klawiatura.keyboardLost();
+    await klawiatura.settled;
+    expect(wywolania, [
+      'przełącz: Przełącz klawiaturę na Chatt|'
+          'PC pisze na tym urządzeniu. Dotknij i wybierz klawiaturę Chatt.',
+    ]);
+    services.incomingRemoteInput.value = null;
+    await klawiatura.settled;
+  });
 }

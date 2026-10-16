@@ -30,7 +30,8 @@ import java.lang.ref.WeakReference
  *
  * Kontrakt jest ten sam co na Windows (`status`, `apply`, `setSession`,
  * `setImeEnabled`, `showIndicator`, `hideIndicator`, w drugą stronę
- * `stopRequested`), a do tego to, czego wymaga klawiatura: włączenie jej
+ * `stopRequested` i `keyboardLost`), a do tego to, czego wymaga klawiatura:
+ * włączenie jej
  * w ustawieniach systemu, okno wyboru klawiatury i schowanie aplikacji po
  * zgodzie, żeby było widać pole, do którego idzie pisanie.
  *
@@ -127,6 +128,18 @@ object ChattRemoteInput {
         if (activity?.get() === window) activity = null
     }
 
+    /**
+     * Klawiatura Chatt oddaje miejsce polu hasła na ekranie blokady.
+     * W trakcie zgody Dart od razu pokazuje „Przełącz klawiaturę na Chatt":
+     * powiadomienie czeka po odblokowaniu i jednym dotknięciem przywraca
+     * pisanie. (Na zdarzenie odblokowania nie da się tu liczyć: proces bez
+     * związanej klawiatury schodzi do tła, a Android wstrzymuje mu takie
+     * zdarzenia.)
+     */
+    fun keyboardYieldedToLock() {
+        if (sessionActive) main.post { channel?.invokeMethod("keyboardLost", null) }
+    }
+
     /** Stop na pasku klawiatury. Dart kończy zgodę i odsyła `setSession`. */
     fun stopPressed() {
         main.post { channel?.invokeMethod("stopRequested", null) }
@@ -148,10 +161,18 @@ object ChattRemoteInput {
      */
     fun onWindowFocus(window: Activity, hasFocus: Boolean) {
         when (picker) {
+            // Fokus okna dociera do menedżera klawiatur dopiero po tym
+            // wywołaniu, a prośba wysłana wcześniej przepada („Ignoring
+            // showInputMethodPickerFromClient", np. po dotknięciu
+            // powiadomienia): okno wyboru idzie chwilę później.
             Picker.REQUESTED -> if (hasFocus) {
-                window.getSystemService(InputMethodManager::class.java)
-                    ?.showInputMethodPicker()
-                picker = Picker.SHOWN
+                main.postDelayed({
+                    if (picker == Picker.REQUESTED && window.hasWindowFocus()) {
+                        window.getSystemService(InputMethodManager::class.java)
+                            ?.showInputMethodPicker()
+                        picker = Picker.SHOWN
+                    }
+                }, 300)
             }
             Picker.SHOWN -> if (!hasFocus) picker = Picker.OPEN
             Picker.OPEN -> if (hasFocus) {
@@ -211,7 +232,7 @@ object ChattRemoteInput {
         return ComponentName.unflattenFromString(biezaca) == component(context)
     }
 
-    private fun isPassword(info: EditorInfo): Boolean {
+    fun isPassword(info: EditorInfo): Boolean {
         val klasa = info.inputType and InputType.TYPE_MASK_CLASS
         val wariant = info.inputType and InputType.TYPE_MASK_VARIATION
         return (klasa == InputType.TYPE_CLASS_TEXT && (
@@ -266,10 +287,10 @@ object ChattRemoteInput {
         val zablokowany = context != null && (
             context.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true ||
                 context.getSystemService(PowerManager::class.java)?.isInteractive == false)
-        // Własne pola Chatta: zdalny Enter nie wyśle wiadomości ani nie
-        // kliknie karty z pytaniem.
+        // Własne pola Chatta przyjmują pisanie jak każde inne; karty
+        // z pytaniem chroni Dart (przy wiszącej karcie nic się nie wpisuje).
         val wlasne = context != null && pakiet == context.packageName
-        val aktywne = polaczone && !zablokowany && !wlasne
+        val aktywne = polaczone && !zablokowany
         return mutableMapOf(
             "active" to aktywne,
             "field" to when {

@@ -8,10 +8,10 @@ import '../l10n_context.dart';
 /// Pasek „Pisze: …" ze Stopem u góry aplikacji, przez całą zgodę na pisanie
 /// na tym urządzeniu, na każdym ekranie.
 ///
-/// Gdy okno Chatt jest na wierzchu, nic się nie wpisuje (własne pola Chatt
-/// są wyłączone z pisania), i pasek mówi to wprost. Poza oknem wskaźnikiem
-/// jest pasek natywny: pływający na Windows, klawiatura Chatt i powiadomienie
-/// na Androidzie.
+/// Pisanie trafia także do pól samego Chatt, więc przy oknie na wierzchu
+/// pasek mówi, że pisze się do Chatt. Poza oknem wskaźnikiem jest pasek
+/// natywny: pływający na Windows, klawiatura Chatt i powiadomienie na
+/// Androidzie.
 ///
 /// Należy do dodatku klawiatury: przy wyłączonym nie zajmuje miejsca.
 class RemoteInputBanner extends ConsumerWidget {
@@ -72,13 +72,11 @@ class _Pasek extends StatelessWidget {
     // Aplikacja z nazwy tylko wtedy, gdy do niej naprawdę się pisze, jak na
     // pasku natywnym. Bez strzałki z tamtego paska: dołączony Roboto jej
     // nie ma.
-    final napis = (cel.active && !cel.ownApp && aplikacja.isNotEmpty)
+    final napis = (cel.active && aplikacja.isNotEmpty)
         ? context.l10n.remoteInputBannerTarget(pisze.peerName, aplikacja)
         : context.l10n.remoteInputActive(pisze.peerName);
     // Czemu nic się nie wpisuje, gdy widać to z tego ekranu.
-    final uwaga = cel.ownApp
-        ? context.l10n.remoteInputOwnAppNote
-        : (cel.elevated ? context.l10n.remoteKeyboardElevated : null);
+    final uwaga = cel.elevated ? context.l10n.remoteKeyboardElevated : null;
     final kolor = scheme.onPrimaryContainer;
     return Material(
       color: scheme.primaryContainer,
