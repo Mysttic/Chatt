@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -18,6 +19,8 @@ import 'package:chatt/ui/screens/chat_screen.dart';
 import 'package:chatt/ui/screens/conversations_screen.dart';
 import 'package:chatt/ui/screens/settings_screen.dart';
 import 'package:chatt/ui/widgets/prompt_overlay.dart';
+import 'package:chatt/ui/widgets/remote_input_banner.dart';
+import 'package:chatt/ui/widgets/security_sheet.dart';
 
 /// Interfejsowa połowa dodatku klawiatury: bez dodatku żaden ekran poza jego
 /// kartą nie pokazuje niczego z klawiatury, a karty zgody nie da się
@@ -167,6 +170,32 @@ void main() {
         builder: (context, child) => PromptOverlay(child: child!),
       );
 
+  /// Pasek „Pisze" tak jak w aplikacji: w `MaterialApp.builder`.
+  Widget zPaskiem(AppServices services) => aplikacja(
+        services,
+        builder: (context, child) => RemoteInputBanner(child: child!),
+      );
+
+  /// Rozmówca z tożsamością potwierdzoną albo nie, bez adresu: obecność
+  /// odpowiada od razu, bez sieci.
+  Future<(int, Peer)> rozmowca(
+      WidgetTester tester, AppServices services, {bool verified = true}) async {
+    return (await tester.runAsync(() async {
+      final alicja = await services.db.upsertPeer(
+        guid: 'guid-alicja',
+        name: 'Alicja',
+        welcomeMessage: '',
+        host: '',
+        port: 0,
+      );
+      // Klucz jest: panel bezpieczeństwa pokazuje wtedy przełączniki zgód.
+      await services.db.setPeerKey(alicja.id, base64.encode(List.filled(32, 7)));
+      if (verified) await services.db.setPeerVerified(alicja.id, true);
+      final rozmowa = await services.db.ensureConversation(alicja.id);
+      return (rozmowa, (await services.db.peerByGuid('guid-alicja'))!);
+    }))!;
+  }
+
   void bezKlawiatury() {
     for (final ikona in ikonyKlawiatury) {
       expect(find.byIcon(ikona), findsNothing, reason: '$ikona');
@@ -238,8 +267,8 @@ void main() {
     await sprzatnij(tester, [services]);
   });
 
-  testWidgets('trwająca zgoda pokazuje „Pisze" ze Stopem, który ją kończy',
-      (tester) async {
+  testWidgets('trwająca zgoda pokazuje pasek „Pisze" ze Stopem, który ją '
+      'kończy', (tester) async {
     final alicja = await uruchom(tester, 'Alicja');
     final bartek =
         await uruchom(tester, 'Bartek', polityka: acceptAllRemoteInput);
@@ -250,9 +279,10 @@ void main() {
       expect(await bartek.setRemoteInputReceive(true), isTrue);
     });
 
-    await tester.pumpWidget(kartaDodatku(bartek));
+    await tester.pumpWidget(zPaskiem(bartek));
     await tester.pump();
     expect(find.text('Typing: Alicja'), findsNothing);
+    bezKlawiatury();
 
     final start = await tester.runAsync(() => alicja.startRemoteInput(peer));
     expect(start, RemoteInputStart.accepted);
@@ -400,5 +430,196 @@ void main() {
     expect(find.text('Alicja wants to type on this device'), findsNothing);
 
     await sprzatnij(tester, [alicja, bartek]);
+  });
+
+  testWidgets('pasek „Pisze" mówi, dokąd idzie pisanie, i znika razem '
+      'z dodatkiem', (tester) async {
+    final services = await uruchom(tester, 'Bartek');
+    services.keyboardAddon.value = true;
+    await tester.pumpWidget(zPaskiem(services));
+    await tester.pump();
+    bezKlawiatury();
+
+    services.incomingRemoteInput.value = IncomingRemoteInput(
+      peerGuid: 'guid-alicja',
+      peerName: 'Alicja',
+      started: DateTime(2026),
+      target: const RemoteInputTarget(active: true, appLabel: 'Notepad'),
+    );
+    await tester.pump();
+    expect(find.text('Alicja is typing into Notepad'), findsOneWidget);
+    expect(find.text(teksty.remoteInputOwnAppNote), findsNothing);
+
+    // Chatt na wierzchu: nic się nie wpisze i pasek to mówi.
+    services.incomingRemoteInput.value = IncomingRemoteInput(
+      peerGuid: 'guid-alicja',
+      peerName: 'Alicja',
+      started: DateTime(2026),
+      target: const RemoteInputTarget(
+          active: true, ownApp: true, appLabel: 'Chatt'),
+    );
+    await tester.pump();
+    expect(find.text('Typing: Alicja'), findsOneWidget);
+    expect(find.text(teksty.remoteInputOwnAppNote), findsOneWidget);
+
+    // Okno administratora na wierzchu: nie jest celem pisania, bo nic się
+    // do niego nie wpisze.
+    services.incomingRemoteInput.value = IncomingRemoteInput(
+      peerGuid: 'guid-alicja',
+      peerName: 'Alicja',
+      started: DateTime(2026),
+      target: const RemoteInputTarget(
+          elevated: true, appLabel: 'Registry Editor'),
+    );
+    await tester.pump();
+    expect(find.text('Typing: Alicja'), findsOneWidget);
+    expect(find.textContaining('Registry Editor'), findsNothing);
+    expect(find.text(teksty.remoteKeyboardElevated), findsOneWidget);
+
+    services.keyboardAddon.value = false;
+    await tester.pump();
+    expect(find.textContaining('Typing'), findsNothing);
+    bezKlawiatury();
+
+    services.incomingRemoteInput.value = null;
+    await sprzatnij(tester, [services]);
+  });
+
+  testWidgets('przycisk klawiatury w rozmowie: jest z dodatkiem, aktywny '
+      'tylko przy potwierdzonej tożsamości', (tester) async {
+    final services = await uruchom(tester, 'Bartek');
+    services.keyboardAddon.value = true;
+    final (rozmowa, alicja) = await rozmowca(tester, services);
+
+    await tester.pumpWidget(aplikacja(
+      services,
+      ekran: ChatScreen(conversationId: rozmowa, peer: alicja),
+    ));
+    await tester.pump();
+    await tester.pump();
+    final przycisk =
+        find.widgetWithIcon(IconButton, Icons.keyboard_alt_outlined);
+    expect(przycisk, findsOneWidget);
+    expect(tester.widget<IconButton>(przycisk).onPressed, isNotNull);
+    expect(tester.widget<IconButton>(przycisk).tooltip,
+        teksty.remoteKeyboardOpen);
+
+    // Cofnięte potwierdzenie: przycisk zostaje, ale nie prowadzi nigdzie.
+    await tester.runAsync(() => services.db.setPeerVerified(alicja.id, false));
+    await dokoncz(tester, () => tester.widget<IconButton>(przycisk).onPressed == null);
+    expect(tester.widget<IconButton>(przycisk).tooltip,
+        teksty.remoteKeyboardNeedsVerified);
+
+    services.keyboardAddon.value = false;
+    await tester.pump();
+    bezKlawiatury();
+
+    await sprzatnij(tester, [services]);
+  });
+
+  testWidgets('karta zgody: sama zgoda niczego nie zapisuje, „Nie pytaj '
+      'więcej" zapisuje zgodę przy rozmówcy', (tester) async {
+    final alicja = await uruchom(tester, 'Alicja');
+    final bartek = await uruchom(tester, 'Bartek');
+    final peer = await sparuj(tester, alicja, bartek);
+    await tester.runAsync(() async {
+      await alicja.setKeyboardAddon(true);
+      await bartek.setKeyboardAddon(true);
+      expect(await bartek.setRemoteInputReceive(true), isTrue);
+    });
+
+    await tester.pumpWidget(nakladka(bartek));
+    await tester.pump();
+
+    late Future<RemoteInputStart> prosba;
+    await tester.runAsync(() async {
+      prosba = alicja.startRemoteInput(peer);
+    });
+    await czekajNa(tester, () => bartek.pendingRemoteInput.value.isNotEmpty);
+    await tester.pump();
+    await tester.pump();
+    final pamietaj = find.text(teksty.remoteInputDontAskAgain);
+    expect(pamietaj, findsOneWidget);
+    expect(find.byIcon(Icons.verified_user), findsOneWidget);
+
+    // Najpierw sama zgoda, bez zaznaczenia: nic się nie zapisuje.
+    await tester.tap(find.widgetWithText(FilledButton, 'Accept'));
+    await tester.pump();
+    expect(await tester.runAsync(() => prosba), RemoteInputStart.accepted);
+    var alicjaUBartka = await tester
+        .runAsync(() => bartek.db.peerByGuid(alicja.identity.guid));
+    expect(alicjaUBartka!.remoteInput, isFalse);
+
+    // Druga sesja, tym razem z „Nie pytaj więcej".
+    await tester.runAsync(() async {
+      prosba = alicja.startRemoteInput(peer);
+    });
+    await czekajNa(tester, () => bartek.pendingRemoteInput.value.isNotEmpty);
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(pamietaj);
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Accept'));
+    await tester.pump();
+    expect(await tester.runAsync(() => prosba), RemoteInputStart.accepted);
+    alicjaUBartka = await tester
+        .runAsync(() => bartek.db.peerByGuid(alicja.identity.guid));
+    expect(alicjaUBartka!.remoteInput, isTrue);
+
+    await tester.runAsync(alicja.stopRemoteInput);
+    await czekajNa(tester, () => bartek.incomingRemoteInput.value == null);
+    await sprzatnij(tester, [alicja, bartek]);
+  });
+
+  testWidgets('panel bezpieczeństwa: „Pisanie bez pytania" tylko z dodatkiem '
+      'i tylko przy potwierdzonej tożsamości', (tester) async {
+    final services = await uruchom(tester, 'Bartek');
+    final (_, alicja) = await rozmowca(tester, services);
+
+    await tester.pumpWidget(aplikacja(
+      services,
+      ekran: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: FilledButton(
+              onPressed: () => showSecuritySheet(
+                context,
+                peer: alicja,
+                onPair: () async {},
+                onScan: () async {},
+              ),
+              child: const Text('panel'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('panel'));
+    await tester.pumpAndSettle();
+    final przelacznik =
+        find.widgetWithText(SwitchListTile, teksty.remoteInputAllowTitle);
+    expect(find.text(teksty.autoAcceptTitle), findsOneWidget);
+    expect(przelacznik, findsNothing, reason: 'dodatek wyłączony');
+
+    services.keyboardAddon.value = true;
+    await tester.pump();
+    expect(przelacznik, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(przelacznik).value, isFalse);
+
+    await tester.ensureVisible(przelacznik);
+    await tester.tap(przelacznik);
+    await dokoncz(
+        tester, () => tester.widget<SwitchListTile>(przelacznik).value);
+    final zapisany =
+        await tester.runAsync(() => services.db.peerByGuid('guid-alicja'));
+    expect(zapisany!.remoteInput, isTrue);
+
+    // Bez potwierdzenia przełącznik gaśnie i nie daje się włączyć.
+    await tester.runAsync(() => services.db.setPeerVerified(alicja.id, false));
+    await dokoncz(tester,
+        () => tester.widget<SwitchListTile>(przelacznik).onChanged == null);
+    expect(tester.widget<SwitchListTile>(przelacznik).value, isFalse);
+
+    await sprzatnij(tester, [services]);
   });
 }

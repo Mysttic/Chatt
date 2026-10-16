@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **349 `flutter test` tests** check everything that can be
+The split is simple: **380 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -500,18 +500,65 @@ thing keeping the channel silent:
 - an add-on saved in the database comes up with the app without a single call,
   and a verified peer then gets a grant
 
-### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 7 tests)
+### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 11 tests)
 - the add-on's card is a single switch while the add-on is off; the receive
   switch appears with the add-on and goes away with it
 - turning receiving on with the real switches shows the safety note; turning
   the add-on off removes both and writes receiving off
-- a live grant from a second instance shows "Typing: Alicja" with Stop, and
-  Stop ends the grant (the sender's next packet bounces)
+- a live grant from a second instance shows the "Typing: Alicja" bar above the
+  app with Stop, and Stop ends the grant (the sender's next packet bounces)
+- the bar names the app being typed into, says that nothing is typed while
+  Chatt is in front, and disappears with the add-on
 - the overlay shows no keyboard card with the add-on off, even when a verified
   peer asks; the conversation list and the conversation screen show no
   keyboard icon
+- the conversation's keyboard button appears with the add-on, is active only
+  with a confirmed identity, and goes away with the add-on
 - the consent card names the device, holds the focus on Reject after a frame,
   and Enter refuses: the sender hears `rejected` and no grant exists
+- Accept alone writes nothing; "Don't ask again" with Accept writes
+  `remoteInput` for the sender in the database
+- "Typing without asking" in the security sheet shows only with the add-on,
+  writes `remoteInput`, and goes off and inactive when the confirmation goes
+
+### The sender's screen (`test/remote_keyboard_screen_test.dart`, 27 tests)
+Through a session without a network (`RemoteKeyboardLink`), which records what
+the screen sends and lets the test set the state:
+- `echoOps`: an append is text, a cut from the end is Backspace, a changed
+  ending is both, an emoji from a surrogate pair counts as one character, no
+  change sends nothing
+- waiting for consent shows the device and Cancel; Cancel closes the screen
+  and stops the session; a refusal at the start closes it with a message
+- typing in the echo goes out as text and Backspace; Enter empties the echo
+  and goes as the field's action, Shift+Enter as a newline
+- Backspace on an empty echo and Delete delete on the other side; the arrows,
+  Home and Tab change nothing and keep the focus in the field
+- the echo is masked for a password and for a field of unknown kind, and only
+  `field: text` uncovers it
+- the status line explains Chatt in front, a locked screen, an administrator's
+  window, no field and `paused`
+- a broken session leaves the field read-only with Reconnect, which asks
+  again and lets typing go on
+- too much text at once brings the echo back and says so
+- Compose sends the whole text with an Enter and clears the field
+- Paste from clipboard empties the echo and sends the clipboard's text
+- a card on this device pauses typing: the screen takes the focus back from
+  the card, Enter and Backspace send nothing, and the focus returns to typing
+  after the card
+- leaving the screen ends the session
+- a password typed under the mask stays masked after the focus over there
+  moves to an ordinary field, in both modes, until it leaves the field
+- text the other side did not type leaves the echo, a second such packet in
+  a row too, and a ping changes nothing; the field is read-only while paused
+  and without a field over there
+- Ctrl+V in the echo pastes from the clipboard
+- a held Ctrl+Enter sends the whole text once
+- a refusal that arrives after Cancel closes nothing more and shows nothing
+- a screen still animating away does not end the session of the next one
+- the next card from the queue does not keep the focus either
+- Tab while typing is on hold stays in the field, so Enter cannot press Stop
+- a mask change in Compose keeps the field focused and connected to the
+  keyboard
 
 ### The remote keyboard (`test/remote_input_test.dart`, 50 tests)
 Two or three live instances paired with each other, the receiver with an
@@ -619,7 +666,10 @@ is typed; Stop on the keyboard bar ends the session on both sides and the
 previous keyboard comes back; in Chatt's own message field typing is refused
 (`ownApp`) and no message goes out; switching the add-on off takes the Chatt
 keyboard off the system's list, and switching it on brings it back. Shared
-helpers for the device scenarios live in `tool/uiautomator.dart`.
+helpers for the device scenarios live in `tool/uiautomator.dart`. With
+`CHATT_SHOTS=1` the run also saves the consent card, the Chatt keyboard's bar
+while typing and the "Typing" bar into `docs/screenshots/android/` (`and23` to
+`and25`); without it the run changes nothing in the repository.
 
 The run on the emulator (Pixel 9 Pro, API 37) found two things the unit tests
 cannot: the navigation bar drawn over the keyboard bar, with the
@@ -748,7 +798,13 @@ the engine (`RepaintBoundary.toImage`). There are no private conversations in
 the screenshots, and the result is the same on every machine.
 `CHATT_SHOTS_LANG=en` gives the English version. One trap: the harness replaces
 `HttpClient` with a fake answering 400, so the script restores the real one
-(`HttpOverrides.global = null`).
+(`HttpOverrides.global = null`). Two more tests, run alone with
+`--plain-name klawiatury`, take the keyboard add-on: one the sender's screen
+typing to a phone (06), the other the consent card on this PC (07) and the
+"Typing" bar over the add-on's card (08). They do all their networking before
+`pumpWidget`: a request sent under the harness's fake clock can fail on a
+pooled connection, though the same run outside the harness takes
+milliseconds.
 
 ### `tool/store_assets.py`
 Draws the README banner (`docs/promo.png`), the only graphic in the repository

@@ -98,6 +98,11 @@ class OutgoingRemoteInput {
   /// tego nie zmieniają.
   final bool applied;
 
+  /// Ile paczek z tekstem albo kasowaniem dostało już odpowiedź. Po nim ekran
+  /// nadawcy rozpoznaje każdą kolejną odpowiedź, także gdy [applied] się nie
+  /// zmienia (dwie niewpisane paczki z rzędu).
+  final int typedReplies;
+
   /// Czas ostatniej paczki tam i z powrotem.
   final Duration? rtt;
 
@@ -115,6 +120,7 @@ class OutgoingRemoteInput {
     required this.state,
     this.target = RemoteInputTarget.none,
     this.applied = true,
+    this.typedReplies = 0,
     this.rtt,
     this.protocol,
     this.reason,
@@ -124,6 +130,7 @@ class OutgoingRemoteInput {
     OutgoingRemoteInputState? state,
     RemoteInputTarget? target,
     bool? applied,
+    int? typedReplies,
     Duration? rtt,
     PeerProtocol? protocol,
     String? reason,
@@ -134,6 +141,7 @@ class OutgoingRemoteInput {
         state: state ?? this.state,
         target: target ?? this.target,
         applied: applied ?? this.applied,
+        typedReplies: typedReplies ?? this.typedReplies,
         rtt: rtt ?? this.rtt,
         protocol: protocol ?? this.protocol,
         reason: reason ?? this.reason,
@@ -1098,6 +1106,7 @@ class _RemoteInput {
             target: odpowiedz.target,
             // Ping niczego nie wpisuje, więc nie mówi nic o ostatnim tekście.
             applied: pisze ? odpowiedz.applied : null,
+            typedReplies: pisze ? o.state.typedReplies + 1 : null,
             rtt: zegar.elapsed,
           ),
         );

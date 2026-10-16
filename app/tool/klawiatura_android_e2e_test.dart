@@ -25,7 +25,10 @@
 //   6. nowa sesja i pole wiadomości w samym Chatcie: odmowa (`ownApp`), żadna
 //      wiadomość nie wychodzi.
 //
-// Zmienne: ADB, CHATT_DEVICE (patrz `tool/uiautomator.dart`), CHATT_PROXY_PORT.
+// Zmienne: ADB, CHATT_DEVICE (patrz `tool/uiautomator.dart`), CHATT_PROXY_PORT,
+// CHATT_SHOTS=1 (zrzuty karty zgody, paska klawiatury i paska „Pisze" do
+// docs/screenshots/android/; bez niej przebieg niczego w repozytorium nie
+// zmienia).
 @Timeout(Duration(minutes: 10))
 library;
 
@@ -88,10 +91,22 @@ void main() {
     return (await host.db.peerByGuid(telefon.guid))!;
   }
 
+  /// Zrzut do dokumentacji; powstaje wyłącznie przy CHATT_SHOTS=1.
+  Future<void> zrzutDoDokumentacji(String nazwa) async {
+    if (Platform.environment['CHATT_SHOTS'] != '1') return;
+    await screenshot(
+        p.join('..', 'docs', 'screenshots', 'android', '$nazwa.png'));
+  }
+
   /// Prośba o sesję ze zgodą na karcie i wyborem klawiatury Chatt, gdy nie
-  /// jest bieżąca.
-  Future<void> sesja() async {
+  /// jest bieżąca. [zrzut] to nazwa zrzutu karty do dokumentacji.
+  Future<void> sesja({String? zrzut}) async {
     final start = host.startRemoteInput(telefon);
+    if (zrzut != null) {
+      await findWidget('Accept') ??
+          await findWidget('Akceptuj', timeout: const Duration(seconds: 1));
+      await zrzutDoDokumentacji(zrzut);
+    }
     await stuknijEtykiete(['Accept', 'Akceptuj'], azZniknie: true);
     expect(await start, RemoteInputStart.accepted);
     if (await biezacaKlawiatura() != imeId) {
@@ -148,10 +163,20 @@ void main() {
   });
 
   tearDownAll(() async {
-    await host.stopRemoteInput();
-    await host.dispose();
-    await adb(['forward', '--remove', 'tcp:$deviceProxyPort']);
-    await adb(['reverse', '--remove', 'tcp:$hostPort']);
+    // Sprzątanie z limitem na każdy krok: raz zawisło na 12 minut, a test
+    // ma powiedzieć, na którym.
+    Future<void> krok(String nazwa, Future<Object?> Function() co) =>
+        co().then<void>((_) {}).timeout(const Duration(seconds: 30),
+            onTimeout: () {
+          // ignore: avoid_print
+          print('sprzątanie: „$nazwa" nie skończyło się w 30 s');
+        });
+    await krok('stop sesji', host.stopRemoteInput);
+    await krok('zamknięcie hosta', host.dispose);
+    await krok('tunel do urządzenia',
+        () => adb(['forward', '--remove', 'tcp:$deviceProxyPort']));
+    await krok('tunel do hosta',
+        () => adb(['reverse', '--remove', 'tcp:$hostPort']));
     work.deleteSync(recursive: true);
   });
 
@@ -249,6 +274,7 @@ void main() {
       'tekst po akcji pola',
     );
     await screenshot(p.join(work.path, 'kontakt.png'));
+    await zrzutDoDokumentacji('and24_klawiatura_pisze');
   });
 
   test('zablokowany ekran: odmowa i nic się nie wpisuje', () async {
@@ -296,7 +322,9 @@ void main() {
     final rozmowa = await host.openConversationWith(telefon);
     await host.sendText(rozmowa, 'Rozmowa do testu klawiatury');
     await stuknijEtykiete(['Komputer PC'], fragment: true);
-    await sesja();
+    // Karta zgody nad jedną rozmową: lista rozmów na urządzeniu testowym
+    // zbiera po jednym „Komputerze PC" z każdego przebiegu.
+    await sesja(zrzut: 'and23_klawiatura_zgoda');
     await adb([
       'shell', 'monkey', '-p', appPackage, '-c',
       'android.intent.category.LAUNCHER', '1',
@@ -310,6 +338,9 @@ void main() {
       final cel = host.outgoingRemoteInput.value?.target;
       return cel != null && cel.ownApp;
     }, 'cel u nadawcy: własne pole Chatta', ile: const Duration(seconds: 10));
+    // Pasek „Pisze" u góry aplikacji mówi, że przy Chatcie na wierzchu nic
+    // się nie wpisze.
+    await zrzutDoDokumentacji('and25_klawiatura_pasek');
 
     final przed = (await host.db.watchMessages(rozmowa).first).length;
     expect(
@@ -375,6 +406,20 @@ void main() {
     // Z powrotem jak było, żeby następny przebieg zastał dodatek i odbiór.
     await stuknijEtykiete(['Keyboard from a PC', 'Klawiatura z PC'],
         fragment: true);
+    // Przełącznik odbioru stoi pod podpowiedzią dodatku, zwykle już pod
+    // krawędzią ekranu: lista przewija się kawałek, aż go widać.
+    for (var i = 0;
+        i < 4 &&
+            await findWidget('Allow typing on this device',
+                    fragment: true, timeout: const Duration(seconds: 1)) ==
+                null &&
+            await findWidget('Pozwól pisać na tym urządzeniu',
+                    fragment: true, timeout: const Duration(seconds: 1)) ==
+                null;
+        i++) {
+      await adb(['shell', 'input', 'swipe', '640', '2000', '640', '1500',
+          '300']);
+    }
     await stuknijEtykiete(
         ['Allow typing on this device', 'Pozwól pisać na tym urządzeniu'],
         fragment: true);

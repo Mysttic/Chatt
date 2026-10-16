@@ -10,10 +10,11 @@ into `master`.
 
 ## [Unreleased]
 
-The groundwork for a second add-on: typing on a PC's keyboard into the field
-that has focus on another device, in any app. The protocol, the consent and the
-add-on's card are in place. Typing reaches another device once the native
-receivers for Windows and Android and the sender's screen land.
+A second add-on: typing on a PC's keyboard into the field that has focus on
+another device, in any app, for phones, tablets and touch-only PCs with no
+keyboard of their own. Windows types into the window in front, Android through
+a keyboard of Chatt's own, and every session starts with consent on the
+receiving device.
 
 ### Added
 - **Keyboard from a PC, the second add-on.** Settings → Add-ons gains a card
@@ -27,8 +28,22 @@ receivers for Windows and Android and the sender's screen land.
 - **A consent card for every typing session.** Only a device with a confirmed
   identity can ask. The card puts the focus on Reject, so an Enter pressed
   while typing elsewhere can only refuse, and two minutes of silence count as
-  no answer. While a session lasts, the add-on's card shows who is typing and
-  a Stop button.
+  no answer. A "Don't ask again for this device" checkbox on the card, and
+  "Typing without asking" in the conversation's security sheet, skip the card
+  for one verified device. While a session lasts, a bar above the whole app
+  shows who is typing and where, with Stop.
+- **The sender's screen.** A keyboard button in the conversation's bar, there
+  only with the add-on on and active only for a verified device, opens a
+  screen of its own. Live mode sends each character as it is typed: Enter is
+  the field's action, Shift+Enter a newline, Backspace and Delete delete over
+  there. Compose mode sends a whole text at once. Paste from clipboard sends
+  the clipboard's text. The field is masked until the other side reports an
+  ordinary text field, and a password typed under the mask stays masked;
+  undo shortcuts and suggestions are off. Typing is possible only while the
+  other side can take it: a status line says where the typing goes or why
+  nothing is typed (Chatt in front there, a locked screen, an administrator's
+  window, no field, a question waiting on either device), and a session that
+  broke off can be reconnected.
 - **`POST /input-session` and `POST /input`**, on both roads, the network and
   the radio. A session starts with a request; the sender's packets then carry
   text, Backspace, Delete and the field's action (Enter, or Search, Send, Go,
@@ -87,6 +102,10 @@ receivers for Windows and Android and the sender's screen land.
   unlocked, running device, over the radio too when Bluetooth is on.
   `docs/architecture.md` and `docs/SECURITY.md` say what that means for a
   stolen verified device.
+
+### Fixed
+- The conversation's security sheet scrolls. On a low window or with a large
+  font its switches and pairing buttons ran off the bottom of the screen.
 
 ## [0.9.0] - 2026-10-14
 
