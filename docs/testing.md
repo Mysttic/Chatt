@@ -817,8 +817,54 @@ between them; while you type, the radio stays awake. The first session took thre
 in the picker, the field), and the lock screen showed the ordinary keyboard
 with no Chatt bar. Within one session the typing went into the Settings
 search, a calendar event's title and a contact form in turn, with no new
-consent and no new picker. The radio (the Bluetooth add-on) is still to be
-measured.
+consent and no new picker. Typing over the radio is measured by the next
+tool.
+
+### `tool/klawiatura_bt_pomiar.dart`
+The same measurement over Bluetooth. `flutter test` has no radio (the
+`chatt/bluetooth` channel lives in the runner), so this one runs as a Windows
+app: the sender with an in-memory database, the Chatt app on a phone on USB
+the receiver, adb only for taps and for checking what is on the screen. It is
+as careful with an everyday phone as the tool above: it sends no message,
+types only into a new contact form after checking the target before every
+packet, deletes what it typed, closes the form without saving, puts the
+system keyboards back, and logs the number of nodes on the screen, never its
+content. When the app's Bluetooth add-on is not listening (an RFCOMM socket
+"Chatt" in `dumpsys bluetooth_manager`), it switches it on in the app's
+settings and off again at the end. It reaches the phone at its radio address
+only, pairs by code (it taps "They match" itself), accepts the card, picks the
+Chatt keyboard, checks that the session goes over `bluetooth`, and measures
+as the tool above: pings at rest for 30 seconds, 100 characters 100 ms apart,
+50 characters queued 20 ms apart.
+
+```
+set ADB=C:\...\platform-tools\adb.exe
+set CHATT_DEVICE=<id from adb devices>
+flutter run -d windows -t tool/klawiatura_bt_pomiar.dart --dart-define=CHATT_BT_ADDR=<phone radio address>
+```
+
+The phone's radio address: `adb shell settings get secure bluetooth_address`.
+With `--dart-define=CHATT_PHONE_IP=<address>` the same session goes over
+Wi-Fi instead: the comparison with the same sender in the same process.
+
+The runs on 16 October 2026: the same Pixel 9 Pro, the PC's built-in radio
+next to it, three runs over Bluetooth and one over Wi-Fi (5 GHz) in the same
+tool.
+
+| What | Bluetooth p50 | Bluetooth p95 | Wi-Fi p50 | Wi-Fi p95 |
+|---|---|---|---|---|
+| a character, from sending to the answer | 70 to 78 ms | 187 to 243 ms | 28 ms | 34 ms |
+| a character, the packet's exchange alone | 68 to 77 ms | 185 to 243 ms | 27 ms | 34 ms |
+| an idle ping, once a second | 58 to 95 ms | 178 to 185 ms | 80 ms | 172 ms |
+
+A character over the radio takes about 2.5 times as long as over Wi-Fi, and
+one in twenty waits around 200 ms, which is visible while typing; the 60 ms
+of the plan holds only for the network. Fast typing does not pile up: fifty
+characters queued 20 ms apart went as 17 or 18 packets over the radio (0.34
+to 0.36 a character, 2.2 to 2.3 s in all), because what comes in while a
+packet is on its way leaves in the next one. Over Wi-Fi the same series went
+one packet a character. At rest the radio is no slower than Wi-Fi: Wi-Fi
+dozes between the pings, the radio link stays up.
 
 ### `tool/bt_rozmowa_check.dart`
 A conversation over the radio, on real hardware. It raises the whole app stack
