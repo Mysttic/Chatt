@@ -14,12 +14,27 @@ String get deviceId => Platform.environment['CHATT_DEVICE'] ?? 'emulator-5554';
 /// Wyjście adb czytamy jako UTF-8. Przy kodowaniu systemowym Windows
 /// „Odrzuć" ze zrzutu drzewa widoków wracało jako „OdrzuÄ‡" i żadne
 /// wyszukiwanie po polskiej etykiecie nie trafiało.
-Future<ProcessResult> adb(List<String> args) => Process.run(
-      adbPath,
-      ['-s', deviceId, ...args],
-      stdoutEncoding: utf8,
-      stderrEncoding: utf8,
-    );
+///
+/// Każde wywołanie ma limit czasu. `uiautomator dump` potrafi zawisnąć na
+/// telefonie (czeka na „spokojne" okno, którego nie ma), a wtedy razem z nim
+/// wisiał cały scenariusz, a zawieszone klienty adb zatykały serwer adb.
+/// Po limicie proces adb jest zabijany, a wynik ma kod -1.
+Future<ProcessResult> adb(List<String> args,
+    {Duration limit = const Duration(seconds: 30)}) async {
+  final proces = await Process.start(adbPath, ['-s', deviceId, ...args]);
+  final wyjscie = proces.stdout.transform(utf8.decoder).join();
+  final bledy = proces.stderr.transform(utf8.decoder).join();
+  final kod = await proces.exitCode.timeout(limit, onTimeout: () {
+    proces.kill();
+    return -1;
+  });
+  return ProcessResult(
+    proces.pid,
+    kod,
+    await wyjscie.timeout(const Duration(seconds: 2), onTimeout: () => ''),
+    await bledy.timeout(const Duration(seconds: 2), onTimeout: () => ''),
+  );
+}
 
 /// Jeden węzeł drzewa widoków: to, po czym go szukamy, i jego środek.
 class UiNode {
@@ -73,7 +88,12 @@ Future<List<UiNode>?> uiNodes() async {
       'shell', 'uiautomator', 'dump',
       if (proba.isEven) '--windows',
       dump,
-    ]);
+    ], limit: const Duration(seconds: 15));
+    if (dumped.exitCode == -1) {
+      // Zawieszony zrzut na urządzeniu blokuje następne: zabić go tam.
+      await adb(['shell', 'pkill', '-f', 'uiautomator']);
+      continue;
+    }
     if (!'${dumped.stdout}'.contains(dump)) continue;
     final xml = (await adb(['shell', 'cat', dump])).stdout as String;
     final wezly = <UiNode>[];
@@ -102,25 +122,48 @@ Future<List<UiNode>?> uiNodes() async {
 /// [timeout] nic takiego się nie pojawiło. [fragment] dopasowuje po kawałku
 /// opisu, bo Flutter potrafi scalić całą kartę czy wiersz listy w jeden węzeł.
 /// Ta sama etykieta bywa na ekranie kilka razy; [ostatni] bierze najniższą.
+/// [pakiet] zawęża szukanie do jednej aplikacji: na telefonie, którego ktoś
+/// używa, „Ustawienia" stoją też w menu klawiatury.
 Future<(int, int)?> findWidget(
   String label, {
   Duration timeout = const Duration(seconds: 15),
   bool fragment = false,
   bool ostatni = false,
+  String? pakiet,
+}) async =>
+    (await findAnyWidget([label],
+            timeout: timeout,
+            fragment: fragment,
+            ostatni: ostatni,
+            pakiet: pakiet))
+        ?.$2;
+
+/// Jak [findWidget], dla kilku etykiet naraz (wersje językowe): każdy zrzut
+/// drzewa sprawdza wszystkie, więc każda ma cały [timeout]. Zwraca etykietę,
+/// która się znalazła, i środek widgetu.
+Future<(String, (int, int))?> findAnyWidget(
+  List<String> etykiety, {
+  Duration timeout = const Duration(seconds: 15),
+  bool fragment = false,
+  bool ostatni = false,
+  String? pakiet,
 }) async {
   final koniec = DateTime.now().add(timeout);
   do {
     final wezly = await uiNodes() ?? const <UiNode>[];
-    (int, int)? znaleziony;
-    for (final w in wezly) {
-      final pasuje = fragment
-          ? (w.desc.contains(label) || w.text.contains(label))
-          : (w.desc == label || w.text == label);
-      if (!pasuje) continue;
-      znaleziony = (w.x, w.y);
-      if (!ostatni) return znaleziony;
+    for (final label in etykiety) {
+      (int, int)? znaleziony;
+      for (final w in wezly) {
+        if (pakiet != null && w.package != pakiet) continue;
+        final pasuje = fragment
+            ? (w.desc.contains(label) || w.text.contains(label))
+            : (w.desc == label || w.text == label);
+        if (!pasuje) continue;
+        znaleziony = (w.x, w.y);
+        if (!ostatni) break;
+      }
+      if (znaleziony != null) return (label, znaleziony);
     }
-    if (znaleziony != null) return znaleziony;
     await Future<void>.delayed(const Duration(milliseconds: 500));
   } while (DateTime.now().isBefore(koniec));
   return null;
@@ -151,30 +194,26 @@ Future<void> stuknijEtykiete(
   bool ostatni = false,
   bool azZniknie = false,
   Duration timeout = const Duration(seconds: 15),
+  String? pakiet,
 }) async {
-  for (final etykieta in etykiety) {
-    var gdzie = await findWidget(
-      etykieta,
-      fragment: fragment,
-      ostatni: ostatni,
-      timeout: etykieta == etykiety.first
-          ? timeout
-          : const Duration(seconds: 1),
-    );
-    if (gdzie == null) continue;
-    for (var proba = 0; proba < 3 && gdzie != null; proba++) {
-      await adb(['shell', 'input', 'tap', '${gdzie.$1}', '${gdzie.$2}']);
-      await Future<void>.delayed(const Duration(seconds: 1));
-      if (!azZniknie) return;
-      gdzie = await findWidget(etykieta,
-          fragment: fragment,
-          ostatni: ostatni,
-          timeout: const Duration(seconds: 1));
-    }
-    return;
+  final trafienie = await findAnyWidget(etykiety,
+      fragment: fragment, ostatni: ostatni, timeout: timeout, pakiet: pakiet);
+  if (trafienie == null) {
+    throw StateError('Nie znalazłem na ekranie: ${etykiety.first}. '
+        'Co widać: ${await widocznaTresc()}');
   }
-  throw StateError('Nie znalazłem na ekranie: ${etykiety.first}. '
-      'Co widać: ${await widocznaTresc()}');
+  final etykieta = trafienie.$1;
+  (int, int)? gdzie = trafienie.$2;
+  for (var proba = 0; proba < 3 && gdzie != null; proba++) {
+    await adb(['shell', 'input', 'tap', '${gdzie.$1}', '${gdzie.$2}']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    if (!azZniknie) return;
+    gdzie = await findWidget(etykieta,
+        fragment: fragment,
+        ostatni: ostatni,
+        pakiet: pakiet,
+        timeout: const Duration(seconds: 2));
+  }
 }
 
 /// Pole tekstowe z fokusem i jego treść (`text=` z drzewa widoków). Puste

@@ -692,12 +692,52 @@ password field on a web page `field=password`.
 ### `tool/klawiatura_e2e_test.dart`
 The whole road on one PC: `flutter test tool/klawiatura_e2e_test.dart` is the
 sender, and the Chatt app running next to it (keyboard add-on and receiving on,
-port `CHATT_KLAWIATURA_PORT`, 47780 by default) is the receiver. The script
-pairs by code (confirm "They match" in the app), asks for a session (accept the
-card), counts down ten seconds for the target window to come to the front, and
-sends text, Backspace, Enter and a 600-character paste, printing the target
-after every step. The app's window, hidden in the tray, comes out for the cards
-and goes back after them; the bar and the tray badge stay for the session.
+port `CHATT_KLAWIATURA_PORT`, 47780 by default) is the receiver; a second
+instance with its own `CHATT_DATA_DIR` keeps the everyday database out of it.
+The script pairs by code (confirm "They match" in the app), asks for a session
+(accept the card), waits up to a minute for Notepad to come to the front, and
+sends text, Backspace, Enter and a 600-character paste, each packet only while
+the target is `notepad.exe`. Then it waits for the Chatt window in front and
+expects a refusal (`ownApp`), and for Stop on the floating bar. The app's
+window, hidden in the tray, comes out for the cards and goes back after them;
+the bar and the tray badge stay for the session.
+
+The run on 16 October 2026 (Windows 11, the Windows 11 Notepad) found the pace
+of typing wrong: with 1 ms between characters "Chatt ąęł 124" landed as
+"Chatt 4444443". Now it types 10 ms apart and 40 ms after a space or Enter
+(see the architecture), and the same run passes: the Polish line, the
+Backspace, the 600 digits matching one for one (6.5 s), the refusal with
+Chatt in front, and Stop clicked on the floating bar.
+
+### `tool/klawiatura_telefon_test.dart`
+The keyboard on a phone someone uses every day: this process is the sender,
+the Chatt app on the phone (over USB, `CHATT_DEVICE`) the receiver. It sends
+no message and types only into a new contact form, checking before every
+packet that the target is still that form; at the end it deletes what it
+typed, closes the form without saving and puts the phone's keyboards back as
+they were. Pairing goes through adb tunnels; with `CHATT_PHONE_IP` the session
+and the measurements go over Wi-Fi straight to the phone. Steps: pairing by
+code, consent on the card with the Chatt keyboard picked, text with Polish
+letters, Backspace and an emoji in the form, then 30 seconds of idle pings,
+100 characters one by one every 100 ms and 50 characters every 20 ms, a refusal
+in Chatt's own search field, the lock screen (skipped with `CHATT_BLOKADA=0`,
+otherwise it waits for you to unlock) and the end of the session.
+
+The run on 16 October 2026: a Pixel 9 Pro with Android 17 on 2.4 GHz Wi-Fi
+(channel 6), the PC on Ethernet in the same network.
+
+| What | p50 | p95 |
+|---|---|---|
+| a character, from sending to the answer (three runs of 100) | 28 to 29 ms | 34 to 39 ms |
+| an idle ping, once a second | 67 to 110 ms | 137 to 170 ms |
+
+Typing stays well under the 60 ms the plan allowed. The idle pings are slower
+because the phone's Wi-Fi dozes between them; while you type, the radio stays
+awake. One packet per character at that pace: nothing waited long enough to be
+merged. The first session took three taps on the phone (Accept, Chatt keyboard
+in the picker, the field), and the lock screen showed the ordinary keyboard
+with no Chatt bar. The radio (the Bluetooth add-on) and 5 GHz Wi-Fi are still
+to be measured.
 
 ### `tool/bt_rozmowa_check.dart`
 A conversation over the radio, on real hardware. It raises the whole app stack

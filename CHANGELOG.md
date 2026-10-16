@@ -59,9 +59,11 @@ receiving device.
   `setSession`, `setImeEnabled`, `showIndicator` and `hideIndicator`, plus
   `stopRequested` from the native side.
 - **Typing on Windows.** A PC with Windows 10 or 11, touch screen or not, types
-  what arrives into the window with the focus, one character at a time
-  (`SendInput`, independent of the keyboard layout), and refuses while Chatt,
-  the lock screen or an administrator's window is in front. The sender learns
+  what arrives into the window with the focus (`SendInput`, independent of the
+  keyboard layout), one character at a time: 10 ms apart and 40 ms after a
+  space or Enter, because the Windows 11 Notepad lost or repeated characters
+  typed faster, Polish letters most of all. It refuses while Chatt, the lock
+  screen or an administrator's window is in front. The sender learns
   the program's name and whether the field is a password (UI Automation). A
   floating bar with Stop stays on top for the whole session without ever taking
   the focus, the tray icon gets a badge and a Stop in its menu, and a consent

@@ -452,9 +452,24 @@ bool BuildInputs(const EncodableList& ops, std::vector<INPUT>& inputs) {
   return true;
 }
 
-// Znak po znaku, z milisekundą przerwy. Seria zdarzeń wysłana naraz psuje
-// tekst w aplikacjach WinUI (Notatnik z Windows 11 po kilku znakach wstawiał
-// w kółko ostatnią literę): sprawdzone na żywo, przerwa 1 ms już wystarcza.
+// Znak po znaku, z przerwą. Znak z KEYEVENTF_UNICODE (VK_PACKET) aplikacja
+// odczytuje dopiero przy obsłudze zdarzenia, a następny SendInput go
+// nadpisuje: gdy aplikacja nie nadąża, znaki giną albo powtarza się ostatni.
+// Notatnik z Windows 11 (WinUI, sprawdzanie pisowni) zwalnia na granicy słowa.
+// Sprawdzone na żywo: przy 1 ms „Chatt ąęł 124" wychodziło jako
+// „Chatt 4444443", przy 10 ms gubił się jeszcze pojedynczy znak po spacji,
+// przy 10 ms i 40 ms po spacji i Enterze 12 linii na 12 przeszło czysto.
+constexpr DWORD kPrzerwaZnaku = 10;
+constexpr DWORD kPrzerwaSlowa = 40;
+
+// Spacja, tabulator i Enter kończą słowo.
+bool KoniecSlowa(const INPUT& down) {
+  if (down.ki.dwFlags & KEYEVENTF_UNICODE) {
+    return down.ki.wScan == L' ' || down.ki.wScan == L'\t';
+  }
+  return down.ki.wVk == VK_RETURN;
+}
+
 // Okno z fokusem pilnujemy po drodze: gdy fokus przejdzie do Chatta, na ekran
 // blokady albo do okna administratora, reszta paczki przepada.
 bool TypePaced(const std::vector<INPUT>& inputs, HWND window) {
@@ -469,7 +484,7 @@ bool TypePaced(const std::vector<INPUT>& inputs, HWND window) {
     if (::SendInput(2, pair, sizeof(INPUT)) != 2) {
       return false;
     }
-    ::Sleep(1);
+    ::Sleep(KoniecSlowa(inputs[i]) ? kPrzerwaSlowa : kPrzerwaZnaku);
   }
   return true;
 }
@@ -517,8 +532,8 @@ bool EnsureMessages() {
 void TypeInBackground(std::unique_ptr<TypingJob> job) {
   TypingJob* raw = job.release();
   std::thread([raw]() {
-    // Bez tego Sleep(1) śpi do najbliższego tyknięcia zegara, czyli nawet
-    // 15 ms, a długie wklejenie trwałoby minutę.
+    // Bez tego Sleep śpi do najbliższego tyknięcia zegara, czyli nawet
+    // 15 ms ponad zadaną przerwę.
     ::timeBeginPeriod(1);
     raw->applied = TypePaced(raw->inputs, raw->window);
     ::timeEndPeriod(1);

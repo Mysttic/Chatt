@@ -576,7 +576,7 @@ nothing. The channel never throws: a missing native side, a
 `PlatformException` or a test without a binding all end as "nowhere to type",
 and on a platform other than Android and Windows it makes no call. A call that
 gets no answer within 5 seconds ends the same way, so a native side that hangs
-cannot hold up the packets behind it; `apply` gets 20 ms more for every
+cannot hold up the packets behind it; `apply` gets 50 ms more for every
 character and every Backspace or Delete in the packet
 (`remoteInputTypingTime`), because typing is paced, and the sender adds the
 same to the packet's time limit.
@@ -653,12 +653,15 @@ screen or not.
   independent of the keyboard layout and with no modifier key; a newline,
   `action` and Enter are `VK_RETURN`, Backspace `VK_BACK`, Delete the extended
   `VK_DELETE`.
-- **One character at a time, a millisecond apart.** A burst of events in one
-  `SendInput` call, or one call per character with no pause, garbles the text
-  in WinUI apps: the Windows 11 Notepad typed the last letter over and over
-  after the first few. With 1 ms between characters it typed every one,
-  Polish letters included. Typing runs on its own thread with
-  `timeBeginPeriod(1)`, and the reply goes back through a message-only window,
+- **One character at a time, 10 ms apart, 40 ms after a space or Enter.** A
+  character sent with `KEYEVENTF_UNICODE` arrives as `VK_PACKET`, and the app
+  reads it only when it handles the event; the next `SendInput` overwrites it.
+  An app that falls behind loses characters or repeats the last one. The
+  Windows 11 Notepad (WinUI, with its spell checker) falls behind at word
+  boundaries: checked live, 1 ms between characters turned "Chatt ąęł 124"
+  into "Chatt 4444443", 10 ms still lost a letter after a space, and 10 ms
+  with 40 ms after spaces and Enter typed twelve lines of Polish text without
+  a mistake. Typing runs on its own thread with `timeBeginPeriod(1)`, and the reply goes back through a message-only window,
   the one place where a channel call may be answered. Before each character the
   sink checks whether the foreground window changed; when the new one is
   Chatt, the lock screen or an elevated window, the rest of the packet is
