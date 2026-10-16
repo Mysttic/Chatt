@@ -66,7 +66,8 @@ unchanged.
 Everything below sits behind one switch: the Bluetooth add-on in the
 **Add-ons** section of Settings (`settings.bluetoothEnabled`, off by default).
 `AppServices.bluetoothAddon` is the single gate and `setBluetoothAddon` its only
-writer. With the add-on off:
+writer; the rules it shares with the keyboard add-on are in
+[Add-ons](#add-ons). With the add-on off:
 
 - no transport is started, so nothing listens on RFCOMM and a PC stays
   undiscoverable;
@@ -171,6 +172,347 @@ device is added by IP by hand. Devices without Chatt fall away, because they
 carry no such record in SDP. A scan jams the link for as long as it runs, so it
 happens only when the user asks for it from the "Nearby" screen.
 
+## Add-ons
+
+Settings has an **Add-ons** section for features most users can do without, so
+each one is built to cost nothing while it is off. There are two:
+[Bluetooth](#the-bluetooth-add-on), a second road, which is described under
+Transports, and [the keyboard](#the-keyboard-add-on). Both follow the same
+rules:
+
+- **one switch** in Settings → Add-ons, off by default and stored in `settings`
+  (`bluetoothEnabled`, `keyboardEnabled`);
+- **one gate in memory**, a `ValueNotifier<bool>` on `AppServices`
+  (`bluetoothAddon`, `keyboardAddon`), read from the database at start;
+- **one writer** (`setBluetoothAddon`, `setKeyboardAddon`), which runs its
+  calls one after another, so a quick "off, on" ends in the state of the last
+  click, in memory, in the database and on the native side alike;
+- **a database write alone never raises the gate**: no settings watcher
+  touches it, so a late event from the database cannot bring an add-on back
+  after it was switched off;
+- **while it is off, no screen other than its own card shows it**, and its
+  native channel (`chatt/bluetooth`, `chatt/remoteinput`) receives no call. The
+  one exception is the switch itself while it is being flipped: Bluetooth
+  checks and asks for the permission, the keyboard turns its system keyboard
+  component on or off.
+
+### The keyboard add-on
+
+A PC's keyboard types into the field that has focus on another device, in any
+app. The use is servicing devices with no physical keyboard: an Android phone
+or tablet, or a Windows PC run by touch and an on-screen keyboard alone (a
+tablet, a kiosk, a 2-in-1 without its keyboard). The user points at the field
+on that device with a tap or a click, and the PC types into it. The MVP covers
+Windows → Android and Windows → Windows.
+
+What travels is text (Unicode, Polish letters, a newline), Backspace, Delete
+and the field's action: Enter, and on Android the field's own Search, Send, Go,
+Next, Previous or Done. A paste from the sender's clipboard is ordinary text to the
+protocol, split into packets when it is long. Shortcuts with Ctrl, Alt or Win,
+Tab, Esc, the arrows, Home and End, the mouse and anything that reads from the
+receiving device are out of scope. The sender learns only what typing needs:
+the kind of field, its action, the app's name and whether the receiver can type
+at all.
+
+The protocol, the Dart core on both sides, the add-on's card and the consent
+card are in place. The receiving ends come with phase 2 (Windows, `SendInput`)
+and phase 3 (Android, the Chatt keyboard), and the sender's screen with phase 4
+(the phases of issue #35). Until the native side exists, the channel answers
+that there is nowhere to type.
+
+The logic lives in
+[`services/remote_input.dart`](../app/lib/services/remote_input.dart), a `part`
+of `app_services.dart`, so it uses the sessions, envelopes and routes without
+making them public; `AppServices` only delegates. The channel is
+[`core/remote_input.dart`](../app/lib/core/remote_input.dart).
+
+#### Two switches
+
+The add-on alone lets this device type on others. Being typed on takes a second
+switch in the add-on's card, "Allow typing on this device"
+(`settings.remoteInputReceive`), also off by default: turning the add-on on at
+the PC that types lets nobody type on that PC. The switch goes on only with the
+add-on on and on a platform with a sink, Android or Windows. Turning the add-on
+off writes `remoteInputReceive = false` in the same update (`saveKeyboardAddon`),
+so turning it on again does not quietly bring receiving back.
+
+Turning the add-on off closes the gate first, then withdraws the waiting
+requests, ends the grant and this device's own typing session, writes the
+database, and only then switches the system keyboard component off. Turning
+receiving off withdraws the requests and ends the grant at once. Both go
+through `AppServices` (`setKeyboardAddon`, `setRemoteInputReceive`), because
+only the service knows the grants and the waiting cards.
+
+#### Consent
+
+A request for a session passes these gates, in this order:
+
+1. the sender is known and **verified** here (the green shield). Anyone else
+   hears `rejected`, whatever the settings say;
+2. the request id (`input`) was never used by this sender before. The ids are
+   remembered per sender, the last 512 of each, and only from verified
+   senders, so nobody can push another device's ids out with a flood of their
+   own. A repeated id raises no second card: while the first copy waits for the
+   card it gets the same answer once there is one, while its grant lives it gets
+   the same grant again, and after that `rejected`. A request repeated over the
+   second road, because the first one broke down during the card, is answered
+   that way, and a recording replayed by somebody else learns nothing it could
+   open;
+3. the add-on is on in memory, `keyboardEnabled` and `remoteInputReceive` are
+   true in the database, and there is a sink; otherwise `not_enabled`;
+4. no other device holds a live grant and fewer than 8 requests are waiting;
+   otherwise `busy`;
+5. the card, unless this sender has "don't ask again".
+
+The card puts the focus on **Reject**. It appears while someone may be typing
+in another field, so an Enter pressed at that moment can only refuse, and
+accepting takes a deliberate click. Two minutes of silence end as `no-answer`.
+Anything can change while a card waits, so after the answer the shield, both
+switches and the other device's grant are checked again.
+
+"Don't ask again" is per device, `peers.remoteInput`, and is guarded like
+`autoAccept`: the database sets it only for a verified peer
+(`setPeerRemoteInput`), and `setPeerVerified(false)` clears it together with
+the shield. The service takes it as `respondToRemoteInput(remember: true)`; the
+checkbox on the card comes with phase 4.
+
+#### Endpoints
+
+Both routes sit in the shared `Router`, so they answer over TCP and over the
+radio alike.
+
+```
+POST /input-session   { from, op: "request", input, platform }
+  200  { reply: "input-session", ok: true, accepted: true, input, token, target }
+  403  { reply: "input-session", ok: false, accepted: false, input, reason }
+
+POST /input-session   { from, op: "cancel", input }
+  200  { reply: "input-session", ok: false, accepted: false, input, reason: "cancelled" }
+
+POST /input           { from, input, token, seq, ops }
+  200  { reply: "input", ok: true, input, seq, applied, duplicate?, reason?, target }
+  403  { reply: "input", ok: false, input, seq, applied: false, reason }
+```
+
+Every request and every reply above travels in an envelope and carries `pad`
+as well. `from` carries the sender's guid and TCP port, with an empty name,
+an empty greeting and no key: the receiver checks only who owns the session and
+knows the rest from its database, so the length of a packet does not depend on
+what the sender called itself.
+
+A `cancel` uses up the request id, takes the card down and ends a grant already
+given to that request, which its sender never learned of. A request that
+arrives after its own `cancel`, over a slower road, is refused without a card.
+
+- `input` is drawn by the sender, a UUID v4; its shape is letters, digits and a
+  hyphen, up to 64 characters. `platform` is the sender's system, for the card.
+- `token` is drawn by the receiver when it accepts (`newSessionId()`, 16 random
+  bytes in base64), and every packet carries it.
+- `seq` starts at 1 and grows by one with every packet.
+- `target` is the state of the field with focus: `active`, `field` (`text`,
+  `password`, `none`), `action` (`search`, `send`, `go`, `done`, `next`,
+  `previous`, `none`), `app` (a package on Android, the program's file name on
+  Windows), `appLabel` (the app's label on Android, the program's name on
+  Windows, from the version resource or else the file name) and the flags
+  `ownApp`, `locked` and `elevated`. A window title is never sent: it carries
+  content (a document's name, a mail's subject, a page's title), and reading
+  content from the receiving device is out of scope.
+
+| Operation | Meaning |
+|---|---|
+| `{"t":"insert","s":"…"}` | text, 1 to 4096 UTF-16 units, no control character other than `\n` (so no tab either), no lone surrogate |
+| `{"t":"bs","n":1}` | Backspace, `n` from 1 to 64, counted in code points, so one `bs` removes a whole emoji |
+| `{"t":"del","n":1}` | Delete, counted the same way |
+| `{"t":"action"}` | the field's action; on Windows always Enter |
+| `{"t":"ping"}` | types nothing; the reply brings the current target |
+| `{"t":"stop"}` | ends the grant after the rest of the packet; allowed only as the last operation |
+
+A packet holds at most 256 operations, 4096 units of text and 4096 deletions in
+total. The server reads at most 32 KiB of body on these two routes
+(`maxInputBodyBytes`), so an oversized packet is refused (413) before
+anything is decrypted. A full packet
+of 4096 three-byte characters takes more than 16 KiB once sealed and encoded in
+base64, hence 32.
+
+| `reason` | Who can hear it | When |
+|---|---|---|
+| `rejected` | any sender | it is unknown or unverified here, the request id was used before, or the user pressed Reject |
+| `not_enabled` | a verified sender | the add-on or receiving is off, or the platform has no sink |
+| `busy` | a verified sender, receiving on | another device holds a grant, or 8 requests are waiting |
+| `no-answer` | a verified sender, receiving on | the card ran out of time, the request was withdrawn or replaced, or the app closed |
+| `cancelled` | the sender itself | the answer (200) to its own `cancel` |
+| `no_grant` | any sender with a session | `/input` with no grant, another sender's or another request's grant, a wrong token, an expired grant, or a gate that fails the database check |
+| `stale_seq` | the grant's holder | `/input` with a `seq` below the last one |
+| `paused` | the grant's holder, with 200 | `/input` while a card waits on the receiver; nothing typed |
+
+These are the first sealed replies in the protocol. A 200 and a 403 travel
+sealed with the key of the session the request came in, refusals included, so
+nothing in the clear says whether the add-on is on. In the clear stay the
+answers given before a key or a sender is known, and those that say nothing
+about the add-on: 409 `no_session` (an unknown or expired session, an
+envelope that does not open with its key, a session that now belongs to
+somebody else, or a body without an envelope), 404 (a version
+without these routes), 400 (a bad shape once the envelope is open, or a request
+carrying this device's own identity), 413 and 500 (the error guard).
+
+A sealed reply carries `reply` and never `from`. The sender registers its own
+session under the same number and the cipher marks no direction, so `from` is
+what tells a request from a reply: a reply bounced back to the sender's own
+server fails `_openEnvelope`, and the sender opens replies with a separate
+function (`_openSealedReply`) that drops anything carrying `from`.
+
+Every payload, both ways, is padded with `pad` to at least 512 bytes of JSON
+and above that to a multiple of 64 (`padInputPayload`). AES-GCM keeps the
+length of what it seals, and without the padding the size of an envelope would
+give away what was typed and the app's name in the reply. With it, a single
+character, a single Backspace and a ping come out the same length, and every
+reply fits in 512 bytes whatever the field and the app: `app` and `appLabel`
+are cut to 96 bytes of JSON each, whole characters only, so a long name in
+Cyrillic or Chinese stays within the budget as well.
+
+The protocol version stays at 5: the routes are additive, and a peer without
+them answers 404, which the sender reports as an older version of Chatt
+(`RemoteInputStart.olderPeer`). `GET /info` carries no capability flag, so the
+add-on's state reaches a verified sender alone, through a sealed
+`not_enabled`.
+
+#### Grant, token and seq
+
+The receiver's consent is a grant, held in memory only and bound to (sender,
+`input`, `token`). It outlives the crypto session: a re-handshake after a 409
+always brings a new session number, and typing goes on. A grant ends at a
+`stop` from either side, when the add-on or receiving is switched off, when the
+sender is removed from the list (`forgetPeer`), when the app closes, after 30
+minutes without typing (pings do not count) and 8 hours after it was given.
+A timer looks at both clocks every 30 seconds, so a grant whose sender went
+quiet (closed, asleep, out of range) ends by itself, the indicator with it;
+every packet and every request checks them as well. There is one grant per
+device.
+
+- A packet without the grant's token, from another sender or for another
+  `input` gets 403 `no_grant` at once and leaves the current grant alone, so a
+  recorded packet from an earlier session cannot end the present one. It does
+  not wait in the packet queue either, so how fast it is refused says nothing
+  about whether somebody is typing. The token is compared in constant time
+  (`ChattCrypto.sameTag`).
+- A `seq` equal to the last one gets 200 with the cached reply and
+  `duplicate: true`, and nothing is typed a second time. This is how a packet
+  retried after a timeout lands once.
+- A `seq` below the last one gets 403 `stale_seq`, and the grant stays.
+- A 409 in the middle of a session makes the sender shake hands again and send
+  the same payload once more, with the same `seq` (`_exchangeSealed`).
+
+The request walks the routes like any other (`_overRoutes`), and a sealed
+answer ends the walk, a 403 included: a refusal over the network does not
+travel again over the radio and raise a second card. A 409 or a 404 ends it as
+well, since Chatt answered. The route that answered carries every packet of the
+session; only the last-resort `stop` after a broken link walks the routes. Over
+the radio
+`BluetoothTransport` triples the reply limit, so a packet there waits about
+6 seconds.
+
+#### The sender
+
+- `startRemoteInput(peer)` needs the add-on on (`addonOff`) and the peer on
+  the list and verified on this device (`notVerified`): typing includes
+  passwords, so it goes only to a device whose identity was confirmed here. An
+  earlier session is replaced at once, its `stop` or withdrawal going out in
+  the background, so a new request never waits behind the retries of a dying
+  link. The answer may take 150 seconds over the network, the card's two
+  minutes plus the road, and three times that over the radio, like every
+  Bluetooth request.
+  A request that got no answer at all is withdrawn: the card may still be up
+  on a device the link no longer reaches, and an acceptance there would
+  otherwise turn into a grant nobody uses.
+- `sendRemoteInput(ops)` cleans the text (`typableText`: CR LF and CR become
+  LF, a tab becomes a space, other control characters and lone surrogates go)
+  and queues it. It refuses, queueing nothing, without an active session or
+  when the queue would pass 65536 units of text.
+- **One packet in flight.** What queues up meanwhile is merged: text with text,
+  Backspace with Backspace, Delete with Delete, and different kinds keep their
+  order. A packet takes what fits the limits: a Backspace or Delete run over
+  64 becomes several operations of at most 64, and text over 4096 units or
+  deletions over 4096 in total carry on in the next packet. Text is never cut
+  inside a surrogate pair.
+- A packet gets 2 seconds. Without an answer the same payload goes again with
+  the same `seq`, three attempts in all. A 403 ends the session
+  (`disconnected`, with `reason` `no_grant` or `stale_seq`); any other failure
+  ends it with no reason, which means a broken link. There is no relocation
+  and no switch to another road.
+- **A ping every second while idle** keeps the keep-alive connection open (the
+  HTTP client closes an idle one after 15 seconds) and brings back the current
+  target.
+- `stopRemoteInput()` clears the state at once, sends what is still queued and
+  then a `stop`. While the answer is still pending, it withdraws the request
+  (`op: "cancel"`) and the card on the receiver disappears; an acceptance that
+  arrives after that is answered with a `stop` at once. When the link breaks
+  before the `stop` leaves the queue, one more `stop` goes out on its own over
+  every road (the remembered one may be the very road that went down), so the
+  receiver does not wait half an hour.
+- `outgoingRemoteInput` holds the state (`waiting`, `active`, `paused`,
+  `disconnected`), the last target, whether the last packet was typed, the
+  round trip and the road. Typed text lives only in the sender's queue and in
+  the packet: it reaches no database, log or `ValueNotifier` on either side.
+
+#### The receiver
+
+- Packets of the current grant go through one queue, one at a time. Without
+  it a retried packet that arrived while the first was still being typed would
+  pass the `seq` check alongside it, and the text would land twice.
+- Every packet reads the database again: the sender still verified,
+  `keyboardEnabled` and `remoteInputReceive` still true. A failure ends the
+  grant with `no_grant`, so consent withdrawn anywhere ends typing at the next
+  packet.
+- **Nothing is typed while any card waits** on this device (a file offer, a
+  pairing code, a typing request): the packet gets 200 with `applied: false`
+  and `reason: "paused"`, so a remote Enter cannot answer a question nobody
+  read.
+- The typing operations of a packet go to the sink in one call. A packet with
+  no typing operation (a ping, a lone `stop`) only asks the sink for the
+  target, and reports `paused` too while a card waits, so the sender sees the
+  pause for as long as it lasts.
+- One waiting request per sender and at most 8 in all. The same sender asking
+  again ends its own grant and withdraws its own older request; any other
+  sender hears `busy` while a grant lives.
+- `incomingRemoteInput` drives the "Typing: X" row with Stop in the add-on's
+  card. An indicator that stays visible with the window hidden comes with the
+  native sides: a floating bar on Windows (phase 2) and the Chatt keyboard's
+  own bar on Android (phase 3).
+
+#### The `chatt/remoteinput` channel
+
+`RemoteInputSink` is the receiving end, and `RemoteInputChannel`, the Dart side
+of the channel, is its default. Tests put in their own sink through
+`AppServices.start(remoteInputSink:)`.
+
+| Method | Arguments | Answer |
+|---|---|---|
+| `status` | none | the target |
+| `apply` | `{ops: [...]}`, only `insert`, `bs`, `del` and `action` | the target plus `applied` |
+| `setSession` | `{active, peerName}` | none |
+| `setImeEnabled` | `{on}` | `{ok}` |
+
+`setImeEnabled` is called by the add-on's switch alone; on Android it turns the
+keyboard component on and off, so with the add-on off Chatt is absent from the
+system's list of keyboards. `setSession` comes when a grant starts and ends, so
+the native side can show or hide its indicator, and `status` and `apply` only
+under a grant. The sink refuses by itself, answering `applied: false`, when the
+focus is in Chatt (`ownApp`: a remote Enter sends no message and clicks no
+card), when the screen is locked or dark (`locked`), and on Windows in front of
+an elevated window (`elevated`), where `SendInput` types nothing and reports
+nothing. The channel never throws: a missing native side, a
+`PlatformException` or a test without a binding all end as "nowhere to type",
+and on a platform other than Android and Windows it makes no call. A call that
+gets no answer within 5 seconds ends the same way, so a native side that hangs
+cannot hold up the packets behind it.
+`RemoteInputChannel.debugSupported` lets the tests pretend to be such a
+platform, as `BtChannel.debugSupported` does.
+
+The native sides come with phase 2 (`windows/runner/chatt_remote_input.cpp`,
+`SendInput` with `KEYEVENTF_UNICODE`, independent of the keyboard layout) and
+phase 3 (`ChattInputMethod`, an `InputMethodService` the user enables and picks
+as the keyboard, with `ChattRemoteInput.kt` as the channel).
+
 ## Protocol
 
 Protocol version **5** (`lib/network/protocol.dart`, `protocolVersion`), bumped
@@ -211,6 +553,8 @@ answer that claims to be a known device without a matching signature.
 | `POST /pair` | identity confirmation |
 | `POST /file-offer` | file announcement: name, size, sha256, key tag, and the batch it belongs to |
 | `POST /file` | raw bytes from the given offset, with the session number in a header |
+| `POST /input-session` | asking for a [remote keyboard](#the-keyboard-add-on) session, or withdrawing the request; the reply is sealed |
+| `POST /input` | a packet of typing operations under a granted session; the reply is sealed |
 
 The same endpoints answer requests that arrive over an RFCOMM link; the route
 decides which road a request rides.
@@ -235,6 +579,11 @@ fact.
 The envelope carries **only the session number** in the clear, so an
 eavesdropper cannot see who is talking to whom. An unknown number means 409:
 the sender drops its session, shakes hands again and repeats the request once.
+
+The responder picks the session number, and numbers travel in the clear, so the
+side that opened the handshake refuses a number that already names a session
+on its side. Taking it would put the new session in the place of somebody
+else's incoming one, and that sender's envelopes would stop opening.
 
 ### File transfer
 
@@ -285,7 +634,7 @@ computed. Abandoned parts are swept after seven days.
 
 ## Database
 
-`drift` (SQLite), schema version **12**. Tables: `settings`, `peers`,
+`drift` (SQLite), schema version **13**. Tables: `settings`, `peers`,
 `conversations`, `messages`.
 
 | Version | What was added |
@@ -301,11 +650,17 @@ computed. Abandoned parts are swept after seven days.
 | 10 | `settings.updateChecks`, `settings.lastUpdateCheck` |
 | 11 | `settings.linkPreviews` |
 | 12 | `peers.btAddress`, `peers.lastProtocol`, `settings.wifiEnabled`, `settings.bluetoothEnabled` |
+| 13 | `settings.keyboardEnabled`, `settings.remoteInputReceive`, `peers.remoteInput` |
 
 Version 12 only adds columns and touches nothing that was there:
 `peers.btAddress` is a nullable text, `peers.lastProtocol` a nullable int (0 the
 network, 1 Bluetooth, null nobody knows yet), `settings.wifiEnabled` defaults to
 true and `settings.bluetoothEnabled` (the add-on) to false.
+
+Version 13 adds three booleans for the keyboard add-on, all false by default:
+`settings.keyboardEnabled` (the add-on), `settings.remoteInputReceive` (others
+may type here) and `peers.remoteInput` (typing without a card). An update
+switches none of them on.
 
 `upsertPeer` keeps the two roads apart: an empty host with a zero port does not
 overwrite the last good address on the network, and an empty radio address does
@@ -373,6 +728,15 @@ definition.
 
 With the Bluetooth transport on there is a second attacker: someone **within
 radio range**, around 10 m, who can do the same things on that road.
+
+The [keyboard add-on](#the-keyboard-add-on) gives a verified peer what this
+model otherwise does not assume: typing on an **unlocked, running** device,
+into whatever field has focus, in any app, and over the radio as well when the
+Bluetooth add-on is on. That makes a verified device, or a copy of its keys,
+worth more to an attacker. What holds it back is consent on the receiving side:
+the add-on and the receive switch, both off by default, a card for every
+session unless the receiver chose "don't ask again" for that device, and the
+shield and both switches read again for every packet.
 
 ### Bluetooth is treated like a cable
 
@@ -469,6 +833,33 @@ session. File content does not go this way: it streams through `/file` straight
 to disk, and reception aborts the moment the sender goes past the announced
 size.
 
+### Strings from the network against the keyboard
+
+The only place where a string from the sender becomes keystrokes is the sink,
+`RemoteInputSink.apply` in
+[`core/remote_input.dart`](../app/lib/core/remote_input.dart). Two barriers:
+
+1. **The protocol filters the shape.** `RemoteInputPacket.fromJson` drops the
+   whole packet when anything in it is off: an unknown operation, a text with a
+   control character other than `\n` (a tab counts) or with a lone surrogate, a
+   Backspace or Delete run outside 1 to 64, more than 256 operations, more than
+   4096 units of text or 4096 deletions in total, a `stop` anywhere but last, a
+   `seq` that is not a positive integer, an `input` or a `token` of the wrong
+   shape. Half a packet typed is worse than none, so a bad packet gets a 400
+   and nothing of it is typed.
+2. **The sink can only type.** It receives `insert`, `bs`, `del` and `action`;
+   the wire adds only `ping` and `stop`, which never reach the sink. There are
+   no key codes, no shortcuts, no Tab, Esc or arrows, nothing that reads from
+   the device. Text is typed as characters,
+   with no modifier key and independent of the keyboard layout: `commitText` on
+   Android (phase 3), `SendInput` with `KEYEVENTF_UNICODE` on Windows
+   (phase 2).
+
+The text stays nowhere on the way: no database, no log, no `ValueNotifier`, and
+`RemoteInputOp.toString` prints its length alone. What comes back goes onto the
+sender's screen, so `RemoteInputTarget.fromJson` keeps known values only and
+clips `app` and `appLabel` at 96 bytes of JSON, whole characters only.
+
 ### What stays open
 
 - `POST /pair` is not authenticated, so anyone can raise the confirmation card
@@ -512,6 +903,38 @@ size.
   has not been checked on hardware.
 - Receive streams in `bt_link` apply no backpressure per stream. The radio is
   slower than a write to disk, so in practice it has not hurt.
+- **An envelope can be replayed for as long as its session lives.** The
+  envelope carries no counter, so a recorded one opens at the responder until
+  the session expires, an hour after its last use, and every packet of a
+  typing session uses it. The keyboard routes close that window above the
+  envelope: a request id works once, a packet needs the live `token` and a
+  `seq` above the last one, and a repeated `seq` gets the cached reply with
+  nothing typed again.
+- **Length and timing leak from a typing session.** AES-GCM keeps the length
+  of what it seals, which is why every keyboard payload is padded to at least
+  512 bytes and above that to a multiple of 64. Packets of one keystroke look
+  alike; a burst of typing or a paste still shows its size to that block. The
+  timing is visible in full: with a fast round trip a packet goes out about
+  once per keystroke, so an eavesdropper on the network, or within radio range
+  with Bluetooth on, sees the rhythm of the typing and the number of packets,
+  with none of their content.
+- **Windows types into no elevated window** (phase 2). Without elevation
+  `SendInput` reaches no administrator window, no UAC prompt and no lock
+  screen, and it does not report the failure. The receiver detects the case
+  itself (`elevated`) and tells the sender. `uiAccess` would lift the limit
+  and needs a signed binary installed under Program Files, which is out of
+  scope.
+- **On Android the user has to pick the Chatt keyboard** (phase 3). It is
+  enabled once in the system settings, under Android's warning that a keyboard
+  can collect everything typed, and chosen as the current keyboard for a
+  session. Android shows the keyboard picker only to the window with focus or
+  to the current keyboard, so Chatt cannot switch keyboards from the
+  background.
+- **Chatt's own fields are guarded in native code.** A remote Enter in the
+  message field would send a message, so the sinks refuse to type while the
+  focus is in Chatt (`ownApp`, any running instance on Windows). That refusal
+  comes with the sinks themselves in phases 2 and 3; the Dart side holds
+  packets back only while a card is waiting.
 
 ## Android: background listening
 

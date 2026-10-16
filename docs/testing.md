@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **255 `flutter test` tests** check everything that can be
+The split is simple: **341 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -38,7 +38,20 @@ codes, behaviour when a connection breaks.
 
 For the harder scenarios the tests put their own proxy between the instances:
 once as a wiretap (checking that the content really does not travel in
-plaintext), once as a link that dies after N bytes (resuming a transfer).
+plaintext), once as a link that dies after N bytes (resuming a transfer). The
+wiretap records both directions and keeps each connection of the sending side
+apart, so a test can cut the recording into single HTTP requests and play them
+back.
+
+The remote keyboard needs a device that types, and `flutter test` has no native
+side, so the receiving instance gets an in-memory sink
+(`AppServices.start(remoteInputSink:)`) that records every operation it is
+handed and answers with a made-up target. Two hooks marked
+`@visibleForTesting` cover what a real sender never does:
+`debugSendSealed` seals any payload under the live session and sends it to
+`/input-session` or `/input` (forged tokens, old numbers, bad shapes), and
+`debugDropIncomingSessions` makes the receiver forget a sender's session
+without a restart, which would wipe the grant as well.
 
 ## What is covered
 
@@ -182,12 +195,19 @@ when it speaks and when it stays quiet:
 - the file key hangs off the session key and the message guid
 - a device broadcasts its key, and its identifier follows from it
 
-### Encryption (`test/encryption_test.dart`, 4 tests)
+### Encryption (`test/encryption_test.dart`, 6 tests)
 - paired: message content does not travel in plaintext, checked with a wiretap
   on the link
 - **unpaired: the content does not travel in plaintext either**
 - paired: a file travels encrypted and comes together byte for byte
 - paired: resuming an encrypted file sends only the remainder
+- remote keyboard: the typed text, the word `password` from the target and the
+  receiving app's package and label appear in neither direction on the wire,
+  while the receiver's sink gets the text exactly
+- remote keyboard, replay from the wire: every recorded `/input-session` and
+  `/input` request, sent again with a plain `HttpClient` after the session
+  stopped, gets 403 or 409; no card appears, nothing reaches the sink and no
+  grant comes back
 
 ### Search, backgrounds and thumbnails (`test/search_test.dart`, 12 tests)
 - search ignores case, and an empty string matches everything
@@ -214,7 +234,7 @@ when it speaks and when it stays quiet:
 - the age limit deletes only messages older than itself, and turned off
   (0 days) it deletes nothing
 
-### Per-peer settings (`test/peer_prefs_test.dart`, 10 tests)
+### Per-peer settings (`test/peer_prefs_test.dart`, 13 tests)
 - a name of your own covers the broadcast one without deleting it, and it
   survives the peer renaming itself; an empty string or a space brings the
   broadcast name back
@@ -224,6 +244,9 @@ when it speaks and when it stays quiet:
 - three live transfers between two instances: a confirmed peer with consent
   gets the file through with no question asked; the same peer without consent
   still raises one; and the flag alone, with the shield gone, raises one too
+- typing without a card (`peers.remoteInput`) is guarded the same way: it
+  cannot be turned on for an unconfirmed peer, it can for a confirmed one, and
+  removing the confirmation turns it off together with taking files
 
 ### Starting over after a lost key (`test/startup_error_test.dart`, 4 tests)
 - the reset deletes the database, its journals and the key, and stops at the
@@ -234,7 +257,7 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migrations (`test/migration_test.dart`, 3 tests)
+### Migrations (`test/migration_test.dart`, 4 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
@@ -244,6 +267,10 @@ when it speaks and when it stays quiet:
   add-on off and the network on
 - the two roads to a peer do not wipe each other: the network address and the
   radio address sit side by side in the same row
+- the step from 12 to 13 keeps the peer (its addresses, confirmation and
+  taking files without asking), its messages and the settings, the Bluetooth
+  add-on included, and brings the keyboard add-on, receiving and typing
+  without a card in switched off
 
 ### Links in messages (`test/links_test.dart`, 23 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
@@ -323,7 +350,7 @@ The file is separate on purpose: one `testWidgets` anywhere in a file installs
 400 for **the whole** suite. Next door, in `peer_prefs_test.dart`, two
 instances talk to each other over a real socket.
 
-### An attacker on the wire (`test/security_test.dart`, 12 tests)
+### An attacker on the wire (`test/security_test.dart`, 22 tests)
 - a message identifier carrying a path (`../../../../evil`, `..\..\evil`,
   `/etc/chatt`) is rejected in a file announcement, in a message and in the
   transfer headers; an ordinary UUID passes
@@ -339,14 +366,32 @@ instances talk to each other over a real socket.
   falls back to asking per file, which is worse but never destructive
 - a well-formed batch survives the round trip whole, and an announcement with
   no batch at all still looks exactly as it did before batches existed
+- a keyboard packet off the network has a strict shape, and anything wrong
+  drops the whole packet: text over 4096 units, a lone high or low surrogate,
+  a control character, a tab, CR or an empty text; an unknown operation (`key`
+  included); a Backspace or Delete run of 0 or 65; more than 256 operations,
+  more than 4096 units of text or 4096 deletions in total; a `stop` anywhere
+  but last; an `input` with a path or over 64 characters; a `seq` that is a
+  fraction, a string or below 1; a token with foreign characters; a `pad` that
+  is not a string. A valid packet with an emoji and a newline passes whole,
+  and padding comes out at a multiple of 64 bytes
+- a typing request keeps only `request` and `cancel` as operations and turns an
+  unknown platform into none
+- the server turns away a keyboard body over 32 KiB (413 on the radio path;
+  over TCP the connection may close first, as on the other routes),
+  answers plaintext junk and an unknown session with 409, and a sealed packet
+  of a bad shape with 400 before anything reaches the sink; `/info` answers
+  afterwards
 
-### Resistance to a security downgrade (`test/downgrade_test.dart`, 3 tests)
+### Resistance to a security downgrade (`test/downgrade_test.dart`, 4 tests)
 The attacker knows a peer's identifier and has no private key for it:
 - a plaintext message impersonating a known peer is rejected
 - a plaintext file announcement from a known peer is rejected
 - a plaintext transfer will not replace a file announced under encryption
+- a plaintext typing request and a plaintext packet of typing operations get
+  409; no card, no grant and nothing at the sink
 
-The protocol itself defends against all three, because there is no plaintext in
+The protocol itself defends against all four, because there is no plaintext in
 it. The tests stay as a guard: a fallback unencrypted mode would turn them red.
 
 ### Framing over one Bluetooth link (`test/bt_link_test.dart`, 5 tests)
@@ -429,6 +474,114 @@ Linux CI the add-on is the only thing keeping the channel silent:
 - the add-on's card is a single switch while the add-on is off; the local
   network switch appears only with the add-on
 - a peer known only over the radio shows no radio address with the add-on off
+
+### The keyboard add-on (`test/keyboard_addon_test.dart`, 12 tests)
+The add-on that is off must not exist, as with Bluetooth. The test mocks the
+`chatt/remoteinput` channel, records every call with its arguments and sets
+`RemoteInputChannel.debugSupported`, so on the Linux CI the add-on is the only
+thing keeping the channel silent:
+- with the add-on off, two instances starting, a request from a verified peer
+  (refused, no card) and forged packets (403) make no call to the channel at
+  all, and the receive switch cannot be turned on
+- turning the add-on on makes exactly one call, `setImeEnabled(on: true)`;
+  turning it off without a grant makes exactly `setImeEnabled(on: false)`
+- turning it off during a grant ends the grant (`setSession(active: false)`,
+  then `setImeEnabled(on: false)`), the sender's next packet bounces with
+  `no_grant`, a new request hears `not_enabled`, and the channel goes quiet
+- switching the add-on off writes receiving off in the database, and switching
+  it on again does not bring receiving back; the receive switch with the add-on
+  off writes nothing
+- a database write alone raises neither the add-on nor a call to the channel
+- quick "off, on", "on, off, on" and "on, off" sequences, with the first call
+  held on the channel, end in the state of the last click in memory, in the
+  database and in the order of `setImeEnabled` calls
+- on a platform with no sink the add-on still turns on and its sender still
+  types on another device, while receiving stays off and the channel silent
+- an add-on saved in the database comes up with the app without a single call,
+  and a verified peer then gets a grant
+
+### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 7 tests)
+- the add-on's card is a single switch while the add-on is off; the receive
+  switch appears with the add-on and goes away with it
+- turning receiving on with the real switches shows the safety note; turning
+  the add-on off removes both and writes receiving off
+- a live grant from a second instance shows "Typing: Alicja" with Stop, and
+  Stop ends the grant (the sender's next packet bounces)
+- the overlay shows no keyboard card with the add-on off, even when a verified
+  peer asks; the conversation list and the conversation screen show no
+  keyboard icon
+- the consent card names the device, holds the focus on Reject after a frame,
+  and Enter refuses: the sender hears `rejected` and no grant exists
+
+### The remote keyboard (`test/remote_input_test.dart`, 50 tests)
+Two or three live instances paired with each other, the receiver with an
+in-memory sink. A request for a session:
+- with consent, the operations reach the sink in order, Polish letters and a
+  newline included; the sink's target comes back to the sender and to the
+  receiver's indicator; an idle ping brings the target and types nothing
+- with receiving off, with the add-on off on the receiver (even with the
+  database saying otherwise) and from an unverified sender (whatever the
+  settings) there is no card and no call to the sink; the shield removed on the
+  receiver alone gives `rejected`
+- the card: Reject, Accept and Accept with "don't ask again", after which the
+  next session needs no card; `peers.remoteInput` set directly does the same;
+  a policy that answers `noAnswer` ends the start as `noAnswer`
+- the same request again gets the same answer and no second card: while the
+  card waits it waits for the same decision, under a live grant it gets the
+  same grant, after a refusal the same refusal, and after a grant that ended
+  `rejected`
+- two requests at once from one sender leave the newer one with a single card,
+  and the older one ends as `noAnswer`, whichever of them reads the database
+  first
+- 520 requests from an unverified device under fresh ids do not push a
+  verified sender's used id out: its recording still bounces
+- a `cancel` uses the id up, so the same request arriving later bounces with
+  no card; a `cancel` after an acceptance the sender never heard of ends that
+  grant; a `cancel` from another device does not touch someone else's card;
+  Stop while the card waits takes the card down and the start ends `cancelled`
+- the same sender asking again replaces its own grant (the old token stops
+  working) or its own waiting request; a second sender while a grant lives
+  hears `busy` and gets its card once the first one stops
+- a peer without these routes (a proxy answering 404, as 0.9.0 does) gives
+  `olderPeer`; a receiver that closes with a card up does not leave the start
+  hanging
+- a grant nobody uses ends by itself once its idle clock runs out (shortened
+  for the test), indicator included, and the sender's next packet hears
+  `no_grant`
+
+Packets:
+- a repeated `seq` gets `duplicate` and types nothing twice; a lower `seq` gets
+  `stale_seq` and the grant goes on; a wrong token or another `input` gets
+  `no_grant` and the grant goes on
+- a packet under another device's session, with the right token or with the
+  holder's identity inside, is refused and the sink stays untouched
+- a packet outside the grant is refused at once, while the holder's packet is
+  still stuck in the sink
+- a `stop` from the sender ends the grant and a replayed one does nothing; Stop
+  on the receiver makes the sender's next packet bounce; a `stop` with an old
+  token leaves a newer grant alone; a `stop` still gets through when the packet
+  ahead of it fails on the way
+- a 409 in the middle of a session (the receiver forgets the sender's session)
+  ends in a new handshake under the same grant: the same token, `seq` carrying
+  on, the text typed once
+- a file offer or a pairing code waiting on the receiver pauses typing (the
+  sender sees `paused`, nothing is typed) and typing comes back after it; pings
+  keep reporting the pause while the card is up and leave "typed" as it was
+- after `forgetPeer`, the shield removed, receiving or the add-on switched off,
+  or receiving written off in the database behind the service's back, the
+  sender's next packet gets `no_grant` and the sink stays as it was
+
+The sender's queue:
+- what queues up while a packet is in flight goes out merged in one packet
+- a paste longer than 4096 units splits into packets without breaking a
+  surrogate pair; long text and long Backspace or Delete runs stay within the
+  packet limits
+- more than 65536 units waiting is refused whole; the text is cleaned before
+  it leaves (CR LF, tab, control characters)
+- one character, one Backspace, one Delete, an action, a ping and a `stop` all
+  pad to the same 512 bytes, and so does every reply, with any kind of field
+  and app names of 64 Chinese characters or emoji, cut without splitting a
+  character
 
 ## Scenarios on live hardware
 
@@ -553,6 +706,16 @@ all without a password. On an encrypted database it answers "cannot be read".
 ## What the tests will not check
 
 Deliberate holes in coverage, to be checked by hand at release time:
+
+- **Typing into a real field.** `flutter test` has no native side, so
+  `SendInput` on Windows and the Chatt keyboard on Android (the sinks of the
+  keyboard add-on, phases 2 and 3 of issue #35) are never reached; neither are
+  their own refusals (Chatt's own window, a locked screen, an elevated window).
+- **The keyboard over a real Bluetooth link**, for the same reason as any other
+  Bluetooth traffic.
+- **The keyboard's 8-hour limit, the card's two-minute timeout and the cap of
+  8 waiting requests**: no test waits that long or raises nine cards. The idle
+  clock has a test of its own, with a shortened duration.
 
 - **Router behaviour**: client isolation on a guest network, broadcasts between
   the 2.4 and 5 GHz bands, masks other than /24 (the scanner computes the

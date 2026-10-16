@@ -8,8 +8,8 @@ import '../l10n_context.dart';
 import 'common.dart';
 import 'toasts.dart';
 
-/// Prośby wymagające decyzji „tu i teraz": zgoda na odbiór pliku i kod
-/// parowania. Wiszą nad całą aplikacją, bo mogą przyjść, gdy jesteśmy na
+/// Prośby wymagające decyzji „tu i teraz": zgoda na odbiór pliku, kod
+/// parowania i prośba o pisanie na tym urządzeniu. Wiszą nad całą aplikacją, bo mogą przyjść, gdy jesteśmy na
 /// dowolnym ekranie, a prośba o plik pojawia się ZANIM nadawca prześle
 /// choćby bajt.
 class PromptOverlay extends ConsumerWidget {
@@ -91,6 +91,18 @@ class PromptOverlay extends ConsumerWidget {
                         ],
                       );
                     },
+                  ),
+                  ValueListenableBuilder<List<PendingRemoteInput>>(
+                    valueListenable: services.pendingRemoteInput,
+                    builder: (context, prosby, _) => prosby.isEmpty
+                        ? const SizedBox.shrink()
+                        // Klucz po prośbie, z tego samego powodu co przy
+                        // pliku: nowa prośba nie dziedziczy fokusu po starej.
+                        : _RemoteInputCard(
+                            key: ValueKey(prosby.first.id),
+                            request: prosby.first,
+                            services: services,
+                          ),
                   ),
                 ],
               ),
@@ -406,6 +418,94 @@ class _OfferCardState extends State<_OfferCard> {
                   child: Text(batch == null
                       ? context.l10n.accept
                       : context.l10n.acceptAll),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Prośba o pisanie na tym urządzeniu.
+///
+/// Fokus dostaje „Odrzuć": karta wyskakuje w chwili, gdy ktoś może właśnie
+/// pisać w innym polu, a Enter wciśnięty wtedy ma najwyżej odmówić. Zgoda
+/// wymaga świadomego kliknięcia.
+class _RemoteInputCard extends StatefulWidget {
+  final PendingRemoteInput request;
+  final AppServices services;
+
+  const _RemoteInputCard(
+      {super.key, required this.request, required this.services});
+
+  @override
+  State<_RemoteInputCard> createState() => _RemoteInputCardState();
+}
+
+class _RemoteInputCardState extends State<_RemoteInputCard> {
+  final _rejectFocus = FocusNode(debugLabel: 'odrzuć pisanie');
+
+  @override
+  void initState() {
+    super.initState();
+    // Jak przy karcie pliku: `autofocus` nie sięga poddrzewa z
+    // `MaterialApp.builder`, więc fokus bierzemy ręcznie.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _rejectFocus.requestFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _rejectFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final request = widget.request;
+    final services = widget.services;
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 6,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.keyboard_outlined, color: scheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.l10n.remoteInputRequestTitle(request.peerName),
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(context.l10n.remoteInputRequestBody),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  focusNode: _rejectFocus,
+                  onPressed: () =>
+                      services.respondToRemoteInput(request.id, accept: false),
+                  child: Text(context.l10n.reject),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () =>
+                      services.respondToRemoteInput(request.id, accept: true),
+                  child: Text(context.l10n.accept),
                 ),
               ],
             ),

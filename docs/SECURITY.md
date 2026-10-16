@@ -37,7 +37,17 @@ turned on:
 - **links in messages** (`app/lib/core/links.dart` and
   `app/lib/core/link_preview.dart`): the sender picks the address, so what
   becomes a link, what the confirmation card shows before anything opens, and
-  where a preview is allowed to connect all belong here.
+  where a preview is allowed to connect all belong here,
+- **the remote keyboard** (`app/lib/services/remote_input.dart`,
+  `app/lib/core/remote_input.dart`, the request and packet shapes in
+  `app/lib/network/protocol.dart`, and the native sides once they exist:
+  `app/windows/runner/chatt_remote_input.cpp`,
+  `app/android/app/src/main/kotlin/com/mysttic/chatt/ChattInputMethod.kt` and
+  `app/android/app/src/main/kotlin/com/mysttic/chatt/ChattRemoteInput.kt`):
+  the two routes parse whatever any device with a session sends, and a string
+  from a verified sender becomes keystrokes in another app there. The keyboard
+  add-on is off by default, and while it is off its native channel gets no
+  call apart from the switch itself.
 
 The threat model is written down in [architecture.md](architecture.md),
 together with what it deliberately does not cover.
@@ -98,3 +108,15 @@ These are design decisions:
   the HTTP client makes, the record can change ("DNS rebinding"). The cost is
   one empty GET to a local address; the answer still cannot run anything,
   because all the app takes from it is text and image bytes.
+- **A stolen verified device can type on its peers.** On a device with the
+  keyboard add-on and "Allow typing on this device" both on, any device whose
+  identity was confirmed there can ask to type. With "don't ask again" set for
+  that device the session starts without a card; otherwise one accepted card
+  is enough. From then on whoever holds the stolen device types into the field
+  that has focus, a password field included, until consent or verification is
+  withdrawn on the receiving side: Stop, either switch turned off, or the
+  device removed from the list. A grant also ends after 30 minutes without
+  typing and 8 hours in all. The receive switch starts off, like the add-on
+  itself, so none of this is possible until the owner of the receiving device
+  turns both on. An unverified sender is refused without a card and cannot
+  tell whether the add-on is on.
