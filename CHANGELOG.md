@@ -8,17 +8,21 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.10.1] - 2026-10-18
 
-### Added
+Two phones could not find each other over Bluetooth. Now one of them can show
+itself for two minutes, and the search on the other one finds it.
 
-- **Show this phone nearby** in Nearby, with Bluetooth picked, on Android.
-  Android is visible over the radio only while its own pairing screen stands
-  open, so one phone could not find another by searching. The button asks the
-  system to show the phone for two minutes, with the system's own prompt, and
-  a search that finds nothing says what to do on the other phone. New
-  permission `BLUETOOTH_ADVERTISE`, granted with the add-on's Nearby devices
-  permission.
+### Fixed
+- **A phone can show itself to devices nearby.** Android is visible over the
+  radio only while its own pairing screen stands open, so a Bluetooth search
+  from one phone never found another. In Nearby, with Bluetooth picked,
+  Android has **Show this phone nearby**: it opens the system's prompt that
+  makes the phone discoverable for two minutes, and while it is, a note stands
+  in place of the button. A search that finds nothing now says to show the
+  other phone first. A PC needs none of this: the add-on keeps it visible.
+  New permission `BLUETOOTH_ADVERTISE`, granted together with the add-on's
+  Nearby devices permission, without a question of its own.
 
 ## [0.10.0] - 2026-10-16
 
@@ -885,7 +889,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.10.0...HEAD
+[0.10.1]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1
