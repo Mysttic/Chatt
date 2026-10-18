@@ -762,10 +762,12 @@ answer that claims to be a known device without a matching signature.
 | `POST /handshake` | opening a session |
 | `POST /message` | delivering a message; 200 = confirmed, 409 = renew the session |
 | `POST /pair` | identity confirmation |
-| `POST /file-offer` | file announcement: name, size, sha256, key tag, and the batch it belongs to |
+| `POST /file-offer` | file announcement: name, size, sha256, key tag, and the batch or [shared history](#sharing-history) it belongs to |
 | `POST /file` | raw bytes from the given offset, with the session number in a header |
 | `POST /input-session` | asking for a [remote keyboard](#the-keyboard-add-on) session, or withdrawing the request; the reply is sealed |
 | `POST /input` | a packet of typing operations under a granted session; the reply is sealed |
+| `POST /history-offer` | announcing a [shared history](#sharing-history), asking for one, ending or cancelling it; the reply is sealed |
+| `POST /history-chunk` | up to 200 messages of a granted history; the reply is sealed |
 
 The same endpoints answer requests that arrive over an RFCOMM link; the route
 decides which road a request rides.
@@ -843,9 +845,60 @@ a description beside it. The next attempt sends `x-chatt-file-offset` and gets
 only the missing piece; once the whole thing is together the sha256 is
 computed. Abandoned parts are swept after seven days.
 
+### Sharing history
+
+A peer that still has our conversation can hand it back after we lost it: a
+reinstall, a new phone, "Clear history", retention. The code is
+`lib/services/history.dart` (a `part` of `app_services.dart`), the shapes are
+in `lib/network/protocol.dart`. Both directions start the same way:
+
+- **Share.** The side with the history sends `POST /history-offer` with
+  `op: offer`, an identifier and a summary: how many messages, how many files
+  will follow with their bytes, and the date range. The recipient gets a card
+  and answers with a token, or refuses (`rejected`, `no-answer` after two
+  minutes, `busy` while another history is coming in).
+- **Ask.** The side that lost it sends `op: request`. The other side gets a
+  card ("share", "share without files", "refuse") and, on yes, starts sharing
+  with `answering` set to the request's identifier. The asking side accepts
+  that offer without a card, since it already said yes by asking; the request
+  lives ten minutes and is used once. An empty conversation answers `empty`
+  without a card.
+
+Messages then travel as `POST /history-chunk`: at most 200 per chunk and about
+256 kB of text, each one as the sharing side sees it (`m: true` for "I wrote
+this"), so the recipient flips the direction. A chunk goes in whole or not at
+all (`HistoryChunk.fromJson`), and only within the summary on the card: more
+messages, more files or more bytes than announced is `over_limit`; a wrong
+token, another identifier or an expired grant is `no_grant`. A chunk repeated
+after a timeout keeps its number and is not counted twice.
+
+The import (`ChattDb.importHistory`) runs in one transaction and skips what is
+already there (by `messageGuid`, in any conversation), anything older than this
+device's retention would keep, and anything more than ten minutes in the future,
+since the times come from the sender's clock. Incoming messages arrive already
+read and nothing raises a notification: this is an old conversation, not new
+mail. Every imported row carries `restoredAt`.
+
+Files ride the ordinary `/file-offer` and `/file` with `history` set to the
+history's identifier. Every file row is created by its chunk, without content;
+the offer is accepted without a card only for a file announced in a chunk, with
+the same name and size, and only into a row still waiting for bytes
+(`restoredFileAwaiting`). The bytes land in `received/` as usual and the row
+gets the path. A received file that survived "Clear history" is linked at
+import time and never travels again. A file whose bytes the sharing side no
+longer has arrives as a row without content.
+
+Sharing again resumes an interrupted share: messages that came in are skipped,
+files still missing are offered again. `op: done` ends the grant and leaves the
+result on the progress bar; `op: cancel` ends it and keeps whatever arrived. A
+grant lives thirty idle minutes and twelve hours at most.
+
+An older Chatt answers 404 on both routes, which the sender reports as an
+older version on the other side.
+
 ## Database
 
-`drift` (SQLite), schema version **13**. Tables: `settings`, `peers`,
+`drift` (SQLite), schema version **14**. Tables: `settings`, `peers`,
 `conversations`, `messages`.
 
 | Version | What was added |
@@ -862,6 +915,7 @@ computed. Abandoned parts are swept after seven days.
 | 11 | `settings.linkPreviews` |
 | 12 | `peers.btAddress`, `peers.lastProtocol`, `settings.wifiEnabled`, `settings.bluetoothEnabled` |
 | 13 | `settings.keyboardEnabled`, `settings.remoteInputReceive`, `peers.remoteInput` |
+| 14 | `messages.restoredAt` |
 
 Version 12 only adds columns and touches nothing that was there:
 `peers.btAddress` is a nullable text, `peers.lastProtocol` a nullable int (0 the
@@ -872,6 +926,10 @@ Version 13 adds three booleans for the keyboard add-on, all false by default:
 `settings.keyboardEnabled` (the add-on), `settings.remoteInputReceive` (others
 may type here) and `peers.remoteInput` (typing without a card). An update
 switches none of them on.
+
+Version 14 adds `messages.restoredAt`, the moment a message came back from a
+peer's copy of the history ([Sharing history](#sharing-history)). Everything
+already in the database arrived the ordinary way and keeps it empty.
 
 `upsertPeer` keeps the two roads apart: an empty host with a zero port does not
 overwrite the last good address on the network, and an empty radio address does
@@ -1089,6 +1147,12 @@ clips `app` and `appLabel` at 96 bytes of JSON, whole characters only.
   is discoverable to everybody nearby, and Settings warns about it. A phone is
   discoverable only for two minutes after **Show this phone nearby** in Nearby
   and the system's prompt (`showSelf` on the `chatt/bluetooth` channel).
+- **A restored message is the peer's word.** Nothing signs a message: the
+  identity keys are X25519 and an envelope only proves who is on the other end
+  of the session. A shared history can therefore claim that we wrote something.
+  Every restored row carries `restoredAt` and is marked on screen, the card
+  says whether the sharing device has a green shield, and nothing restored
+  raises a notification.
 - Session key rotation is deferred, because resuming a transfer needs the same
   key across sessions.
 - Received files lie on disk unencrypted. The database wraps conversation

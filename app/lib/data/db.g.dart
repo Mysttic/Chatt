@@ -2418,6 +2418,17 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _restoredAtMeta = const VerificationMeta(
+    'restoredAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> restoredAt = GeneratedColumn<DateTime>(
+    'restored_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2433,6 +2444,7 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
     createdAt,
     deliveredAt,
     readAt,
+    restoredAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2520,6 +2532,12 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         readAt.isAcceptableOrUnknown(data['read_at']!, _readAtMeta),
       );
     }
+    if (data.containsKey('restored_at')) {
+      context.handle(
+        _restoredAtMeta,
+        restoredAt.isAcceptableOrUnknown(data['restored_at']!, _restoredAtMeta),
+      );
+    }
     return context;
   }
 
@@ -2587,6 +2605,10 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}read_at'],
       ),
+      restoredAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}restored_at'],
+      ),
     );
   }
 
@@ -2623,6 +2645,11 @@ class Message extends DataClass implements Insertable<Message> {
   final DateTime createdAt;
   final DateTime? deliveredAt;
   final DateTime? readAt;
+
+  /// Kiedy wiadomość wróciła z kopii historii rozmówcy (issue #36). `null`
+  /// znaczy zwykłą drogę. Treść i autorstwo przywróconej wiadomości to
+  /// twierdzenie rozmówcy: nic jej nie podpisuje, więc interfejs ją oznacza.
+  final DateTime? restoredAt;
   const Message({
     required this.id,
     required this.messageGuid,
@@ -2637,6 +2664,7 @@ class Message extends DataClass implements Insertable<Message> {
     required this.createdAt,
     this.deliveredAt,
     this.readAt,
+    this.restoredAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2674,6 +2702,9 @@ class Message extends DataClass implements Insertable<Message> {
     if (!nullToAbsent || readAt != null) {
       map['read_at'] = Variable<DateTime>(readAt);
     }
+    if (!nullToAbsent || restoredAt != null) {
+      map['restored_at'] = Variable<DateTime>(restoredAt);
+    }
     return map;
   }
 
@@ -2702,6 +2733,9 @@ class Message extends DataClass implements Insertable<Message> {
       readAt: readAt == null && nullToAbsent
           ? const Value.absent()
           : Value(readAt),
+      restoredAt: restoredAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(restoredAt),
     );
   }
 
@@ -2730,6 +2764,7 @@ class Message extends DataClass implements Insertable<Message> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       deliveredAt: serializer.fromJson<DateTime?>(json['deliveredAt']),
       readAt: serializer.fromJson<DateTime?>(json['readAt']),
+      restoredAt: serializer.fromJson<DateTime?>(json['restoredAt']),
     );
   }
   @override
@@ -2755,6 +2790,7 @@ class Message extends DataClass implements Insertable<Message> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'deliveredAt': serializer.toJson<DateTime?>(deliveredAt),
       'readAt': serializer.toJson<DateTime?>(readAt),
+      'restoredAt': serializer.toJson<DateTime?>(restoredAt),
     };
   }
 
@@ -2772,6 +2808,7 @@ class Message extends DataClass implements Insertable<Message> {
     DateTime? createdAt,
     Value<DateTime?> deliveredAt = const Value.absent(),
     Value<DateTime?> readAt = const Value.absent(),
+    Value<DateTime?> restoredAt = const Value.absent(),
   }) => Message(
     id: id ?? this.id,
     messageGuid: messageGuid ?? this.messageGuid,
@@ -2786,6 +2823,7 @@ class Message extends DataClass implements Insertable<Message> {
     createdAt: createdAt ?? this.createdAt,
     deliveredAt: deliveredAt.present ? deliveredAt.value : this.deliveredAt,
     readAt: readAt.present ? readAt.value : this.readAt,
+    restoredAt: restoredAt.present ? restoredAt.value : this.restoredAt,
   );
   Message copyWithCompanion(MessagesCompanion data) {
     return Message(
@@ -2808,6 +2846,9 @@ class Message extends DataClass implements Insertable<Message> {
           ? data.deliveredAt.value
           : this.deliveredAt,
       readAt: data.readAt.present ? data.readAt.value : this.readAt,
+      restoredAt: data.restoredAt.present
+          ? data.restoredAt.value
+          : this.restoredAt,
     );
   }
 
@@ -2826,7 +2867,8 @@ class Message extends DataClass implements Insertable<Message> {
           ..write('filePath: $filePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('deliveredAt: $deliveredAt, ')
-          ..write('readAt: $readAt')
+          ..write('readAt: $readAt, ')
+          ..write('restoredAt: $restoredAt')
           ..write(')'))
         .toString();
   }
@@ -2846,6 +2888,7 @@ class Message extends DataClass implements Insertable<Message> {
     createdAt,
     deliveredAt,
     readAt,
+    restoredAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2863,7 +2906,8 @@ class Message extends DataClass implements Insertable<Message> {
           other.filePath == this.filePath &&
           other.createdAt == this.createdAt &&
           other.deliveredAt == this.deliveredAt &&
-          other.readAt == this.readAt);
+          other.readAt == this.readAt &&
+          other.restoredAt == this.restoredAt);
 }
 
 class MessagesCompanion extends UpdateCompanion<Message> {
@@ -2880,6 +2924,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
   final Value<DateTime> createdAt;
   final Value<DateTime?> deliveredAt;
   final Value<DateTime?> readAt;
+  final Value<DateTime?> restoredAt;
   const MessagesCompanion({
     this.id = const Value.absent(),
     this.messageGuid = const Value.absent(),
@@ -2894,6 +2939,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     this.createdAt = const Value.absent(),
     this.deliveredAt = const Value.absent(),
     this.readAt = const Value.absent(),
+    this.restoredAt = const Value.absent(),
   });
   MessagesCompanion.insert({
     this.id = const Value.absent(),
@@ -2909,6 +2955,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     required DateTime createdAt,
     this.deliveredAt = const Value.absent(),
     this.readAt = const Value.absent(),
+    this.restoredAt = const Value.absent(),
   }) : messageGuid = Value(messageGuid),
        conversationId = Value(conversationId),
        direction = Value(direction),
@@ -2929,6 +2976,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? deliveredAt,
     Expression<DateTime>? readAt,
+    Expression<DateTime>? restoredAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2944,6 +2992,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       if (createdAt != null) 'created_at': createdAt,
       if (deliveredAt != null) 'delivered_at': deliveredAt,
       if (readAt != null) 'read_at': readAt,
+      if (restoredAt != null) 'restored_at': restoredAt,
     });
   }
 
@@ -2961,6 +3010,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Value<DateTime>? createdAt,
     Value<DateTime?>? deliveredAt,
     Value<DateTime?>? readAt,
+    Value<DateTime?>? restoredAt,
   }) {
     return MessagesCompanion(
       id: id ?? this.id,
@@ -2976,6 +3026,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       createdAt: createdAt ?? this.createdAt,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
+      restoredAt: restoredAt ?? this.restoredAt,
     );
   }
 
@@ -3027,6 +3078,9 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     if (readAt.present) {
       map['read_at'] = Variable<DateTime>(readAt.value);
     }
+    if (restoredAt.present) {
+      map['restored_at'] = Variable<DateTime>(restoredAt.value);
+    }
     return map;
   }
 
@@ -3045,7 +3099,8 @@ class MessagesCompanion extends UpdateCompanion<Message> {
           ..write('filePath: $filePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('deliveredAt: $deliveredAt, ')
-          ..write('readAt: $readAt')
+          ..write('readAt: $readAt, ')
+          ..write('restoredAt: $restoredAt')
           ..write(')'))
         .toString();
   }
@@ -4413,6 +4468,7 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   required DateTime createdAt,
   Value<DateTime?> deliveredAt,
   Value<DateTime?> readAt,
+  Value<DateTime?> restoredAt,
 });
 typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<int> id,
@@ -4428,6 +4484,7 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<DateTime> createdAt,
   Value<DateTime?> deliveredAt,
   Value<DateTime?> readAt,
+  Value<DateTime?> restoredAt,
 });
 
 final class $$MessagesTableReferences
@@ -4525,6 +4582,11 @@ class $$MessagesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$ConversationsTableFilterComposer get conversationId {
     final $$ConversationsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -4618,6 +4680,11 @@ class $$MessagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ConversationsTableOrderingComposer get conversationId {
     final $$ConversationsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -4691,6 +4758,11 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumn<DateTime> get readAt =>
       $composableBuilder(column: $table.readAt, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => column,
+  );
+
   $$ConversationsTableAnnotationComposer get conversationId {
     final $$ConversationsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -4756,6 +4828,7 @@ class $$MessagesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> deliveredAt = const Value.absent(),
                 Value<DateTime?> readAt = const Value.absent(),
+                Value<DateTime?> restoredAt = const Value.absent(),
               }) => MessagesCompanion(
                 id: id,
                 messageGuid: messageGuid,
@@ -4770,6 +4843,7 @@ class $$MessagesTableTableManager
                 createdAt: createdAt,
                 deliveredAt: deliveredAt,
                 readAt: readAt,
+                restoredAt: restoredAt,
               ),
           createCompanionCallback:
               ({
@@ -4786,6 +4860,7 @@ class $$MessagesTableTableManager
                 required DateTime createdAt,
                 Value<DateTime?> deliveredAt = const Value.absent(),
                 Value<DateTime?> readAt = const Value.absent(),
+                Value<DateTime?> restoredAt = const Value.absent(),
               }) => MessagesCompanion.insert(
                 id: id,
                 messageGuid: messageGuid,
@@ -4800,6 +4875,7 @@ class $$MessagesTableTableManager
                 createdAt: createdAt,
                 deliveredAt: deliveredAt,
                 readAt: readAt,
+                restoredAt: restoredAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

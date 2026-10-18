@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **389 `flutter test` tests** check everything that can be
+The split is simple: **412 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -257,7 +257,7 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migrations (`test/migration_test.dart`, 4 tests)
+### Migrations (`test/migration_test.dart`, 5 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
@@ -271,6 +271,39 @@ when it speaks and when it stays quiet:
   taking files without asking), its messages and the settings, the Bluetooth
   add-on included, and brings the keyboard add-on, receiving and typing
   without a card in switched off
+- the step from 13 to 14 keeps the messages and marks none of them as restored
+
+### Sharing history (`test/history_test.dart`, 22 tests)
+Two or three real instances over real sockets, paired, with a conversation both
+ways and a file from each side. The recipient loses its history and the other
+side hands it back:
+- the shared history comes back with every direction flipped, the original
+  times, both files (the recipient's own one included, from the sharer's
+  received copy), incoming messages already read, `restoredAt` on every row,
+  no notification, and nothing changes on the sharing side
+- the card carries the counts, the bytes, the shield and the recipient's
+  retention
+- without files the file rows arrive without content; a received file that
+  survived "Clear history" is linked at import and does not travel again
+- sharing twice duplicates nothing and brings the files that were missing
+- a refusal and silence on the card let nothing in; an empty conversation has
+  nothing to share and a request for it comes back `empty` without a card
+- a request shows a card on the asked side, and the offer that answers it goes
+  in on the asking side without one; a refusal and "share without files" on
+  the asked side do what they say
+- the consent holds within the announcement: more messages or more files than
+  announced is `over_limit` and nothing goes in, a wrong token or another
+  history's identifier is `no_grant`, a chunk repeated under the same number is
+  not counted twice, messages from the future and from before the recipient's
+  retention are skipped, a second history while one is coming in is `busy`,
+  and a cancel ends the grant while keeping what arrived
+- both routes answer plaintext with 409 and leave no trace, and a sealed body of
+  the wrong shape with 400 and no card
+- the parsers: a chunk goes in whole or not at all (a bad identifier, a bad
+  time, a body or a file name over the limit, a negative size, file fields on a
+  plain message, an empty chunk or one over 200), a summary whose numbers do
+  not add up is dropped, an end without a token is dropped, and a reply that
+  carries `from`, answers another history or another chunk does not count
 
 ### Links in messages (`test/links_test.dart`, 23 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,

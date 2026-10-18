@@ -31,6 +31,7 @@ import '../network/protocol.dart';
 import '../network/server.dart';
 import '../network/transport.dart';
 
+part 'history.dart';
 part 'remote_input.dart';
 
 /// Prośba o zgodę na odbiór pliku: czeka na decyzję użytkownika.
@@ -380,6 +381,7 @@ class AppServices {
     IncomingMessageHook? onIncomingMessage,
     RemoteInputPolicy? remoteInputPolicy,
     RemoteInputSink? remoteInputSink,
+    HistoryPolicy? historyPolicy,
   }) async {
     // Testy podają własny executor (baza w pamięci) i wtedy nie ma czego
     // szyfrować ani przepisywać.
@@ -433,6 +435,10 @@ class AppServices {
           services._remoteInput.handleSession(request, fromHost, session),
       onInput: (packet, fromHost, session) =>
           services._remoteInput.handlePacket(packet, fromHost, session),
+      onHistoryOffer: (message, fromHost, session) =>
+          services._history.handleOffer(message, fromHost, session),
+      onHistoryChunk: (chunk, fromHost, session) =>
+          services._history.handleChunk(chunk, fromHost, session),
     );
     final preferred = portOverride ?? ChattEnv.tcpPort ?? settings.tcpPort;
     final actualPort = await server.start(preferredPort: preferred);
@@ -453,6 +459,7 @@ class AppServices {
     final klawiatura = services._remoteInput;
     if (remoteInputPolicy != null) klawiatura._policy = remoteInputPolicy;
     if (remoteInputSink != null) klawiatura._sink = remoteInputSink;
+    if (historyPolicy != null) services._history._policy = historyPolicy;
     // Dodatek klawiatury wstaje z bazy bez żadnego wywołania kanału: przy
     // starcie nie ma czego podnosić, a wyłączony ma milczeć.
     klawiatura.keyboardAddon.value = settings.keyboardEnabled;
@@ -685,6 +692,7 @@ class AppServices {
   /// prośba o nią i własna sesja pisania do niego znikają razem z nim.
   Future<void> forgetPeer(Peer peer) {
     _remoteInput.forgetPeer(peer.guid);
+    _history.forgetPeer(peer.guid);
     return db.deletePeer(peer.id);
   }
 
@@ -1454,14 +1462,22 @@ class AppServices {
   /// Zapowiedź i wysyłka jednego pliku. [batchId] i [batch] są niepuste tylko
   /// wtedy, gdy plik idzie w paczce (patrz [sendFiles]); opis paczki niesie
   /// pierwsza zapowiedź, która do odbiorcy dotarła.
+  ///
+  /// Z [historyId] plik jedzie jako część udostępnianej historii: zapowiedź
+  /// niesie jej identyfikator, a status naszego wiersza zostaje, jaki był
+  /// (ta wiadomość dawno dotarła albo przyszła od rozmówcy).
   Future<OfferOutcome> _deliverFile(int messageId, Peer peer,
-      {String? batchId, FileBatch? batch}) async {
+      {String? batchId, FileBatch? batch, String? historyId}) async {
     final message = await db.messageById(messageId);
     final path = message?.filePath;
     if (message == null || path == null) return _bezOdpowiedzi;
+    Future<void> status(MessageStatus value) async {
+      if (historyId == null) await db.setMessageStatus(messageId, value);
+    }
+
     final file = File(path);
     if (!await file.exists()) {
-      await db.setMessageStatus(messageId, MessageStatus.failed);
+      await status(MessageStatus.failed);
       return _bezOdpowiedzi;
     }
 
@@ -1477,13 +1493,13 @@ class AppServices {
         // Bez sesji nie ma jak wysłać, może rozmówca dostał nowy adres.
         final moved = await _relocate(target);
         if (moved == null) {
-          await db.setMessageStatus(messageId, MessageStatus.failed);
+          await status(MessageStatus.failed);
           return _bezOdpowiedzi;
         }
         target = moved;
         sesja = await _sessionFor(target);
         if (sesja == null) {
-          await db.setMessageStatus(messageId, MessageStatus.failed);
+          await status(MessageStatus.failed);
           return _bezOdpowiedzi;
         }
       }
@@ -1503,11 +1519,12 @@ class AppServices {
             sentAt: message.createdAt,
             batchId: batchId,
             batch: batch,
+            history: historyId,
           ).toJson();
 
       var offerPayload = await _sealFor(target, zapowiedz());
       if (offerPayload == null) {
-        await db.setMessageStatus(messageId, MessageStatus.failed);
+        await status(MessageStatus.failed);
         return _bezOdpowiedzi;
       }
       var reply = await client.offerFile(
@@ -1533,7 +1550,7 @@ class AppServices {
       }
 
       if (reply != null && !reply.accepted) {
-        await db.setMessageStatus(messageId, MessageStatus.failed);
+        await status(MessageStatus.failed);
         // Odmowa całej paczki, a nie tego jednego pliku: nadawca kończy
         // wysyłkę, zamiast zapowiadać po kolei resztę, której i tak nikt nie
         // przyjmie (a każda zapowiedź kosztuje przeliczenie sumy kontrolnej).
@@ -1547,7 +1564,7 @@ class AppServices {
         // Odbiorca ma już ten plik (zgubiony ACK), nic nie wysyłamy. Opisu
         // paczki przy tym nie zapisał (wyszedł wcześniej), więc następna
         // zapowiedź ma go powtórzyć.
-        await db.setMessageStatus(messageId, MessageStatus.delivered);
+        await status(MessageStatus.delivered);
         return _bezOdpowiedzi;
       }
 
@@ -1566,7 +1583,7 @@ class AppServices {
         // drugim monitem u odbiorcy i skasowaniem tego, co już dostał.
         offerPayload = await _sealFor(target, zapowiedz());
         if (offerPayload == null) {
-          await db.setMessageStatus(messageId, MessageStatus.failed);
+          await status(MessageStatus.failed);
           return _bezOdpowiedzi;
         }
         reply = await client.offerFile(
@@ -1581,8 +1598,8 @@ class AppServices {
           delivered = wynik.delivered;
         }
       }
-      await db.setMessageStatus(
-          messageId, delivered ? MessageStatus.delivered : MessageStatus.failed);
+      await status(
+          delivered ? MessageStatus.delivered : MessageStatus.failed);
       // „Opis dotarł" znaczy: odbiorca go zapisał, czyli zgodził się na tę
       // zapowiedź. Wszystko inne każe powtórzyć opis przy następnym pliku.
       return reply != null && reply.accepted
@@ -1707,6 +1724,20 @@ class AppServices {
       port: offer.from.tcpPort,
     );
     final conversationId = await db.ensureConversation(peer.id);
+
+    // Plik z udostępnianej historii: jego wpis już jest (przyszedł w paczce
+    // wiadomości) i czeka na bajty. Zgoda na historię objęła go z góry.
+    if (offer.history != null) {
+      final zHistorii = await _history.fileOffer(offer);
+      if (zHistorii != null) {
+        if (zHistorii.accepted && !zHistorii.alreadyHave) {
+          _acceptedOffers[_offerKey(offer.from.guid, offer.messageGuid)] =
+              _AcceptedOffer(offer, conversationId, session);
+          _writePartMeta(offer);
+        }
+        return zHistorii;
+      }
+    }
 
     if (await db.messageByGuid(offer.messageGuid) != null) {
       // Ten plik już mamy, nadawca nie musi przesyłać ani bajtu.
@@ -1889,7 +1920,18 @@ class AppServices {
     );
     final conversationId = await db.ensureConversation(peer.id);
 
-    if (await db.messageByGuid(meta.messageGuid) != null) {
+    // Plik z historii ma wpis z góry (czeka na bajty), więc „już to mamy"
+    // nie dotyczy go, dopóki ten wpis nie ma pliku.
+    final zHistorii = _acceptedOffers[
+                _offerKey(meta.from.guid, meta.messageGuid)]
+            ?.offer
+            .history !=
+        null;
+    if (zHistorii) {
+      if (await db.restoredFileAwaiting(meta.messageGuid) == null) {
+        return FileReceiveResult.ok;
+      }
+    } else if (await db.messageByGuid(meta.messageGuid) != null) {
       return FileReceiveResult.ok;
     }
 
@@ -2019,6 +2061,13 @@ class AppServices {
       part.renameSync(targetPath);
     } catch (_) {
       return FileReceiveResult.incomplete;
+    }
+    // Plik z historii trafia do wpisu, który na niego czekał. Bez
+    // powiadomienia: to stara rozmowa, a nie nowy plik.
+    if (accepted.offer.history != null) {
+      _deletePartMeta(meta.messageGuid);
+      await _history.fileReceived(accepted.offer, targetPath);
+      return FileReceiveResult.ok;
     }
     // Duplikat (ten sam guid) trafia w tę samą ścieżkę, więc rename tylko
     // podmienia identyczny plik, wtedy zostaje sam wpis z bazy.
@@ -2581,6 +2630,45 @@ class AppServices {
     return _przypnijKlucz(peer, info);
   }
 
+  // --- Udostępnianie historii (issue #36) -----------------------------------
+
+  /// Logika siedzi w `history.dart`, tu są tylko wejścia.
+  late final _History _history = _History(this);
+
+  /// Karty: rozmówca chce oddać nam historię albo prosi o naszą.
+  ValueNotifier<List<PendingHistory>> get pendingHistory => _history.pending;
+
+  /// Własne udostępnianie w toku, do paska postępu.
+  ValueNotifier<HistoryTransfer?> get outgoingHistory => _history.outgoing;
+
+  /// Przywracanie historii od rozmówcy w toku albo właśnie zakończone.
+  ValueNotifier<HistoryTransfer?> get incomingHistory => _history.incoming;
+
+  /// Co poszłoby rozmówcy z rozmowy [conversationId].
+  Future<HistoryPreview> previewHistory(int conversationId,
+          {DateTime? since, bool withFiles = true}) =>
+      _history.preview(conversationId, since: since, withFiles: withFiles);
+
+  /// Oddaje rozmówcy z rozmowy [conversationId] naszą wspólną historię, od
+  /// [since] (null = całość), z plikami albo bez.
+  Future<HistoryShareResult> shareHistory(int conversationId,
+          {DateTime? since, bool withFiles = true}) =>
+      _history.share(conversationId, since: since, withFiles: withFiles);
+
+  /// Prosi rozmówcę o jego kopię naszej wspólnej historii.
+  Future<HistoryRequestResult> requestHistory(int conversationId) =>
+      _history.request(conversationId);
+
+  /// Przerywa własne udostępnianie.
+  void cancelHistoryShare() => _history.cancelShare();
+
+  /// Odpowiedź z karty historii.
+  void respondToHistory(String id, HistoryDecision decision) =>
+      _history.respond(id, decision);
+
+  /// Zamyka pasek zakończonego przywracania.
+  void dismissIncomingHistory() => _history.dismissIncoming();
+
   // --- Zdalna klawiatura ----------------------------------------------------
 
   /// Dodatek „Klawiatura z PC" w obie strony; logika siedzi w
@@ -2642,7 +2730,8 @@ class AppServices {
   bool get _anyPromptPending =>
       pendingOffers.value.isNotEmpty ||
       pendingPairings.value.isNotEmpty ||
-      _remoteInput.pending.value.isNotEmpty;
+      _remoteInput.pending.value.isNotEmpty ||
+      _history.pending.value.isNotEmpty;
 
   /// Zapomina sesje przychodzące od [peerGuid], bez ruszania zgód. Następne
   /// zapytanie od niego dostaje 409, jak po restarcie, a zgoda na pisanie
@@ -2655,17 +2744,21 @@ class AppServices {
   }
 
   /// Pieczętuje dowolny ładunek bieżącą sesją z [peer] i wysyła go na
-  /// `/input-session` albo `/input`. Testy budują tym paczki, których
-  /// prawdziwy nadawca nigdy nie wyśle.
+  /// `/input-session`, `/input`, `/history-offer` albo `/history-chunk`.
+  /// Testy budują tym paczki, których prawdziwy nadawca nigdy nie wyśle.
   @visibleForTesting
   Future<({int status, Map<String, Object?>? reply})> debugSendSealed(
       Peer peer, String path, Map<String, Object?> payload) async {
     final wynik = await _exchangeSealed(
       peer,
       payload,
-      (route, koperta) => path == '/input-session'
-          ? client.requestInputSession(route: route, payload: koperta)
-          : client.sendInput(route: route, payload: koperta),
+      (route, koperta) => switch (path) {
+        '/input-session' =>
+          client.requestInputSession(route: route, payload: koperta),
+        '/history-offer' => client.historyOffer(route: route, payload: koperta),
+        '/history-chunk' => client.historyChunk(route: route, payload: koperta),
+        _ => client.sendInput(route: route, payload: koperta),
+      },
     );
     return (status: wynik.status, reply: wynik.reply);
   }
@@ -2750,6 +2843,7 @@ class AppServices {
     _closing = true;
     _bluetoothRetry?.cancel();
     await _remoteInput.dispose();
+    await _history.dispose();
     // Nikt już nie odpowie na wiszące prośby o zgodę: odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {

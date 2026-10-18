@@ -430,6 +430,11 @@ class FileOffer {
   /// ona otwiera pytanie; w kolejnych jest `null`.
   final FileBatch? batch;
 
+  /// Plik z udostępnianej historii ([HistoryOfferMessage.id]). Odbiorca
+  /// przyjmuje go bez pytania wyłącznie w granicach zgody na tę historię
+  /// i tylko do wiersza, który już czeka na bajty.
+  final String? history;
+
   const FileOffer({
     required this.messageGuid,
     required this.from,
@@ -440,6 +445,7 @@ class FileOffer {
     this.keyEpoch,
     this.batchId,
     this.batch,
+    this.history,
   });
 
   Map<String, Object?> toJson() => {
@@ -452,6 +458,7 @@ class FileOffer {
         'sentAt': sentAt.toUtc().toIso8601String(),
         if (batchId != null) 'batchId': batchId,
         if (batch != null) 'batch': batch!.toJson(),
+        if (history != null) 'history': history,
       };
 
   static FileOffer? fromJson(Map<String, Object?> json) {
@@ -499,6 +506,9 @@ class FileOffer {
       sentAt: sentAt ?? DateTime.now(),
       batchId: batchId,
       batch: batch,
+      history: isSafeMessageGuid(json['history'])
+          ? json['history'] as String
+          : null,
     );
   }
 }
@@ -1362,4 +1372,459 @@ enum FileReceiveResult {
 
   /// Suma kontrolna złożonego pliku się nie zgadza (422), część skasowana.
   checksumMismatch,
+}
+
+// --- Udostępnianie historii (issue #36) -------------------------------------
+//
+// Rozmówca, który ma naszą wspólną rozmowę, może ją nam oddać po utracie
+// (reinstalacja, „Wyczyść historię", retencja). Dwie trasy, obie w kopercie
+// i z zapieczętowaną odpowiedzią, jak przy zdalnej klawiaturze:
+//   POST /history-offer  zapowiedź, prośba o historię, koniec albo przerwanie
+//   POST /history-chunk  paczka wiadomości w ramach przyznanej zgody
+// Pliki jadą zwykłą drogą `/file-offer` i `/file`, z polem
+// [FileOffer.history]. Starsza wersja odpowiada na te trasy 404.
+
+/// Rodzaje [HistoryOfferMessage.op].
+const String historyOpOffer = 'offer';
+const String historyOpRequest = 'request';
+const String historyOpDone = 'done';
+const String historyOpCancel = 'cancel';
+
+/// Powody odmowy w [HistoryReply.reason] i [HistoryChunkReply.reason].
+const String historyRejected = 'rejected';
+const String historyNoAnswer = 'no-answer';
+const String historyBusy = 'busy';
+const String historyNoGrant = 'no_grant';
+const String historyStaleSeq = 'stale_seq';
+const String historyOverLimit = 'over_limit';
+
+/// Proszony nie ma czego oddać: rozmowa z proszącym jest u niego pusta.
+const String historyEmpty = 'empty';
+
+/// Znaczniki odpowiedzi. Odpowiedź nie niesie `from`, a znacznik nie pozwala
+/// wziąć odpowiedzi na jedno zapytanie za odpowiedź na inne.
+const String replyHistory = 'history';
+const String replyHistoryChunk = 'history-chunk';
+
+/// Ile wiadomości może objąć jedna zgoda.
+const int maxHistoryMessages = 200000;
+
+/// Ile wiadomości jedzie w jednej paczce. Paczka mieści się wtedy daleko
+/// pod limitem ciała żądania, także z długimi wiadomościami.
+const int maxHistoryChunkItems = 200;
+
+/// Najdłuższa treść jednej wiadomości w historii, w jednostkach UTF-16.
+const int maxHistoryBodyUnits = 65536;
+
+/// Najdłuższa nazwa pliku w historii.
+const int maxHistoryFileName = 255;
+
+/// Ile bajtów plików może objąć jedna zgoda.
+const int maxHistoryFileBytes = 64 * 1024 * 1024 * 1024;
+
+/// Limit czasu zapowiedzi i prośby po stronie wysyłającego: obejmuje kartę
+/// zgody u drugiej strony ([historyAnswerTimeout]) z zapasem.
+const Duration historyRequestTimeout = Duration(seconds: 150);
+
+/// Ile karta zgody czeka na decyzję.
+const Duration historyAnswerTimeout = Duration(minutes: 2);
+
+/// Limit czasu jednej paczki wiadomości.
+const Duration historyChunkTimeout = Duration(seconds: 30);
+
+/// Zgoda na historię wygasa po tym czasie bez ruchu...
+const Duration historyIdle = Duration(minutes: 30);
+
+/// ...i najpóźniej po tym, cokolwiek się dzieje. Sto megabajtów przez
+/// Bluetooth to kilkanaście minut, więc zapas jest duży.
+const Duration historyMaxLife = Duration(hours: 12);
+
+/// Jak długo prośba o historię czeka na zapowiedź, która na nią odpowiada.
+const Duration historyRequestLife = Duration(minutes: 10);
+
+/// Wiadomość z czasem dalej w przyszłości niż ten zapas odpada przy imporcie:
+/// czasy pochodzą z zegara nadawcy i nikt ich nie sprawdza.
+const Duration historyFutureSlack = Duration(minutes: 10);
+
+final RegExp _historyTokenShape = RegExp(r'^[A-Za-z0-9+/=]{1,64}$');
+
+bool _isHistoryToken(Object? value) =>
+    value is String && _historyTokenShape.hasMatch(value);
+
+/// Co obejmuje udostępniana historia. Odbiorca pokazuje to na karcie zgody,
+/// a zgoda obowiązuje w tych granicach.
+class HistorySummary {
+  /// Liczba wiadomości (także tych z plikiem).
+  final int count;
+
+  /// Liczba plików, których bajty pojadą za wiadomościami.
+  final int files;
+
+  /// Łączny rozmiar tych plików.
+  final int bytes;
+  final DateTime first;
+  final DateTime last;
+
+  const HistorySummary({
+    required this.count,
+    required this.files,
+    required this.bytes,
+    required this.first,
+    required this.last,
+  });
+
+  Map<String, Object?> toJson() => {
+        'count': count,
+        'files': files,
+        'bytes': bytes,
+        'first': first.toUtc().toIso8601String(),
+        'last': last.toUtc().toIso8601String(),
+      };
+
+  static HistorySummary? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final count = raw['count'];
+    final files = raw['files'];
+    final bytes = raw['bytes'];
+    final first = raw['first'] is String
+        ? DateTime.tryParse(raw['first'] as String)
+        : null;
+    final last = raw['last'] is String
+        ? DateTime.tryParse(raw['last'] as String)
+        : null;
+    if (count is! int ||
+        count < 1 ||
+        count > maxHistoryMessages ||
+        files is! int ||
+        files < 0 ||
+        files > count ||
+        bytes is! int ||
+        bytes < 0 ||
+        bytes > maxHistoryFileBytes ||
+        (files == 0 && bytes != 0) ||
+        first == null ||
+        last == null ||
+        last.isBefore(first)) {
+      return null;
+    }
+    return HistorySummary(
+        count: count, files: files, bytes: bytes, first: first, last: last);
+  }
+}
+
+/// `POST /history-offer`.
+///
+/// - [historyOpOffer]: udostępniający zapowiada historię ([summary]);
+///   [answering] to identyfikator prośby, na którą odpowiada, jeśli była.
+/// - [historyOpRequest]: ten, kto stracił historię, prosi o nią; [id] to
+///   identyfikator prośby.
+/// - [historyOpDone] i [historyOpCancel]: koniec albo przerwanie
+///   udostępniania [id], z tokenem zgody.
+class HistoryOfferMessage {
+  final DeviceIdentity from;
+  final String op;
+  final String id;
+  final HistorySummary? summary;
+  final String? answering;
+  final String? token;
+
+  const HistoryOfferMessage({
+    required this.from,
+    required this.op,
+    required this.id,
+    this.summary,
+    this.answering,
+    this.token,
+  });
+
+  Map<String, Object?> toJson() => {
+        'from': from.toJson(),
+        'op': op,
+        'id': id,
+        if (summary != null) 'summary': summary!.toJson(),
+        if (answering != null) 'answering': answering,
+        if (token != null) 'token': token,
+      };
+
+  static HistoryOfferMessage? fromJson(Map<String, Object?> json) {
+    final from = DeviceIdentity.fromJson(json['from']);
+    final op = json['op'];
+    final id = json['id'];
+    if (from == null || !isSafeMessageGuid(id)) return null;
+    switch (op) {
+      case historyOpOffer:
+        final summary = HistorySummary.fromJson(json['summary']);
+        final answering = json['answering'];
+        if (summary == null ||
+            (json.containsKey('answering') && !isSafeMessageGuid(answering))) {
+          return null;
+        }
+        return HistoryOfferMessage(
+          from: from,
+          op: historyOpOffer,
+          id: id as String,
+          summary: summary,
+          answering: answering as String?,
+        );
+      case historyOpRequest:
+        return HistoryOfferMessage(
+            from: from, op: historyOpRequest, id: id as String);
+      case historyOpDone:
+      case historyOpCancel:
+        final token = json['token'];
+        if (!_isHistoryToken(token)) return null;
+        return HistoryOfferMessage(
+          from: from,
+          op: op as String,
+          id: id as String,
+          token: token as String,
+        );
+    }
+    return null;
+  }
+}
+
+/// Odpowiedź na [HistoryOfferMessage], zawsze zapieczętowana.
+class HistoryReply {
+  final String id;
+  final bool accepted;
+
+  /// Przy zgodzie na zapowiedź: token, który niesie każda paczka.
+  final String? token;
+  final String? reason;
+
+  const HistoryReply({
+    required this.id,
+    required this.accepted,
+    this.token,
+    this.reason,
+  });
+
+  Map<String, Object?> toJson() => {
+        'reply': replyHistory,
+        'id': id,
+        'accepted': accepted,
+        if (token != null) 'token': token,
+        if (reason != null) 'reason': reason,
+      };
+
+  /// `null`, gdy to nie jest odpowiedź na [id].
+  static HistoryReply? fromJson(Map<String, Object?>? json,
+      {required String id}) {
+    if (json == null ||
+        json['reply'] != replyHistory ||
+        json['id'] != id ||
+        json.containsKey('from')) {
+      return null;
+    }
+    final accepted = json['accepted'];
+    if (accepted is! bool) return null;
+    final token = json['token'];
+    if (json.containsKey('token') && !_isHistoryToken(token)) return null;
+    final reason = json['reason'];
+    return HistoryReply(
+      id: id,
+      accepted: accepted,
+      token: token as String?,
+      reason: reason is String ? reason : null,
+    );
+  }
+}
+
+/// Jedna wiadomość udostępnianej historii, widziana oczami udostępniającego:
+/// [mine] znaczy „napisałem to ja", czyli u odbiorcy wiadomość przychodzącą.
+class HistoryItem {
+  final String messageGuid;
+  final bool mine;
+  final DateTime sentAt;
+  final String body;
+
+  /// Pola pliku; [fileName] jest null przy zwykłej wiadomości.
+  final String? fileName;
+  final int? fileSize;
+
+  /// Czy bajty tego pliku pojadą za wiadomościami. false znaczy, że plik
+  /// zostaje u odbiorcy wpisem bez treści („plik niedostępny").
+  final bool fileFollows;
+
+  const HistoryItem({
+    required this.messageGuid,
+    required this.mine,
+    required this.sentAt,
+    required this.body,
+    this.fileName,
+    this.fileSize,
+    this.fileFollows = false,
+  });
+
+  bool get isFile => fileName != null;
+
+  Map<String, Object?> toJson() => {
+        'g': messageGuid,
+        'm': mine,
+        't': sentAt.toUtc().toIso8601String(),
+        'b': body,
+        if (fileName != null) 'fn': fileName,
+        if (fileName != null) 'fs': fileSize ?? 0,
+        if (fileName != null && fileFollows) 'ff': true,
+      };
+
+  static HistoryItem? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final guid = raw['g'];
+    final mine = raw['m'];
+    final sentAt =
+        raw['t'] is String ? DateTime.tryParse(raw['t'] as String) : null;
+    final body = raw['b'];
+    if (!isSafeMessageGuid(guid) ||
+        mine is! bool ||
+        sentAt == null ||
+        body is! String ||
+        body.length > maxHistoryBodyUnits) {
+      return null;
+    }
+    final name = raw['fn'];
+    if (name == null) {
+      if (raw.containsKey('fs') || raw.containsKey('ff')) return null;
+      return HistoryItem(
+          messageGuid: guid as String, mine: mine, sentAt: sentAt, body: body);
+    }
+    final size = raw['fs'];
+    final follows = raw['ff'];
+    if (name is! String ||
+        name.isEmpty ||
+        name.length > maxHistoryFileName ||
+        size is! int ||
+        size < 0 ||
+        (follows != null && follows is! bool)) {
+      return null;
+    }
+    return HistoryItem(
+      messageGuid: guid as String,
+      mine: mine,
+      sentAt: sentAt,
+      body: body,
+      fileName: name,
+      fileSize: size,
+      fileFollows: follows == true,
+    );
+  }
+}
+
+/// `POST /history-chunk`: paczka wiadomości w ramach zgody [id].
+class HistoryChunk {
+  final DeviceIdentity from;
+  final String id;
+  final String token;
+
+  /// Numer paczki, od 1, rosnący. Powtórzona paczka (po limicie czasu) ma ten
+  /// sam numer; import i tak pomija to, co już jest.
+  final int seq;
+  final List<HistoryItem> items;
+
+  const HistoryChunk({
+    required this.from,
+    required this.id,
+    required this.token,
+    required this.seq,
+    required this.items,
+  });
+
+  Map<String, Object?> toJson() => {
+        'from': from.toJson(),
+        'id': id,
+        'token': token,
+        'seq': seq,
+        'items': [for (final item in items) item.toJson()],
+      };
+
+  /// `null` przy złym kształcie czegokolwiek, także jednej wiadomości:
+  /// paczka wchodzi w całości albo wcale.
+  static HistoryChunk? fromJson(Map<String, Object?> json) {
+    final from = DeviceIdentity.fromJson(json['from']);
+    final id = json['id'];
+    final token = json['token'];
+    final seq = json['seq'];
+    final raw = json['items'];
+    if (from == null ||
+        !isSafeMessageGuid(id) ||
+        !_isHistoryToken(token) ||
+        seq is! int ||
+        seq < 1 ||
+        raw is! List ||
+        raw.isEmpty ||
+        raw.length > maxHistoryChunkItems) {
+      return null;
+    }
+    final items = <HistoryItem>[];
+    for (final entry in raw) {
+      final item = HistoryItem.fromJson(entry);
+      if (item == null) return null;
+      items.add(item);
+    }
+    return HistoryChunk(
+      from: from,
+      id: id as String,
+      token: token as String,
+      seq: seq,
+      items: List.unmodifiable(items),
+    );
+  }
+}
+
+/// Odpowiedź na [HistoryChunk], zawsze zapieczętowana.
+class HistoryChunkReply {
+  final String id;
+  final int seq;
+  final bool ok;
+
+  /// Ile wiadomości z tej paczki weszło i ile odpadło (już były, za stare
+  /// dla retencji, z przyszłości).
+  final int imported;
+  final int skipped;
+  final String? reason;
+
+  const HistoryChunkReply({
+    required this.id,
+    required this.seq,
+    required this.ok,
+    this.imported = 0,
+    this.skipped = 0,
+    this.reason,
+  });
+
+  Map<String, Object?> toJson() => {
+        'reply': replyHistoryChunk,
+        'id': id,
+        'seq': seq,
+        'ok': ok,
+        'imported': imported,
+        'skipped': skipped,
+        if (reason != null) 'reason': reason,
+      };
+
+  /// `null`, gdy to nie jest odpowiedź na paczkę [seq] historii [id].
+  static HistoryChunkReply? fromJson(Map<String, Object?>? json,
+      {required String id, required int seq}) {
+    if (json == null ||
+        json['reply'] != replyHistoryChunk ||
+        json['id'] != id ||
+        json['seq'] != seq ||
+        json.containsKey('from')) {
+      return null;
+    }
+    final ok = json['ok'];
+    final imported = json['imported'];
+    final skipped = json['skipped'];
+    if (ok is! bool || imported is! int || skipped is! int) return null;
+    final reason = json['reason'];
+    return HistoryChunkReply(
+      id: id,
+      seq: seq,
+      ok: ok,
+      imported: imported,
+      skipped: skipped,
+      reason: reason is String ? reason : null,
+    );
+  }
 }
