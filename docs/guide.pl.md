@@ -59,6 +59,14 @@ Komputery i telefony są pytane najpierw, słuchawki na końcu, a urządzenie
 trafia na listę w chwili, gdy odpowie, więc komputer obok zwykle widać po pół
 minuty, jeszcze w trakcie szukania.
 
+**Telefon musi się pokazać.** Android jest widoczny przez radio tylko przy
+otwartym ekranie parowania w ustawieniach Bluetooth, więc szukanie samo
+telefonu nie znajdzie. Na telefonie, który ma zostać znaleziony, otwórz „W
+pobliżu", wybierz Bluetooth i stuknij **Pokaż ten telefon w pobliżu**. Android
+zapyta własnym okienkiem, a potem telefon jest widoczny przez około dwie
+minuty i w miejscu przycisku stoi napis. W tym czasie uruchom szukanie na
+drugim urządzeniu. Komputer tego nie potrzebuje: dodatek trzyma go widocznym.
+
 Na Androidzie szukanie wymaga włączonych usług lokalizacji. Chatt nie pyta,
 gdzie jesteś, ale bez nich Android nie oddaje żadnych wyników; ekran „W
 pobliżu" mówi o tym wprost i daje przycisk „Włącz lokalizację". Kiedy to nie

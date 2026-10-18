@@ -79,7 +79,8 @@ These are design decisions:
   name and the radio's MAC address are visible to anyone in range, exactly as
   the device name and port are visible to everyone on the Wi-Fi. With the
   add-on on, the computer is discoverable to everyone nearby; the add-on's card
-  in Settings says so.
+  in Settings says so. A phone is discoverable only for the two minutes after
+  **Show this phone nearby** and the system's own prompt.
 - **A radio address is a route.** `Peers.btAddress` is a new lasting
   identifier in the database. Who somebody is still comes from the guid, and
   the address is overwritten on every contact. Measured on hardware

@@ -8,6 +8,18 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Added
+
+- **Show this phone nearby** in Nearby, with Bluetooth picked, on Android.
+  Android is visible over the radio only while its own pairing screen stands
+  open, so one phone could not find another by searching. The button asks the
+  system to show the phone for two minutes, with the system's own prompt, and
+  a search that finds nothing says what to do on the other phone. New
+  permission `BLUETOOTH_ADVERTISE`, granted with the add-on's Nearby devices
+  permission.
+
 ## [0.10.0] - 2026-10-16
 
 A second add-on: typing on a PC's keyboard into the field that has focus on
@@ -873,6 +885,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.10.0...HEAD
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1

@@ -115,6 +115,58 @@ void main() {
     await sprzatnij(tester, services);
   });
 
+  testWidgets('przycisk widoczności tylko na telefonie, przy radiu i Bluetoothcie',
+      (tester) async {
+    final services = await uruchom(tester);
+    // Ekran wchodzi bez dodatku, więc odświeżenie stanu przy wejściu nie
+    // pyta kanału; stan radia ustawia dalej sam test.
+    await tester.pumpWidget(osadz(services, const NearbyScreen()));
+    await tester.pump();
+    const telefon = BtStatus(
+      available: true,
+      enabled: true,
+      granted: true,
+      canShowSelf: true,
+    );
+    services.bluetoothAddon.value = true;
+    services.bluetoothRunning.value = true;
+    services.bluetoothStatus.value = telefon;
+    await tester.pump();
+    final przycisk = find.text('Show this phone nearby');
+    expect(przycisk, findsNothing, reason: 'wybrana jest sieć');
+
+    await tester.tap(find.text('Bluetooth'));
+    await tester.pump();
+    expect(przycisk, findsOneWidget);
+
+    // Widoczny telefon dostaje napis w miejsce przycisku.
+    services.bluetoothStatus.value = const BtStatus(
+      available: true,
+      enabled: true,
+      granted: true,
+      canShowSelf: true,
+      visible: true,
+    );
+    await tester.pump();
+    expect(przycisk, findsNothing);
+    expect(find.byIcon(Icons.visibility), findsOneWidget);
+
+    // Windows: komputer jest widoczny przez cały czas dodatku.
+    services.bluetoothStatus.value =
+        const BtStatus(available: true, enabled: true, granted: true);
+    await tester.pump();
+    expect(przycisk, findsNothing);
+    expect(find.byIcon(Icons.visibility), findsNothing);
+
+    // Radio nie stoi: nie ma czego pokazywać.
+    services.bluetoothStatus.value = telefon;
+    services.bluetoothRunning.value = false;
+    await tester.pump();
+    expect(przycisk, findsNothing);
+
+    await sprzatnij(tester, services);
+  });
+
   testWidgets('karta dodatku bez dodatku to sam przełącznik', (tester) async {
     final services = await uruchom(tester);
     await tester.pumpWidget(osadz(

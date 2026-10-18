@@ -2465,6 +2465,16 @@ class AppServices {
   /// połączenia nie są potrzebne.
   Future<bool> openLocationSettings() => BtChannel.openLocationSettings();
 
+  /// Pokazuje ten telefon urządzeniom w pobliżu na dwie minuty, przez
+  /// systemowe okienko z pytaniem. Bez tego drugi telefon nie znajdzie go
+  /// szukaniem: Android jest widoczny tylko przy otwartym ekranie parowania.
+  /// Dotyczy Androida; przy wyłączonym dodatku albo niedziałającym radiu nie
+  /// dociera do kanału.
+  Future<bool> showThisDeviceNearby() async {
+    if (!bluetoothAddon.value || _bluetooth == null) return false;
+    return BtChannel.showSelf();
+  }
+
   /// Szuka Chatta po Bluetoothcie.
   ///
   /// Radio nie umie powiedzieć, kto jest Chattem: mówi tylko, jakie

@@ -246,6 +246,14 @@ and phones are asked first and headphones last, and a device lands on the list
 the moment it answers, so the computer next to you usually shows up within
 half a minute, while the rest of the search is still going.
 
+**A phone has to show itself.** Android is visible over the radio only while
+the pairing screen in its Bluetooth settings stands open, so a search does not
+find a phone by itself. On the phone that is to be found, open **Nearby**, pick
+**Bluetooth** and tap **Show this phone nearby**. Android asks in a prompt of
+its own; after that the phone is visible for about two minutes and a note
+stands where the button was. Start the search on the other device during that
+time. A PC needs none of this: the add-on keeps it visible.
+
 On Android the search needs location services switched on. Chatt never asks
 where you are, but without them Android hands out no search results at all;
 the Nearby screen says so and offers a **Turn location on** button. When that

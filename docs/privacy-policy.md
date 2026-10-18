@@ -46,7 +46,7 @@ app can reach outside, both of which are off until you turn them on.
 | Notifications | new message alerts and the persistent "listening" notice; with the Keyboard from a PC add-on also a request to type, the "Switch the keyboard to Chatt" prompt, and who is typing, shown in the persistent notice |
 | Foreground service | receiving messages while the window is closed |
 | Battery optimisation exemption | optional, so the system does not cut the network with the screen off |
-| Nearby devices (Bluetooth) | the Bluetooth add-on only, asked when you turn it on (Android 12 and newer). Older Android grants Bluetooth at install and would want location for a radio search; Chatt does not ask for location, and there the other device is added by its radio address |
+| Nearby devices (Bluetooth) | the Bluetooth add-on only, asked when you turn it on (Android 12 and newer). **Show this phone nearby** uses it to make the phone visible to devices around for two minutes, after the system's own prompt. Older Android grants Bluetooth at install and would want location for a radio search; Chatt does not ask for location, and there the other device is added by its radio address |
 | Install packages | installing an update fetched with **Download and install**, after the system's own confirmation |
 
 **Keyboard (input method).** With the Keyboard from a PC add-on, Chatt brings
