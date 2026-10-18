@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **389 `flutter test` tests** check everything that can be
+The split is simple: **391 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -272,7 +272,7 @@ when it speaks and when it stays quiet:
   add-on included, and brings the keyboard add-on, receiving and typing
   without a card in switched off
 
-### Links in messages (`test/links_test.dart`, 23 tests)
+### Links in messages (`test/links_test.dart`, 25 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
   `file:`, `mailto:`, `intent:` and `content:` stay plain text
 - the full stop ending a sentence is not part of the address, a bracket that
@@ -289,6 +289,9 @@ when it speaks and when it stays quiet:
   where an off-by-one in the ranges would show
 - `openExternalLink` refuses a scheme other than `http`/`https` before it
   starts any process
+- on Windows the address goes to the `chatt/links` channel whole, equals signs
+  and fragment included (the shape from issue #31), the channel's "no" comes
+  back as a failure, and without the channel nothing is started at all
 
 ### Link previews (`test/link_preview_test.dart`, 37 tests)
 - the card is built from `og:`, then `twitter:`, then `<title>` and

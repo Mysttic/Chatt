@@ -8,6 +8,14 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Fixed
+- **A link with `=` in it opened the Documents folder on Windows** (issue #31).
+  The address went to `explorer.exe` as an argument, and Explorer splits its
+  command line on commas and equals signs. It now goes to `ShellExecuteW` as
+  one string, through a small native channel that checks the scheme once more.
+
 ## [0.10.1] - 2026-10-18
 
 Two phones could not find each other over Bluetooth. Now one of them can show
@@ -889,6 +897,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.10.1...HEAD
 [0.10.1]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
