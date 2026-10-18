@@ -1103,7 +1103,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get scanNothingFoundBluetooth =>
-      'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Możesz też dodać je po adresie radia.';
+      'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Telefon z Androidem trzeba najpierw pokazać: na nim w „W pobliżu” przy wybranym Bluetoothcie stuknij „Pokaż ten telefon w pobliżu”. Możesz też dodać urządzenie po adresie radia.';
 
   @override
   String get searchBluetoothNoLocation =>
@@ -1111,6 +1111,21 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get turnOnLocation => 'Włącz lokalizację';
+
+  @override
+  String get showThisPhone => 'Pokaż ten telefon w pobliżu';
+
+  @override
+  String get showThisPhoneHint =>
+      'Android pokazuje telefon innym urządzeniom tylko na żądanie. Gdy drugie urządzenie ma znaleźć ten telefon, stuknij przycisk, potwierdź w okienku i uruchom szukanie tam.';
+
+  @override
+  String get thisPhoneVisible =>
+      'Ten telefon jest teraz widoczny dla urządzeń w pobliżu, przez około dwie minuty. Uruchom szukanie na drugim urządzeniu.';
+
+  @override
+  String get showThisPhoneFailed =>
+      'Android nie pokazał pytania o widoczność. Ten sam skutek daje otwarty ekran parowania w ustawieniach Bluetooth telefonu.';
 
   @override
   String get addByBtAddress => 'Dodaj po adresie radia';

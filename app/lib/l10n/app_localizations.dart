@@ -1895,7 +1895,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanNothingFoundBluetooth.
   ///
   /// In pl, this message translates to:
-  /// **'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Możesz też dodać je po adresie radia.'**
+  /// **'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Telefon z Androidem trzeba najpierw pokazać: na nim w „W pobliżu” przy wybranym Bluetoothcie stuknij „Pokaż ten telefon w pobliżu”. Możesz też dodać urządzenie po adresie radia.'**
   String get scanNothingFoundBluetooth;
 
   /// No description provided for @searchBluetoothNoLocation.
@@ -1909,6 +1909,30 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Włącz lokalizację'**
   String get turnOnLocation;
+
+  /// No description provided for @showThisPhone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż ten telefon w pobliżu'**
+  String get showThisPhone;
+
+  /// No description provided for @showThisPhoneHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android pokazuje telefon innym urządzeniom tylko na żądanie. Gdy drugie urządzenie ma znaleźć ten telefon, stuknij przycisk, potwierdź w okienku i uruchom szukanie tam.'**
+  String get showThisPhoneHint;
+
+  /// No description provided for @thisPhoneVisible.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ten telefon jest teraz widoczny dla urządzeń w pobliżu, przez około dwie minuty. Uruchom szukanie na drugim urządzeniu.'**
+  String get thisPhoneVisible;
+
+  /// No description provided for @showThisPhoneFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android nie pokazał pytania o widoczność. Ten sam skutek daje otwarty ekran parowania w ustawieniach Bluetooth telefonu.'**
+  String get showThisPhoneFailed;
 
   /// No description provided for @addByBtAddress.
   ///

@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **387 `flutter test` tests** check everything that can be
+The split is simple: **389 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -436,13 +436,19 @@ you shows up after five seconds or after a minute:
 - an address seen only over BLE is dropped: RFCOMM to it waits out the whole
   page timeout and never connects
 
-### The Bluetooth add-on (`test/bluetooth_addon_test.dart`, 11 tests)
+### The Bluetooth add-on (`test/bluetooth_addon_test.dart`, 12 tests)
 Bluetooth is an add-on, and an add-on that is off must not exist. The test
 mocks the `chatt/bluetooth` channel, records every call that reaches it (with
 the argument of `discoverable`) and sets `BtChannel.debugSupported`, so on the
 Linux CI the add-on is the only thing keeping the channel silent:
 - with the add-on off, asking for the radio state, starting the transport,
-  searching and adding by radio address make no call to the channel at all
+  searching, adding by radio address and showing the phone make no call to the
+  channel at all
+- a phone shows itself only on request and only with the radio running: a
+  status with no visibility fields (Windows) offers nothing, an Android status
+  does, `showThisDeviceNearby` makes exactly one `showSelf` call, the visibility
+  the system granted shows up in the next status, and with the add-on off the
+  call stays out of the channel
 - the add-on raises the radio (state, listening, discoverability on) and polls
   for links; switched off, it turns discoverability off and stops listening,
   and after that no polling and no question reaches the channel
@@ -466,7 +472,7 @@ Linux CI the add-on is the only thing keeping the channel silent:
   included; on a platform with no native code the same database gives no
   add-on at all
 
-### The add-on on screen (`test/bluetooth_addon_ui_test.dart`, 4 tests)
+### The add-on on screen (`test/bluetooth_addon_ui_test.dart`, 5 tests)
 - the road mark takes no space with the add-on off, padding included, and
   shows once the add-on is on
 - Nearby has no road picker with the add-on off; it appears with the add-on
@@ -474,6 +480,9 @@ Linux CI the add-on is the only thing keeping the channel silent:
 - the add-on's card is a single switch while the add-on is off; the local
   network switch appears only with the add-on
 - a peer known only over the radio shows no radio address with the add-on off
+- **Show this phone nearby** stands in Nearby only on a phone, with the radio
+  running and Bluetooth picked; a visible phone gets a note in its place, and
+  a PC (no visibility fields in the status) gets neither
 
 ### The keyboard add-on (`test/keyboard_addon_test.dart`, 12 tests)
 The add-on that is off must not exist, as with Bluetooth. The test mocks the

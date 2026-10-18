@@ -1086,7 +1086,9 @@ clips `app` and `appLabel` at 96 bytes of JSON, whole characters only.
 - **The radio is in the clear in the same way**: the Bluetooth device name and
   the radio's MAC address are readable by anyone in range, exactly as the device
   name and port are on the network today. While the transport is on, the machine
-  is discoverable to everybody nearby, and Settings warns about it.
+  is discoverable to everybody nearby, and Settings warns about it. A phone is
+  discoverable only for two minutes after **Show this phone nearby** in Nearby
+  and the system's prompt (`showSelf` on the `chatt/bluetooth` channel).
 - Session key rotation is deferred, because resuming a transfer needs the same
   key across sessions.
 - Received files lie on disk unencrypted. The database wraps conversation

@@ -1101,7 +1101,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanNothingFoundBluetooth =>
-      'No devices found over Bluetooth. Check that Chatt is running on the other device with the Bluetooth add-on on, and that it is a few metres away at most. You can also add it by radio address.';
+      'No devices found over Bluetooth. Check that Chatt is running on the other device with the Bluetooth add-on on, and that it is a few metres away at most. An Android phone has to be shown first: on it, in “Nearby” with Bluetooth picked, tap “Show this phone nearby”. You can also add the device by radio address.';
 
   @override
   String get searchBluetoothNoLocation =>
@@ -1109,6 +1109,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get turnOnLocation => 'Turn location on';
+
+  @override
+  String get showThisPhone => 'Show this phone nearby';
+
+  @override
+  String get showThisPhoneHint =>
+      'Android shows a phone to other devices only when asked. When another device has to find this phone, tap the button, confirm in the system prompt and start the search over there.';
+
+  @override
+  String get thisPhoneVisible =>
+      'This phone is visible to devices nearby now, for about two minutes. Start the search on the other device.';
+
+  @override
+  String get showThisPhoneFailed =>
+      'Android did not show the visibility prompt. An open pairing screen in the phone\'s Bluetooth settings does the same.';
 
   @override
   String get addByBtAddress => 'Add by radio address';
