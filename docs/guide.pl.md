@@ -309,6 +309,43 @@ filtruje ją po nazwie rozmówcy i ostatniej wiadomości.
 
 <img src="screenshots/produkt/android_szukanie_w_rozmowie.png" alt="Szukanie" width="260">
 
+Dymki pokazują samą godzinę. Pierwsza wiadomość każdego dnia dostaje nad sobą
+datę: „Dzisiaj", „Wczoraj" albo pełną datę.
+
+## Odzyskiwanie historii rozmowy
+
+Rozmowa żyje na obu urządzeniach. Gdy Twoje ją straci (reinstalacja, nowy
+telefon, **Wyczyść historię**, samoczynne kasowanie), druga strona może oddać
+swoją kopię. Menu **⋮** w rozmowie ma dwie pozycje:
+
+- **Udostępnij historię**, na urządzeniu, które ją ma: całość albo od daty,
+  z plikami albo bez, z liczbami, zanim cokolwiek pójdzie;
+- **Poproś o historię**, na urządzeniu, które ją straciło: karta na drugim
+  urządzeniu pyta, czy oddać, z plikami, bez nich, czy wcale.
+
+Strona przyjmująca zawsze dostaje najpierw kartę: kto wysyła, ile wiadomości
+i plików, z jakiego okresu, ostrzeżenie, gdy tożsamość tamtego urządzenia nie
+jest potwierdzona, i uwaga, gdy samoczynne kasowanie pominie starsze
+wiadomości. Wracają także wiadomości usunięte tu celowo i karta mówi o tym
+wprost. Odpowiedź na Twoje własne **Poproś o historię** wchodzi bez drugiej
+karty.
+
+Przywrócone wiadomości mają oryginalne godziny i kierunki, wchodzą jako
+przeczytane i nie wywołują powiadomień. Każda ma przy godzinie małą ikonę
+historii, a w podpowiedzi datę przywrócenia: kopia rozmówcy to jego słowo,
+a wiadomości nic nie podpisuje.
+
+Pliki jadą po wiadomościach. Obie strony widzą pasek postępu nad polem
+pisania, a udostępniająca ma **Przerwij**. Plik, którego bajtów druga strona
+już nie ma, przychodzi jako „Plik niedostępny"; odebrany plik, który wciąż
+leży u Ciebie na dysku, podpina się bez ponownego przesyłania. Drugie
+udostępnienie wznawia: nic się nie dubluje, a brakujące pliki dojeżdżają.
+
+Historia przechodzi między tymi samymi dwiema tożsamościami. Po reinstalacji
+albo na nowym telefonie tożsamość bierze się z nowego klucza, więc druga strona
+widzi nowe urządzenie, a stara rozmowa zostaje pod starym wpisem. Oba
+urządzenia potrzebują tej wersji; o starszym Chatcie aplikacja mówi wprost.
+
 ## Odnośniki w wiadomościach
 
 Adres w wiadomości staje się **klikalnym odnośnikiem**, ale nic nie otwiera się
@@ -608,8 +645,10 @@ Tam samym są dwie rzeczy do zrobienia ręcznie:
   Domyślnie wyłączone. Aplikacja sprząta przy starcie, po zmianie ustawienia
   i co sześć godzin.
 - **Wyczyść historię**: kasuje wszystkie wiadomości i rozmowy od razu.
-  Nieodwracalne, więc pyta o potwierdzenie. Urządzenia razem z potwierdzoną
-  tożsamością zostają, więc nie trzeba się parować od nowa.
+  Po tej stronie nieodwracalne, więc pyta o potwierdzenie. Urządzenia razem
+  z potwierdzoną tożsamością zostają, więc nie trzeba się parować od nowa.
+  Druga strona ma swoją kopię i może ją oddać
+  ([Odzyskiwanie historii rozmowy](#odzyskiwanie-historii-rozmowy)).
 
 <img src="screenshots/android/and21_wyczysc_historie.png" alt="Wyczyść historię" width="260">
 

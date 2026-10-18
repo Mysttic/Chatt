@@ -480,5 +480,119 @@
   "myBtAddress": "Adres tego radia: {address}",
   "@myBtAddress": {
     "placeholders": { "address": { "type": "String" } }
+  },
+  "historyMenu": "Więcej",
+  "historyShare": "Udostępnij historię",
+  "historyRequest": "Poproś o historię",
+  "historyShareTitle": "Udostępnij historię rozmowy",
+  "historyShareBody": "{name} dostanie kopię waszej rozmowy, oznaczoną jako przywrócona. Najpierw zobaczy kartę z pytaniem.",
+  "@historyShareBody": {
+    "placeholders": { "name": {} }
+  },
+  "historyRangeAll": "Całość",
+  "historyRangeSince": "Od {date}",
+  "@historyRangeSince": {
+    "placeholders": { "date": { "type": "DateTime", "format": "yMMMd" } }
+  },
+  "historyPickDate": "Wybierz datę",
+  "historyWithFiles": "Z plikami",
+  "historyWithoutFiles": "Bez plików",
+  "historyCountMessages": "{count, plural, one{{count} wiadomość} few{{count} wiadomości} many{{count} wiadomości} other{{count} wiadomości}}",
+  "@historyCountMessages": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "historyCountFiles": "{count, plural, =0{bez plików} one{{count} plik} few{{count} pliki} many{{count} plików} other{{count} plików}}",
+  "@historyCountFiles": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "historyRange": "od {from} do {to}",
+  "@historyRange": {
+    "placeholders": {
+      "from": { "type": "DateTime", "format": "yMMMd" },
+      "to": { "type": "DateTime", "format": "yMMMd" }
+    }
+  },
+  "historyMissingFiles": "Plików, których już tu nie ma, pójdzie bez treści: {count}",
+  "@historyMissingFiles": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "historyNothing": "W tej rozmowie nie ma czego udostępnić.",
+  "historyShareAction": "Udostępnij",
+  "historyShareDone": "Historia udostępniona.",
+  "historyShareRejected": "{name} nie przyjmuje historii.",
+  "@historyShareRejected": {
+    "placeholders": { "name": {} }
+  },
+  "historyNoAnswer": "Nikt nie odpowiedział na karcie po drugiej stronie.",
+  "historyBusy": "Trwa już inne przesyłanie historii. Spróbuj później.",
+  "historyOlderVersion": "Tamto urządzenie ma starszą wersję Chatt, bez udostępniania historii.",
+  "historyUnreachable": "Tamto urządzenie nie odpowiada.",
+  "historyCancelled": "Udostępnianie przerwane. To, co doszło, zostaje po drugiej stronie.",
+  "historyFailed": "Udostępnianie się nie udało. Spróbuj jeszcze raz: to, co doszło, się nie zdubluje.",
+  "historyRequestSent": "Prośba wysłana, czekam na odpowiedź.",
+  "historyRequestAccepted": "{name}: zgoda. Historia zaraz zacznie spływać.",
+  "@historyRequestAccepted": {
+    "placeholders": { "name": {} }
+  },
+  "historyRequestRejected": "{name}: odmowa.",
+  "@historyRequestRejected": {
+    "placeholders": { "name": {} }
+  },
+  "historyRequestEmpty": "{name} nie ma u siebie tej rozmowy.",
+  "@historyRequestEmpty": {
+    "placeholders": { "name": {} }
+  },
+  "historyOfferTitle": "{name} chce przywrócić historię waszej rozmowy",
+  "@historyOfferTitle": {
+    "placeholders": { "name": {} }
+  },
+  "historyOfferDeleted": "Wróci także to, co zostało tu wcześniej usunięte.",
+  "historyOfferMarked": "Przywrócone wiadomości są oznaczone: to kopia rozmówcy i nikt jej nie podpisuje.",
+  "historyOfferUnverified": "Tożsamość niepotwierdzona: historię może przysyłać ktoś, kto podaje się za tę osobę.",
+  "historyOfferRetention": "Wiadomości starsze niż {days} dni nie wejdą, bo tyle trzyma je ustawienie przechowywania.",
+  "@historyOfferRetention": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "historyRequestTitle": "{name} prosi o historię waszej rozmowy",
+  "@historyRequestTitle": {
+    "placeholders": { "name": {} }
+  },
+  "historyRequestBody": "Dostanie kopię tego, co jest tutaj w tej rozmowie, oznaczoną jako przywrócona.",
+  "historySharing": "Udostępnianie historii: {name}",
+  "@historySharing": {
+    "placeholders": { "name": {} }
+  },
+  "historyRestoring": "Przywracanie historii od: {name}",
+  "@historyRestoring": {
+    "placeholders": { "name": {} }
+  },
+  "historyRestored": "Historia od {name} przywrócona",
+  "@historyRestored": {
+    "placeholders": { "name": {} }
+  },
+  "historyProgressMessages": "Wiadomości: {done} z {total}",
+  "@historyProgressMessages": {
+    "placeholders": { "done": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "historyProgressFiles": "Pliki: {done} z {total}",
+  "@historyProgressFiles": {
+    "placeholders": { "done": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "historySkipped": "Pominięte, bo już były albo są za stare: {count}",
+  "@historySkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "historyStop": "Przerwij",
+  "messageRestored": "Przywrócona {date} z kopii rozmówcy",
+  "@messageRestored": {
+    "placeholders": { "date": { "type": "DateTime", "format": "yMMMd" } }
+  },
+  "fileUnavailable": "Plik niedostępny",
+  "fileAwaiting": "Czeka na przesłanie",
+  "dateToday": "Dzisiaj",
+  "dateYesterday": "Wczoraj",
+  "dateSeparator": "{date}",
+  "@dateSeparator": {
+    "placeholders": { "date": { "type": "DateTime", "format": "yMMMMEEEEd" } }
   }
 }

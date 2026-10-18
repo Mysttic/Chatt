@@ -18,6 +18,7 @@ import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../widgets/common.dart';
+import '../widgets/history_ui.dart';
 import '../widgets/link_confirm.dart';
 import '../widgets/link_preview_card.dart';
 import '../widgets/linked_text.dart';
@@ -347,6 +348,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             );
           }),
+          // Historia rozmowy (issue #36): oddanie jej rozmówcy, który ją
+          // stracił, albo prośba o jego kopię.
+          PopupMenuButton<_HistoriaAkcja>(
+            tooltip: context.l10n.historyMenu,
+            onSelected: (akcja) => switch (akcja) {
+              _HistoriaAkcja.udostepnij => showShareHistoryDialog(
+                  context,
+                  services: services,
+                  peer: peer,
+                  conversationId: widget.conversationId,
+                ),
+              _HistoriaAkcja.popros => requestHistoryFrom(
+                  context,
+                  services: services,
+                  peer: peer,
+                  conversationId: widget.conversationId,
+                ),
+            },
+            itemBuilder: (menu) => [
+              PopupMenuItem(
+                value: _HistoriaAkcja.udostepnij,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.history),
+                  title: Text(menu.l10n.historyShare),
+                ),
+              ),
+              PopupMenuItem(
+                value: _HistoriaAkcja.popros,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.restore),
+                  title: Text(menu.l10n.historyRequest),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       // Dwie drogi na skróty, obie omijają spinacz: przeciągnięcie plików
@@ -369,9 +407,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             // Start i koniec wysyłki muszą przerysować dymki, żeby pasek
             // postępu pojawił się także wtedy, gdy wiadomość trafiła na
             // ekran ułamek sekundy przed rejestracją transferu.
-            child: ValueListenableBuilder<int>(
-              valueListenable: services.transfersRevision,
-              builder: (context, _, _) => messages.when(
+            // Przywracanie historii też: wpis pliku przestaje „czekać na
+            // przesłanie", gdy przywracanie się skończy.
+            child: ListenableBuilder(
+              listenable: Listenable.merge(
+                  [services.transfersRevision, services.incomingHistory]),
+              builder: (context, _) => messages.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) =>
                   Center(child: Text(context.l10n.errorWithDetails('$error'))),
@@ -401,8 +442,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     // reverse: true -> element 0 na dole, czytamy od końca.
-                    final message = items[items.length - 1 - index];
-                    return _MessageBubble(
+                    final pozycja = items.length - 1 - index;
+                    final message = items[pozycja];
+                    final dymek = _MessageBubble(
                       message: message,
                       services: ref.read(appServicesProvider),
                       query: query,
@@ -411,6 +453,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           .read(appServicesProvider)
                           .retryMessage(message.id),
                       onDelete: () => _deleteMessage(message),
+                    );
+                    // Dymki pokazują samą godzinę, więc pierwszy dymek
+                    // każdego dnia dostaje nad sobą datę. Bez tego
+                    // przywrócona historia z kilku miesięcy zlewa się w jedno.
+                    final starsza = pozycja > 0 ? items[pozycja - 1] : null;
+                    if (starsza != null &&
+                        _tenSamDzien(starsza.createdAt, message.createdAt)) {
+                      return dymek;
+                    }
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [_DateSeparator(date: message.createdAt), dymek],
                     );
                   },
                 );
@@ -422,6 +477,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               },
               ),
             ),
+          ),
+          HistoryProgressBar(
+            services: services,
+            conversationId: widget.conversationId,
           ),
           // Pliki, które właśnie do nas płyną (po akceptacji), z postępem.
           ValueListenableBuilder<Map<String, IncomingTransfer>>(
@@ -486,6 +545,49 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
               if (_dragging) _DropHint(),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _HistoriaAkcja { udostepnij, popros }
+
+bool _tenSamDzien(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// Data nad pierwszym dymkiem dnia: „Dzisiaj", „Wczoraj" albo pełna data.
+class _DateSeparator extends StatelessWidget {
+  final DateTime date;
+
+  const _DateSeparator({required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final teraz = DateTime.now();
+    final wczoraj = DateTime(teraz.year, teraz.month, teraz.day - 1);
+    final napis = _tenSamDzien(date, teraz)
+        ? context.l10n.dateToday
+        : _tenSamDzien(date, wczoraj)
+            ? context.l10n.dateYesterday
+            : context.l10n.dateSeparator(date);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            napis,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
           ),
         ),
       ),
@@ -891,6 +993,16 @@ class _MessageBubble extends StatelessWidget {
     }
     final progress = services.progressOf(message.id);
     final thumbnail = _thumbnail();
+    final path = message.filePath;
+    final dostepny = path != null && File(path).existsSync();
+    // Przywrócony wpis bez treści czeka na bajty, dopóki trwa przywracanie
+    // tej rozmowy; potem plik jest po prostu niedostępny.
+    final przywracanie = services.incomingHistory.value;
+    final czeka = path == null &&
+        message.restoredAt != null &&
+        przywracanie != null &&
+        !przywracanie.finished &&
+        przywracanie.conversationId == message.conversationId;
     return InkWell(
       onTap: () => _tapFile(context),
       child: Column(
@@ -924,6 +1036,16 @@ class _MessageBubble extends StatelessWidget {
                 Text(formatFileSize(message.fileSize),
                     style: TextStyle(
                         color: textColor.withValues(alpha: 0.8), fontSize: 12)),
+                if (!dostepny)
+                  Text(
+                    czeka
+                        ? context.l10n.fileAwaiting
+                        : context.l10n.fileUnavailable,
+                    style: TextStyle(
+                        color: textColor.withValues(alpha: 0.8),
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic),
+                  ),
                 if (progress != null) ...[
                   const SizedBox(height: 6),
                   ValueListenableBuilder<double>(
@@ -944,7 +1066,7 @@ class _MessageBubble extends StatelessWidget {
           ),
           // Zapisanie odebranego pliku jednym dotknięciem. Przy własnym
           // pliku nie ma czego zapisywać, leży u nas od początku.
-          if (message.direction == MessageDirection.incoming) ...[
+          if (message.direction == MessageDirection.incoming && dostepny) ...[
             const SizedBox(width: 4),
             IconButton(
               tooltip: context.l10n.saveFile,
@@ -1023,6 +1145,23 @@ class _MessageBubble extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Przywrócona z kopii rozmówcy: jego słowo, nic jej nie
+              // podpisuje, więc to widać przy każdym dymku.
+              if (message.restoredAt != null) ...[
+                Tooltip(
+                  message: context.l10n.messageRestored(message.restoredAt!),
+                  child: Icon(
+                    Icons.history,
+                    size: 13,
+                    semanticLabel:
+                        context.l10n.messageRestored(message.restoredAt!),
+                    color: mine
+                        ? scheme.onPrimary.withValues(alpha: 0.7)
+                        : scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
               Text(
                 formatClock(message.createdAt),
                 style: TextStyle(

@@ -1150,4 +1150,227 @@ class AppLocalizationsEn extends AppLocalizations {
   String myBtAddress(String address) {
     return 'This radio\'s address: $address';
   }
+
+  @override
+  String get historyMenu => 'More';
+
+  @override
+  String get historyShare => 'Share history';
+
+  @override
+  String get historyRequest => 'Ask for history';
+
+  @override
+  String get historyShareTitle => 'Share the conversation\'s history';
+
+  @override
+  String historyShareBody(Object name) {
+    return '$name gets a copy of your conversation, marked as restored. A card asks them first.';
+  }
+
+  @override
+  String get historyRangeAll => 'Everything';
+
+  @override
+  String historyRangeSince(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Since $dateString';
+  }
+
+  @override
+  String get historyPickDate => 'Pick a date';
+
+  @override
+  String get historyWithFiles => 'With files';
+
+  @override
+  String get historyWithoutFiles => 'Without files';
+
+  @override
+  String historyCountMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count messages',
+      one: '$count message',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String historyCountFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files',
+      one: '$count file',
+      zero: 'no files',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String historyRange(DateTime from, DateTime to) {
+    final intl.DateFormat fromDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String fromString = fromDateFormat.format(from);
+    final intl.DateFormat toDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String toString = toDateFormat.format(to);
+
+    return 'from $fromString to $toString';
+  }
+
+  @override
+  String historyMissingFiles(int count) {
+    return 'Files no longer here go without content: $count';
+  }
+
+  @override
+  String get historyNothing =>
+      'There is nothing to share in this conversation.';
+
+  @override
+  String get historyShareAction => 'Share';
+
+  @override
+  String get historyShareDone => 'History shared.';
+
+  @override
+  String historyShareRejected(Object name) {
+    return '$name declined the history.';
+  }
+
+  @override
+  String get historyNoAnswer => 'Nobody answered the card on the other side.';
+
+  @override
+  String get historyBusy => 'Another history transfer is running. Try later.';
+
+  @override
+  String get historyOlderVersion =>
+      'That device runs an older Chatt, without history sharing.';
+
+  @override
+  String get historyUnreachable => 'That device is not answering.';
+
+  @override
+  String get historyCancelled =>
+      'Sharing stopped. What arrived stays on the other side.';
+
+  @override
+  String get historyFailed =>
+      'Sharing failed. Try again: what arrived will not be duplicated.';
+
+  @override
+  String get historyRequestSent => 'Request sent, waiting for an answer.';
+
+  @override
+  String historyRequestAccepted(Object name) {
+    return '$name agreed. The history is on its way.';
+  }
+
+  @override
+  String historyRequestRejected(Object name) {
+    return '$name declined.';
+  }
+
+  @override
+  String historyRequestEmpty(Object name) {
+    return '$name does not have this conversation.';
+  }
+
+  @override
+  String historyOfferTitle(Object name) {
+    return '$name wants to restore your conversation\'s history';
+  }
+
+  @override
+  String get historyOfferDeleted =>
+      'What was deleted here before comes back too.';
+
+  @override
+  String get historyOfferMarked =>
+      'Restored messages are marked: this is the other side\'s copy, and nothing signs it.';
+
+  @override
+  String get historyOfferUnverified =>
+      'Identity not confirmed: the history may come from someone posing as this person.';
+
+  @override
+  String historyOfferRetention(int days) {
+    return 'Messages older than $days days do not come in: that is how long the retention setting keeps them.';
+  }
+
+  @override
+  String historyRequestTitle(Object name) {
+    return '$name asks for your conversation\'s history';
+  }
+
+  @override
+  String get historyRequestBody =>
+      'They get a copy of what this conversation holds here, marked as restored.';
+
+  @override
+  String historySharing(Object name) {
+    return 'Sharing history: $name';
+  }
+
+  @override
+  String historyRestoring(Object name) {
+    return 'Restoring history from: $name';
+  }
+
+  @override
+  String historyRestored(Object name) {
+    return 'History from $name restored';
+  }
+
+  @override
+  String historyProgressMessages(int done, int total) {
+    return 'Messages: $done of $total';
+  }
+
+  @override
+  String historyProgressFiles(int done, int total) {
+    return 'Files: $done of $total';
+  }
+
+  @override
+  String historySkipped(int count) {
+    return 'Skipped, already here or too old: $count';
+  }
+
+  @override
+  String get historyStop => 'Stop';
+
+  @override
+  String messageRestored(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Restored on $dateString from the other side\'s copy';
+  }
+
+  @override
+  String get fileUnavailable => 'File not available';
+
+  @override
+  String get fileAwaiting => 'Waiting for the file';
+
+  @override
+  String get dateToday => 'Today';
+
+  @override
+  String get dateYesterday => 'Yesterday';
+
+  @override
+  String dateSeparator(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMMEEEEd(
+      localeName,
+    );
+    final String dateString = dateDateFormat.format(date);
+
+    return '$dateString';
+  }
 }

@@ -8,6 +8,24 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Added
+- **Getting a conversation's history back** (issue #36). A conversation lives
+  on both devices, so when one loses it (a reinstall, a new phone, "Clear
+  history", automatic deletion) the other can hand its copy back: **Share
+  history** in the conversation's menu (everything or since a date, with files
+  or without), or **Ask for history** on the side that lost it. The receiving
+  side gets a card with the counts, the date range, the shield and what comes
+  back; restored messages keep their times and directions, arrive read,
+  raise no notification and carry a history icon. Files follow under the same
+  consent, received files still on disk are linked without travelling again,
+  and sharing again resumes without duplicates. New routes `/history-offer` and
+  `/history-chunk`, schema 14 (`messages.restoredAt`).
+- **Dates in the conversation.** The first message of each day gets "Today",
+  "Yesterday" or the full date above it.
+- **"File not available"** on a file bubble whose content is not on this device.
+
 ## [0.10.1] - 2026-10-18
 
 Two phones could not find each other over Bluetooth. Now one of them can show
@@ -889,6 +907,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.10.1...HEAD
 [0.10.1]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0

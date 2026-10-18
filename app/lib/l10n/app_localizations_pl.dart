@@ -1152,4 +1152,232 @@ class AppLocalizationsPl extends AppLocalizations {
   String myBtAddress(String address) {
     return 'Adres tego radia: $address';
   }
+
+  @override
+  String get historyMenu => 'Więcej';
+
+  @override
+  String get historyShare => 'Udostępnij historię';
+
+  @override
+  String get historyRequest => 'Poproś o historię';
+
+  @override
+  String get historyShareTitle => 'Udostępnij historię rozmowy';
+
+  @override
+  String historyShareBody(Object name) {
+    return '$name dostanie kopię waszej rozmowy, oznaczoną jako przywrócona. Najpierw zobaczy kartę z pytaniem.';
+  }
+
+  @override
+  String get historyRangeAll => 'Całość';
+
+  @override
+  String historyRangeSince(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Od $dateString';
+  }
+
+  @override
+  String get historyPickDate => 'Wybierz datę';
+
+  @override
+  String get historyWithFiles => 'Z plikami';
+
+  @override
+  String get historyWithoutFiles => 'Bez plików';
+
+  @override
+  String historyCountMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wiadomości',
+      many: '$count wiadomości',
+      few: '$count wiadomości',
+      one: '$count wiadomość',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String historyCountFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count plików',
+      many: '$count plików',
+      few: '$count pliki',
+      one: '$count plik',
+      zero: 'bez plików',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String historyRange(DateTime from, DateTime to) {
+    final intl.DateFormat fromDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String fromString = fromDateFormat.format(from);
+    final intl.DateFormat toDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String toString = toDateFormat.format(to);
+
+    return 'od $fromString do $toString';
+  }
+
+  @override
+  String historyMissingFiles(int count) {
+    return 'Plików, których już tu nie ma, pójdzie bez treści: $count';
+  }
+
+  @override
+  String get historyNothing => 'W tej rozmowie nie ma czego udostępnić.';
+
+  @override
+  String get historyShareAction => 'Udostępnij';
+
+  @override
+  String get historyShareDone => 'Historia udostępniona.';
+
+  @override
+  String historyShareRejected(Object name) {
+    return '$name nie przyjmuje historii.';
+  }
+
+  @override
+  String get historyNoAnswer =>
+      'Nikt nie odpowiedział na karcie po drugiej stronie.';
+
+  @override
+  String get historyBusy =>
+      'Trwa już inne przesyłanie historii. Spróbuj później.';
+
+  @override
+  String get historyOlderVersion =>
+      'Tamto urządzenie ma starszą wersję Chatt, bez udostępniania historii.';
+
+  @override
+  String get historyUnreachable => 'Tamto urządzenie nie odpowiada.';
+
+  @override
+  String get historyCancelled =>
+      'Udostępnianie przerwane. To, co doszło, zostaje po drugiej stronie.';
+
+  @override
+  String get historyFailed =>
+      'Udostępnianie się nie udało. Spróbuj jeszcze raz: to, co doszło, się nie zdubluje.';
+
+  @override
+  String get historyRequestSent => 'Prośba wysłana, czekam na odpowiedź.';
+
+  @override
+  String historyRequestAccepted(Object name) {
+    return '$name: zgoda. Historia zaraz zacznie spływać.';
+  }
+
+  @override
+  String historyRequestRejected(Object name) {
+    return '$name: odmowa.';
+  }
+
+  @override
+  String historyRequestEmpty(Object name) {
+    return '$name nie ma u siebie tej rozmowy.';
+  }
+
+  @override
+  String historyOfferTitle(Object name) {
+    return '$name chce przywrócić historię waszej rozmowy';
+  }
+
+  @override
+  String get historyOfferDeleted =>
+      'Wróci także to, co zostało tu wcześniej usunięte.';
+
+  @override
+  String get historyOfferMarked =>
+      'Przywrócone wiadomości są oznaczone: to kopia rozmówcy i nikt jej nie podpisuje.';
+
+  @override
+  String get historyOfferUnverified =>
+      'Tożsamość niepotwierdzona: historię może przysyłać ktoś, kto podaje się za tę osobę.';
+
+  @override
+  String historyOfferRetention(int days) {
+    return 'Wiadomości starsze niż $days dni nie wejdą, bo tyle trzyma je ustawienie przechowywania.';
+  }
+
+  @override
+  String historyRequestTitle(Object name) {
+    return '$name prosi o historię waszej rozmowy';
+  }
+
+  @override
+  String get historyRequestBody =>
+      'Dostanie kopię tego, co jest tutaj w tej rozmowie, oznaczoną jako przywrócona.';
+
+  @override
+  String historySharing(Object name) {
+    return 'Udostępnianie historii: $name';
+  }
+
+  @override
+  String historyRestoring(Object name) {
+    return 'Przywracanie historii od: $name';
+  }
+
+  @override
+  String historyRestored(Object name) {
+    return 'Historia od $name przywrócona';
+  }
+
+  @override
+  String historyProgressMessages(int done, int total) {
+    return 'Wiadomości: $done z $total';
+  }
+
+  @override
+  String historyProgressFiles(int done, int total) {
+    return 'Pliki: $done z $total';
+  }
+
+  @override
+  String historySkipped(int count) {
+    return 'Pominięte, bo już były albo są za stare: $count';
+  }
+
+  @override
+  String get historyStop => 'Przerwij';
+
+  @override
+  String messageRestored(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Przywrócona $dateString z kopii rozmówcy';
+  }
+
+  @override
+  String get fileUnavailable => 'Plik niedostępny';
+
+  @override
+  String get fileAwaiting => 'Czeka na przesłanie';
+
+  @override
+  String get dateToday => 'Dzisiaj';
+
+  @override
+  String get dateYesterday => 'Wczoraj';
+
+  @override
+  String dateSeparator(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMMEEEEd(
+      localeName,
+    );
+    final String dateString = dateDateFormat.format(date);
+
+    return '$dateString';
+  }
 }

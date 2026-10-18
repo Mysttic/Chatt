@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **418 `flutter test` tests** check everything that can be
+The split is simple: **423 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -311,6 +311,19 @@ side hands it back:
   plain message, an empty chunk or one over 200), a summary whose numbers do
   not add up is dropped, an end without a token is dropped, and a reply that
   carries `from`, answers another history or another chunk does not count
+
+### History on screen (`test/history_ui_test.dart`, 5 tests)
+- restored bubbles carry the history icon and plain ones do not; the first
+  bubble of each day gets "Today", "Yesterday" or the full date above it; a
+  file row without content says "File not available" and offers no save
+- the conversation's menu leads to the share dialog, which shows the counts
+  and how many files would go without content
+- the offer card shows the counts, the warnings (deleted messages come back,
+  restored messages are marked, the identity is not confirmed, retention skips
+  the older ones), no "without files" button, and has the focus on Reject
+- the request card offers "without files" only when there are files
+- the progress bars: the sharing side gets Stop, another conversation sees
+  nothing, and a finished restore shows the skipped count and closes
 
 ### Links in messages (`test/links_test.dart`, 23 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,

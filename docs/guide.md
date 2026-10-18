@@ -88,6 +88,42 @@ conversation list filters it by name and last message.
 
 <img src="screenshots/produkt/en/android_szukanie_w_rozmowie.png" alt="Search in a conversation" width="260">
 
+Bubbles show only the time. The first message of each day gets the date above
+it: "Today", "Yesterday", or the full date.
+
+## Getting a conversation's history back
+
+A conversation lives on both devices. When yours loses it (a reinstall, a new
+phone, **Clear history**, automatic deletion), the other side can hand its
+copy back. The **⋮** menu in the conversation has two items:
+
+- **Share history**, on the device that has it: everything or since a date,
+  with files or without, and the counts before anything goes;
+- **Ask for history**, on the device that lost it: a card on the other device
+  asks whether to share, with files, without them, or not at all.
+
+The receiving side always gets a card first: who sends, how many messages and
+files, the date range, a warning when that device's identity is not
+confirmed, and a note when automatic deletion would skip older messages.
+Messages deleted here on purpose come back too, and the card says so. An answer
+to your own **Ask for history** goes in without a second card.
+
+Restored messages keep their original times and directions, arrive already
+read, and raise no notification. Each one carries a small history icon next to
+the time, with the restore date in its tooltip: the other side's copy is their
+word, and nothing signs a message.
+
+Files ride after the messages. Both sides see a progress bar above the input
+field, and the sharing side has **Stop**. A file whose bytes the other side no
+longer has arrives as "File not available"; a received file that is still on
+your disk is linked without travelling again. Sharing a second time resumes:
+nothing is duplicated and the missing files arrive.
+
+History goes between the same two identities. After a reinstall or on a new
+phone the identity comes from a new key, so the other side sees a new device
+and its old conversation stays under the old entry. Both devices need this
+version; an older Chatt is reported as such.
+
 ## Links in messages
 
 An address in a message becomes a **link you can tap**, but nothing opens on
@@ -596,8 +632,10 @@ The same place has two things you can do by hand:
 - **Delete messages older than**: 7, 30, 90 or 365 days. Off by default. The
   app sweeps at startup, after the setting changes, and every six hours.
 - **Clear history**: deletes every message and conversation at once. It cannot
-  be undone, so it asks for confirmation. Devices keep their confirmed
-  identities, so there is no need to pair again.
+  be undone here, so it asks for confirmation. Devices keep their confirmed
+  identities, so there is no need to pair again. The other side keeps its
+  copy and can hand it back
+  ([Getting a conversation's history back](#getting-a-conversations-history-back)).
 
 In both cases **received files stay on disk**. The app deletes its own entries,
 not content that the user opens with other programs.
