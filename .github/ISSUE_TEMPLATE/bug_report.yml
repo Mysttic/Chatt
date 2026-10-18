@@ -14,6 +14,7 @@ body:
         - Background listening (Android service, Windows tray)
         - Bluetooth add-on
         - Keyboard from a PC add-on (typing on another device)
+        - Data and diagnostics (typing history, app log, export)
         - Settings, appearance, language
         - Build, CI or release package
         - Documentation
@@ -65,3 +66,14 @@ body:
       placeholder: |
         Windows 11 24H2
         Android 15, Pixel 8
+  - type: textarea
+    id: app-log
+    attributes:
+      label: App log (optional)
+      description: >
+        In Chatt, Settings, Data and diagnostics, Export data, tick only App
+        log and attach the ZIP here (drag it into this field). It holds the app
+        log of the last 30 days and this device's name and identifier; the log
+        has device names, addresses and file sizes, and no message text, typed
+        text or keys. Look it over before you attach it. If Chatt stopped
+        before its window opened, attach chatt-startup-error.txt instead.

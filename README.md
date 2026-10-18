@@ -61,9 +61,19 @@ mouse between PCs. Chatt fills the gap between them:
   bytes flow only after accepting. Interrupted transfers resume where they
   stopped and are verified with sha256. Several files at once, on the PC also
   by dragging them onto the window.
-- **Encrypted at rest**: conversation history lives in an encrypted database
-  with the key held by the OS (Android Keystore, Windows DPAPI). Clear history
-  or auto‑delete messages older than N days.
+- **Encrypted at rest**: conversation history, the typing history and the app
+  log live in an encrypted database with the key held by the OS (Android
+  Keystore, Windows DPAPI). Clear history or auto‑delete messages older than
+  N days.
+- **Your data in one file**: **Export data** writes a ZIP with the
+  conversations, devices and settings, the typing history, the app log and,
+  if you like, the received files, as JSON for programs and text for reading.
+  No key goes into it, and the file is not encrypted, which the README inside
+  says too.
+- **An app log for when something fails**: 30 days of what the app did and
+  what went wrong (connections, pairing, files, Bluetooth, errors), kept in the
+  encrypted database and never with message text, typed text or keys. Export
+  it alone to attach to a bug report.
 - **Identity confirmation**: scan a QR code from the other screen or compare
   six digits. Anyone can type any device name; nobody can fake the key.
 - **Works in the background**: the phone receives with the window closed and
@@ -92,7 +102,10 @@ nothing.
   or on another Windows PC, in any app. A session starts only after consent
   on the device being typed on (a card each time, or "Don't ask again" for one
   confirmed device), and a bar with Stop stays there for as long as it lasts. Text, Backspace, Delete, Enter and the PC's clipboard travel;
-  shortcuts and the mouse stay home.
+  shortcuts and the mouse stay home. Both devices keep a typing history of
+  every session (what was typed, where, and whether it landed), with text for
+  password fields kept as a number of characters; one switch on the add-on's
+  card turns it off.
 
 | Typing on a phone from a PC | The consent card |
 |---|---|

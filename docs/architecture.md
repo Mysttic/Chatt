@@ -451,9 +451,11 @@ the radio
   receiver does not wait half an hour.
 - `outgoingRemoteInput` holds the state (`waiting`, `active`, `paused`,
   `disconnected`), the last target, whether the last packet was typed, the
-  round trip and the road. Typed text lives only in the fields of the
-  sender's screen, the sender's queue and the packet: it reaches no database,
-  no log and no state of the service on either side.
+  round trip and the road. Typed text lives in the fields of the sender's
+  screen, the sender's queue and the packet, and, with the typing history
+  on, in the [typing history](#typing-history) of both sides, in the
+  encrypted database. It reaches no app log and no other state of the
+  service.
 
 #### The sender's screen
 
@@ -543,6 +545,125 @@ of its own: in the conversation's field Enter sends a message.
   names the app only while typing really lands there. With the window hidden the native
   indicators take over: the floating bar on Windows, the Chatt keyboard's bar
   and the permanent notification on Android.
+
+#### Typing history
+
+Both sides keep a record of every session in the encrypted database (issue
+#50): the sender what it sent and what the receiver answered, the receiver
+what arrived and what its sink typed. The code is
+[`services/typing_journal.dart`](../app/lib/services/typing_journal.dart);
+the tables are `typing_sessions` and `typing_entries` (schema 16). The
+journal records only while the add-on and `settings.typingHistory` are both
+on (`AppServices.typingJournal`). The switch is "Save typing history" on the
+add-on's card, on by default, and `setTypingHistory` is its one writer.
+Turning it off keeps what is saved, and an add-on that is off records
+nothing.
+
+**A session row per request.** `direction` says who typed: `outgoing` is
+this device typing on the peer, `incoming` is the peer typing here. The row
+carries `inputId`, the peer's guid and its name at the time (the alias when
+there is one), `startedAt`, `endedAt`, `result` (`TypingResult`) and
+`endReason` (`TypingEnd`). The peer is kept as strings, with no reference to
+`peers`, so removing a device keeps what was typed with it. A request that
+never became a session gets a row too, ended at once.
+
+- **The receiver** calls `begin` when it creates a grant, with `accepted`,
+  `acceptedAlways` (the card with "Don't ask again") or `automatic` (a peer
+  with `remoteInput`, no card), and `refused` with `rejected`, `noAnswer`,
+  `busy`, `notEnabled` or `cancelled` for a verified sender while the add-on
+  is on. Requests from unverified senders are never recorded, so a device
+  without the green shield cannot write a row here. The journal's calls
+  return at once, so `_decide` still has no `await` between its last check
+  and the creation of the grant, and the fast refusal path stays fast.
+- **The sender** calls `begin` with `accepted` when `start()` succeeds, and
+  `refused` with `rejected`, `noAnswer`, `busy`, `notEnabled`, `olderPeer`,
+  `unreachable` or `cancelled` when it fails. `addonOff` and `notVerified`
+  send nothing and record nothing.
+
+**Entries.** The typing operations of a packet are recorded once, at the
+packet's final outcome; `ping` and `stop` type nothing and drop out. The
+receiver records after the duplicate check (`grant.lastSeq = seq`), so a
+retried packet lands in the history once. The sender records in `_sendPacket`
+once per `seq`, outside the retry loop, and the operations that rode with a
+`stop` are recorded from that reply's `applied`. An entry is a run of
+packets into one field with one outcome (`TypingStatus`):
+
+| Status | Receiver | Sender |
+|---|---|---|
+| `typed` | the sink applied the packet | the reply says it was typed |
+| `notTyped` | the sink answered `applied: false`: the field went away, the screen locked or Stop came first, and part of it may have landed | the reply says `applied: false` |
+| `paused` | a card waited, nothing typed | the reply says `paused` |
+| `refused` | | the reply was a refusal (`ok: false`) |
+| `unconfirmed` | | no reply after the three attempts, or another failure, so nobody knows whether it landed |
+| `unsent` | | still in the queue when the session ended (`_finish`, `_drain` on a dead session, `dispose`) |
+
+**Hiding.** `hideTyping(before, after)` stores the text of a packet only when
+the field was `text` both before the packet and after it. Anything else
+(`password`, `none`) stores the number of code points
+(`{"t":"insert","hidden":n}`) and marks the entry `masked`. The kind of field
+is known only from the answer to a packet, one packet late, so counting
+`before` alone would store the first packet typed into a password field that
+was just tapped. Counting both hides it, at the price of also hiding the first
+packet into an ordinary field right after a password field. `before` is the
+target known before the packet: the receiver keeps `lastTarget` on the grant,
+starting with the `status()` taken at acceptance, and the sender takes
+`o.state.target`, which the pings refresh every second. `after` is the sink's
+answer on the receiver and the reply's target on the sender (`before` when no
+reply came). A password field that its app does not mark as one (no
+`IsPassword` in UI Automation, no password input type on Android) is `text`
+to the sink, and its text is stored.
+
+**Coalescing.** Packets in a row with the same `app`, `appLabel`, field,
+status and hiding go into one entry in memory, their operations merged by
+`appendTypingOp` (text with text, Backspace with Backspace, Delete with
+Delete). The entry goes to the database after 1 second of quiet, when any of
+those five changes, and when the session ends. Every journal call returns at
+once and the writes run one after another in the background, so a packet
+never waits for the disk; a write that fails goes to the app log. Closing the
+app gives no signal (Windows ends the process from the tray, Android kills
+it), so nothing waits in memory longer than that second.
+
+**End reasons** (`TypingEnd`):
+
+| Reason | Side | When |
+|---|---|---|
+| `stoppedHere` | both | Stop on this device: `stop()` on the sender, `stopIncoming` on the receiver |
+| `stoppedByPeer` | both | the other side ended it: a `stop` operation or a `cancel` on the receiver, a `no_grant` or `stale_seq` reply on the sender |
+| `expired` | receiver | 30 minutes without typing, or 8 hours in all |
+| `receiveOff` | receiver | "Allow typing on this device" turned off |
+| `addonOff` | both | the add-on turned off |
+| `replaced` | both | the same sender asked again (receiver), a new `start()` (sender) |
+| `peerRemoved` | both | the peer removed from the list |
+| `notAllowed` | receiver | a packet failed the database check: the shield or a switch is gone |
+| `linkLost` | sender | no answer: the link went down |
+| `appClosed` | both | the app closed during the session (`dispose`) |
+
+- **The two sides match up.** `inputId` is the protocol's `input`, the same on
+  both devices, so the sender's record and the receiver's can be laid side by
+  side: what went out against what landed.
+- **No window titles.** An entry keeps `app` and `appLabel` from the target,
+  as the protocol carries them. A window title is never sent, so it cannot be
+  recorded either.
+- **Deleting.** `applyRetention` runs `deleteTypingOlderThan` with the age set
+  for messages: entries before the cutoff go, and so do sessions that ended
+  before it (or started, when no end was written), with the rest of their
+  entries. `AppServices.clearHistory` clears the typing tables together with
+  the messages, and `clearTypingHistory` clears them alone. Both flush the
+  journal and then call `detachAll`: the rows are gone, so a session still
+  running goes on with no record.
+- **Reading it back.** `watchTypingSessionSummaries` gives the list
+  (characters, entries, apps) and `watchTypingEntries` the entries of one
+  session. `reconstructTyping` rebuilds the text as far as the operations
+  allow: `bs` takes characters from the end, `action` is a new line, hidden
+  text is dots, and `del` changes nothing, because the cursor's place over
+  there is unknown. Text that was in the field before the session, or a
+  cursor moved over there, does not show, and the operations stay the exact
+  record. `describeTypingOps` writes them out for the export: text verbatim,
+  keys in square brackets (`[Backspace x3]`, `[Enter]`,
+  `[hidden: 8 chars]`).
+- **The app log** gets the keyboard's events with no text in them
+  (`LogArea.keyboard`): the request, the decision, the start, the end reason,
+  and failed packets as counts.
 
 #### The `chatt/remoteinput` channel
 
@@ -919,8 +1040,8 @@ older version on the other side.
 
 ## Database
 
-`drift` (SQLite), schema version **15**. Tables: `settings`, `peers`,
-`conversations`, `messages`.
+`drift` (SQLite), schema version **16**. Tables: `settings`, `peers`,
+`conversations`, `messages`, `typing_sessions`, `typing_entries`, `app_log`.
 
 | Version | What was added |
 |---|---|
@@ -938,6 +1059,7 @@ older version on the other side.
 | 13 | `settings.keyboardEnabled`, `settings.remoteInputReceive`, `peers.remoteInput` |
 | 14 | `messages.restoredAt` |
 | 15 | `settings.style` |
+| 16 | `typing_sessions`, `typing_entries` (with the index `typing_entries_session`), `app_log`, `settings.typingHistory` |
 
 Version 12 only adds columns and touches nothing that was there:
 `peers.btAddress` is a nullable text, `peers.lastProtocol` a nullable int (0 the
@@ -957,6 +1079,17 @@ Version 15 adds `settings.style`, the look picked in Settings ([Styles](#styles-
 an int enum `AppStyle` (0 Cisza, 1 Precyzja, 2 Ciepło), Cisza by default. New
 styles go only at the end of the enum, because the index is what the database
 keeps.
+
+Version 16 adds the tables of the [typing history](#typing-history) and of
+the [app log](#the-app-log), and `settings.typingHistory` ("Save typing
+history"), true by default; it counts only while the keyboard add-on is on.
+Nothing already in the database changes. The tables and the index are
+created with `IF NOT EXISTS` and the column only when it is missing, so an
+interrupted migration completes on the next start. `typing_entries.ops` holds
+the operations as JSON (`TypingOp`), `chars` the number of characters typed,
+masked ones included, and `masked` whether the text was replaced by its
+count. `app_log.at_ms` is in milliseconds, because a diagnosis needs
+fractions of a second and a `DateTimeColumn` keeps whole seconds.
 
 `upsertPeer` keeps the two roads apart: an empty host with a zero port does not
 overwrite the last good address on the network, and an empty radio address does
@@ -1012,6 +1145,101 @@ A plaintext database left by an older version is rewritten on the first start
 keyed in place: the copy is built alongside and the original is removed only
 after it is closed, which leaves either the old database or the new one.
 
+Everything in the database sits under that key: the conversations, the
+typing history and the app log. `migrateToEncrypted` copies the typing tables
+and the log as well. Data leaves the database in the clear only through
+[an export](#exporting-data), when the user asks for one.
+
+## The app log
+
+[`services/app_log.dart`](../app/lib/services/app_log.dart) keeps a
+diagnostic log in the encrypted database (`app_log`, schema 16, issue #50).
+There is one `AppLog` per `AppServices` (`services.log`), because the tests
+run several instances in one process and their entries must not mix.
+Settings, "Data and diagnostics", "App log" shows it, and it leaves the device
+only through [an export](#exporting-data).
+
+- **An entry** is `atMs`, `level` (`info`, `warning`, `error`), `area`
+  (`LogArea`: `app`, `net`, `pair`, `file`, `history`, `bt`, `keyboard`,
+  `update`, `error`), `message` and `details`, the exception and its stack
+  trace (`describeError`). Messages are short, in English and stable,
+  whatever the app's language: they are data for analysis outside the app.
+- **What goes in**: what the app did and what failed, by area: start and
+  stop, connections and the road they took, pairing, file transfers, shared
+  history, Bluetooth, keyboard sessions, update checks, errors. Device names,
+  network and radio addresses and file sizes go in, because without them the
+  log cannot say with whom and over which road something failed.
+- **What never goes in**: message bodies, typed text, pairing codes, keys
+  (identity, session, file, database), remote-input tokens, `pad` and window
+  titles. `Setting.toString()` and `Peer.toString()` print keys, so neither
+  object is ever logged; `RemoteInputOp.toString` prints a length alone.
+- **Buffering.** `add` returns at once and never throws. Entries collect in
+  memory and go to the database as one batch after 1 second, because closing
+  the app gives no signal to wait for. A write that fails is dropped: the log
+  has nowhere to record its own failure, and the app carries on.
+  `AppServices.dispose` closes the log after the typing history and before
+  the database.
+- **Size.** `trim` runs at start and every six hours with the retention
+  timer: entries older than 30 days (`appLogRetention`) go, and of the rest
+  the newest 20,000 stay (`appLogMaxEntries`). "Clear history" leaves the log
+  alone, since it holds no content.
+- **Uncaught errors.** The global handlers (`FlutterError.onError` and
+  `PlatformDispatcher.instance.onError`) write what nobody caught as `error`
+  entries in the `error` area, with the stack trace in `details`. A failure
+  before the database opens has no log to go to and still ends up in
+  `chatt-startup-error.txt`.
+
+## Exporting data
+
+[`services/data_export.dart`](../app/lib/services/data_export.dart) writes
+one ZIP with the parts the user picks in the "Export data" dialog
+(`ExportParts`): the conversations with devices and settings, the typing
+history, the app log, and received files, whose count and total size the
+dialog shows before anything is written (`estimateExport`). Every file inside
+is UTF-8: JSON for programs, text for people.
+
+```
+README.txt            what is inside, format notes, "this file is not
+                      encrypted", the app version and the export time
+manifest.json         format "chatt-export", formatVersion 1, appVersion,
+                      exportedAt (ISO 8601 with offset), this device's guid and
+                      name, the parts chosen, counts, skippedFiles
+settings.json         the settings row without identityKey
+devices.json          the peers without sessionKey ("contacts")
+conversations.json    every conversation with its peer and its messages; a file
+                      message carries its name, size, path and archivePath
+typing-history.json   every session with its entries: time, app, field, status,
+                      characters, hidden, the operations as JSON and as text;
+                      plus a transcript rebuilt from the entries typed and
+                      not typed
+typing-history.txt    the same, for reading
+app-log.json          every entry: time with milliseconds, level, area,
+                      message, details
+app-log.txt           one line per entry, "2026-10-18 15:30:12.345 WARN  net
+                      message", details indented below
+files/<8-hex>_<name>  received files, only with that part chosen
+```
+
+`README.txt` and `manifest.json` are always there; the rest only for the parts
+chosen. Enums go in by name and dates as ISO 8601, so the files read without
+the app. A received file is referenced from `conversations.json` by
+`archivePath`; the hexadecimal prefix keeps two files of the same name apart,
+and a file that is gone from disk or cannot be read is listed in
+`skippedFiles` with the reason.
+
+- **No keys.** `settings.json` leaves out `identityKey` and `devices.json`
+  leaves out `sessionKey`; the database key never comes near the export. The
+  peers' public keys go in, since they are public.
+- **Not encrypted.** The archive is a plain ZIP and `README.txt` says so. It
+  holds what the user picked, the typing history included.
+- **Where it goes** (`exportAndSave`). Windows asks with the system save
+  dialog and writes the archive straight there. Android builds it in the app
+  cache (`cache/eksport/`) and copies it to Downloads through MediaStore on
+  Android 10 and newer; on Android 9 and older, which have no such copy, it
+  hands the archive to the share sheet through the FileProvider root for
+  that directory. The name comes from `exportFileName`:
+  `chatt-export-2026-10-18-1530.zip`.
+
 ## Security
 
 ### Threat model
@@ -1033,6 +1261,13 @@ worth more to an attacker. What holds it back is consent on the receiving side:
 the add-on and the receive switch, both off by default, a card for every
 session unless the receiver chose "don't ask again" for that device, and the
 shield and both switches read again for every packet.
+
+The [typing history](#typing-history) raises the stakes of the unlocked,
+running device as well. With it on, both devices keep what was typed, so
+whoever has one of them in hand reads what was typed on it and from it, and
+can [export](#exporting-data) it as a plain ZIP. Chatt has no app lock. Text
+bound for a password field or a field of unknown kind is kept as a count, and
+the app log keeps no typed text at all.
 
 ### Bluetooth is treated like a cable
 
@@ -1151,10 +1386,13 @@ The only place where a string from the sender becomes keystrokes is the sink,
    Android (phase 3), `SendInput` with `KEYEVENTF_UNICODE` on Windows
    (phase 2).
 
-The text stays nowhere on the way: no database, no log, no `ValueNotifier`, and
-`RemoteInputOp.toString` prints its length alone. What comes back goes onto the
-sender's screen, so `RemoteInputTarget.fromJson` keeps known values only and
-clips `app` and `appLabel` at 96 bytes of JSON, whole characters only.
+On the way the text reaches no app log and no `ValueNotifier`, and
+`RemoteInputOp.toString` prints its length alone. It is kept in one place, the
+[typing history](#typing-history) in the encrypted database, while its switch
+is on, and text bound for a password field or a field of unknown kind is kept
+there as a count. What comes back goes onto the sender's screen, so
+`RemoteInputTarget.fromJson` keeps known values only and clips `app` and
+`appLabel` at 96 bytes of JSON, whole characters only.
 
 ### What stays open
 
@@ -1184,6 +1422,16 @@ clips `app` and `appLabel` at 96 bytes of JSON, whole characters only.
   key across sessions.
 - Received files lie on disk unencrypted. The database wraps conversation
   history; file content stays where the user opens it with other applications.
+- **An export is plaintext.** The archive from "Export data" carries no
+  encryption and holds whatever the user picked, the typing history
+  included. It carries no key, and its `README.txt` says it is not encrypted;
+  from there it is a file like any other in Downloads or wherever it was
+  saved.
+- **The typing history keeps the text of an unmarked password field.** The
+  hiding rule trusts the kind of field the sink reports. A password box that
+  its app does not mark as one (no `IsPassword`, no password input type)
+  counts as `text`, and what is typed into it is stored verbatim on both
+  sides.
 - The database key can be extracted by a process running **as the same system
   user**: on Windows DPAPI unwraps it for any such process, and on Android the
   app sandbox is what protects it.
@@ -1276,15 +1524,16 @@ Files go out to other apps through FileProvider as `content://` (our own
 `chatt/files` channel), because from API 24 a plain path ends in
 `FileUriExposedException`. FileProvider serves only what
 [`res/xml/file_paths.xml`](../app/android/app/src/main/res/xml/file_paths.xml)
-lists, and it lists four roots: received files, a downloaded release, and the
+lists, and it lists five roots: received files, a downloaded release, the
 two cache directories holding copies of files the user picked or pasted to
-send. A file outside all of them cannot be handed out at all — which is what
-made tapping your own sent photo fail until 0.8.2, because an outgoing message
-keeps the source path it was given and nothing ever moves that file under
-`files/`. The channel answers with a word (`ok`, `missing`, `failed`) rather
-than a flag, so "the file is gone" and "handing it out failed" reach the user
-as different sentences, and the failure is written to logcat instead of
-vanishing into a `catch`.
+send, and `cache/eksport/`, where an export waits for the share sheet on
+Android 9 and older (see [Exporting data](#exporting-data)). A file outside
+all of them cannot be handed out at all. That is what made tapping your own
+sent photo fail until 0.8.2: an outgoing message keeps the source path it was
+given, and nothing ever moves that file under `files/`. The channel answers
+with a word (`ok`, `missing`, `failed`), so "the file is gone" and "handing it
+out failed" reach the user as different sentences, and the failure is written
+to logcat.
 
 Images skip all of this: tapping one opens
 [`ImageViewScreen`](../app/lib/ui/screens/image_view_screen.dart), which draws

@@ -42,8 +42,18 @@
   Szyfrowanie działa i bez tego; potwierdzenie odpowiada na pytanie „czy po
   drugiej stronie jest ta osoba, o której myślę".
 - **Historia zaszyfrowana na dysku**, klucz w schowku systemowym (Android
-  Keystore, Windows DPAPI). Do tego „wyczyść historię" i kasowanie wiadomości
-  starszych niż wybrana liczba dni.
+  Keystore, Windows DPAPI). W tej samej bazie leżą historia pisania i dziennik
+  aplikacji. Do tego „wyczyść historię" i kasowanie wiadomości starszych niż
+  wybrana liczba dni.
+- **Twoje dane w jednym pliku**: **Eksportuj dane** zapisuje ZIP z rozmowami,
+  urządzeniami i ustawieniami, historią pisania, dziennikiem aplikacji i, na
+  życzenie, odebranymi plikami, w JSON-ie dla programów i w tekście do
+  czytania. Żaden klucz do niego nie trafia, a plik nie jest zaszyfrowany, co
+  mówi też README w środku.
+- **Dziennik aplikacji na wypadek awarii**: 30 dni tego, co aplikacja robiła
+  i co się nie udało (połączenia, parowanie, pliki, Bluetooth, błędy),
+  w zaszyfrowanej bazie i nigdy z treścią wiadomości, wpisywanym tekstem ani
+  kluczami. Sam dziennik da się wyeksportować i dołączyć do zgłoszenia błędu.
 - **Nasłuch w tle na Androidzie**: wiadomości dochodzą przy zamkniętym oknie
   i zgaszonym ekranie, z powiadomieniem.
 - **Na Windowsie ikona w zasobniku**: krzyżyk chowa okno, nasłuch działa
@@ -78,7 +88,10 @@ pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
   albo „Nie pytaj więcej” dla jednego potwierdzonego urządzenia), a pasek ze
   Stopem stoi tam do jej końca. Przechodzi tekst, Backspace, Delete, Enter i schowek
   komputera; skróty i mysz zostają w domu. Tylko klawiatura, szyfrowana, bez
-  konta, między urządzeniami, które już się nawzajem potwierdziły.
+  konta, między urządzeniami, które już się nawzajem potwierdziły. Oba
+  urządzenia prowadzą historię pisania każdej sesji (co wpisano, gdzie i czy
+  dotarło), a tekst do pól haseł zapisują jako liczbę znaków; jeden
+  przełącznik na karcie dodatku ją wyłącza.
 
 | Pisanie z komputera na telefonie | Karta zgody |
 |---|---|
