@@ -22,7 +22,10 @@ class PendingHistory {
   final String peerGuid;
   final String peerName;
   final bool fromVerifiedPeer;
-  final int conversationId;
+
+  /// Rozmowa z tym rozmówcą, jeśli już jest. Karta jej nie zakłada: odmowa
+  /// nie zostawia pustej rozmowy na liście.
+  final int? conversationId;
 
   /// Co obejmuje zapowiedź ([PendingHistoryKind.offer]) albo co by się
   /// oddało ([PendingHistoryKind.request]).
@@ -38,7 +41,7 @@ class PendingHistory {
     required this.peerGuid,
     required this.peerName,
     required this.fromVerifiedPeer,
-    required this.conversationId,
+    this.conversationId,
     this.summary,
     this.retentionDays = 0,
   });
@@ -656,7 +659,6 @@ class _History {
     _myRequests.removeWhere((_, r) => r.until.isBefore(DateTime.now()));
     final prosba =
         message.answering == null ? null : _myRequests[message.answering!];
-    final conversationId = await _s.db.ensureConversation(peer.id);
     HistoryDecision decyzja;
     if (prosba != null && prosba.peerGuid == guid) {
       _myRequests.remove(message.answering);
@@ -668,7 +670,7 @@ class _History {
         peerGuid: guid,
         peerName: peer.displayName,
         fromVerifiedPeer: peer.verified,
-        conversationId: conversationId,
+        conversationId: await _s.db.conversationOfPeer(peer.id),
         summary: summary,
         retentionDays: await _retentionDays(),
       ));
@@ -689,6 +691,8 @@ class _History {
       return _reply(message.id, accepted: false, reason: historyBusy);
     }
     if (teraz != null) _endGrant();
+    // Rozmowa powstaje dopiero po zgodzie.
+    final conversationId = await _s.db.ensureConversation(peer.id);
     final nowa = _HistoryGrant(
       peerGuid: guid,
       id: message.id,
@@ -723,7 +727,11 @@ class _History {
     if (_share != null) {
       return _reply(message.id, accepted: false, reason: historyBusy);
     }
-    final conversationId = await _s.db.ensureConversation(peer.id);
+    // Bez rozmowy nie ma czego oddać, a pytanie o nią nie zakłada nowej.
+    final conversationId = await _s.db.conversationOfPeer(peer.id);
+    if (conversationId == null) {
+      return _reply(message.id, accepted: false, reason: historyEmpty);
+    }
     final co = await preview(conversationId);
     if (co.messages == 0) {
       return _reply(message.id, accepted: false, reason: historyEmpty);
