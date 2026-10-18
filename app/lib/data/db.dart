@@ -705,6 +705,13 @@ class ChattDb extends _$ChattDb {
     );
   }
 
+  /// Rozmowa z rozmówcą [peerId], jeśli już jest. Bez zakładania nowej:
+  /// samo pytanie o nią nie ma zostawiać pustego wpisu na liście rozmów.
+  Future<int?> conversationOfPeer(int peerId) async => (await (select(
+        conversations,
+      )..where((c) => c.peerId.equals(peerId))).getSingleOrNull())
+          ?.id;
+
   Future<Peer?> peerForConversation(int conversationId) async {
     final conv = await (select(
       conversations,

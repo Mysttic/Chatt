@@ -248,6 +248,10 @@ void main() {
 
     decyzje['Bartek'] = HistoryDecision.reject;
     expect(await alicja.shareHistory(uAlicji), HistoryShareResult.rejected);
+    expect(await bartek.db.conversationOfPeer(
+            (await rozmowca(bartek, alicja)).id),
+        isNull,
+        reason: 'karta nie zakłada pustej rozmowy');
     decyzje['Bartek'] = HistoryDecision.noAnswer;
     expect(await alicja.shareHistory(uAlicji), HistoryShareResult.noAnswer);
     expect(await wiadomosci(bartek, alicja), isEmpty);
@@ -263,6 +267,15 @@ void main() {
     expect(await bartek.requestHistory(await rozmowa(bartek, alicja)),
         HistoryRequestResult.empty);
     expect(karty['Alicja'], isNull, reason: 'pusta rozmowa nie pyta');
+    // Prośba od kogoś, z kim nie ma rozmowy, też jej nie zakłada.
+    final cezary = await instancja('Cezary');
+    await sparuj(cezary, alicja);
+    final uCezarego = await cezary.openConversationWith(
+        await rozmowca(cezary, alicja));
+    expect(await cezary.requestHistory(uCezarego), HistoryRequestResult.empty);
+    expect(await alicja.db.conversationOfPeer(
+            (await rozmowca(alicja, cezary)).id),
+        isNull);
   });
 
   test('prośba o historię: karta u proszonego, zapowiedź wchodzi bez karty',
