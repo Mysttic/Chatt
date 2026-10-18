@@ -94,6 +94,11 @@ class Settings extends Table {
   BoolColumn get remoteInputReceive =>
       boolean().withDefault(const Constant(false))();
 
+  /// Czy dodatek klawiatury zapisuje historię pisania, po obu stronach
+  /// (issue #50). Domyślnie tak, ale liczy się tylko przy włączonym
+  /// dodatku: wyłączony dodatek nie zapisuje niczego.
+  BoolColumn get typingHistory => boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -206,6 +211,114 @@ class Messages extends Table {
   DateTimeColumn get restoredAt => dateTime().nullable()();
 }
 
+/// Sesja zdalnej klawiatury w historii pisania (issue #50), po jednej stronie.
+/// [direction] mówi, kto pisał: `outgoing` to pisanie z tego urządzenia na
+/// rozmówcy, `incoming` to rozmówca piszący tutaj. Prośba bez sesji
+/// (odmowa, cisza na karcie) też ma tu wiersz, od razu zakończony.
+///
+/// Rozmówca jest zapisany napisami, bez odnośnika do `peers`: usunięcie
+/// urządzenia z listy nie zabiera historii tego, co pisało.
+class TypingSessions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Identyfikator sesji pisania z protokołu (`input`), ten sam po obu
+  /// stronach: po nim da się zestawić historię nadawcy z historią odbiorcy.
+  TextColumn get inputId => text()();
+  IntColumn get direction => intEnum<MessageDirection>()();
+  TextColumn get peerGuid => text()();
+
+  /// Nazwa rozmówcy z chwili sesji (własna, jeśli była nadana).
+  TextColumn get peerName => text()();
+  DateTimeColumn get startedAt => dateTime()();
+  DateTimeColumn get endedAt => dateTime().nullable()();
+
+  /// Jak skończyła się prośba o sesję (`TypingResult` w
+  /// `services/typing_journal.dart`). Napis, bo trafia do eksportu.
+  TextColumn get result => text()();
+
+  /// Dlaczego sesja się skończyła (`TypingEnd`); `null`, dopóki trwa.
+  TextColumn get endReason => text().nullable()();
+}
+
+/// Kawałek pisania w sesji z [TypingSessions]: kolejne operacje do jednego
+/// pola, z tym samym skutkiem. Tekst wpisany w pole hasła albo pole
+/// nieznanego rodzaju nie trafia tu wcale: zostaje po nim liczba znaków.
+@TableIndex.sql(
+    'CREATE INDEX IF NOT EXISTS typing_entries_session '
+    'ON typing_entries (session_id)')
+class TypingEntries extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get sessionId => integer().references(TypingSessions, #id)();
+  DateTimeColumn get at => dateTime()();
+
+  /// Pakiet (Android) albo plik programu (Windows) i nazwa do pokazania.
+  /// Nigdy tytuł okna.
+  TextColumn get app => text().withDefault(const Constant(''))();
+  TextColumn get appLabel => text().withDefault(const Constant(''))();
+
+  /// Rodzaj pola (`RemoteInputField.name`): `text`, `password`, `none`.
+  TextColumn get field => text()();
+
+  /// Co się stało z tymi operacjami (`TypingStatus.name`).
+  TextColumn get status => text()();
+
+  /// Operacje jako JSON (patrz `TypingOp` w `services/typing_journal.dart`).
+  TextColumn get ops => text()();
+
+  /// Ile znaków (punktów kodowych) wpisano, razem z zamaskowanymi.
+  IntColumn get chars => integer().withDefault(const Constant(0))();
+
+  /// Czy tekst z tego kawałka został zastąpiony liczbą znaków.
+  BoolColumn get masked => boolean().withDefault(const Constant(false))();
+}
+
+/// Waga wpisu w dzienniku aplikacji.
+enum LogLevel { info, warning, error }
+
+/// Dziennik aplikacji do diagnostyki (issue #50): zdarzenia sieci, parowania,
+/// plików, Bluetooth, klawiatury i błędy. Bez treści wiadomości, bez
+/// wpisywanego tekstu i bez kluczy (patrz `services/app_log.dart`).
+class AppLogEntries extends Table {
+  @override
+  String get tableName => 'app_log';
+
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Chwila zdarzenia w milisekundach od epoki: przy diagnostyce liczą się
+  /// ułamki sekundy, a `DateTimeColumn` trzyma pełne sekundy.
+  IntColumn get atMs => integer()();
+  IntColumn get level => intEnum<LogLevel>()();
+
+  /// Obszar: `app`, `net`, `pair`, `file`, `history`, `bt`, `keyboard`,
+  /// `update`, `error`.
+  TextColumn get area => text()();
+  TextColumn get message => text()();
+
+  /// Szczegóły błędu: wyjątek i ślad stosu.
+  TextColumn get details => text().nullable()();
+}
+
+/// Sesja z historii pisania z podsumowaniem do listy.
+class TypingSessionSummary {
+  final TypingSession session;
+
+  /// Ile znaków wpisano w tej sesji (razem z zamaskowanymi).
+  final int chars;
+
+  /// Ile kawałków pisania ma ta sesja.
+  final int entries;
+
+  /// Nazwy aplikacji, do których pisano, bez powtórzeń.
+  final List<String> apps;
+
+  const TypingSessionSummary({
+    required this.session,
+    required this.chars,
+    required this.entries,
+    required this.apps,
+  });
+}
+
 /// Wiadomość z kopii historii rozmówcy, już z naszego punktu widzenia:
 /// to, co on napisał, jest u nas przychodzące, a to, co napisaliśmy my,
 /// wychodzące.
@@ -272,12 +385,20 @@ Future<void> _dodajKolumneJesliBrak(
   if (!jest) await m.addColumn(table, column);
 }
 
-@DriftDatabase(tables: [Settings, Peers, Conversations, Messages])
+@DriftDatabase(tables: [
+  Settings,
+  Peers,
+  Conversations,
+  Messages,
+  TypingSessions,
+  TypingEntries,
+  AppLogEntries,
+])
 class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -373,6 +494,17 @@ class ChattDb extends _$ChattDb {
         // v15: styl wyglądu (Cisza, Precyzja, Ciepło). Wartość domyślna
         // daje Ciszę; reszta ustawień wyglądu (motyw, tło, język) zostaje.
         await _dodajKolumneJesliBrak(m, settings, settings.style);
+      }
+      if (from < 16) {
+        // v16: historia pisania zdalną klawiaturą i dziennik aplikacji
+        // (issue #50). Same nowe tabele i przełącznik: nic, co już leży
+        // w bazie, się nie zmienia. Tabele i indeks powstają z IF NOT
+        // EXISTS, więc przerwana migracja przechodzi przy kolejnym starcie.
+        await m.createTable(typingSessions);
+        await m.createTable(typingEntries);
+        await m.createIndex(typingEntriesSession);
+        await m.createTable(appLogEntries);
+        await _dodajKolumneJesliBrak(m, settings, settings.typingHistory);
       }
     },
   );
@@ -492,6 +624,10 @@ class ChattDb extends _$ChattDb {
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(remoteInputReceive: Value(enabled)));
 
+  Future<void> saveTypingHistory(bool enabled) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(typingHistory: Value(enabled)));
+
   Future<void> saveLinkPreviews(bool enabled) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(linkPreviews: Value(enabled)));
@@ -505,13 +641,17 @@ class ChattDb extends _$ChattDb {
 
   // --- Historia -------------------------------------------------------------
 
-  /// Kasuje całą historię rozmów: wiadomości i same rozmowy. Urządzenia
-  /// zostają razem z potwierdzoną tożsamością: inaczej trzeba by parować
-  /// wszystko od nowa tylko dlatego, że ktoś chciał wyczyścić treści.
-  /// Odebrane pliki zostają na dysku. Zwraca liczbę usuniętych wiadomości.
+  /// Kasuje całą historię rozmów: wiadomości, same rozmowy i historię
+  /// pisania zdalną klawiaturą. Urządzenia zostają razem z potwierdzoną
+  /// tożsamością: inaczej trzeba by parować wszystko od nowa tylko dlatego,
+  /// że ktoś chciał wyczyścić treści. Dziennik aplikacji też zostaje: nie ma
+  /// w nim treści. Odebrane pliki zostają na dysku. Zwraca liczbę usuniętych
+  /// wiadomości.
   Future<int> clearHistory() => transaction(() async {
     final removed = await delete(messages).go();
     await delete(conversations).go();
+    await delete(typingEntries).go();
+    await delete(typingSessions).go();
     return removed;
   });
 
@@ -523,6 +663,162 @@ class ChattDb extends _$ChattDb {
     return (delete(messages)..where((m) => m.createdAt.isSmallerThanValue(cutoff)))
         .go();
   }
+
+  // --- Historia pisania (issue #50) ------------------------------------------
+
+  Future<int> insertTypingSession(TypingSessionsCompanion session) =>
+      into(typingSessions).insert(session);
+
+  Future<void> endTypingSession(int id, DateTime at, String reason) =>
+      (update(typingSessions)..where((s) => s.id.equals(id))).write(
+        TypingSessionsCompanion(endedAt: Value(at), endReason: Value(reason)),
+      );
+
+  Future<void> insertTypingEntries(List<TypingEntriesCompanion> entries) =>
+      entries.isEmpty
+          ? Future.value()
+          : batch((b) => b.insertAll(typingEntries, entries));
+
+  Future<TypingSession?> typingSessionById(int id) =>
+      (select(typingSessions)..where((s) => s.id.equals(id)))
+          .getSingleOrNull();
+
+  /// Sesje od najnowszej, z podsumowaniem, na żywo.
+  Stream<List<TypingSessionSummary>> watchTypingSessionSummaries() {
+    final query = customSelect(
+      '''
+      SELECT s.id AS id,
+             (SELECT COALESCE(SUM(e.chars), 0) FROM typing_entries e
+                WHERE e.session_id = s.id) AS chars,
+             (SELECT COUNT(*) FROM typing_entries e
+                WHERE e.session_id = s.id) AS entries,
+             (SELECT GROUP_CONCAT(label, char(31)) FROM (
+                SELECT DISTINCT CASE WHEN e.app_label != '' THEN e.app_label
+                                     ELSE e.app END AS label
+                FROM typing_entries e
+                WHERE e.session_id = s.id AND (e.app_label != '' OR e.app != '')
+             )) AS apps
+      FROM typing_sessions s
+      ORDER BY s.started_at DESC, s.id DESC
+      ''',
+      readsFrom: {typingSessions, typingEntries},
+    );
+    return query.watch().asyncMap((rows) async {
+      if (rows.isEmpty) return const <TypingSessionSummary>[];
+      final ids = [for (final row in rows) row.read<int>('id')];
+      final sesje = {
+        for (final s in await (select(typingSessions)
+              ..where((s) => s.id.isIn(ids)))
+            .get())
+          s.id: s,
+      };
+      return [
+        for (final row in rows)
+          if (sesje[row.read<int>('id')] case final sesja?)
+            TypingSessionSummary(
+              session: sesja,
+              chars: row.read<int>('chars'),
+              entries: row.read<int>('entries'),
+              apps: (row.readNullable<String>('apps') ?? '')
+                  .split('\u001f')
+                  .where((a) => a.isNotEmpty)
+                  .toList(),
+            ),
+      ];
+    });
+  }
+
+  /// Kawałki pisania jednej sesji, od najstarszego, na żywo.
+  Stream<List<TypingEntry>> watchTypingEntries(int sessionId) =>
+      (select(typingEntries)
+            ..where((e) => e.sessionId.equals(sessionId))
+            ..orderBy([(e) => OrderingTerm.asc(e.id)]))
+          .watch();
+
+  /// Liczba sesji w historii pisania, na żywo (pokazanie wejścia, eksport).
+  Stream<int> watchTypingSessionCount() {
+    final ile = typingSessions.id.count();
+    return (selectOnly(typingSessions)..addColumns([ile]))
+        .map((row) => row.read(ile) ?? 0)
+        .watchSingle();
+  }
+
+  Future<List<TypingSession>> allTypingSessions() => (select(typingSessions)
+        ..orderBy([(s) => OrderingTerm.asc(s.id)]))
+      .get();
+
+  Future<List<TypingEntry>> allTypingEntries() => (select(typingEntries)
+        ..orderBy([(e) => OrderingTerm.asc(e.id)]))
+      .get();
+
+  /// Kasuje całą historię pisania. Zwraca liczbę usuniętych sesji.
+  Future<int> clearTypingHistory() => transaction(() async {
+        await delete(typingEntries).go();
+        return delete(typingSessions).go();
+      });
+
+  /// Kasuje historię pisania starszą niż [age]: kawałki sprzed granicy
+  /// i sesje, które przed nią się skończyły (albo zaczęły, jeśli końca nie
+  /// zapisano), razem z ich resztą. Zwraca liczbę usuniętych sesji.
+  Future<int> deleteTypingOlderThan(Duration age) => transaction(() async {
+        final cutoff = DateTime.now().subtract(age);
+        final stare = await customSelect(
+          'SELECT id FROM typing_sessions '
+          'WHERE COALESCE(ended_at, started_at) < ?',
+          variables: [Variable.withDateTime(cutoff)],
+          readsFrom: {typingSessions},
+        ).get();
+        final ids = [for (final row in stare) row.read<int>('id')];
+        await (delete(typingEntries)
+              ..where((e) => e.at.isSmallerThanValue(cutoff) |
+                  e.sessionId.isIn(ids)))
+            .go();
+        if (ids.isEmpty) return 0;
+        return (delete(typingSessions)..where((s) => s.id.isIn(ids))).go();
+      });
+
+  // --- Dziennik aplikacji (issue #50) ----------------------------------------
+
+  Future<void> insertLogEntries(List<AppLogEntriesCompanion> entries) =>
+      entries.isEmpty
+          ? Future.value()
+          : batch((b) => b.insertAll(appLogEntries, entries));
+
+  /// Najnowsze wpisy dziennika (od najnowszego), najwyżej [limit], na żywo.
+  /// [minLevel] odsiewa lżejsze.
+  Stream<List<AppLogEntry>> watchLogEntries({
+    int limit = 2000,
+    LogLevel minLevel = LogLevel.info,
+  }) =>
+      (select(appLogEntries)
+            ..where((e) => e.level.isBiggerOrEqualValue(minLevel.index))
+            ..orderBy([(e) => OrderingTerm.desc(e.id)])
+            ..limit(limit))
+          .watch();
+
+  Future<List<AppLogEntry>> allLogEntries() => (select(appLogEntries)
+        ..orderBy([(e) => OrderingTerm.asc(e.id)]))
+      .get();
+
+  Future<int> clearLog() => delete(appLogEntries).go();
+
+  /// Przycina dziennik: wpisy starsze niż [olderThan] znikają, a z reszty
+  /// zostaje najwyżej [keepAtMost] najnowszych. Zwraca liczbę usuniętych.
+  Future<int> trimLog({required DateTime olderThan, int keepAtMost = 20000}) =>
+      transaction(() async {
+        var usuniete = await (delete(appLogEntries)
+              ..where((e) =>
+                  e.atMs.isSmallerThanValue(olderThan.millisecondsSinceEpoch)))
+            .go();
+        usuniete += await customUpdate(
+          'DELETE FROM app_log WHERE id NOT IN '
+          '(SELECT id FROM app_log ORDER BY id DESC LIMIT ?)',
+          variables: [Variable.withInt(keepAtMost)],
+          updates: {appLogEntries},
+          updateKind: UpdateKind.delete,
+        );
+        return usuniete;
+      });
 
   // --- Rozmówcy -------------------------------------------------------------
 

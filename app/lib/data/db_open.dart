@@ -90,6 +90,9 @@ Future<bool> migrateToEncrypted(File file, DatabaseKey key) async {
     final peerRows = await source.select(source.peers).get();
     final conversationRows = await source.select(source.conversations).get();
     final messageRows = await source.select(source.messages).get();
+    final typingSessionRows = await source.select(source.typingSessions).get();
+    final typingEntryRows = await source.select(source.typingEntries).get();
+    final logRows = await source.select(source.appLogEntries).get();
 
     await destination.batch((batch) {
       batch.insertAll(destination.settings, settingsRows.map((r) => r.toCompanion(false)));
@@ -97,6 +100,12 @@ Future<bool> migrateToEncrypted(File file, DatabaseKey key) async {
       batch.insertAll(
           destination.conversations, conversationRows.map((r) => r.toCompanion(false)));
       batch.insertAll(destination.messages, messageRows.map((r) => r.toCompanion(false)));
+      batch.insertAll(destination.typingSessions,
+          typingSessionRows.map((r) => r.toCompanion(false)));
+      batch.insertAll(destination.typingEntries,
+          typingEntryRows.map((r) => r.toCompanion(false)));
+      batch.insertAll(
+          destination.appLogEntries, logRows.map((r) => r.toCompanion(false)));
     });
   } finally {
     await source.close();

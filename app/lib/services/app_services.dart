@@ -30,6 +30,8 @@ import '../network/discovery.dart';
 import '../network/protocol.dart';
 import '../network/server.dart';
 import '../network/transport.dart';
+import 'app_log.dart';
+import 'typing_journal.dart';
 
 part 'history.dart';
 part 'remote_input.dart';
@@ -463,6 +465,8 @@ class AppServices {
     // Dodatek klawiatury wstaje z bazy bez żadnego wywołania kanału: przy
     // starcie nie ma czego podnosić, a wyłączony ma milczeć.
     klawiatura.keyboardAddon.value = settings.keyboardEnabled;
+    services.typingHistory.value = settings.typingHistory;
+    unawaited(services.log.trim());
     services._sweepStaleParts();
     services._startRetention();
     services._startLinkPreviews();
@@ -2286,15 +2290,21 @@ class AppServices {
       onError: (_) {},
     );
     _retentionTimer = Timer.periodic(const Duration(hours: 6), (_) async {
+      unawaited(log.trim());
       final settings = await db.getSettings();
       if (settings != null) await applyRetention(settings.retentionDays);
     });
   }
 
-  /// Kasuje wiadomości starsze niż [days] dni. Zero znaczy „nie kasuj".
-  /// Zwraca liczbę usuniętych wpisów.
-  Future<int> applyRetention(int days) =>
-      days <= 0 ? Future.value(0) : db.deleteMessagesOlderThan(Duration(days: days));
+  /// Kasuje wiadomości i historię pisania starsze niż [days] dni. Zero
+  /// znaczy „nie kasuj". Zwraca liczbę usuniętych wiadomości.
+  Future<int> applyRetention(int days) async {
+    if (days <= 0) return 0;
+    final wiek = Duration(days: days);
+    final usuniete = await db.deleteMessagesOlderThan(wiek);
+    await db.deleteTypingOlderThan(wiek);
+    return usuniete;
+  }
 
   // --- Transporty -----------------------------------------------------------
 
@@ -2750,6 +2760,50 @@ class AppServices {
   /// Stop po stronie odbiorcy.
   void stopIncomingRemoteInput() => _remoteInput.stopIncoming();
 
+  // --- Dziennik aplikacji i historia pisania (issue #50) --------------------
+
+  /// Dziennik aplikacji do diagnostyki, w zaszyfrowanej bazie. Bez treści
+  /// wiadomości, bez wpisywanego tekstu i bez kluczy (patrz `app_log.dart`).
+  late final AppLog log = AppLog(db);
+
+  /// Historia pisania zdalną klawiaturą, po obu stronach. Zapisuje tylko
+  /// przy włączonym dodatku i włączonym przełączniku [typingHistory].
+  late final TypingJournal typingJournal = TypingJournal(
+    db,
+    enabled: () => keyboardAddon.value && typingHistory.value,
+    onError: (blad, slad) => log.error(
+        LogArea.keyboard, 'Typing history could not be saved',
+        error: blad, stack: slad),
+  );
+
+  /// Przełącznik „Zapisuj historię pisania" w karcie dodatku klawiatury.
+  /// Domyślnie włączony; jedynym pisarzem jest [setTypingHistory].
+  final ValueNotifier<bool> typingHistory = ValueNotifier(true);
+
+  /// Włącza albo wyłącza zapis historii pisania. Wyłączenie nie kasuje tego,
+  /// co już zapisane: do tego jest [clearTypingHistory].
+  Future<bool> setTypingHistory(bool on) async {
+    typingHistory.value = on;
+    await db.saveTypingHistory(on);
+    return on;
+  }
+
+  /// Kasuje całą historię pisania. Trwająca sesja pisze dalej, ale już bez
+  /// zapisu. Zwraca liczbę usuniętych sesji.
+  Future<int> clearTypingHistory() async {
+    await typingJournal.flush();
+    typingJournal.detachAll();
+    return db.clearTypingHistory();
+  }
+
+  /// „Wyczyść historię" z Ustawień: wiadomości, rozmowy i historia pisania
+  /// (patrz [ChattDb.clearHistory]). Zwraca liczbę usuniętych wiadomości.
+  Future<int> clearHistory() async {
+    await typingJournal.flush();
+    typingJournal.detachAll();
+    return db.clearHistory();
+  }
+
   /// Czy wisi jakakolwiek karta z pytaniem. Zdalne pisanie wtedy czeka, żeby
   /// zdalny Enter nie odpowiedział na pytanie, którego nikt nie przeczytał.
   bool get _anyPromptPending =>
@@ -2878,6 +2932,8 @@ class AppServices {
     _bluetoothRetry?.cancel();
     await _remoteInput.dispose();
     await _history.dispose();
+    await typingJournal.close();
+    typingHistory.dispose();
     // Nikt już nie odpowie na wiszące prośby o zgodę: odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {
@@ -2903,6 +2959,7 @@ class AppServices {
     responder.stop();
     await server.stop();
     client.dispose();
+    await log.close();
     await db.close();
   }
 }

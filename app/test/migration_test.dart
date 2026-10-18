@@ -277,7 +277,7 @@ void main() {
 
     final wersja =
         await druga.customSelect('PRAGMA user_version;').getSingle();
-    expect(wersja.read<int>('user_version'), 15);
+    expect(wersja.read<int>('user_version'), druga.schemaVersion);
   });
 
   /// Rozmówca poznany wyłącznie przez radio nie ma adresu w sieci, a rozmówca
