@@ -4,6 +4,7 @@ import '../../data/db.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/app_services.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import 'common.dart';
 import 'toasts.dart';
 
@@ -396,7 +397,8 @@ class _HistoryCardState extends State<HistoryCard> {
                   ),
                 ),
                 if (ask.fromVerifiedPeer)
-                  const Icon(Icons.verified_user, color: Colors.green, size: 20),
+                  Icon(Icons.verified_user,
+                      color: ChattTokens.of(context).verified, size: 20),
               ],
             ),
             const SizedBox(height: 8),
@@ -422,19 +424,8 @@ class _HistoryCardState extends State<HistoryCard> {
               Text(l10n.historyRequestBody, style: drobny),
             if (!ask.fromVerifiedPeer)
               Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        size: 18, color: scheme.error),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(l10n.historyOfferUnverified,
-                          style: TextStyle(color: scheme.error, fontSize: 12)),
-                    ),
-                  ],
-                ),
+                padding: const EdgeInsets.only(top: 8),
+                child: SecurityNote(l10n.historyOfferUnverified, dense: true),
               ),
             const SizedBox(height: 4),
             Wrap(

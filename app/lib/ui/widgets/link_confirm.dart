@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../../core/links.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import 'toasts.dart';
 
 /// Pytanie zadawane przed opuszczeniem aplikacji: „czy na pewno chcesz przejść
@@ -67,8 +68,10 @@ class _LinkConfirmDialog extends StatelessWidget {
             // adresu, która decyduje, czyja to strona.
             SelectableText(
               serwer,
-              style: const TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w600),
+              style: ChattTokens.of(context).mono.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface),
             ),
             const SizedBox(height: 12),
             Text(teksty.linkConfirmFull,
@@ -79,8 +82,9 @@ class _LinkConfirmDialog extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                color: ChattTokens.of(context).surface2,
+                borderRadius:
+                    BorderRadius.circular(ChattTokens.of(context).radiusField),
               ),
               // Cały adres do przeczytania i do zaznaczenia. Ograniczony
               // wysokością, bo adres potrafi mieć kilometr.
@@ -89,7 +93,9 @@ class _LinkConfirmDialog extends StatelessWidget {
                 child: SingleChildScrollView(
                   child: SelectableText(
                     uri.toString(),
-                    style: const TextStyle(fontSize: 13, height: 1.35),
+                    style: ChattTokens.of(context)
+                        .mono
+                        .copyWith(height: 1.35, color: scheme.onSurface),
                   ),
                 ),
               ),

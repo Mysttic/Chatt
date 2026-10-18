@@ -17,6 +17,7 @@ import '../../data/db.dart';
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import '../widgets/common.dart';
 import '../widgets/history_ui.dart';
 import '../widgets/link_confirm.dart';
@@ -226,6 +227,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ref.read(appServicesProvider).db.markConversationRead(widget.conversationId);
     });
 
+    final szeroko = czyDwupanel(context);
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -234,14 +236,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 controller: _search,
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
+                decoration: InputDecoration.collapsed(
                   hintText: context.l10n.searchHint,
-                  border: InputBorder.none,
                 ),
               )
             : Row(
                 children: [
-                  InitialsAvatar(name: peer.displayName, radius: 18),
+                  InitialsAvatar(name: peer.displayName, header: true),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -269,7 +270,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                     .bodySmall
                                     ?.copyWith(
                                       color: switch (_online) {
-                                        true => Colors.green,
+                                        true =>
+                                          ChattTokens.of(context).presence,
                                         false =>
                                           Theme.of(context).colorScheme.error,
                                         null => null,
@@ -289,26 +291,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ],
               ),
         actions: [
-          IconButton(
-            tooltip: _searching ? context.l10n.close : context.l10n.searchTooltip,
-            icon: Icon(_searching ? Icons.close : Icons.search),
-            onPressed: _toggleSearch,
-          ),
+          // Na telefonie na wierzchu stoją tylko tarcza i menu, oba z celem
+          // dotyku 48 dp; szukanie i klawiatura z PC są w menu. Na szerokim
+          // oknie obsługiwanym myszą miejsca nie brakuje i zostają obok.
+          if (szeroko || _searching)
+            IconButton(
+              tooltip:
+                  _searching ? context.l10n.close : context.l10n.searchTooltip,
+              icon: Icon(_searching ? Icons.close : Icons.search),
+              onPressed: _toggleSearch,
+            ),
           // Dodatek „Klawiatura z PC". Wyłączony nie zajmuje miejsca; pisać
           // wolno tylko na urządzenie z potwierdzoną tożsamością.
-          ValueListenableBuilder<bool>(
-            valueListenable: services.keyboardAddon,
-            builder: (context, dodatek, _) => dodatek
-                ? IconButton(
-                    tooltip: peer.verified
-                        ? context.l10n.remoteKeyboardOpen
-                        : context.l10n.remoteKeyboardNeedsVerified,
-                    icon: const Icon(Icons.keyboard_alt_outlined),
-                    onPressed:
-                        peer.verified ? () => _piszNaTamtym(peer) : null,
-                  )
-                : const SizedBox.shrink(),
-          ),
+          if (szeroko)
+            ValueListenableBuilder<bool>(
+              valueListenable: services.keyboardAddon,
+              builder: (context, dodatek, _) => dodatek
+                  ? IconButton(
+                      tooltip: peer.verified
+                          ? context.l10n.remoteKeyboardOpen
+                          : context.l10n.remoteKeyboardNeedsVerified,
+                      icon: const Icon(Icons.keyboard_alt_outlined),
+                      onPressed:
+                          peer.verified ? () => _piszNaTamtym(peer) : null,
+                    )
+                  : const SizedBox.shrink(),
+            ),
           // Trzy stany, bo od protokołu 5 szyfrowanie i potwierdzenie
           // tożsamości to dwie różne rzeczy:
           //   brak klucza:   po drugiej stronie starsza wersja, nie ma jak
@@ -318,26 +326,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           //   potwierdzony:  porównaliście kod, wiadomo z kim rozmawiacie.
           Builder(builder: (context) {
             final maKlucz = peer.publicKey != null;
-            final (ikona, kolor, opis) = switch ((maKlucz, peer.verified)) {
+            final k = ChattTokens.of(context);
+            final (ikona, kolory, opis) = switch ((maKlucz, peer.verified)) {
               (false, _) => (
                   Icons.gpp_bad_outlined,
-                  Theme.of(context).colorScheme.error,
+                  k.dangerNote,
                   context.l10n.shieldNoEncryption,
                 ),
               (true, false) => (
-                  Icons.lock_outline,
-                  null,
+                  Icons.gpp_maybe_outlined,
+                  k.warningNote,
                   context.l10n.shieldEncrypted,
                 ),
               (true, true) => (
                   Icons.verified_user,
-                  Colors.green,
+                  k.verifiedNote,
                   context.l10n.shieldVerified,
                 ),
             };
+            // Tarcza na tle w kolorze stanu: widać ją kątem oka, bez
+            // czytania podpowiedzi.
             return IconButton(
               tooltip: opis,
-              icon: Icon(ikona, color: kolor),
+              style: IconButton.styleFrom(backgroundColor: kolory.background),
+              icon: Icon(ikona, color: kolory.icon),
               // Zawsze otwiera panel, także po potwierdzeniu: odciski mają
               // dać się porównać w dowolnym momencie, a nie tylko raz.
               onPressed: () => showSecuritySheet(
@@ -348,18 +360,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             );
           }),
-          // Historia rozmowy (issue #36): oddanie jej rozmówcy, który ją
-          // stracił, albo prośba o jego kopię.
-          PopupMenuButton<_HistoriaAkcja>(
+          // Menu rozmowy: historia (issue #36), a na telefonie także szukanie
+          // i klawiatura z PC.
+          PopupMenuButton<_MenuRozmowy>(
             tooltip: context.l10n.historyMenu,
             onSelected: (akcja) => switch (akcja) {
-              _HistoriaAkcja.udostepnij => showShareHistoryDialog(
+              _MenuRozmowy.szukaj => _toggleSearch(),
+              _MenuRozmowy.klawiatura => _piszNaTamtym(peer),
+              _MenuRozmowy.udostepnij => showShareHistoryDialog(
                   context,
                   services: services,
                   peer: peer,
                   conversationId: widget.conversationId,
                 ),
-              _HistoriaAkcja.popros => requestHistoryFrom(
+              _MenuRozmowy.popros => requestHistoryFrom(
                   context,
                   services: services,
                   peer: peer,
@@ -367,8 +381,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
             },
             itemBuilder: (menu) => [
+              if (!szeroko) ...[
+                PopupMenuItem(
+                  value: _MenuRozmowy.szukaj,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.search),
+                    title: Text(menu.l10n.searchTooltip),
+                  ),
+                ),
+                // Bez zielonej tarczy pozycja zostaje, wyszarzona i z
+                // powodem: tak samo jak przycisk na szerokim oknie.
+                if (services.keyboardAddon.value)
+                  PopupMenuItem(
+                    value: _MenuRozmowy.klawiatura,
+                    enabled: peer.verified,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      enabled: peer.verified,
+                      leading: const Icon(Icons.keyboard_alt_outlined),
+                      title: Text(menu.l10n.remoteKeyboardOpen),
+                      subtitle: peer.verified
+                          ? null
+                          : Text(menu.l10n.remoteKeyboardNeedsVerified),
+                    ),
+                  ),
+              ],
               PopupMenuItem(
-                value: _HistoriaAkcja.udostepnij,
+                value: _MenuRozmowy.udostepnij,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.history),
@@ -376,7 +416,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
               PopupMenuItem(
-                value: _HistoriaAkcja.popros,
+                value: _MenuRozmowy.popros,
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.restore),
@@ -523,9 +563,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               onContentInserted: _insertFromKeyboard),
                       decoration: InputDecoration(
                         hintText: context.l10n.messageHint,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                        ),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 10),
                       ),
@@ -552,7 +589,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 }
 
-enum _HistoriaAkcja { udostepnij, popros }
+enum _MenuRozmowy { szukaj, klawiatura, udostepnij, popros }
 
 bool _tenSamDzien(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
@@ -566,6 +603,7 @@ class _DateSeparator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final k = ChattTokens.of(context);
     final teraz = DateTime.now();
     final wczoraj = DateTime(teraz.year, teraz.month, teraz.day - 1);
     final napis = _tenSamDzien(date, teraz)
@@ -573,24 +611,34 @@ class _DateSeparator extends StatelessWidget {
         : _tenSamDzien(date, wczoraj)
             ? context.l10n.dateYesterday
             : context.l10n.dateSeparator(date);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            napis,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-        ),
+    final etykieta = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: k.separatorBackground,
+        borderRadius: BorderRadius.circular(k.separatorLine ? 4 : 999),
+        border: k.separatorLine ? Border.all(color: k.outline) : null,
+        boxShadow: k.separatorShadow,
       ),
+      child: Text(
+        k.overlineText(napis),
+        style: k.separator.copyWith(color: scheme.onSurfaceVariant),
+      ),
+    );
+    // Precyzja: linia przez całą szerokość z etykietą w środku.
+    return Padding(
+      padding: EdgeInsets.only(
+          top: k.separatorLine ? 10 : 12, bottom: k.separatorLine ? 4 : 6),
+      child: k.separatorLine
+          ? Row(
+              children: [
+                Expanded(child: Divider(color: k.outline)),
+                const SizedBox(width: 8),
+                etykieta,
+                const SizedBox(width: 8),
+                Expanded(child: Divider(color: k.outline)),
+              ],
+            )
+          : Center(child: etykieta),
     );
   }
 }
@@ -948,15 +996,15 @@ class _MessageBubble extends StatelessWidget {
   /// donikąd i tylko mylił.
   Widget _highlighted(BuildContext context, String text, TextStyle style,
       {bool linkify = true}) {
-    final scheme = Theme.of(context).colorScheme;
+    final k = ChattTokens.of(context);
     return LinkedText(
       text: text,
       style: style,
       query: query,
       linkify: linkify,
       highlightStyle: TextStyle(
-        backgroundColor: scheme.tertiaryContainer,
-        color: scheme.onTertiaryContainer,
+        backgroundColor: k.searchHit,
+        color: k.onSearchHit,
         fontWeight: FontWeight.w700,
       ),
       onTapLink: (uri) => confirmAndOpenLink(context, uri),
@@ -967,12 +1015,15 @@ class _MessageBubble extends StatelessWidget {
   /// podczas trwającej wysyłki). Kafelek pliku otwiera go po kliknięciu,
   /// przytrzymanie daje menu (otwórz / pokaż folder / kopiuj ścieżkę).
   Widget _content(BuildContext context, bool mine, ColorScheme scheme) {
-    final textColor = mine ? scheme.onPrimary : scheme.onSurface;
+    final k = ChattTokens.of(context);
+    final textColor = mine ? k.onBubbleMine : k.onBubbleTheirs;
+    final metaColor = mine ? k.bubbleMineMeta : k.bubbleTheirsMeta;
+    final tresc = Theme.of(context).textTheme.bodyLarge ?? const TextStyle();
     if (message.kind != MessageKind.file) {
       // Przytrzymanie łapie cały dymek (patrz `build`), a nie sam napis:
       // inaczej menu otwierałoby się tylko dokładnie na literach.
       final tekst = _highlighted(
-          context, message.body, TextStyle(color: textColor, fontSize: 15));
+          context, message.body, tresc.copyWith(color: textColor));
       // Podgląd tylko dla pierwszego odnośnika w wiadomości. Karta pod każdym
       // adresem z wklejonej listy zamieniłaby dymek w tablicę ogłoszeń,
       // a każdy adres to osobne pytanie do obcego serwera.
@@ -992,7 +1043,7 @@ class _MessageBubble extends StatelessWidget {
       );
     }
     final progress = services.progressOf(message.id);
-    final thumbnail = _thumbnail();
+    final thumbnail = _thumbnail(context);
     final path = message.filePath;
     final dostepny = path != null && File(path).existsSync();
     // Przywrócony wpis bez treści czeka na bajty, dopóki trwa przywracanie
@@ -1027,24 +1078,20 @@ class _MessageBubble extends StatelessWidget {
                 _highlighted(
                   context,
                   message.fileName ?? context.l10n.fileFallbackName,
-                  TextStyle(
-                      color: textColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500),
+                  tresc.copyWith(
+                      color: textColor, fontWeight: FontWeight.w600),
                   linkify: false,
                 ),
+                // Rozmiar to wartość techniczna: font o stałej szerokości.
                 Text(formatFileSize(message.fileSize),
-                    style: TextStyle(
-                        color: textColor.withValues(alpha: 0.8), fontSize: 12)),
+                    style: k.mono.copyWith(color: metaColor)),
                 if (!dostepny)
                   Text(
                     czeka
                         ? context.l10n.fileAwaiting
                         : context.l10n.fileUnavailable,
-                    style: TextStyle(
-                        color: textColor.withValues(alpha: 0.8),
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic),
+                    style: k.caption.copyWith(
+                        color: metaColor, fontStyle: FontStyle.italic),
                   ),
                 if (progress != null) ...[
                   const SizedBox(height: 6),
@@ -1055,8 +1102,8 @@ class _MessageBubble extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: value,
                         minHeight: 5,
-                        backgroundColor: textColor.withValues(alpha: 0.25),
-                        color: mine ? scheme.onPrimary : scheme.primary,
+                        backgroundColor: textColor.withValues(alpha: 0.22),
+                        color: mine ? k.onBubbleMine : scheme.primary,
                       ),
                     ),
                   ),
@@ -1086,12 +1133,14 @@ class _MessageBubble extends StatelessWidget {
   /// **już przyjęty** przez użytkownika, zapowiedź od obcego nie trafia do
   /// dekodera. Uszkodzony albo spreparowany obrazek kończy się pustym
   /// miejscem, a nie wywrotką listy.
-  Widget? _thumbnail() {
+  Widget? _thumbnail(BuildContext context) {
     final path = _imagePath();
     if (path == null) return null;
     final file = File(path);
+    final k = ChattTokens.of(context);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius:
+          BorderRadius.circular((k.bubbleRadius - 4).clamp(4, 10).toDouble()),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 220, maxWidth: 260),
         child: Image.file(
@@ -1107,8 +1156,12 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final k = ChattTokens.of(context);
     final mine = message.direction == MessageDirection.outgoing;
     final failed = mine && message.status == MessageStatus.failed;
+    final meta = mine ? k.bubbleMineMeta : k.bubbleTheirsMeta;
+    final duzy = Radius.circular(k.bubbleRadius);
+    final ogon = Radius.circular(k.bubbleTail);
 
     // Przytrzymanie dowolnego miejsca w dymku otwiera menu: kopiowanie,
     // a przy pliku także otwieranie i pokazanie w katalogu.
@@ -1124,16 +1177,21 @@ class _MessageBubble extends StatelessWidget {
       // Górna granica w pikselach, nie tylko ułamek szerokości: na monitorze
       // dymek ciągnący się przez pół metra jest nie do czytania.
       constraints: BoxConstraints(
-          maxWidth: math.min(MediaQuery.sizeOf(context).width * 0.75, 560)),
+          maxWidth: math.min(
+              MediaQuery.sizeOf(context).width * k.bubbleMaxFraction, 560)),
       margin: const EdgeInsets.symmetric(vertical: 3),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: k.bubblePadding,
       decoration: BoxDecoration(
-        color: mine ? scheme.primary : scheme.surfaceContainerHighest,
+        color: mine ? k.bubbleMine : k.bubbleTheirs,
+        border: !mine && k.bubbleTheirsBorder != null
+            ? Border.all(color: k.bubbleTheirsBorder!)
+            : null,
+        boxShadow: k.bubbleShadow,
         borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(16),
-          topRight: const Radius.circular(16),
-          bottomLeft: Radius.circular(mine ? 16 : 4),
-          bottomRight: Radius.circular(mine ? 4 : 16),
+          topLeft: duzy,
+          topRight: duzy,
+          bottomLeft: mine ? duzy : ogon,
+          bottomRight: mine ? ogon : duzy,
         ),
       ),
       child: Column(
@@ -1155,21 +1213,14 @@ class _MessageBubble extends StatelessWidget {
                     size: 13,
                     semanticLabel:
                         context.l10n.messageRestored(message.restoredAt!),
-                    color: mine
-                        ? scheme.onPrimary.withValues(alpha: 0.7)
-                        : scheme.onSurfaceVariant,
+                    color: meta,
                   ),
                 ),
                 const SizedBox(width: 4),
               ],
               Text(
                 formatClock(message.createdAt),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: mine
-                      ? scheme.onPrimary.withValues(alpha: 0.7)
-                      : scheme.onSurfaceVariant,
-                ),
+                style: k.caption.copyWith(color: meta),
               ),
               if (mine) ...[
                 const SizedBox(width: 4),
@@ -1180,9 +1231,9 @@ class _MessageBubble extends StatelessWidget {
                     MessageStatus.failed => Icons.error_outline,
                   },
                   size: 14,
-                  color: failed
-                      ? scheme.errorContainer
-                      : scheme.onPrimary.withValues(alpha: 0.7),
+                  // Błąd ma własny kształt ikony; kolor napisu dymka trzyma
+                  // kontrast w każdym stylu (czerwień na dymku go nie ma).
+                  color: failed ? k.onBubbleMine : meta,
                 ),
               ],
             ],

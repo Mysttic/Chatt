@@ -2,6 +2,7 @@ import 'package:chatt/core/file_actions.dart';
 import 'package:chatt/core/search.dart';
 import 'package:chatt/data/db.dart';
 import 'package:chatt/ui/backgrounds.dart';
+import 'package:chatt/ui/styles.dart';
 import 'package:flutter/material.dart' show Brightness;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -89,10 +90,18 @@ void main() {
       expect(backgroundAt(0).plain, isTrue);
     });
 
-    test('każdy zestaw poza „bez tła” ma kolory na oba motywy', () {
-      for (final tlo in chattBackgrounds.skip(1)) {
-        expect(tlo.colorsFor(Brightness.light), hasLength(2), reason: tlo.id);
-        expect(tlo.colorsFor(Brightness.dark), hasLength(2), reason: tlo.id);
+    test('każdy styl ma pięć teł na oba motywy, „bez tła” jednolite', () {
+      for (final styl in AppStyle.values) {
+        for (final jasnosc in Brightness.values) {
+          final sciany = chattTokens(styl, jasnosc).walls;
+          expect(sciany, hasLength(chattBackgrounds.length),
+              reason: '$styl $jasnosc');
+          expect(sciany.first.colors, hasLength(1), reason: '$styl $jasnosc');
+          for (final tlo in chattBackgrounds.skip(1)) {
+            expect(sciany[tlo.index].colors.length, greaterThanOrEqualTo(2),
+                reason: '$styl $jasnosc ${tlo.id}');
+          }
+        }
       }
     });
   });

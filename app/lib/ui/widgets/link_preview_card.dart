@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/link_preview.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import 'link_confirm.dart';
 
 /// Karta z podglądem strony pod odnośnikiem: obrazek, nazwa serwisu, tytuł
@@ -72,17 +73,23 @@ class _LinkPreviewCardState extends State<LinkPreviewCard> {
     if (podglad == null) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
-    final tekst = widget.mine ? scheme.onPrimary : scheme.onSurface;
-    final drugorzedny = tekst.withValues(alpha: 0.75);
+    final k = ChattTokens.of(context);
+    // Kolory dymka ze stylu: własny dymek nie zawsze ma kolor główny motywu
+    // (w Ciszy jest jasny), więc napis bierze się z tokenów dymka.
+    final tekst = widget.mine ? k.onBubbleMine : scheme.onSurface;
+    final drugorzedny = widget.mine
+        ? k.bubbleMineMeta
+        : scheme.onSurface.withValues(alpha: 0.75);
     final tlo = widget.mine
-        ? scheme.onPrimary.withValues(alpha: 0.12)
+        ? k.onBubbleMine.withValues(alpha: 0.10)
         : scheme.surface.withValues(alpha: 0.75);
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Material(
         color: tlo,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular((k.bubbleRadius - 4).clamp(4, 12).toDouble()),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => confirmAndOpenLink(context, podglad.url),

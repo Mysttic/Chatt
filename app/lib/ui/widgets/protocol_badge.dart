@@ -5,6 +5,7 @@ import '../../data/db.dart';
 import '../../network/transport.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 
 /// Znacznik drogi, którą idzie rozmowa.
 ///
@@ -49,30 +50,35 @@ class ProtocolBadge extends ConsumerWidget {
         final podpis =
             radiem ? context.l10n.viaBluetooth : context.l10n.viaWifi;
 
-        if (compact) {
-          return Padding(
-            padding: padding,
-            child: Tooltip(
-              message: podpis,
-              child: Icon(ikona, size: 16, color: kolor),
-            ),
-          );
-        }
+        // Sama ikona, także w nagłówku rozmowy: podpis jest w podpowiedzi
+        // i dla czytnika ekranu. Na liście styl dokłada kafelek (Cisza)
+        // albo obrys (Precyzja).
+        final k = ChattTokens.of(context);
+        final ikonaW = Icon(ikona,
+            size: compact ? k.routeIcon : 18,
+            color: kolor,
+            semanticLabel: podpis);
+        final kafelek = compact &&
+            (k.routeBackground != null || k.routeBorder != null);
         return Padding(
           padding: padding,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(ikona, size: 14, color: kolor),
-              const SizedBox(width: 4),
-              Text(
-                podpis,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: kolor),
-              ),
-            ],
+          child: Tooltip(
+            message: podpis,
+            child: kafelek
+                ? Container(
+                    width: k.routeBox,
+                    height: k.routeBox,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: k.routeBackground,
+                      borderRadius: BorderRadius.circular(k.routeRadius),
+                      border: k.routeBorder == null
+                          ? null
+                          : Border.all(color: k.routeBorder!),
+                    ),
+                    child: ikonaW,
+                  )
+                : ikonaW,
           ),
         );
       },

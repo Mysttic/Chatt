@@ -537,6 +537,10 @@ void main() {
 
   testWidgets('przycisk klawiatury w rozmowie: jest z dodatkiem, aktywny '
       'tylko przy potwierdzonej tożsamości', (tester) async {
+    // Szerokie okno: tam przycisk stoi w nagłówku obok szukania.
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final services = await uruchom(tester, 'Bartek');
     services.keyboardAddon.value = true;
     final (rozmowa, alicja) = await rozmowca(tester, services);
@@ -563,6 +567,56 @@ void main() {
     services.keyboardAddon.value = false;
     await tester.pump();
     bezKlawiatury();
+
+    await sprzatnij(tester, [services]);
+  });
+
+  testWidgets('na telefonie klawiatura z PC jest w menu rozmowy, aktywna '
+      'tylko przy potwierdzonej tożsamości', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final services = await uruchom(tester, 'Bartek');
+    services.keyboardAddon.value = true;
+    final (rozmowa, alicja) = await rozmowca(tester, services);
+
+    await tester.pumpWidget(aplikacja(
+      services,
+      ekran: ChatScreen(conversationId: rozmowa, peer: alicja),
+    ));
+    await tester.pump();
+    await tester.pump();
+    // W nagłówku tylko tarcza i menu.
+    expect(find.widgetWithIcon(IconButton, Icons.keyboard_alt_outlined),
+        findsNothing);
+    expect(find.widgetWithIcon(IconButton, Icons.search), findsNothing);
+
+    await tester.tap(find.byTooltip(teksty.historyMenu));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text(teksty.searchTooltip), findsOneWidget);
+    expect(find.text(teksty.remoteKeyboardOpen), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Bez potwierdzenia pozycja zostaje, wyłączona i z powodem.
+    await tester.runAsync(() => services.db.setPeerVerified(alicja.id, false));
+    await dokoncz(tester,
+        () => find.byIcon(Icons.gpp_maybe_outlined).evaluate().isNotEmpty);
+    await tester.tap(find.byTooltip(teksty.historyMenu));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text(teksty.searchTooltip), findsOneWidget);
+    expect(find.text(teksty.remoteKeyboardNeedsVerified), findsOneWidget);
+    expect(
+        tester
+            .widget<PopupMenuItem<Object?>>(find.ancestor(
+                of: find.text(teksty.remoteKeyboardOpen),
+                matching: find.byWidgetPredicate((w) => w is PopupMenuItem)))
+            .enabled,
+        isFalse);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pump(const Duration(milliseconds: 400));
 
     await sprzatnij(tester, [services]);
   });

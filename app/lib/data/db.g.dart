@@ -74,6 +74,16 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         defaultValue: Constant(AppTheme.system.index),
       ).withConverter<AppTheme>($SettingsTable.$convertertheme);
   @override
+  late final GeneratedColumnWithTypeConverter<AppStyle, int> style =
+      GeneratedColumn<int>(
+        'style',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: Constant(AppStyle.cisza.index),
+      ).withConverter<AppStyle>($SettingsTable.$converterstyle);
+  @override
   late final GeneratedColumnWithTypeConverter<AppLanguage, int> language =
       GeneratedColumn<int>(
         'language',
@@ -228,6 +238,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     nickname,
     welcomeMessage,
     theme,
+    style,
     language,
     tcpPort,
     background,
@@ -408,6 +419,12 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
           data['${effectivePrefix}theme'],
         )!,
       ),
+      style: $SettingsTable.$converterstyle.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}style'],
+        )!,
+      ),
       language: $SettingsTable.$converterlanguage.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
@@ -464,6 +481,8 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
 
   static JsonTypeConverter2<AppTheme, int, int> $convertertheme =
       const EnumIndexConverter<AppTheme>(AppTheme.values);
+  static JsonTypeConverter2<AppStyle, int, int> $converterstyle =
+      const EnumIndexConverter<AppStyle>(AppStyle.values);
   static JsonTypeConverter2<AppLanguage, int, int> $converterlanguage =
       const EnumIndexConverter<AppLanguage>(AppLanguage.values);
 }
@@ -481,6 +500,10 @@ class Setting extends DataClass implements Insertable<Setting> {
   final String nickname;
   final String welcomeMessage;
   final AppTheme theme;
+
+  /// Styl wyglądu. Domyślnie Cisza: od schematu v15 dotychczasowy fiolet
+  /// z jednego koloru bazowego nie istnieje.
+  final AppStyle style;
 
   /// Domyślnie angielski, a nie język systemu: aplikacja jest wydawana
   /// międzynarodowo, więc pierwsze uruchomienie ma być zrozumiałe wszędzie.
@@ -540,6 +563,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.nickname,
     required this.welcomeMessage,
     required this.theme,
+    required this.style,
     required this.language,
     required this.tcpPort,
     required this.background,
@@ -562,6 +586,9 @@ class Setting extends DataClass implements Insertable<Setting> {
     map['welcome_message'] = Variable<String>(welcomeMessage);
     {
       map['theme'] = Variable<int>($SettingsTable.$convertertheme.toSql(theme));
+    }
+    {
+      map['style'] = Variable<int>($SettingsTable.$converterstyle.toSql(style));
     }
     {
       map['language'] = Variable<int>(
@@ -591,6 +618,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       nickname: Value(nickname),
       welcomeMessage: Value(welcomeMessage),
       theme: Value(theme),
+      style: Value(style),
       language: Value(language),
       tcpPort: Value(tcpPort),
       background: Value(background),
@@ -621,6 +649,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       theme: $SettingsTable.$convertertheme.fromJson(
         serializer.fromJson<int>(json['theme']),
       ),
+      style: $SettingsTable.$converterstyle.fromJson(
+        serializer.fromJson<int>(json['style']),
+      ),
       language: $SettingsTable.$converterlanguage.fromJson(
         serializer.fromJson<int>(json['language']),
       ),
@@ -648,6 +679,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       'theme': serializer.toJson<int>(
         $SettingsTable.$convertertheme.toJson(theme),
       ),
+      'style': serializer.toJson<int>(
+        $SettingsTable.$converterstyle.toJson(style),
+      ),
       'language': serializer.toJson<int>(
         $SettingsTable.$converterlanguage.toJson(language),
       ),
@@ -671,6 +705,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     String? nickname,
     String? welcomeMessage,
     AppTheme? theme,
+    AppStyle? style,
     AppLanguage? language,
     int? tcpPort,
     int? background,
@@ -689,6 +724,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     nickname: nickname ?? this.nickname,
     welcomeMessage: welcomeMessage ?? this.welcomeMessage,
     theme: theme ?? this.theme,
+    style: style ?? this.style,
     language: language ?? this.language,
     tcpPort: tcpPort ?? this.tcpPort,
     background: background ?? this.background,
@@ -717,6 +753,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           ? data.welcomeMessage.value
           : this.welcomeMessage,
       theme: data.theme.present ? data.theme.value : this.theme,
+      style: data.style.present ? data.style.value : this.style,
       language: data.language.present ? data.language.value : this.language,
       tcpPort: data.tcpPort.present ? data.tcpPort.value : this.tcpPort,
       background: data.background.present
@@ -758,6 +795,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('nickname: $nickname, ')
           ..write('welcomeMessage: $welcomeMessage, ')
           ..write('theme: $theme, ')
+          ..write('style: $style, ')
           ..write('language: $language, ')
           ..write('tcpPort: $tcpPort, ')
           ..write('background: $background, ')
@@ -781,6 +819,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     nickname,
     welcomeMessage,
     theme,
+    style,
     language,
     tcpPort,
     background,
@@ -803,6 +842,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.nickname == this.nickname &&
           other.welcomeMessage == this.welcomeMessage &&
           other.theme == this.theme &&
+          other.style == this.style &&
           other.language == this.language &&
           other.tcpPort == this.tcpPort &&
           other.background == this.background &&
@@ -823,6 +863,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<String> nickname;
   final Value<String> welcomeMessage;
   final Value<AppTheme> theme;
+  final Value<AppStyle> style;
   final Value<AppLanguage> language;
   final Value<int> tcpPort;
   final Value<int> background;
@@ -841,6 +882,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.nickname = const Value.absent(),
     this.welcomeMessage = const Value.absent(),
     this.theme = const Value.absent(),
+    this.style = const Value.absent(),
     this.language = const Value.absent(),
     this.tcpPort = const Value.absent(),
     this.background = const Value.absent(),
@@ -860,6 +902,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     required String nickname,
     this.welcomeMessage = const Value.absent(),
     this.theme = const Value.absent(),
+    this.style = const Value.absent(),
     this.language = const Value.absent(),
     this.tcpPort = const Value.absent(),
     this.background = const Value.absent(),
@@ -880,6 +923,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<String>? nickname,
     Expression<String>? welcomeMessage,
     Expression<int>? theme,
+    Expression<int>? style,
     Expression<int>? language,
     Expression<int>? tcpPort,
     Expression<int>? background,
@@ -899,6 +943,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (nickname != null) 'nickname': nickname,
       if (welcomeMessage != null) 'welcome_message': welcomeMessage,
       if (theme != null) 'theme': theme,
+      if (style != null) 'style': style,
       if (language != null) 'language': language,
       if (tcpPort != null) 'tcp_port': tcpPort,
       if (background != null) 'background': background,
@@ -921,6 +966,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<String>? nickname,
     Value<String>? welcomeMessage,
     Value<AppTheme>? theme,
+    Value<AppStyle>? style,
     Value<AppLanguage>? language,
     Value<int>? tcpPort,
     Value<int>? background,
@@ -940,6 +986,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       nickname: nickname ?? this.nickname,
       welcomeMessage: welcomeMessage ?? this.welcomeMessage,
       theme: theme ?? this.theme,
+      style: style ?? this.style,
       language: language ?? this.language,
       tcpPort: tcpPort ?? this.tcpPort,
       background: background ?? this.background,
@@ -975,6 +1022,11 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (theme.present) {
       map['theme'] = Variable<int>(
         $SettingsTable.$convertertheme.toSql(theme.value),
+      );
+    }
+    if (style.present) {
+      map['style'] = Variable<int>(
+        $SettingsTable.$converterstyle.toSql(style.value),
       );
     }
     if (language.present) {
@@ -1024,6 +1076,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('nickname: $nickname, ')
           ..write('welcomeMessage: $welcomeMessage, ')
           ..write('theme: $theme, ')
+          ..write('style: $style, ')
           ..write('language: $language, ')
           ..write('tcpPort: $tcpPort, ')
           ..write('background: $background, ')
@@ -3132,6 +3185,7 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   required String nickname,
   Value<String> welcomeMessage,
   Value<AppTheme> theme,
+  Value<AppStyle> style,
   Value<AppLanguage> language,
   Value<int> tcpPort,
   Value<int> background,
@@ -3151,6 +3205,7 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<String> nickname,
   Value<String> welcomeMessage,
   Value<AppTheme> theme,
+  Value<AppStyle> style,
   Value<AppLanguage> language,
   Value<int> tcpPort,
   Value<int> background,
@@ -3201,6 +3256,12 @@ class $$SettingsTableFilterComposer
   ColumnWithTypeConverterFilters<AppTheme, AppTheme, int> get theme =>
       $composableBuilder(
         column: $table.theme,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<AppStyle, AppStyle, int> get style =>
+      $composableBuilder(
+        column: $table.style,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
 
@@ -3300,6 +3361,11 @@ class $$SettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get style => $composableBuilder(
+    column: $table.style,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get language => $composableBuilder(
     column: $table.language,
     builder: (column) => ColumnOrderings(column),
@@ -3389,6 +3455,9 @@ class $$SettingsTableAnnotationComposer
   GeneratedColumnWithTypeConverter<AppTheme, int> get theme =>
       $composableBuilder(column: $table.theme, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<AppStyle, int> get style =>
+      $composableBuilder(column: $table.style, builder: (column) => column);
+
   GeneratedColumnWithTypeConverter<AppLanguage, int> get language =>
       $composableBuilder(column: $table.language, builder: (column) => column);
 
@@ -3475,6 +3544,7 @@ class $$SettingsTableTableManager
                 Value<String> nickname = const Value.absent(),
                 Value<String> welcomeMessage = const Value.absent(),
                 Value<AppTheme> theme = const Value.absent(),
+                Value<AppStyle> style = const Value.absent(),
                 Value<AppLanguage> language = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
                 Value<int> background = const Value.absent(),
@@ -3493,6 +3563,7 @@ class $$SettingsTableTableManager
                 nickname: nickname,
                 welcomeMessage: welcomeMessage,
                 theme: theme,
+                style: style,
                 language: language,
                 tcpPort: tcpPort,
                 background: background,
@@ -3513,6 +3584,7 @@ class $$SettingsTableTableManager
                 required String nickname,
                 Value<String> welcomeMessage = const Value.absent(),
                 Value<AppTheme> theme = const Value.absent(),
+                Value<AppStyle> style = const Value.absent(),
                 Value<AppLanguage> language = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
                 Value<int> background = const Value.absent(),
@@ -3531,6 +3603,7 @@ class $$SettingsTableTableManager
                 nickname: nickname,
                 welcomeMessage: welcomeMessage,
                 theme: theme,
+                style: style,
                 language: language,
                 tcpPort: tcpPort,
                 background: background,
