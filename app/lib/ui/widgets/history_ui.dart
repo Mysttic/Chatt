@@ -15,6 +15,7 @@ String historyShareMessage(
         AppLocalizations l10n, HistoryShareResult wynik, String name) =>
     switch (wynik) {
       HistoryShareResult.done => l10n.historyShareDone,
+      HistoryShareResult.needsVerified => l10n.historyNeedsVerified,
       HistoryShareResult.nothingToShare => l10n.historyNothing,
       HistoryShareResult.rejected => l10n.historyShareRejected(name),
       HistoryShareResult.noAnswer => l10n.historyNoAnswer,
@@ -78,7 +79,7 @@ Future<void> showShareHistoryDialog(
   required Peer peer,
   required int conversationId,
 }) async {
-  final wybor = await showDialog<({DateTime? since, bool withFiles})>(
+  final wybor = await showDialog<_Wybor>(
     context: context,
     builder: (_) => _ShareHistoryDialog(
       services: services,
@@ -89,9 +90,20 @@ Future<void> showShareHistoryDialog(
   if (wybor == null || !context.mounted) return;
   final l10n = context.l10n;
   final wynik = await services.shareHistory(conversationId,
-      since: wybor.since, withFiles: wybor.withFiles);
+      since: wybor.since,
+      withFiles: wybor.withFiles,
+      sourceConversationId: wybor.source);
   showToast(historyShareMessage(l10n, wynik, peer.displayName));
+  final zrodlo = wybor.source;
+  if (wynik == HistoryShareResult.done && wybor.merge && zrodlo != null) {
+    await services.mergeConversations(from: zrodlo, into: conversationId);
+    showToast(l10n.historyMerged);
+  }
 }
+
+/// Wybór z okna udostępniania. [source] to starsza rozmowa z innym wpisem,
+/// null znaczy „ta rozmowa".
+typedef _Wybor = ({DateTime? since, bool withFiles, int? source, bool merge});
 
 /// Prośba o historię do rozmówcy z tej rozmowy.
 Future<void> requestHistoryFrom(
@@ -126,18 +138,79 @@ class _ShareHistoryDialogState extends State<_ShareHistoryDialog> {
   bool _withFiles = true;
   HistoryPreview? _preview;
 
+  /// Starsze rozmowy z innymi wpisami: to samo urządzenie po reinstalacji
+  /// przychodzi pod nowym. Wybór tylko przy zielonej tarczy.
+  List<({int conversationId, Peer peer, int messages})> _inne = const [];
+  int? _zrodlo;
+  bool _polacz = true;
+
   @override
   void initState() {
     super.initState();
     _przelicz();
+    widget.services.otherConversations(widget.conversationId).then((inne) {
+      if (mounted) setState(() => _inne = inne);
+    });
   }
 
   Future<void> _przelicz() async {
     final podglad = await widget.services.previewHistory(
         widget.conversationId,
         since: _since,
-        withFiles: _withFiles);
+        withFiles: _withFiles,
+        sourceConversationId: _zrodlo);
     if (mounted) setState(() => _preview = podglad);
+  }
+
+  Widget _zrodla(BuildContext context) {
+    final l10n = context.l10n;
+    final drobny = TextStyle(
+        color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12);
+    if (!widget.peer.verified) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(l10n.historySourceNeedsShield, style: drobny),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<int?>(
+          initialValue: _zrodlo,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: l10n.historySource),
+          items: [
+            DropdownMenuItem<int?>(
+                value: null, child: Text(l10n.historySourceThis)),
+            for (final inna in _inne)
+              DropdownMenuItem<int?>(
+                value: inna.conversationId,
+                child: Text(
+                  l10n.historySourceOther(
+                      inna.peer.displayName, inna.messages),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: (value) {
+            setState(() => _zrodlo = value);
+            _przelicz();
+          },
+        ),
+        const SizedBox(height: 4),
+        Text(l10n.historySourceHint, style: drobny),
+        if (_zrodlo != null)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: _polacz,
+            onChanged: (value) => setState(() => _polacz = value ?? false),
+            title: Text(l10n.historyMergeLocally),
+          ),
+        const SizedBox(height: 8),
+      ],
+    );
   }
 
   Future<void> _wybierzDate() async {
@@ -168,6 +241,7 @@ class _ShareHistoryDialogState extends State<_ShareHistoryDialog> {
           children: [
             Text(l10n.historyShareBody(widget.peer.displayName)),
             const SizedBox(height: 12),
+            if (_inne.isNotEmpty) _zrodla(context),
             RadioGroup<bool>(
               groupValue: _since == null,
               onChanged: (calosc) {
@@ -245,8 +319,12 @@ class _ShareHistoryDialogState extends State<_ShareHistoryDialog> {
         FilledButton(
           onPressed: podglad == null || pusto
               ? null
-              : () => Navigator.pop(
-                  context, (since: _since, withFiles: _withFiles)),
+              : () => Navigator.pop<_Wybor>(context, (
+                    since: _since,
+                    withFiles: _withFiles,
+                    source: _zrodlo,
+                    merge: _zrodlo != null && _polacz,
+                  )),
           child: Text(l10n.historyShareAction),
         ),
       ],

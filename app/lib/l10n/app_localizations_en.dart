@@ -1373,4 +1373,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
     return '$dateString';
   }
+
+  @override
+  String get historySource => 'From';
+
+  @override
+  String get historySourceThis => 'This conversation';
+
+  @override
+  String historySourceOther(Object name, int count) {
+    return 'Older conversation with: $name ($count)';
+  }
+
+  @override
+  String get historySourceHint =>
+      'After a reinstall or on a new phone the same device comes under a new entry. You can hand over the older conversation with the old entry here.';
+
+  @override
+  String get historySourceNeedsShield =>
+      'An older conversation with another entry goes only to a device with a green shield. Confirm its identity first.';
+
+  @override
+  String get historyMergeLocally =>
+      'Merge that conversation into this one here';
+
+  @override
+  String get historyNeedsVerified =>
+      'Confirm this device\'s identity first (green shield).';
+
+  @override
+  String get historyMerged => 'Conversations merged.';
 }

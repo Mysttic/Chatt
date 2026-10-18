@@ -58,6 +58,10 @@ Future<HistoryDecision> acceptAllHistory(PendingHistory ask) async =>
 /// Czym skończyło się udostępnianie.
 enum HistoryShareResult {
   done,
+
+  /// Starszą rozmowę z innym wpisem wolno oddać wyłącznie urządzeniu
+  /// z zieloną tarczą.
+  needsVerified,
   nothingToShare,
   rejected,
   noAnswer,
@@ -288,8 +292,11 @@ class _History {
   }
 
   Future<HistoryPreview> preview(int conversationId,
-      {DateTime? since, bool withFiles = true}) async {
-    final rows = await _doOddania(conversationId, since);
+      {DateTime? since,
+      bool withFiles = true,
+      int? sourceConversationId}) async {
+    final rows =
+        await _doOddania(sourceConversationId ?? conversationId, since);
     var files = 0;
     var bytes = 0;
     var missing = 0;
@@ -315,14 +322,28 @@ class _History {
 
   /// Oddaje rozmówcy z rozmowy [conversationId] naszą wspólną historię.
   /// [answering] to identyfikator jego prośby, jeśli to odpowiedź na nią.
+  ///
+  /// [sourceConversationId] to inna rozmowa, z której bierzemy wiadomości:
+  /// to samo urządzenie po reinstalacji albo nowy telefon przychodzi pod
+  /// nowym wpisem (tożsamość bierze się z klucza), a stara rozmowa zostaje
+  /// pod starym. Że to ta sama osoba, rozstrzyga człowiek, więc tylko przy
+  /// zielonej tarczy: inaczej każdy, kto poda się za znajomego, dostałby
+  /// jego rozmowę z nami.
   Future<HistoryShareResult> share(int conversationId,
-      {DateTime? since, bool withFiles = true, String? answering}) async {
+      {DateTime? since,
+      bool withFiles = true,
+      String? answering,
+      int? sourceConversationId}) async {
     if (_closed) return HistoryShareResult.failed;
     if (_share != null) return HistoryShareResult.busy;
     final peer = await _s.db.peerForConversation(conversationId);
     if (peer == null) return HistoryShareResult.failed;
+    final zrodlo = sourceConversationId ?? conversationId;
+    if (zrodlo != conversationId && !peer.verified) {
+      return HistoryShareResult.needsVerified;
+    }
 
-    final rows = await _doOddania(conversationId, since);
+    final rows = await _doOddania(zrodlo, since);
     if (rows.isEmpty) return HistoryShareResult.nothingToShare;
 
     final items = <HistoryItem>[];

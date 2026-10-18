@@ -162,6 +162,78 @@ void main() {
     await sprzatnij(tester, services);
   });
 
+  testWidgets('starsza rozmowa do wyboru tylko przy zielonej tarczy',
+      (tester) async {
+    final services = await uruchom(tester);
+    final (id, alicja) = await rozmowa(tester, services);
+    final staraId = (await tester.runAsync(() async {
+      final stara = await services.db.upsertPeer(
+        guid: 'guid-alicja-stara',
+        name: 'Alicja (stary telefon)',
+        welcomeMessage: '',
+        host: '',
+        port: 0,
+      );
+      final staraId = await services.db.ensureConversation(stara.id);
+      await services.db.insertIncoming(
+        conversationId: staraId,
+        messageGuid: 'm-stary-telefon',
+        body: 'ze starego telefonu',
+        sentAt: DateTime.now().subtract(const Duration(days: 40)),
+      );
+      return staraId;
+    }))!;
+    expect(staraId, isNot(id));
+
+    // Okno wprost, bez ekranu rozmowy: drogę przez menu sprawdza test wyżej.
+    Future<void> otworzOkno(Peer peer) async {
+      await tester.pumpWidget(aplikacja(services,
+          ekran: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showShareHistoryDialog(context,
+                    services: services, peer: peer, conversationId: id),
+                child: const Text('otwórz'),
+              ),
+            ),
+          )));
+      await tester.tap(find.text('otwórz'));
+      await tester.pump();
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 200)));
+      await tester.pump();
+    }
+
+    await otworzOkno(alicja);
+    expect(find.text(teksty.historyShareTitle), findsOneWidget);
+    expect(find.text(teksty.historySourceNeedsShield), findsOneWidget);
+    expect(find.text(teksty.historySource), findsNothing);
+    await tester.tap(find.text(teksty.cancel));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final zweryfikowana = (await tester.runAsync(() async {
+      await services.db.setPeerVerified(alicja.id, true);
+      return services.db.peerByGuid(alicja.guid);
+    }))!;
+    await otworzOkno(zweryfikowana);
+    expect(find.text(teksty.historySourceNeedsShield), findsNothing);
+    expect(find.text(teksty.historySource), findsOneWidget);
+    expect(find.text(teksty.historyMergeLocally), findsNothing,
+        reason: 'połączenie dopiero przy starszej rozmowie');
+    await tester.tap(find.text(teksty.historySourceThis));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(
+        find.text(teksty.historySourceOther('Alicja (stary telefon)', 1)).last);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 200)));
+    await tester.pump();
+    expect(find.text(teksty.historyMergeLocally), findsOneWidget);
+    expect(find.textContaining(teksty.historyCountMessages(1)), findsOneWidget);
+
+    await sprzatnij(tester, services);
+  });
+
   PendingHistory karta(PendingHistoryKind kind,
           {bool verified = false, int files = 2, int retention = 0}) =>
       PendingHistory(

@@ -902,6 +902,18 @@ twelve hours at most, and a clock ends an expired one even when nothing else
 arrives. One card per sender and eight at most wait at a time; anything above
 that is `busy`.
 
+**An older conversation for a new entry.** The identity comes from the key, so
+after a reinstall, on a new phone or after "Start over" the same person comes
+back as a new device, and the old conversation stays under the old entry.
+Nothing on the wire can prove the two are the same: the old key is gone. That
+call is a person's, on the sharing side: the share dialog offers the other
+conversations (`ChattDb.otherConversations`) as the source, and
+`shareHistory(sourceConversationId:)` refuses with `needsVerified` unless the
+new entry has a green shield, so somebody borrowing a friend's name does not
+get the friend's conversation with us. After a successful share the dialog can
+merge the old conversation into the new one on this side
+(`ChattDb.mergeConversation`); the old entry stays on the device list.
+
 An older Chatt answers 404 on both routes, which the sender reports as an
 older version on the other side.
 

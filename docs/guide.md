@@ -119,10 +119,16 @@ longer has arrives as "File not available"; a received file that is still on
 your disk is linked without travelling again. Sharing a second time resumes:
 nothing is duplicated and the missing files arrive.
 
-History goes between the same two identities. After a reinstall or on a new
-phone the identity comes from a new key, so the other side sees a new device
-and its old conversation stays under the old entry. Both devices need this
-version; an older Chatt is reported as such.
+**After a reinstall or on a new phone** the identity comes from a new key, so
+the other side sees a new device and the old conversation stays under the old
+entry. Once that new device has a green shield, the share dialog there offers
+**From**: this conversation or an older one with another entry. Pick the old
+one and, if you like, **Merge that conversation into this one here**: after
+the share the two become one on the sharing side, and the old entry stays on
+the device list. Without the shield only this conversation can go, so nobody
+who borrows a friend's name gets the friend's conversation with you.
+
+Both devices need this version; an older Chatt is reported as such.
 
 ## Links in messages
 

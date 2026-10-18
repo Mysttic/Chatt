@@ -942,6 +942,54 @@ class ChattDb extends _$ChattDb {
         return (imported: imported, skipped: skipped);
       });
 
+  /// Rozmowy inne niż [exceptConversationId], z liczbą wiadomości, od
+  /// najświeższej. Źródło do udostępnienia starszej rozmowy urządzeniu,
+  /// które po reinstalacji przyszło pod nowym wpisem.
+  Future<List<({int conversationId, Peer peer, int messages})>>
+      otherConversations(int exceptConversationId) async {
+    final rows = await customSelect(
+      '''
+      SELECT c.id AS conversation_id, c.peer_id AS peer_id,
+             (SELECT COUNT(*) FROM messages m
+                WHERE m.conversation_id = c.id) AS messages,
+             (SELECT MAX(m.created_at) FROM messages m
+                WHERE m.conversation_id = c.id) AS last_at
+      FROM conversations c
+      WHERE c.id != ?
+      ORDER BY COALESCE(last_at, c.updated_at) DESC
+      ''',
+      variables: [Variable.withInt(exceptConversationId)],
+      readsFrom: {conversations, messages},
+    ).get();
+    final wynik = <({int conversationId, Peer peer, int messages})>[];
+    for (final row in rows) {
+      final ile = row.read<int>('messages');
+      if (ile == 0) continue;
+      final peer = await peerById(row.read<int>('peer_id'));
+      if (peer == null) continue;
+      wynik.add((
+        conversationId: row.read<int>('conversation_id'),
+        peer: peer,
+        messages: ile,
+      ));
+    }
+    return wynik;
+  }
+
+  /// Przenosi wszystkie wiadomości z rozmowy [from] do [into] i kasuje pustą
+  /// już [from]. Rozmówca starej rozmowy zostaje na liście urządzeń: usunąć
+  /// go można osobno. Zwraca liczbę przeniesionych wiadomości.
+  Future<int> mergeConversation({required int from, required int into}) =>
+      transaction(() async {
+        if (from == into) return 0;
+        final przeniesione = await (update(messages)
+              ..where((m) => m.conversationId.equals(from)))
+            .write(MessagesCompanion(conversationId: Value(into)));
+        await (delete(conversations)..where((c) => c.id.equals(from))).go();
+        await touchConversation(into);
+        return przeniesione;
+      });
+
   /// Przywrócony wpis pliku, który czeka na bajty: z kopii historii, bez
   /// treści na dysku. Tylko do takiego wiersza wolno dopisać plik z historii.
   Future<Message?> restoredFileAwaiting(String messageGuid) =>

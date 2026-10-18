@@ -2650,16 +2650,35 @@ class AppServices {
   /// Przywracanie historii od rozmówcy w toku albo właśnie zakończone.
   ValueNotifier<HistoryTransfer?> get incomingHistory => _history.incoming;
 
-  /// Co poszłoby rozmówcy z rozmowy [conversationId].
+  /// Co poszłoby rozmówcy z rozmowy [conversationId] (albo z rozmowy
+  /// [sourceConversationId], patrz [shareHistory]).
   Future<HistoryPreview> previewHistory(int conversationId,
-          {DateTime? since, bool withFiles = true}) =>
-      _history.preview(conversationId, since: since, withFiles: withFiles);
+          {DateTime? since, bool withFiles = true, int? sourceConversationId}) =>
+      _history.preview(conversationId,
+          since: since,
+          withFiles: withFiles,
+          sourceConversationId: sourceConversationId);
 
   /// Oddaje rozmówcy z rozmowy [conversationId] naszą wspólną historię, od
-  /// [since] (null = całość), z plikami albo bez.
+  /// [since] (null = całość), z plikami albo bez. Z [sourceConversationId]
+  /// wiadomości bierze się z innej rozmowy: starszej, z tym samym urządzeniem
+  /// pod dawnym wpisem. Wolno tylko przy zielonej tarczy rozmówcy.
   Future<HistoryShareResult> shareHistory(int conversationId,
-          {DateTime? since, bool withFiles = true}) =>
-      _history.share(conversationId, since: since, withFiles: withFiles);
+          {DateTime? since, bool withFiles = true, int? sourceConversationId}) =>
+      _history.share(conversationId,
+          since: since,
+          withFiles: withFiles,
+          sourceConversationId: sourceConversationId);
+
+  /// Inne rozmowy z wiadomościami, do wyboru źródła przy udostępnianiu.
+  Future<List<({int conversationId, Peer peer, int messages})>>
+      otherConversations(int conversationId) =>
+          db.otherConversations(conversationId);
+
+  /// Łączy u siebie starą rozmowę [from] z rozmową [into], po udostępnieniu
+  /// jej nowemu wpisowi tego samego urządzenia.
+  Future<int> mergeConversations({required int from, required int into}) =>
+      db.mergeConversation(from: from, into: into);
 
   /// Prosi rozmówcę o jego kopię naszej wspólnej historii.
   Future<HistoryRequestResult> requestHistory(int conversationId) =>

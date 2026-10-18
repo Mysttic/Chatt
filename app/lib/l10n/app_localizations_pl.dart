@@ -1380,4 +1380,33 @@ class AppLocalizationsPl extends AppLocalizations {
 
     return '$dateString';
   }
+
+  @override
+  String get historySource => 'Skąd';
+
+  @override
+  String get historySourceThis => 'Ta rozmowa';
+
+  @override
+  String historySourceOther(Object name, int count) {
+    return 'Starsza rozmowa z: $name ($count)';
+  }
+
+  @override
+  String get historySourceHint =>
+      'Po reinstalacji albo na nowym telefonie to samo urządzenie przychodzi pod nowym wpisem. Starszą rozmowę z dawnym wpisem możesz oddać tutaj.';
+
+  @override
+  String get historySourceNeedsShield =>
+      'Starszą rozmowę z innym wpisem można oddać tylko urządzeniu z zieloną tarczą. Najpierw potwierdź jego tożsamość.';
+
+  @override
+  String get historyMergeLocally => 'Połącz u mnie tamtą rozmowę z tą';
+
+  @override
+  String get historyNeedsVerified =>
+      'Najpierw potwierdź tożsamość tego urządzenia (zielona tarcza).';
+
+  @override
+  String get historyMerged => 'Rozmowy połączone.';
 }

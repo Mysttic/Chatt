@@ -341,10 +341,17 @@ już nie ma, przychodzi jako „Plik niedostępny"; odebrany plik, który wcią�
 leży u Ciebie na dysku, podpina się bez ponownego przesyłania. Drugie
 udostępnienie wznawia: nic się nie dubluje, a brakujące pliki dojeżdżają.
 
-Historia przechodzi między tymi samymi dwiema tożsamościami. Po reinstalacji
-albo na nowym telefonie tożsamość bierze się z nowego klucza, więc druga strona
-widzi nowe urządzenie, a stara rozmowa zostaje pod starym wpisem. Oba
-urządzenia potrzebują tej wersji; o starszym Chatcie aplikacja mówi wprost.
+**Po reinstalacji albo na nowym telefonie** tożsamość bierze się z nowego
+klucza, więc druga strona widzi nowe urządzenie, a stara rozmowa zostaje pod
+starym wpisem. Gdy to nowe urządzenie ma zieloną tarczę, okno udostępniania
+pokazuje **Skąd**: ta rozmowa albo starsza, z innym wpisem. Wybierz starszą
+i, jeśli chcesz, **Połącz u mnie tamtą rozmowę z tą**: po udostępnieniu obie
+staną się jedną po stronie udostępniającej, a stary wpis zostaje na liście
+urządzeń. Bez tarczy pójść może tylko ta rozmowa, więc nikt, kto pożyczy imię
+znajomego, nie dostanie jego rozmowy z Tobą.
+
+Oba urządzenia potrzebują tej wersji; o starszym Chatcie aplikacja mówi
+wprost.
 
 ## Odnośniki w wiadomościach
 

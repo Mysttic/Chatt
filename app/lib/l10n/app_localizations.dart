@@ -2263,6 +2263,54 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'{date}'**
   String dateSeparator(DateTime date);
+
+  /// No description provided for @historySource.
+  ///
+  /// In pl, this message translates to:
+  /// **'Skąd'**
+  String get historySource;
+
+  /// No description provided for @historySourceThis.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta rozmowa'**
+  String get historySourceThis;
+
+  /// No description provided for @historySourceOther.
+  ///
+  /// In pl, this message translates to:
+  /// **'Starsza rozmowa z: {name} ({count})'**
+  String historySourceOther(Object name, int count);
+
+  /// No description provided for @historySourceHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Po reinstalacji albo na nowym telefonie to samo urządzenie przychodzi pod nowym wpisem. Starszą rozmowę z dawnym wpisem możesz oddać tutaj.'**
+  String get historySourceHint;
+
+  /// No description provided for @historySourceNeedsShield.
+  ///
+  /// In pl, this message translates to:
+  /// **'Starszą rozmowę z innym wpisem można oddać tylko urządzeniu z zieloną tarczą. Najpierw potwierdź jego tożsamość.'**
+  String get historySourceNeedsShield;
+
+  /// No description provided for @historyMergeLocally.
+  ///
+  /// In pl, this message translates to:
+  /// **'Połącz u mnie tamtą rozmowę z tą'**
+  String get historyMergeLocally;
+
+  /// No description provided for @historyNeedsVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Najpierw potwierdź tożsamość tego urządzenia (zielona tarcza).'**
+  String get historyNeedsVerified;
+
+  /// No description provided for @historyMerged.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rozmowy połączone.'**
+  String get historyMerged;
 }
 
 class _AppLocalizationsDelegate

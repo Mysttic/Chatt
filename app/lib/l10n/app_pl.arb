@@ -594,5 +594,16 @@
   "dateSeparator": "{date}",
   "@dateSeparator": {
     "placeholders": { "date": { "type": "DateTime", "format": "yMMMMEEEEd" } }
-  }
+  },
+  "historySource": "Skąd",
+  "historySourceThis": "Ta rozmowa",
+  "historySourceOther": "Starsza rozmowa z: {name} ({count})",
+  "@historySourceOther": {
+    "placeholders": { "name": {}, "count": { "type": "int" } }
+  },
+  "historySourceHint": "Po reinstalacji albo na nowym telefonie to samo urządzenie przychodzi pod nowym wpisem. Starszą rozmowę z dawnym wpisem możesz oddać tutaj.",
+  "historySourceNeedsShield": "Starszą rozmowę z innym wpisem można oddać tylko urządzeniu z zieloną tarczą. Najpierw potwierdź jego tożsamość.",
+  "historyMergeLocally": "Połącz u mnie tamtą rozmowę z tą",
+  "historyNeedsVerified": "Najpierw potwierdź tożsamość tego urządzenia (zielona tarcza).",
+  "historyMerged": "Rozmowy połączone."
 }

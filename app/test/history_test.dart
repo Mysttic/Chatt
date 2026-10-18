@@ -309,6 +309,56 @@ void main() {
     expect(pliki.every((m) => m.filePath == null), isTrue);
   });
 
+  test('starsza rozmowa z dawnym wpisem idzie tylko do urządzenia z tarczą',
+      () async {
+    // Alicja rozmawiała z Bartkiem; Bartek reinstaluje aplikację i wraca
+    // z nową tożsamością, czyli pod nowym wpisem.
+    final (alicja, stary) = await rozmowaZPlikami();
+    final staraRozmowa = await rozmowa(alicja, stary);
+    final nowy = await instancja('Bartek-nowy');
+    final nowyUAlicji =
+        (await alicja.addPeerByAddress('127.0.0.1', nowy.server.port!))!;
+    final nowaRozmowa = await alicja.openConversationWith(nowyUAlicji);
+
+    final inne = await alicja.otherConversations(nowaRozmowa);
+    expect(inne.map((r) => r.conversationId), [staraRozmowa]);
+    expect(inne.single.messages, 4);
+
+    expect(
+        await alicja.shareHistory(nowaRozmowa,
+            sourceConversationId: staraRozmowa),
+        HistoryShareResult.needsVerified);
+    expect(karty['Bartek-nowy'], isNull, reason: 'bez tarczy nic nie wyszło');
+
+    await sparuj(alicja, nowy);
+    expect(
+        await alicja.shareHistory(nowaRozmowa,
+            sourceConversationId: staraRozmowa),
+        HistoryShareResult.done);
+    final uNowego = await wiadomosci(nowy, alicja);
+    expect(uNowego, hasLength(4));
+    expect(
+        uNowego.singleWhere((m) => m.body == 'Cześć Bartek').direction,
+        MessageDirection.incoming);
+    expect(uNowego.singleWhere((m) => m.body == 'Hej Alicja').direction,
+        MessageDirection.outgoing);
+    expect(
+        uNowego
+            .where((m) => m.kind == MessageKind.file)
+            .every((m) => m.filePath != null),
+        isTrue);
+
+    // U siebie Alicja łączy starą rozmowę z nową.
+    expect(
+        await alicja.mergeConversations(from: staraRozmowa, into: nowaRozmowa),
+        4);
+    expect(await alicja.otherConversations(nowaRozmowa), isEmpty);
+    expect(
+        (await alicja.db.watchMessages(nowaRozmowa).first), hasLength(4));
+    expect(await alicja.db.peerByGuid(stary.identity.guid), isNotNull,
+        reason: 'stary wpis zostaje na liście urządzeń');
+  });
+
   group('zgoda obowiązuje w granicach zapowiedzi', () {
     late AppServices alicja;
     late AppServices bartek;

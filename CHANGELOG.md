@@ -20,7 +20,10 @@ into `master`.
   back; restored messages keep their times and directions, arrive read,
   raise no notification and carry a history icon. Files follow under the same
   consent, received files still on disk are linked without travelling again,
-  and sharing again resumes without duplicates. New routes `/history-offer` and
+  and sharing again resumes without duplicates. After a reinstall or on a new
+  phone the old conversation stays under the old entry; once the new entry has
+  a green shield, the share dialog can hand the older conversation over and
+  merge the two on the sharing side. New routes `/history-offer` and
   `/history-chunk`, schema 14 (`messages.restoredAt`).
 - **Dates in the conversation.** The first message of each day gets "Today",
   "Yesterday" or the full date above it.

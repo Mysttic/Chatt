@@ -458,5 +458,16 @@
   "dateSeparator": "{date}",
   "@dateSeparator": {
     "placeholders": { "date": { "type": "DateTime", "format": "yMMMMEEEEd" } }
-  }
+  },
+  "historySource": "From",
+  "historySourceThis": "This conversation",
+  "historySourceOther": "Older conversation with: {name} ({count})",
+  "@historySourceOther": {
+    "placeholders": { "name": {}, "count": { "type": "int" } }
+  },
+  "historySourceHint": "After a reinstall or on a new phone the same device comes under a new entry. You can hand over the older conversation with the old entry here.",
+  "historySourceNeedsShield": "An older conversation with another entry goes only to a device with a green shield. Confirm its identity first.",
+  "historyMergeLocally": "Merge that conversation into this one here",
+  "historyNeedsVerified": "Confirm this device's identity first (green shield).",
+  "historyMerged": "Conversations merged."
 }
