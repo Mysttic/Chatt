@@ -868,9 +868,12 @@ Messages then travel as `POST /history-chunk`: at most 200 per chunk and about
 256 kB of text, each one as the sharing side sees it (`m: true` for "I wrote
 this"), so the recipient flips the direction. A chunk goes in whole or not at
 all (`HistoryChunk.fromJson`), and only within the summary on the card: more
-messages, more files or more bytes than announced is `over_limit`; a wrong
-token, another identifier or an expired grant is `no_grant`. A chunk repeated
-after a timeout keeps its number and is not counted twice.
+messages, more files or more bytes than announced, a message outside the date
+range on the card, or a file announced again under another name or size is
+`over_limit`; a wrong token, another identifier or an expired grant is
+`no_grant`. Chunks are handled one after another, and a number that already
+went in imports nothing the second time, whatever it carries now: a chunk
+repeated after a timeout gets an answer, nothing more.
 
 The import (`ChattDb.importHistory`) runs in one transaction and skips what is
 already there (by `messageGuid`, in any conversation), anything older than this
@@ -882,16 +885,22 @@ mail. Every imported row carries `restoredAt`.
 Files ride the ordinary `/file-offer` and `/file` with `history` set to the
 history's identifier. Every file row is created by its chunk, without content;
 the offer is accepted without a card only for a file announced in a chunk, with
-the same name and size, and only into a row still waiting for bytes
-(`restoredFileAwaiting`). The bytes land in `received/` as usual and the row
+the same name and size, and only into a restored row of that conversation with
+that same name and size, still waiting for bytes. Anything else gets
+`no_grant`: an offer that carries `history` never falls back to the ordinary
+file card. The bytes land in `received/` as usual and the row
 gets the path. A received file that survived "Clear history" is linked at
 import time and never travels again. A file whose bytes the sharing side no
 longer has arrives as a row without content.
 
 Sharing again resumes an interrupted share: messages that came in are skipped,
 files still missing are offered again. `op: done` ends the grant and leaves the
-result on the progress bar; `op: cancel` ends it and keeps whatever arrived. A
-grant lives thirty idle minutes and twelve hours at most.
+result on the progress bar; `op: cancel` ends it and keeps whatever arrived,
+and the sharing side sends it also when a chunk is refused or anything throws.
+A grant lives thirty idle minutes (a file still streaming keeps it alive) and
+twelve hours at most, and a clock ends an expired one even when nothing else
+arrives. One card per sender and eight at most wait at a time; anything above
+that is `busy`.
 
 An older Chatt answers 404 on both routes, which the sender reports as an
 older version on the other side.

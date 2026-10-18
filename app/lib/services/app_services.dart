@@ -1727,16 +1727,15 @@ class AppServices {
 
     // Plik z udostępnianej historii: jego wpis już jest (przyszedł w paczce
     // wiadomości) i czeka na bajty. Zgoda na historię objęła go z góry.
+    // Nie pasuje do zgody: odmowa, nigdy zwykła karta.
     if (offer.history != null) {
       final zHistorii = await _history.fileOffer(offer);
-      if (zHistorii != null) {
-        if (zHistorii.accepted && !zHistorii.alreadyHave) {
-          _acceptedOffers[_offerKey(offer.from.guid, offer.messageGuid)] =
-              _AcceptedOffer(offer, conversationId, session);
-          _writePartMeta(offer);
-        }
-        return zHistorii;
+      if (zHistorii.accepted && !zHistorii.alreadyHave) {
+        _acceptedOffers[_offerKey(offer.from.guid, offer.messageGuid)] =
+            _AcceptedOffer(offer, conversationId, session);
+        _writePartMeta(offer);
       }
+      return zHistorii;
     }
 
     if (await db.messageByGuid(offer.messageGuid) != null) {
@@ -1929,7 +1928,11 @@ class AppServices {
         null;
     if (zHistorii) {
       if (await db.restoredFileAwaiting(meta.messageGuid) == null) {
-        return FileReceiveResult.ok;
+        // Wpis ma już plik albo go nie ma wcale: wtedy nie ma dokąd pisać.
+        final wiersz = await db.messageByGuid(meta.messageGuid);
+        return wiersz?.filePath != null
+            ? FileReceiveResult.ok
+            : FileReceiveResult.rejected;
       }
     } else if (await db.messageByGuid(meta.messageGuid) != null) {
       return FileReceiveResult.ok;
@@ -2023,6 +2026,9 @@ class AppServices {
         if (sinceFlush >= 4 * 1024 * 1024) {
           await sink.flush();
           sinceFlush = 0;
+          // Długi plik z historii (film przez Bluetooth) nie może przy tym
+          // wygasić zgody na całą resztę.
+          _history.touch(meta.from.guid, accepted.offer.history);
         }
       }
       await sink.flush();
@@ -2761,6 +2767,15 @@ class AppServices {
       },
     );
     return (status: wynik.status, reply: wynik.reply);
+  }
+
+  /// Zapowiedź pliku zapieczętowana bieżącą sesją z [peer]. Testy sprawdzają
+  /// tym zapowiedzi, których prawdziwy nadawca nigdy nie wyśle.
+  @visibleForTesting
+  Future<FileOfferReply?> debugOfferFile(Peer peer, FileOffer offer) async {
+    final koperta = await _sealFor(peer, offer.toJson());
+    if (koperta == null) return null;
+    return client.offerFile(route: routeOf(peer), payload: koperta);
   }
 
   // --- Podglądy odnośników --------------------------------------------------

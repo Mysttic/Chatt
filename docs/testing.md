@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **412 `flutter test` tests** check everything that can be
+The split is simple: **418 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -273,7 +273,7 @@ when it speaks and when it stays quiet:
   without a card in switched off
 - the step from 13 to 14 keeps the messages and marks none of them as restored
 
-### Sharing history (`test/history_test.dart`, 22 tests)
+### Sharing history (`test/history_test.dart`, 28 tests)
 Two or three real instances over real sockets, paired, with a conversation both
 ways and a file from each side. The recipient loses its history and the other
 side hands it back:
@@ -297,6 +297,13 @@ side hands it back:
   not counted twice, messages from the future and from before the recipient's
   retention are skipped, a second history while one is coming in is `busy`,
   and a cancel ends the grant while keeping what arrived
+- a chunk number that already went in imports nothing new, whatever it carries
+  the second time; a file announced once keeps its name and size; a message
+  outside the date range on the card drops the whole chunk; a second card from
+  the same sender is `busy`
+- a history file offered under another name than its waiting row (a ".jpg"
+  row taking an ".exe") is refused and the row stays empty, and a history file
+  outside the grant is refused without ever raising the ordinary file card
 - both routes answer plaintext with 409 and leave no trace, and a sealed body of
   the wrong shape with 400 and no card
 - the parsers: a chunk goes in whole or not at all (a bad identifier, a bad

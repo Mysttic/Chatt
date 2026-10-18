@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -30,11 +31,19 @@ void main() {
   /// Powiadomienia o nowych wiadomościach, po nazwie instancji.
   final powiadomienia = <String, int>{};
 
+  /// Karta, która czeka na odpowiedź, dopóki test jej nie puści.
+  final blokady = <String, Completer<void>>{};
+
+  /// Zwykłe karty plików, po nazwie instancji.
+  final kartyPlikow = <String, int>{};
+
   setUp(() {
     katalog = Directory.systemTemp.createTempSync('chatt_historia_');
     karty.clear();
     decyzje.clear();
     powiadomienia.clear();
+    blokady.clear();
+    kartyPlikow.clear();
   });
 
   tearDown(() async {
@@ -54,11 +63,16 @@ void main() {
       nameOverride: nazwa,
       enableDiscovery: false,
       receivedDirOverride: odebrane(nazwa),
-      fileOfferPolicy: acceptAllFileOffers,
+      fileOfferPolicy: (offer) async {
+        kartyPlikow[nazwa] = (kartyPlikow[nazwa] ?? 0) + 1;
+        return OfferDecision.accept;
+      },
       onIncomingMessage: (peer, text, conversationId) =>
           powiadomienia[nazwa] = (powiadomienia[nazwa] ?? 0) + 1,
       historyPolicy: (ask) async {
         (karty[nazwa] ??= []).add(ask);
+        final blokada = blokady[nazwa];
+        if (blokada != null) await blokada.future;
         return decyzje[nazwa] ?? HistoryDecision.accept;
       },
     );
@@ -362,7 +376,9 @@ void main() {
           files: files,
           bytes: bytes,
           first: DateTime.now().subtract(const Duration(days: 400)),
-          last: DateTime.now(),
+          // Zapas w przyszłość: test dat z przyszłości sprawdza import,
+          // a nie zakres z karty.
+          last: DateTime.now().add(const Duration(days: 3)),
         );
 
     test('więcej wiadomości, niż zapowiedziano, odpada w całości', () async {
@@ -437,6 +453,131 @@ void main() {
       );
       expect(wynik.status, 403);
       expect(HistoryReply.fromJson(wynik.reply, id: 'h8')?.reason, historyBusy);
+    });
+
+    test('ten sam numer paczki z nową treścią nie wpuszcza niczego', () async {
+      final token = await zapowiedz('h10', ile(2));
+      await paczka('h10', token, 1, [wpis('m1'), wpis('m2')]);
+      final (status, reply) =
+          await paczka('h10', token, 1, [wpis('m3'), wpis('m4'), wpis('m5')]);
+      expect(status, 200);
+      expect(reply?.imported, 0);
+      expect(await wiadomosci(bartek, alicja), hasLength(2));
+    });
+
+    test('plik zapowiedziany raz nie zmienia nazwy ani rozmiaru', () async {
+      final token = await zapowiedz('h11', ile(2, files: 1, bytes: 1));
+      expect((await paczka('h11', token, 1, [wpis('f1', plik: 'a.txt', size: 1)]))
+          .$1, 200);
+      final (status, reply) = await paczka('h11', token, 2,
+          [wpis('f1', plik: 'a.txt', size: 5000000000)]);
+      expect(status, 403);
+      expect(reply?.reason, historyOverLimit);
+    });
+
+    test('wiadomość spoza zakresu dat z karty odpada w całości', () async {
+      final token = await zapowiedz(
+          'h12',
+          HistorySummary(
+            count: 2,
+            files: 0,
+            bytes: 0,
+            first: DateTime.now().subtract(const Duration(days: 2)),
+            last: DateTime.now().subtract(const Duration(days: 1)),
+          ));
+      final (status, reply) = await paczka('h12', token, 1, [
+        wpis('m1', kiedy: DateTime.now().subtract(const Duration(days: 30))),
+      ]);
+      expect(status, 403);
+      expect(reply?.reason, historyOverLimit);
+      expect(await wiadomosci(bartek, alicja), isEmpty);
+    });
+
+    test('plik z historii pod inną nazwą niż wpis dostaje odmowę', () async {
+      final token = await zapowiedz('h13', ile(2, files: 1, bytes: 3));
+      // Wpis „zdjecie.jpg" bez treści, potem ten sam identyfikator jako
+      // plik wykonywalny, który miałby się pod niego podpiąć.
+      await paczka('h13', token, 1, [
+        HistoryItem(
+          messageGuid: 'f1',
+          mine: true,
+          sentAt: DateTime.now().subtract(const Duration(days: 1)),
+          body: '📎 zdjecie.jpg',
+          fileName: 'zdjecie.jpg',
+          fileSize: 3,
+        ),
+      ]);
+      await paczka('h13', token, 2, [wpis('f1', plik: 'zdjecie.exe', size: 3)]);
+      final reply = await alicja.debugOfferFile(
+        bartekUAlicji,
+        FileOffer(
+          messageGuid: 'f1',
+          from: alicja.identity,
+          fileName: 'zdjecie.exe',
+          fileSize: 3,
+          sentAt: DateTime.now(),
+          history: 'h13',
+        ),
+      );
+      expect(reply?.accepted, isFalse);
+      expect(reply?.reason, historyNoGrant);
+      final wiersz = await bartek.db.messageByGuid('f1');
+      expect(wiersz?.fileName, 'zdjecie.jpg');
+      expect(wiersz?.filePath, isNull);
+    });
+
+    test('plik z historii spoza zgody dostaje odmowę, nigdy zwykłą kartę',
+        () async {
+      await zapowiedz('h14', ile(1, files: 1, bytes: 3));
+      for (final historia in ['h14', 'obca']) {
+        final reply = await alicja.debugOfferFile(
+          bartekUAlicji,
+          FileOffer(
+            messageGuid: 'niezapowiedziany',
+            from: alicja.identity,
+            fileName: 'x.txt',
+            fileSize: 3,
+            sentAt: DateTime.now(),
+            history: historia,
+          ),
+        );
+        expect(reply?.accepted, isFalse, reason: historia);
+      }
+      expect(kartyPlikow['Bartek'], isNull);
+      expect(await bartek.db.messageByGuid('niezapowiedziany'), isNull);
+    });
+
+    test('druga karta od tego samego nadawcy to busy', () async {
+      blokady['Bartek'] = Completer<void>();
+      final pierwsza = alicja.debugSendSealed(
+        bartekUAlicji,
+        '/history-offer',
+        HistoryOfferMessage(
+          from: alicja.identity,
+          op: historyOpOffer,
+          id: 'h15',
+          summary: ile(1),
+        ).toJson(),
+      );
+      final koniec = DateTime.now().add(const Duration(seconds: 10));
+      while (karty['Bartek'] == null) {
+        if (DateTime.now().isAfter(koniec)) fail('karta nie przyszła');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      final druga = await alicja.debugSendSealed(
+        bartekUAlicji,
+        '/history-offer',
+        HistoryOfferMessage(
+          from: alicja.identity,
+          op: historyOpRequest,
+          id: 'h16',
+        ).toJson(),
+      );
+      expect(HistoryReply.fromJson(druga.reply, id: 'h16')?.reason,
+          historyBusy);
+      expect(karty['Bartek'], hasLength(1));
+      blokady['Bartek']!.complete();
+      expect((await pierwsza).status, 200);
     });
 
     test('przerwanie kończy zgodę, a to, co doszło, zostaje', () async {

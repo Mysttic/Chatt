@@ -163,6 +163,9 @@ class _HistoryGrant {
   /// pod tą nazwą i z tym rozmiarem.
   final Map<String, ({String name, int size})> files = {};
   int fileBytes = 0;
+
+  /// Pliki, które już są u nas. Powtórzona zapowiedź nie liczy się drugi raz.
+  final Set<String> doneFiles = {};
   int filesDone = 0;
   int imported = 0;
   int skipped = 0;
@@ -226,7 +229,25 @@ class _History {
   _HistoryShare? _share;
   bool _closed = false;
 
+  /// Paczki przychodzące idą po kolei: kopia paczki, która przyszła drugą
+  /// drogą w trakcie importu pierwszej, nie przejdzie razem z nią kontroli
+  /// numeru.
+  Future<void> _chunks = Future.value();
+
+  /// Gasi zgodę, która wygasła, choćby nadawca już nic nie przysłał (padł,
+  /// zasnął, wyszedł z zasięgu). Bez tego pasek przywracania wisiałby do
+  /// następnej historii albo restartu.
+  Timer? _grantClock;
+
   static const int _maxAnswers = 64;
+
+  /// Najwyżej tyle kart historii naraz, od wszystkich. Od jednego nadawcy
+  /// jedna: zalew prośbami nie zasypie ekranu kartami.
+  static const int _maxAsks = 8;
+
+  /// Zapas na zaokrąglenie czasu (baza trzyma sekundy) przy sprawdzaniu, czy
+  /// wiadomość mieści się w zakresie dat z karty.
+  static const Duration _zapasDat = Duration(seconds: 1);
 
   void _set<T>(ValueNotifier<T> notifier, T value) {
     if (!_closed) notifier.value = value;
@@ -242,12 +263,18 @@ class _History {
 
   // --- Udostępniający -------------------------------------------------------
 
-  /// Plik wiadomości, jeśli jego bajty wciąż są na dysku.
-  static File? _plikDoOddania(Message m) {
+  /// Rozmiar pliku wiadomości, jeśli jego bajty wciąż są na dysku. Bez
+  /// synchronicznych wywołań: rozmowa potrafi mieć setki plików, a to
+  /// liczy się na wątku interfejsu.
+  static Future<int?> _rozmiarDoOddania(Message m) async {
     final path = m.filePath;
     if (m.kind != MessageKind.file || path == null) return null;
     final file = File(path);
-    return file.existsSync() ? file : null;
+    try {
+      return await file.exists() ? await file.length() : null;
+    } on FileSystemException {
+      return null;
+    }
   }
 
   Future<List<Message>> _doOddania(int conversationId, DateTime? since) async {
@@ -268,13 +295,13 @@ class _History {
     var missing = 0;
     for (final m in rows) {
       if (m.kind != MessageKind.file) continue;
-      final plik = _plikDoOddania(m);
-      if (plik == null || !withFiles) {
+      final rozmiar = withFiles ? await _rozmiarDoOddania(m) : null;
+      if (rozmiar == null) {
         missing++;
         continue;
       }
       files++;
-      bytes += plik.lengthSync();
+      bytes += rozmiar;
     }
     return HistoryPreview(
       messages: rows.length,
@@ -302,9 +329,9 @@ class _History {
     final zPlikami = <Message>[];
     var bytes = 0;
     for (final m in rows) {
-      final plik = withFiles ? _plikDoOddania(m) : null;
-      final rozmiar = plik?.lengthSync() ?? m.fileSize ?? 0;
-      if (plik != null) {
+      final naDysku = withFiles ? await _rozmiarDoOddania(m) : null;
+      final rozmiar = naDysku ?? m.fileSize ?? 0;
+      if (naDysku != null) {
         zPlikami.add(m);
         bytes += rozmiar;
       }
@@ -319,7 +346,7 @@ class _History {
             ? _krotkaNazwa(m.fileName ?? m.body)
             : null,
         fileSize: m.kind == MessageKind.file ? rozmiar : null,
-        fileFollows: plik != null,
+        fileFollows: naDysku != null,
       ));
     }
     final summary = HistorySummary(
@@ -334,6 +361,11 @@ class _History {
     _share = udzial;
     try {
       return await _run(udzial, items, zPlikami, summary, answering);
+    } catch (_) {
+      // Odbiorca ma się dowiedzieć, że nic więcej nie przyjdzie: inaczej jego
+      // pasek przywracania wisiałby do wygaśnięcia zgody.
+      await _cancel(udzial);
+      return HistoryShareResult.failed;
     } finally {
       _share = null;
       _set(outgoing, null);
@@ -427,7 +459,10 @@ class _History {
         wynik = HistoryChunkReply.fromJson(o.reply, id: udzial.id, seq: seq);
         if (wynik == null && o.status == 403) break;
       }
-      if (wynik == null || !wynik.ok) return HistoryShareResult.failed;
+      if (wynik == null || !wynik.ok) {
+        await _cancel(udzial);
+        return HistoryShareResult.failed;
+      }
       od = do_;
       postep = postep.copyWith(messagesDone: od);
       _set(outgoing, postep);
@@ -465,7 +500,8 @@ class _History {
   Future<HistoryShareResult> _cancel(_HistoryShare udzial) async {
     final token = udzial.token;
     if (token != null && !_closed) {
-      await _s._exchangeSealed(
+      try {
+        await _s._exchangeSealed(
         udzial.peer,
         HistoryOfferMessage(
           from: _me,
@@ -477,6 +513,9 @@ class _History {
             _s.client.historyOffer(route: route, payload: koperta),
         route: udzial.route,
       );
+      } catch (_) {
+        // Odbiorca i tak zgasi zgodę po pół godzinie ciszy.
+      }
     }
     return HistoryShareResult.cancelled;
   }
@@ -572,6 +611,13 @@ class _History {
     final trwa = _asking[klucz];
     if (trwa != null) return trwa;
 
+    // Jedna karta od jednego nadawcy i kilka naraz w ogóle: kolejne pytania
+    // w tym czasie słyszą `busy`.
+    if (_asking.keys.any((k) => k.startsWith('$guid|')) ||
+        _asking.length >= _maxAsks) {
+      return _reply(message.id, accepted: false, reason: historyBusy);
+    }
+
     final odpowiedz = message.op == historyOpOffer
         ? _decideOffer(message, fromHost, klucz)
         : _decideRequest(message, fromHost, klucz);
@@ -651,6 +697,10 @@ class _History {
       summary: summary,
     );
     _grant = nowa;
+    _grantClock?.cancel();
+    _grantClock = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (_grant?.expired ?? false) _endGrant();
+    });
     _set(
         incoming,
         HistoryTransfer(
@@ -709,8 +759,14 @@ class _History {
     // Zapowiedź rusza dopiero po odpowiedzi: proszący najpierw ma się
     // dowiedzieć, że się zgodziliśmy.
     final zPlikami = decyzja == HistoryDecision.accept;
-    Timer.run(() => unawaited(share(conversationId,
-        withFiles: zPlikami, answering: message.id)));
+    Timer.run(() async {
+      try {
+        await share(conversationId, withFiles: zPlikami, answering: message.id);
+      } catch (_) {
+        // `share` sam kończy zgodę po drugiej stronie; tu nie ma komu
+        // zgłosić błędu.
+      }
+    });
     return _reply(message.id, accepted: true);
   }
 
@@ -721,7 +777,9 @@ class _History {
     final sesja = _s._sessionsById[session];
     if (sesja == null || sesja.peerGuid != chunk.from.guid) return _noSession;
     sesja.touch();
-    return _seal(sesja, await _answerChunk(chunk));
+    final wynik = _chunks.then((_) => _answerChunk(chunk));
+    _chunks = wynik.then((_) {}, onError: (_) {});
+    return _seal(sesja, await wynik);
   }
 
   _HistoryAnswer _chunkReply(HistoryChunk chunk,
@@ -741,6 +799,7 @@ class _History {
 
   Future<_HistoryAnswer> _answerChunk(HistoryChunk chunk) async {
     final grant = _grant;
+    if (grant != null && grant.expired) _endGrant();
     if (grant == null ||
         grant.expired ||
         grant.peerGuid != chunk.from.guid ||
@@ -749,34 +808,42 @@ class _History {
       return _chunkReply(chunk, ok: false, reason: historyNoGrant);
     }
     grant.lastUsed = DateTime.now();
-    final pierwszyRaz = !grant.seqs.contains(chunk.seq);
 
-    // Zgoda obowiązuje w granicach zapowiedzi: tyle wiadomości, tyle plików
-    // i tyle bajtów, ile stało na karcie.
-    if (pierwszyRaz) {
-      var bajty = 0;
-      var nowePliki = 0;
-      for (final item in chunk.items) {
-        if (!item.fileFollows || grant.files.containsKey(item.messageGuid)) {
-          continue;
-        }
-        nowePliki++;
-        bajty += item.fileSize ?? 0;
-      }
-      if (grant.messages + chunk.items.length > grant.summary.count ||
-          grant.files.length + nowePliki > grant.summary.files ||
-          grant.fileBytes + bajty > grant.summary.bytes) {
+    // Paczka, która już weszła (powtórka po zgubionej odpowiedzi), nie
+    // importuje niczego drugi raz. Bez tego ten sam numer z nową treścią
+    // wpuszczałby wiadomości ponad zapowiedź.
+    if (grant.seqs.contains(chunk.seq)) {
+      return _chunkReply(chunk, ok: true, skipped: chunk.items.length);
+    }
+
+    // Zgoda obowiązuje w granicach zapowiedzi: tyle wiadomości, tyle plików,
+    // tyle bajtów i ten zakres dat, ile stało na karcie. Plik zapowiedziany
+    // raz zostaje przy tej nazwie i tym rozmiarze.
+    final nowePliki = <String, ({String name, int size})>{};
+    var bajty = 0;
+    final od = grant.summary.first.subtract(_zapasDat);
+    final do_ = grant.summary.last.add(_zapasDat);
+    for (final item in chunk.items) {
+      if (item.sentAt.isBefore(od) || item.sentAt.isAfter(do_)) {
         return _chunkReply(chunk, ok: false, reason: historyOverLimit);
       }
-      grant.seqs.add(chunk.seq);
-      grant.messages += chunk.items.length;
-      grant.fileBytes += bajty;
-      for (final item in chunk.items) {
-        if (item.fileFollows) {
-          grant.files[item.messageGuid] =
-              (name: item.fileName!, size: item.fileSize ?? 0);
+      if (!item.fileFollows) continue;
+      final opis = (name: item.fileName!, size: item.fileSize ?? 0);
+      final znany =
+          grant.files[item.messageGuid] ?? nowePliki[item.messageGuid];
+      if (znany != null) {
+        if (znany != opis) {
+          return _chunkReply(chunk, ok: false, reason: historyOverLimit);
         }
+        continue;
       }
+      nowePliki[item.messageGuid] = opis;
+      bajty += opis.size;
+    }
+    if (grant.messages + chunk.items.length > grant.summary.count ||
+        grant.files.length + nowePliki.length > grant.summary.files ||
+        grant.fileBytes + bajty > grant.summary.bytes) {
+      return _chunkReply(chunk, ok: false, reason: historyOverLimit);
     }
 
     final teraz = DateTime.now();
@@ -788,10 +855,14 @@ class _History {
       notAfter: teraz.add(historyFutureSlack),
       notBefore: dni > 0 ? teraz.subtract(Duration(days: dni)) : null,
     );
-    if (pierwszyRaz) {
-      grant.imported += wynik.imported;
-      grant.skipped += wynik.skipped;
-    }
+    // Liczniki dopiero po udanym imporcie: paczka, której import padł,
+    // wróci z tym samym numerem i ma wtedy wejść.
+    grant.seqs.add(chunk.seq);
+    grant.messages += chunk.items.length;
+    grant.fileBytes += bajty;
+    grant.files.addAll(nowePliki);
+    grant.imported += wynik.imported;
+    grant.skipped += wynik.skipped;
     final postep = incoming.value;
     if (postep != null && identical(_grant, grant)) {
       _set(
@@ -829,36 +900,53 @@ class _History {
 
   // --- Pliki ----------------------------------------------------------------
 
-  /// Zapowiedź pliku z historii [FileOffer.history]. Zwraca odpowiedź albo
-  /// null, gdy zapowiedź do żadnej zgody nie pasuje i ma pójść zwykłą drogą
-  /// (z pytaniem). Wpuszczamy wyłącznie plik zapowiedziany w paczce, pod tą
-  /// samą nazwą i z tym samym rozmiarem, i tylko do wpisu, który na niego
-  /// czeka.
-  Future<FileOfferReply?> fileOffer(FileOffer offer) async {
+  /// Zapowiedź pliku z historii [FileOffer.history]. Nigdy nie spada na
+  /// zwykłą drogę z kartą: plik z historii albo mieści się w zgodzie, albo
+  /// dostaje odmowę. Wpuszczamy wyłącznie plik zapowiedziany w paczce, pod tą
+  /// samą nazwą i z tym samym rozmiarem, i tylko do przywróconego wpisu tej
+  /// rozmowy, który ma właśnie tę nazwę i ten rozmiar.
+  Future<FileOfferReply> fileOffer(FileOffer offer) async {
+    const odmowa = FileOfferReply(accepted: false, reason: historyNoGrant);
     final grant = _grant;
     if (grant == null ||
-        grant.expired ||
         grant.peerGuid != offer.from.guid ||
         grant.id != offer.history) {
-      return null;
+      return odmowa;
+    }
+    if (grant.expired) {
+      _endGrant();
+      return odmowa;
     }
     final zapowiedziany = grant.files[offer.messageGuid];
     if (zapowiedziany == null ||
         zapowiedziany.name != offer.fileName ||
         zapowiedziany.size != offer.fileSize) {
-      return null;
+      return odmowa;
+    }
+    final wiersz = await _s.db.messageByGuid(offer.messageGuid);
+    if (wiersz == null ||
+        wiersz.restoredAt == null ||
+        wiersz.kind != MessageKind.file ||
+        wiersz.conversationId != grant.conversationId ||
+        wiersz.fileName != offer.fileName ||
+        wiersz.fileSize != offer.fileSize) {
+      return odmowa;
     }
     grant.lastUsed = DateTime.now();
-    final czeka = await _s.db.restoredFileAwaiting(offer.messageGuid);
-    if (czeka == null) {
-      // Wpis ma już plik (przetrwał na dysku albo dojechał wcześniej).
-      if (await _s.db.messageByGuid(offer.messageGuid) != null) {
-        _fileDone(grant);
-        return const FileOfferReply(accepted: true, alreadyHave: true);
-      }
-      return null;
+    if (wiersz.filePath != null) {
+      // Plik przetrwał na dysku albo dojechał wcześniej.
+      _fileDone(grant, offer.messageGuid);
+      return const FileOfferReply(accepted: true, alreadyHave: true);
     }
     return FileOfferReply(accepted: true, resumeFrom: _s._resumableBytes(offer));
+  }
+
+  /// Bajty pliku z historii płyną: zgoda nie wygasa w trakcie długiego pliku.
+  void touch(String peerGuid, String? id) {
+    final grant = _grant;
+    if (grant != null && grant.peerGuid == peerGuid && grant.id == id) {
+      grant.lastUsed = DateTime.now();
+    }
   }
 
   /// Bajty pliku z historii dojechały: podpinamy je pod czekający wpis.
@@ -870,11 +958,12 @@ class _History {
         grant.peerGuid == offer.from.guid &&
         grant.id == offer.history) {
       grant.lastUsed = DateTime.now();
-      _fileDone(grant);
+      _fileDone(grant, offer.messageGuid);
     }
   }
 
-  void _fileDone(_HistoryGrant grant) {
+  void _fileDone(_HistoryGrant grant, String messageGuid) {
+    if (!grant.doneFiles.add(messageGuid)) return;
     grant.filesDone++;
     final postep = incoming.value;
     if (postep != null && identical(_grant, grant)) {
@@ -906,6 +995,8 @@ class _History {
   void _endGrant({bool finished = false}) {
     final grant = _grant;
     _grant = null;
+    _grantClock?.cancel();
+    _grantClock = null;
     if (grant == null) return;
     final postep = incoming.value;
     if (finished && postep != null) {
@@ -943,6 +1034,7 @@ class _History {
     cancelShare();
     _closed = true;
     _grant = null;
+    _grantClock?.cancel();
     pending.dispose();
     outgoing.dispose();
     incoming.dispose();
