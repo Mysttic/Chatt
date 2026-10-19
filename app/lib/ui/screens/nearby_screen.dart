@@ -8,6 +8,7 @@ import '../../network/bt_transport.dart';
 import '../../network/transport.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import '../widgets/common.dart';
 import 'chat_screen.dart';
 import '../widgets/toasts.dart';
@@ -308,6 +309,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                         itemBuilder: (context, index) {
                           final peer = items[index];
                           return ListTile(
+                            visualDensity: VisualDensity.standard,
                             leading: InitialsAvatar(name: peer.displayName),
                             title: PeerName(
                               name: peer.displayName,
@@ -602,8 +604,9 @@ class _ManualAddBluetoothDialogState
                 padding: const EdgeInsets.only(top: 12),
                 child: SelectableText(
                   context.l10n.myBtAddress(stan.address),
-                  style:
-                      TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                  style: ChattTokens.of(context)
+                      .mono
+                      .copyWith(color: scheme.onSurfaceVariant),
                 ),
               );
             },

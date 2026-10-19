@@ -7,6 +7,11 @@ part 'db.g.dart';
 /// Wybór motywu. `system` idzie za ustawieniem systemu.
 enum AppTheme { system, light, dark }
 
+/// Styl wyglądu (issue #37). Ten sam układ i te same informacje, różnią się
+/// wyłącznie kolory, fonty, zaokrąglenia i gęstość (patrz `ui/styles.dart`).
+/// Kolejność jest zapisana w bazie: nowe style tylko na końcu.
+enum AppStyle { cisza, precyzja, cieplo }
+
 /// Język interfejsu. `system` idzie za ustawieniem systemu.
 enum AppLanguage { system, polish, english }
 
@@ -26,6 +31,11 @@ class Settings extends Table {
 
   IntColumn get theme =>
       intEnum<AppTheme>().withDefault(Constant(AppTheme.system.index))();
+
+  /// Styl wyglądu. Domyślnie Cisza: od schematu v15 dotychczasowy fiolet
+  /// z jednego koloru bazowego nie istnieje.
+  IntColumn get style =>
+      intEnum<AppStyle>().withDefault(Constant(AppStyle.cisza.index))();
 
   /// Domyślnie angielski, a nie język systemu: aplikacja jest wydawana
   /// międzynarodowo, więc pierwsze uruchomienie ma być zrozumiałe wszędzie.
@@ -267,7 +277,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -359,6 +369,11 @@ class ChattDb extends _$ChattDb {
         // pusta.
         await _dodajKolumneJesliBrak(m, messages, messages.restoredAt);
       }
+      if (from < 15) {
+        // v15: styl wyglądu (Cisza, Precyzja, Ciepło). Wartość domyślna
+        // daje Ciszę; reszta ustawień wyglądu (motyw, tło, język) zostaje.
+        await _dodajKolumneJesliBrak(m, settings, settings.style);
+      }
     },
   );
 
@@ -431,6 +446,10 @@ class ChattDb extends _$ChattDb {
   Future<void> saveTheme(AppTheme theme) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(theme: Value(theme)));
+
+  Future<void> saveStyle(AppStyle style) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(style: Value(style)));
 
   Future<void> saveLanguage(AppLanguage language) =>
       (update(settings)..where((s) => s.id.equals(1)))

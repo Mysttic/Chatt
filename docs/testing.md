@@ -1,5 +1,6 @@
 # Tests
 
+The split is simple: **439 `flutter test` tests** check everything that can be
 The split is simple: **391 `flutter test` tests** check everything that can be
 The split is simple: **425 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
@@ -258,7 +259,7 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migrations (`test/migration_test.dart`, 5 tests)
+### Migrations (`test/migration_test.dart`, 6 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
@@ -273,6 +274,29 @@ when it speaks and when it stays quiet:
   add-on included, and brings the keyboard add-on, receiving and typing
   without a card in switched off
 - the step from 13 to 14 keeps the messages and marks none of them as restored
+- the step from 14 to 15 brings the Cisza style in and keeps the theme, the
+  background and the nickname; a saved style comes back after reopening
+
+### Styles (`test/style_test.dart`, 12 tests)
+- each of the six variants (three styles, light and dark) carries its own
+  tokens, its text font and its fixed-width font
+- in each variant body text, secondary text, both bubbles, the primary button,
+  the warning, danger and confirmation frames and the corner message reach at
+  least 4.5:1, and a link on the other side's bubble and the time inside a
+  bubble at least 3:1
+- every variant has five walls and an avatar palette
+- the unconfirmed identity warning is red in Cisza and amber in Precyzja and
+  Ciepło
+- every font a style names is declared in `pubspec.yaml`
+- the unread counter in a list row is the size of its number in every style
+  (it once stretched across the whole row and covered the name)
+- a bare `MaterialApp` with no tokens falls back to Cisza
+- the whole app switches style as soon as the database changes, fonts
+  included, and the top of the conversation list carries the device name with
+  no version number
+- the style picker in Settings writes to the database, and the "This device"
+  panel shows the fingerprint and the identifier in the fixed-width font and
+  copies the identifier with a "Copied" message
 
 ### Sharing history (`test/history_test.dart`, 29 tests)
 Two or three real instances over real sockets, paired, with a conversation both
@@ -574,7 +598,7 @@ thing keeping the channel silent:
 - an add-on saved in the database comes up with the app without a single call,
   and a verified peer then gets a grant
 
-### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 12 tests)
+### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 13 tests)
 - the add-on's card is a single switch while the add-on is off; the receive
   switch appears with the add-on and goes away with it
 - turning receiving on with the real switches shows the safety note; turning
@@ -590,6 +614,9 @@ thing keeping the channel silent:
   keyboard icon
 - the conversation's keyboard button appears with the add-on, is active only
   with a confirmed identity, and goes away with the add-on
+- on a phone the header holds neither search nor the keyboard: both are in the
+  conversation's menu, and without a confirmed identity the keyboard item is
+  greyed out with the reason under it
 - the consent card names the device, holds the focus on Reject after a frame,
   and Enter refuses: the sender hears `rejected` and no grant exists
 - Accept alone writes nothing; "Don't ask again" with Accept writes
@@ -1046,7 +1073,9 @@ app renders in the `flutter_test` harness at 1600x900, with its own in-memory
 stack and two peers in the same process, and the image comes straight out of
 the engine (`RepaintBoundary.toImage`). There are no private conversations in
 the screenshots, and the result is the same on every machine.
-`CHATT_SHOTS_LANG=en` gives the English version. One trap: the harness replaces
+`CHATT_SHOTS_LANG=en` gives the English version, `CHATT_SHOTS_STYLE=precyzja`
+(or `cieplo`) another style, and `CHATT_SHOTS_DIR` sends the pictures
+somewhere other than `docs/screenshots/windows/`. One trap: the harness replaces
 `HttpClient` with a fake answering 400, so the script restores the real one
 (`HttpOverrides.global = null`). Three more tests, run alone with
 `--plain-name klawiatury`, take the keyboard add-on for `docs/keyboard.md`:
@@ -1060,8 +1089,9 @@ before `pumpWidget`: a request sent under the harness's fake clock can fail on
 a pooled connection, though the same run outside the harness takes
 milliseconds. Before every capture the script repaints every node with
 shadows on (cards in scrolled lists sit on layers of their own and kept the
-outline the harness draws while shadows are off), and it loads Consolas as the
-`monospace` font for the fingerprints. The floating bar (17) is the one
+outline the harness draws while shadows are off), and it loads every font
+family `pubspec.yaml` declares, the three styles' fonts and the icons, because
+the harness loads none by itself. The floating bar (17) is the one
 picture taken from the live desktop: `GetWindowRect` of the
 `ChattRemoteInputBar` window during a session, cropped to the bar alone.
 

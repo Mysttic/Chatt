@@ -330,12 +330,8 @@
   "discoveryDeaf": "To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.",
 
   "addons": "Dodatki",
-  "addonsHelp": "Funkcje, których większość osób nie potrzebuje. Wyłączony dodatek nie wychodzi poza tę sekcję: nie widać go na żadnym innym ekranie i niczego nie uruchamia.",
-  "transportsHelp": "Dwie drogi, obie mogą być włączone naraz. Sieć jest kilkadziesiąt razy szybsza, Bluetooth działa bez żadnej sieci, gdy urządzenia są obok siebie.",
   "transportWifi": "Sieć lokalna",
-  "transportWifiHelp": "Wiadomości i pliki przez Wi-Fi albo kabel. Wymaga, żeby oba urządzenia były w tej samej sieci.",
   "transportBluetooth": "Bluetooth",
-  "transportBluetoothHelp": "Wiadomości i pliki przez radio, bez routera, adresu i wspólnej sieci. Kilkadziesiąt razy wolniej niż Wi-Fi, więc duży plik potrwa. Włączenie dodaje szukanie przez Bluetooth w „W pobliżu” i znacznik drogi w rozmowach.",
   "transportBluetoothUnsupported": "Na tym systemie nie ma Bluetootha w Chatcie.",
   "transportBluetoothRadioOff": "Włącz Bluetooth w ustawieniach systemu.",
   "transportBluetoothNoPermission": "Chatt nie ma zgody na urządzenia w pobliżu.",
@@ -344,9 +340,7 @@
   "transportBothOff": "Sieć wyłączona, a Bluetooth nie działa: to urządzenie z nikim się nie skontaktuje.",
   "transportBluetoothDiscoverable": "Przy włączonym dodatku ten komputer jest widoczny dla urządzeń w pobliżu. Gaśnie razem z przełącznikiem.",
   "keyboardAddon": "Klawiatura z PC",
-  "keyboardAddonHelp": "Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.",
   "remoteInputReceive": "Pozwól pisać na tym urządzeniu",
-  "remoteInputReceiveHelp": "Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.",
   "remoteInputSafety": "Drugie urządzenie pisze tu jak zwykła klawiatura: może wysłać wiadomość, zatwierdzić formularz, wpisać hasło. Sesja trwa do Stopu albo do pół godziny bez pisania.",
   "remoteInputUnsupported": "Pisanie z innego urządzenia przyjmują Android i Windows.",
   "remoteInputRequestTitle": "{name} chce pisać na tym urządzeniu",
@@ -375,7 +369,6 @@
   "remoteInputImeNotSelected": "Na czas pisania wybierz klawiaturę Chatt. Po sesji wraca poprzednia.",
   "remoteInputImePick": "Wybierz klawiaturę",
   "remoteInputImeReady": "Klawiatura Chatt jest włączona.",
-  "remoteInputSendHint": "Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz klawiaturę u góry ekranu.",
   "remoteInputDontAskAgain": "Nie pytaj więcej dla tego urządzenia",
   "remoteInputBannerTarget": "{name} pisze do: {app}",
   "@remoteInputBannerTarget": {
@@ -605,5 +598,13 @@
   "historySourceNeedsShield": "Starszą rozmowę z innym wpisem można oddać tylko urządzeniu z zieloną tarczą. Najpierw potwierdź jego tożsamość.",
   "historyMergeLocally": "Połącz u mnie tamtą rozmowę z tą",
   "historyNeedsVerified": "Najpierw potwierdź tożsamość tego urządzenia (zielona tarcza).",
-  "historyMerged": "Rozmowy połączone."
+  "historyMerged": "Rozmowy połączone.",
+  "profileSection": "Profil",
+  "styleLabel": "Styl",
+  "styleCisza": "Cisza",
+  "stylePrecyzja": "Precyzja",
+  "styleCieplo": "Ciepło",
+  "themeLabel": "Motyw",
+  "addonBluetoothShort": "Rozmowy bez wspólnej sieci Wi-Fi",
+  "addonKeyboardShort": "Pisanie z klawiatury komputera"
 }

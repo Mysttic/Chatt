@@ -919,7 +919,7 @@ older version on the other side.
 
 ## Database
 
-`drift` (SQLite), schema version **14**. Tables: `settings`, `peers`,
+`drift` (SQLite), schema version **15**. Tables: `settings`, `peers`,
 `conversations`, `messages`.
 
 | Version | What was added |
@@ -937,6 +937,7 @@ older version on the other side.
 | 12 | `peers.btAddress`, `peers.lastProtocol`, `settings.wifiEnabled`, `settings.bluetoothEnabled` |
 | 13 | `settings.keyboardEnabled`, `settings.remoteInputReceive`, `peers.remoteInput` |
 | 14 | `messages.restoredAt` |
+| 15 | `settings.style` |
 
 Version 12 only adds columns and touches nothing that was there:
 `peers.btAddress` is a nullable text, `peers.lastProtocol` a nullable int (0 the
@@ -951,6 +952,11 @@ switches none of them on.
 Version 14 adds `messages.restoredAt`, the moment a message came back from a
 peer's copy of the history ([Sharing history](#sharing-history)). Everything
 already in the database arrived the ordinary way and keeps it empty.
+
+Version 15 adds `settings.style`, the look picked in Settings ([Styles](#styles-one-app-three-looks)):
+an int enum `AppStyle` (0 Cisza, 1 Precyzja, 2 Ciepło), Cisza by default. New
+styles go only at the end of the enum, because the index is what the database
+keeps.
 
 `upsertPeer` keeps the two roads apart: an empty host with a zero port does not
 overwrite the last good address on the network, and an empty radio address does
@@ -1335,10 +1341,44 @@ One set of screens serves a phone and a monitor:
   injected in `MaterialApp.builder`. A background makes the screen background
   and the app bar transparent; cards and bubbles stay opaque. The brightness of
   the system bar icons is then passed explicitly, because Flutter derives it
-  from the app bar colour.
+  from the app bar colour. The colours of each of the five walls come from the
+  active style (`ChattTokens.walls`).
 - **Selecting message text** is a `SelectionArea` around the conversation on
   the desktop, and a "Select text" entry in the bubble menu on a phone, where
   the long press already belongs to that menu.
+
+## Styles: one app, three looks
+
+Issue #37 brought three styles (Cisza, Precyzja, Ciepło), each in a light and
+a dark variant. They change looks alone: every screen shows the same
+information and the same controls in every style, so no code outside
+`ui/styles.dart` branches on the style for content.
+
+- **`chattTheme(style, brightness)`** builds the whole `ThemeData`: a
+  `ColorScheme` filled field by field from the style's hex values (no seed
+  colour), the text theme with the style's font, and the component themes
+  (cards, dialogs, sheets, buttons with a 48 px minimum height, fields,
+  switches, chips, the app bar).
+- **`ChattTokens`** (a `ThemeExtension`) carries what `ColorScheme` has no
+  slot for: bubble colours and shape, avatar palette and shape, row height and
+  padding, whether rows are cards, the date separator, the route badge, radii,
+  shadows, the security signals and the text styles `mono`, `code`, `overline`,
+  `caption`. Widgets read them with `ChattTokens.of(context)`, which falls back
+  to Cisza when a test builds a bare `MaterialApp`.
+- **Security signals.** `k.security` is the unconfirmed identity warning: the
+  danger colours in Cisza, the warning (amber) colours in Precyzja and Ciepło.
+  `k.dangerNote` (no encryption, codes that do not match) is red everywhere,
+  `k.verifiedNote` is the green of a confirmed identity. `SecurityNote` in
+  `widgets/common.dart` draws a warning frame from any of them.
+- **Fonts** are bundled (see `fonts/LICENSE`): Figtree, IBM Plex Sans and
+  Nunito for text, DM Mono, IBM Plex Mono and Spline Sans Mono for technical
+  values. Three of them are variable fonts; Flutter maps `FontWeight` to their
+  `wght` axis.
+- **Switching** goes through `MaterialApp`'s theme animation. `ChattTokens.lerp`
+  swaps the whole set at the midpoint, so no frame mixes two styles' shapes.
+- **Density.** On a phone the conversation header holds the shield and the
+  menu, both 48 dp targets; search and the keyboard button move into the menu.
+  Above `dwupanelOd` they stay in the header.
 
 ## Updates: a call outside the local network
 

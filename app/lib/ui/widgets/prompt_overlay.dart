@@ -5,6 +5,7 @@ import '../../network/protocol.dart' show PairOutcome;
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import 'common.dart';
 import 'history_ui.dart';
 import 'toasts.dart';
@@ -187,7 +188,7 @@ class _PairingCardState extends State<_PairingCard> {
                       ? Icons.gpp_maybe_outlined
                       : Icons.shield_outlined,
                   color: widget.pairing.alreadyPaired
-                      ? scheme.error
+                      ? ChattTokens.of(context).security.icon
                       : scheme.primary,
                 ),
                 const SizedBox(width: 12),
@@ -205,10 +206,7 @@ class _PairingCardState extends State<_PairingCard> {
             // ktokolwiek, sama nazwa niczego nie dowodzi.
             if (widget.pairing.alreadyPaired) ...[
               const SizedBox(height: 8),
-              Text(
-                context.l10n.pairAgainWarning,
-                style: TextStyle(color: scheme.error, fontSize: 13),
-              ),
+              SecurityNote(context.l10n.pairAgainWarning, dense: true),
             ],
             const SizedBox(height: 8),
             Text(widget.pairing.fromScan
@@ -220,16 +218,16 @@ class _PairingCardState extends State<_PairingCard> {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
+                color: ChattTokens.of(context).surface2,
+                borderRadius:
+                    BorderRadius.circular(ChattTokens.of(context).radiusField),
               ),
               child: Text(
                 widget.pairing.code.split('').join(' '),
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      letterSpacing: 2,
-                    ),
+                style: ChattTokens.of(context)
+                    .code
+                    .copyWith(color: scheme.onSurface),
               ),
             ),
             if (blad != null) ...[
@@ -390,25 +388,10 @@ class _OfferCardState extends State<_OfferCard> {
                       ),
                       if (!offer.fromVerifiedPeer)
                         Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.report_outlined,
-                                size: 14,
-                                color: scheme.error,
-                              ),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                  context.l10n.unpairedWarning,
-                                  style: TextStyle(
-                                    color: scheme.error,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          padding: const EdgeInsets.only(top: 6),
+                          child: SecurityNote(
+                            context.l10n.unpairedWarning,
+                            dense: true,
                           ),
                         ),
                     ],
@@ -507,7 +490,8 @@ class _RemoteInputCardState extends State<_RemoteInputCard> {
                   ),
                 ),
                 // Prosić może tylko urządzenie z potwierdzoną tożsamością.
-                const Icon(Icons.verified_user, color: Colors.green, size: 20),
+                Icon(Icons.verified_user,
+                    color: ChattTokens.of(context).verified, size: 20),
               ],
             ),
             const SizedBox(height: 8),

@@ -33,6 +33,30 @@ into `master`.
 - **Dates in the conversation.** The first message of each day gets "Today",
   "Yesterday" or the full date above it.
 - **"File not available"** on a file bubble whose content is not on this device.
+- **Three styles** (issue #37): **Calm** (Cisza), **Precise** (Precyzja) and
+  **Warm** (Ciepło), each in a light and a dark variant, picked in Settings
+  under Appearance. They change looks alone (colours, fonts, corners, density,
+  avatars, bubbles); every screen shows the same information in each. Each
+  style has its own fixed-width font for addresses, identifiers, fingerprints,
+  the pairing code and file sizes, and the five backgrounds follow the style.
+  Schema 15 (`settings.style`), Calm by default.
+- **"This device" panel** at the bottom of Settings: the addresses the device
+  listens on, its Bluetooth address, the identifier and the key fingerprint,
+  each with a copy button.
+
+### Changed
+- The top of the conversation list shows this device's name; the version
+  number moved to Settings, under Updates.
+- On a phone the conversation's header holds only the shield and the menu;
+  search and the keyboard from a PC moved into the menu. The shield sits on a
+  background in the colour of its state.
+- Settings follow a new order (Profile, Appearance, background listening,
+  Windows, Links, Updates, Privacy, Add-ons, This device), and the add-on cards
+  carry a one-line description.
+- Security warnings use the style's warning frame: red in Calm, amber in
+  Precise and Warm. No encryption stays red everywhere.
+- The route on the conversation list is an icon alone, with its name in the
+  tooltip.
 
 ## [0.10.1] - 2026-10-18
 

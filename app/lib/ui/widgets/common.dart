@@ -2,64 +2,195 @@ import 'package:flutter/material.dart';
 
 import '../../data/db.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 
-/// Kółko z inicjałem rozmówcy: awatar na liście rozmów i w nagłówku.
+/// Inicjały do awatara: pierwsze litery dwóch pierwszych słów, a przy
+/// jednym słowie jego dwie pierwsze litery („Laptop Ani" to LA,
+/// „BEEMYSTTIC" to BE).
+String initialsOf(String name) {
+  final slowa = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
+  if (slowa.isEmpty) return '?';
+  final pierwsze = slowa.first.characters;
+  final wynik = slowa.length > 1
+      ? '${pierwsze.first}${slowa.elementAt(1).characters.first}'
+      : pierwsze.take(2).toString();
+  return wynik.toUpperCase();
+}
+
+/// Awatar z inicjałami rozmówcy: na liście rozmów, na liście urządzeń
+/// i w nagłówku rozmowy. Kształt, kolory i rozmiar idą za stylem: koło
+/// w Ciszy, zaokrąglony kwadrat w Precyzji i Cieple, kolor stały dla nazwy.
 ///
 /// [online] to obecność w sieci: `true` dokłada zieloną kropkę w rogu.
-/// `false` i `null` nie rysują nic: kropka mówi „urządzenie odpowiada",
-/// a jej brak zostawia sprawę otwartą.
+/// `false` rysuje pusty pierścień tam, gdzie styl go ma (Precyzja); `null`
+/// nie rysuje nic, bo nie wiadomo.
 class InitialsAvatar extends StatelessWidget {
   final String name;
-  final double radius;
   final bool? online;
+
+  /// Mniejszy awatar do nagłówka rozmowy.
+  final bool header;
 
   const InitialsAvatar({
     super.key,
     required this.name,
-    this.radius = 22,
     this.online,
+    this.header = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
-    final avatar = CircleAvatar(
-      radius: radius,
-      backgroundColor: scheme.primaryContainer,
+    final k = ChattTokens.of(context);
+    final bok = header ? k.avatarHeaderSize : k.avatarSize;
+    final kolory = k.avatarFor(name);
+    final avatar = Container(
+      width: bok,
+      height: bok,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: kolory.background,
+        shape: k.avatarCircle ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius:
+            k.avatarCircle ? null : BorderRadius.circular(bok * k.avatarCorner),
+      ),
       child: Text(
-        initial,
+        initialsOf(name),
         style: TextStyle(
-          color: scheme.onPrimaryContainer,
-          fontSize: radius * 0.9,
-          fontWeight: FontWeight.w500,
+          color: kolory.foreground,
+          fontSize: bok * 0.34,
+          fontWeight: k.avatarWeight,
+          letterSpacing: bok * 0.34 * 0.02,
+          height: 1,
         ),
       ),
     );
-    if (online != true) return avatar;
+    if (online == null) return avatar;
+    // Czytnik ekranu słyszy obecność w każdym stylu, także tam, gdzie
+    // brak połączenia nie ma własnego znaku.
+    final opis =
+        online! ? context.l10n.peerOnline : context.l10n.peerOffline;
+    final kropka = online! ? k.presence : k.presenceOff;
+    if (kropka == null) return Semantics(label: opis, child: avatar);
 
-    // Obwódka w kolorze tła listy odcina kropkę od awatara, więc widać ją
+    // Obwódka w kolorze powierzchni odcina kropkę od awatara, więc widać ją
     // tak samo na jasnym i na ciemnym motywie.
-    final srednica = radius * 0.5;
+    final srednica = k.presenceDot * (header ? 0.85 : 1);
     return Semantics(
-      label: context.l10n.peerOnline,
-      child: Stack(
-        children: [
-          avatar,
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: srednica,
-              height: srednica,
-              decoration: BoxDecoration(
-                color: Colors.green,
-                shape: BoxShape.circle,
-                border: Border.all(color: scheme.surface, width: radius * 0.09),
+      label: opis,
+      child: SizedBox(
+        width: bok + 2,
+        height: bok + 2,
+        child: Stack(
+          children: [
+            avatar,
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: srednica,
+                height: srednica,
+                decoration: BoxDecoration(
+                  color: online == true ? kropka : k.surface1,
+                  shape: BoxShape.circle,
+                  border: online == true
+                      ? Border.all(color: k.surface1, width: k.presenceDotBorder)
+                      : Border.all(color: kropka, width: 2),
+                ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Ramka z ostrzeżeniem bezpieczeństwa w wyglądzie stylu. Domyślnie
+/// [ChattTokens.security]; [colors] podmienia na zagrożenie albo
+/// potwierdzenie.
+class SecurityNote extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  final NoteColors? colors;
+  final bool dense;
+
+  const SecurityNote(
+    this.text, {
+    super.key,
+    this.icon = Icons.gpp_maybe_outlined,
+    this.colors,
+    this.dense = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final k = ChattTokens.of(context);
+    final c = colors ?? k.security;
+    final tekst = dense
+        ? Theme.of(context).textTheme.bodySmall
+        : Theme.of(context).textTheme.bodyMedium;
+    return Container(
+      width: double.infinity,
+      padding: dense
+          ? const EdgeInsets.symmetric(horizontal: 10, vertical: 6)
+          : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.background,
+        borderRadius: BorderRadius.circular(k.radiusWarning),
+        border: c.border == null || c.borderWidth == 0
+            ? null
+            : Border.all(color: c.border!, width: c.borderWidth),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: dense ? 16 : 20, color: c.icon),
+          SizedBox(width: dense ? 6 : 10),
+          Expanded(
+            child: Text(text, style: tekst?.copyWith(color: c.foreground)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Licznik nieprzeczytanych: pigułka w Ciszy, kwadrat w Precyzji,
+/// zaokrąglony kafelek w Cieple.
+class UnreadCount extends StatelessWidget {
+  final int count;
+
+  const UnreadCount({super.key, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final k = ChattTokens.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final wysokosc = switch (k.style) {
+      AppStyle.cisza => 22.0,
+      AppStyle.precyzja => 20.0,
+      AppStyle.cieplo => 24.0,
+    };
+    // Align z mnożnikami 1: licznik ma rozmiar swojej liczby. Samo
+    // `alignment` rozciągnęłoby go na całą szerokość wiersza listy.
+    return Container(
+      constraints: BoxConstraints(minWidth: wysokosc, minHeight: wysokosc),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: scheme.primary,
+        borderRadius: BorderRadius.circular(
+            k.radiusBadge == 999 ? wysokosc / 2 : k.radiusBadge),
+      ),
+      child: Align(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Text(
+          count > 99 ? '99+' : '$count',
+          style: (k.style == AppStyle.precyzja
+                  ? k.caption.copyWith(fontWeight: FontWeight.w600)
+                  : Theme.of(context).textTheme.labelSmall)
+              ?.copyWith(color: scheme.onPrimary, height: 1),
+        ),
       ),
     );
   }
@@ -85,8 +216,8 @@ class PeerName extends StatelessWidget {
             const SizedBox(width: 6),
             Tooltip(
               message: context.l10n.shieldVerified,
-              child: const Icon(Icons.verified_user,
-                  size: 16, color: Colors.green),
+              child: Icon(Icons.verified_user,
+                  size: 16, color: ChattTokens.of(context).verified),
             ),
           ],
         ],

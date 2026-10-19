@@ -25,8 +25,12 @@ klawiaturą komputera w polu na telefonie albo na innym komputerze.
 3. Wejdź w **Ustawienia** i ustaw nick, po którym rozpoznasz to urządzenie
    na liście u rozmówcy.
 
-Numer wersji stoi w pasku nad listą rozmów, a Ustawienia powtarzają go
-w sekcji „To urządzenie". Przydaje się przy zgłaszaniu problemu.
+Na górze listy rozmów stoi nazwa tego urządzenia. Numer wersji jest
+w Ustawieniach, w sekcji **Aktualizacje**. Na samym dole Ustawień panel **To
+urządzenie** zbiera adresy, pod którymi urządzenie słucha, adres Bluetooth
+(przy włączonym dodatku, gdy system go podaje), identyfikator i odcisk klucza.
+Każdą wartość kopiuje przycisk obok. Przydaje się przy zgłaszaniu problemu
+i przy dodawaniu po adresie IP.
 
 ## Znajdowanie drugiego urządzenia
 
@@ -178,8 +182,9 @@ Na co dzień piszesz dalej swoją klawiaturą. Klawiatura Chatt przejmuje
 miejsce na czas sesji i oddaje je, gdy sesja się skończy.
 
 **Początek.** Otwórz rozmowę z drugim urządzeniem i wybierz przycisk
-klawiatury u góry. Jest tam tylko przy włączonym dodatku i działa tylko przy
-zielonej tarczy. Ekran **Piszesz na: X** prosi drugie urządzenie i czeka. Tam
+klawiatury u góry (na telefonie: menu **⋮**, **Pisz na tamtym urządzeniu**).
+Jest tam tylko przy włączonym dodatku i działa tylko przy zielonej tarczy.
+Ekran **Piszesz na: X** prosi drugie urządzenie i czeka. Tam
 pojawia się karta „X chce pisać na tym urządzeniu” z przyciskami **Odrzuć**
 i **Akceptuj** oraz polem **Nie pytaj więcej dla tego urządzenia**. Fokus stoi
 na Odrzuć, więc przypadkowy Enter odmawia. Bez odpowiedzi prośba gaśnie po
@@ -272,9 +277,14 @@ w tej chwili dostępny.
 Wpisy na liście rozmów niosą zieloną kropkę na awatarze, dopóki urządzenie
 odpowiada w sieci, i zieloną tarczę przy nazwie, gdy jego tożsamość jest
 potwierdzona. Z włączonym dodatkiem Bluetooth dochodzi ikona drogi (Wi‑Fi
-albo Bluetooth), którą poszła ostatnia wymiana; w nagłówku rozmowy ta sama
-ikona stoi z podpisem. Lista pyta każde znane urządzenie co 30 sekund, tylko
-przy otwartym ekranie.
+albo Bluetooth), którą poszła ostatnia wymiana; w nagłówku rozmowy stoi ta
+sama ikona, a jej podpis pokazuje się po najechaniu albo przytrzymaniu. Lista
+pyta każde znane urządzenie co 30 sekund, tylko przy otwartym ekranie.
+
+Na telefonie nagłówek rozmowy ma tylko tarczę i menu **⋮**. Tarcza stoi na
+tle w kolorze stanu: zielonym przy potwierdzonej tożsamości, w kolorze
+ostrzeżenia przy niepotwierdzonej. Szukanie i klawiatura z PC siedzą w menu.
+Na szerokim oknie oba przyciski stoją w nagłówku obok tarczy.
 
 <img src="screenshots/produkt/android_rozmowa_z_plikiem.png" alt="Rozmowa" width="260">
 
@@ -303,7 +313,8 @@ zapomnieć czegoś, co już dostała, i aplikacja mówi to wprost.
 
 <img src="screenshots/produkt/android_menu_wiadomosci.png" alt="Menu wiadomości" width="260">
 
-**Lupa w pasku** szuka w otwartej rozmowie: lista zostawia same pasujące
+**Szukaj w rozmowie** (lupa w pasku na szerokim oknie, menu **⋮** na
+telefonie) szuka w otwartej rozmowie: lista zostawia same pasujące
 wiadomości, a trafienie jest podświetlone. Ta sama lupa na liście rozmów
 filtruje ją po nazwie rozmówcy i ostatniej wiadomości.
 
@@ -620,10 +631,27 @@ zmieniłby nic w tym, co robi program.
 
 ## Wygląd i język
 
-W Ustawieniach wybierasz motyw (systemowy, jasny, ciemny), **tło** i język
-(systemowy, polski, angielski). Wszystkie wybory siedzą w bazie, więc
-przeżywają restart. Świeża instalacja startuje po angielsku, polski jest
-o jedno dotknięcie dalej.
+W Ustawieniach, w sekcji **Wygląd**, wybierasz **styl**, motyw (systemowy,
+jasny, ciemny), **tło** i język (systemowy, polski, angielski). Wszystkie
+wybory siedzą w bazie, więc przeżywają restart. Świeża instalacja startuje po
+angielsku, polski jest o jedno dotknięcie dalej.
+
+Style są trzy i różnią się wyłącznie wyglądem: te same ekrany, te same
+informacje, te same przyciski.
+
+- **Cisza** (domyślny): miękkie powierzchnie, okrągłe awatary, zaokrąglone
+  dymki, font Figtree.
+- **Precyzja**: gęsta lista w panelu z obrysem, kwadratowe awatary, ostrzejsze
+  rogi, daty z linią przez całą szerokość, nagłówki sekcji wersalikami, font
+  IBM Plex Sans.
+- **Ciepło**: każda rozmowa na osobnej karcie z cieniem, duże zaokrąglenia,
+  font Nunito.
+
+Każdy styl ma wariant jasny i ciemny oraz własny font o stałej szerokości do
+wartości technicznych: adresów, identyfikatora, odcisku klucza, kodu
+parowania i rozmiarów plików. Ostrzeżenie o niepotwierdzonej tożsamości jest
+czerwone w Ciszy i bursztynowe w Precyzji i Cieple; brak szyfrowania jest
+czerwony w każdym stylu.
 
 Krótkie komunikaty („Skopiowano", „Usunięto rozmowę") pokazują się w prawym
 górnym rogu, z paskiem odliczającym czas do zniknięcia. Kliknięcie zamyka je od
@@ -631,8 +659,9 @@ razu. Na górze nie zasłaniają przycisku ani pola tekstowego, którego przed
 chwilą użyłeś.
 
 Tła to gotowe zestawy: „Bez tła" (zwykły kolor motywu), Zmierzch, Ocean,
-Las i Piasek. Każdy ma osobne kolory na motyw jasny i ciemny, a wszystkie są
-celowo przygaszone: na tle leżą dymki i karty, które muszą zostać czytelne.
+Las i Piasek. Każde ma kolory dobrane do stylu i do motywu jasnego
+i ciemnego, a wszystkie są celowo przygaszone: na tle leżą dymki i karty,
+które muszą zostać czytelne.
 Powiadomienia usługi w tle też idą za językiem aplikacji.
 
 <img src="screenshots/produkt/android_lista_rozmow_ciemny.png" alt="Tryb ciemny" width="260">

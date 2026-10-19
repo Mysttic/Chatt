@@ -789,26 +789,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get addons => 'Dodatki';
 
   @override
-  String get addonsHelp =>
-      'Funkcje, których większość osób nie potrzebuje. Wyłączony dodatek nie wychodzi poza tę sekcję: nie widać go na żadnym innym ekranie i niczego nie uruchamia.';
-
-  @override
-  String get transportsHelp =>
-      'Dwie drogi, obie mogą być włączone naraz. Sieć jest kilkadziesiąt razy szybsza, Bluetooth działa bez żadnej sieci, gdy urządzenia są obok siebie.';
-
-  @override
   String get transportWifi => 'Sieć lokalna';
 
   @override
-  String get transportWifiHelp =>
-      'Wiadomości i pliki przez Wi-Fi albo kabel. Wymaga, żeby oba urządzenia były w tej samej sieci.';
-
-  @override
   String get transportBluetooth => 'Bluetooth';
-
-  @override
-  String get transportBluetoothHelp =>
-      'Wiadomości i pliki przez radio, bez routera, adresu i wspólnej sieci. Kilkadziesiąt razy wolniej niż Wi-Fi, więc duży plik potrwa. Włączenie dodaje szukanie przez Bluetooth w „W pobliżu” i znacznik drogi w rozmowach.';
 
   @override
   String get transportBluetoothUnsupported =>
@@ -840,15 +824,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get keyboardAddon => 'Klawiatura z PC';
 
   @override
-  String get keyboardAddonHelp =>
-      'Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.';
-
-  @override
   String get remoteInputReceive => 'Pozwól pisać na tym urządzeniu';
-
-  @override
-  String get remoteInputReceiveHelp =>
-      'Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.';
 
   @override
   String get remoteInputSafety =>
@@ -911,10 +887,6 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get remoteInputImeReady => 'Klawiatura Chatt jest włączona.';
-
-  @override
-  String get remoteInputSendHint =>
-      'Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz klawiaturę u góry ekranu.';
 
   @override
   String get remoteInputDontAskAgain => 'Nie pytaj więcej dla tego urządzenia';
@@ -1409,4 +1381,28 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get historyMerged => 'Rozmowy połączone.';
+
+  @override
+  String get profileSection => 'Profil';
+
+  @override
+  String get styleLabel => 'Styl';
+
+  @override
+  String get styleCisza => 'Cisza';
+
+  @override
+  String get stylePrecyzja => 'Precyzja';
+
+  @override
+  String get styleCieplo => 'Ciepło';
+
+  @override
+  String get themeLabel => 'Motyw';
+
+  @override
+  String get addonBluetoothShort => 'Rozmowy bez wspólnej sieci Wi-Fi';
+
+  @override
+  String get addonKeyboardShort => 'Pisanie z klawiatury komputera';
 }

@@ -1400,41 +1400,17 @@ abstract class AppLocalizations {
   /// **'Dodatki'**
   String get addons;
 
-  /// No description provided for @addonsHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Funkcje, których większość osób nie potrzebuje. Wyłączony dodatek nie wychodzi poza tę sekcję: nie widać go na żadnym innym ekranie i niczego nie uruchamia.'**
-  String get addonsHelp;
-
-  /// No description provided for @transportsHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Dwie drogi, obie mogą być włączone naraz. Sieć jest kilkadziesiąt razy szybsza, Bluetooth działa bez żadnej sieci, gdy urządzenia są obok siebie.'**
-  String get transportsHelp;
-
   /// No description provided for @transportWifi.
   ///
   /// In pl, this message translates to:
   /// **'Sieć lokalna'**
   String get transportWifi;
 
-  /// No description provided for @transportWifiHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Wiadomości i pliki przez Wi-Fi albo kabel. Wymaga, żeby oba urządzenia były w tej samej sieci.'**
-  String get transportWifiHelp;
-
   /// No description provided for @transportBluetooth.
   ///
   /// In pl, this message translates to:
   /// **'Bluetooth'**
   String get transportBluetooth;
-
-  /// No description provided for @transportBluetoothHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Wiadomości i pliki przez radio, bez routera, adresu i wspólnej sieci. Kilkadziesiąt razy wolniej niż Wi-Fi, więc duży plik potrwa. Włączenie dodaje szukanie przez Bluetooth w „W pobliżu” i znacznik drogi w rozmowach.'**
-  String get transportBluetoothHelp;
 
   /// No description provided for @transportBluetoothUnsupported.
   ///
@@ -1484,23 +1460,11 @@ abstract class AppLocalizations {
   /// **'Klawiatura z PC'**
   String get keyboardAddon;
 
-  /// No description provided for @keyboardAddonHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.'**
-  String get keyboardAddonHelp;
-
   /// No description provided for @remoteInputReceive.
   ///
   /// In pl, this message translates to:
   /// **'Pozwól pisać na tym urządzeniu'**
   String get remoteInputReceive;
-
-  /// No description provided for @remoteInputReceiveHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.'**
-  String get remoteInputReceiveHelp;
 
   /// No description provided for @remoteInputSafety.
   ///
@@ -1597,12 +1561,6 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Klawiatura Chatt jest włączona.'**
   String get remoteInputImeReady;
-
-  /// No description provided for @remoteInputSendHint.
-  ///
-  /// In pl, this message translates to:
-  /// **'Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz klawiaturę u góry ekranu.'**
-  String get remoteInputSendHint;
 
   /// No description provided for @remoteInputDontAskAgain.
   ///
@@ -2311,6 +2269,54 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Rozmowy połączone.'**
   String get historyMerged;
+
+  /// No description provided for @profileSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Profil'**
+  String get profileSection;
+
+  /// No description provided for @styleLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Styl'**
+  String get styleLabel;
+
+  /// No description provided for @styleCisza.
+  ///
+  /// In pl, this message translates to:
+  /// **'Cisza'**
+  String get styleCisza;
+
+  /// No description provided for @stylePrecyzja.
+  ///
+  /// In pl, this message translates to:
+  /// **'Precyzja'**
+  String get stylePrecyzja;
+
+  /// No description provided for @styleCieplo.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ciepło'**
+  String get styleCieplo;
+
+  /// No description provided for @themeLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Motyw'**
+  String get themeLabel;
+
+  /// No description provided for @addonBluetoothShort.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rozmowy bez wspólnej sieci Wi-Fi'**
+  String get addonBluetoothShort;
+
+  /// No description provided for @addonKeyboardShort.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie z klawiatury komputera'**
+  String get addonKeyboardShort;
 }
 
 class _AppLocalizationsDelegate

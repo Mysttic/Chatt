@@ -237,7 +237,47 @@ void main() {
     expect(wiadomosci.single.restoredAt, isNull);
     final wersja =
         await druga.customSelect('PRAGMA user_version;').getSingle();
-    expect(wersja.read<int>('user_version'), 14);
+    expect(wersja.read<int>('user_version'), druga.schemaVersion);
+  });
+
+  /// Schemat 15 zapamiętuje styl wyglądu. Baza sprzed zmiany dostaje
+  /// Ciszę, a motyw, tło i reszta ustawień zostają, jak były.
+  test('przejście na schemat 15 daje styl Cisza i nie rusza reszty wyglądu',
+      () async {
+    final katalog = Directory.systemTemp.createTempSync('chatt-migracja-15');
+    addTearDown(() => katalog.deleteSync(recursive: true));
+    final plik = File(p.join(katalog.path, 'chatt.db'));
+
+    final pierwsza = ChattDb(NativeDatabase(plik));
+    await pierwsza.ensureSettings(
+      identityFactory: () async => ('klucz', 'guid-ja'),
+      defaultNickname: 'Ja',
+      defaultPort: 47777,
+    );
+    await pierwsza.saveTheme(AppTheme.dark);
+    await pierwsza.saveBackground(3);
+    await pierwsza.close();
+
+    final surowa = raw.sqlite3.open(plik.path);
+    surowa.execute('ALTER TABLE settings DROP COLUMN style;');
+    surowa.execute('PRAGMA user_version = 14;');
+    surowa.close();
+
+    final druga = ChattDb(NativeDatabase(plik));
+    addTearDown(druga.close);
+    final ustawienia = await druga.getSettings();
+    expect(ustawienia, isNotNull);
+    expect(ustawienia!.style, AppStyle.cisza);
+    expect(ustawienia.theme, AppTheme.dark);
+    expect(ustawienia.background, 3);
+    expect(ustawienia.nickname, 'Ja');
+
+    await druga.saveStyle(AppStyle.cieplo);
+    expect((await druga.getSettings())!.style, AppStyle.cieplo);
+
+    final wersja =
+        await druga.customSelect('PRAGMA user_version;').getSingle();
+    expect(wersja.read<int>('user_version'), 15);
   });
 
   /// Rozmówca poznany wyłącznie przez radio nie ma adresu w sieci, a rozmówca

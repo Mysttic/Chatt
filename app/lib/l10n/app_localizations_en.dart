@@ -786,26 +786,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addons => 'Add-ons';
 
   @override
-  String get addonsHelp =>
-      'Features most people never need. An add-on that is off stays inside this section: it shows on no other screen and starts nothing.';
-
-  @override
-  String get transportsHelp =>
-      'Two roads, and both can be on at once. The network is tens of times faster; Bluetooth works with no network at all, as long as the devices are next to each other.';
-
-  @override
   String get transportWifi => 'Local network';
 
   @override
-  String get transportWifiHelp =>
-      'Messages and files over Wi-Fi or a cable. Both devices have to be on the same network.';
-
-  @override
   String get transportBluetooth => 'Bluetooth';
-
-  @override
-  String get transportBluetoothHelp =>
-      'Messages and files over the radio, with no router, no address and no shared network. Tens of times slower than Wi-Fi, so a big file will take a while. Turning it on adds searching over Bluetooth to Nearby and shows which road each conversation takes.';
 
   @override
   String get transportBluetoothUnsupported =>
@@ -837,15 +821,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get keyboardAddon => 'Keyboard from a PC';
 
   @override
-  String get keyboardAddonHelp =>
-      'Type on a computer\'s keyboard into the field that has focus on another device, in any app. Only between devices with a confirmed identity, over the same encrypted channel as conversations.';
-
-  @override
   String get remoteInputReceive => 'Allow typing on this device';
-
-  @override
-  String get remoteInputReceiveHelp =>
-      'A confirmed device can ask to type here. Every session starts with a question on this screen.';
 
   @override
   String get remoteInputSafety =>
@@ -908,10 +884,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remoteInputImeReady => 'The Chatt keyboard is on.';
-
-  @override
-  String get remoteInputSendHint =>
-      'To type on another device, open the conversation with it and pick the keyboard at the top.';
 
   @override
   String get remoteInputDontAskAgain => 'Don\'t ask again for this device';
@@ -1403,4 +1375,28 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get historyMerged => 'Conversations merged.';
+
+  @override
+  String get profileSection => 'Profile';
+
+  @override
+  String get styleLabel => 'Style';
+
+  @override
+  String get styleCisza => 'Calm';
+
+  @override
+  String get stylePrecyzja => 'Precise';
+
+  @override
+  String get styleCieplo => 'Warm';
+
+  @override
+  String get themeLabel => 'Theme';
+
+  @override
+  String get addonBluetoothShort => 'Conversations with no shared Wi-Fi';
+
+  @override
+  String get addonKeyboardShort => 'Typing from a computer\'s keyboard';
 }

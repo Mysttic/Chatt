@@ -20,8 +20,13 @@ PC.
 3. Open **Settings** and set the nickname that identifies this device in the
    other side's list.
 
-The bar over the conversation list carries the version number, and Settings
-repeats it under "This device". Worth having at hand when reporting a problem.
+The top of the conversation list carries this device's name. The version
+number is in Settings, under **Updates**. At the very bottom of Settings the
+**This device** panel gathers the addresses the device listens on, its
+Bluetooth address (with the add-on on, when the system reports it), the
+identifier and the key fingerprint. The button next to each value copies it.
+Worth having at hand when reporting a problem or adding a device by IP
+address.
 
 ## Finding the other device
 
@@ -57,6 +62,12 @@ while the device is answering on the network, and a green shield next to the
 name once its identity has been confirmed. The list asks every known device
 every 30 seconds, and only while it is on screen.
 
+On a phone the conversation's header holds only the shield and the **⋮**
+menu. The shield sits on a background in the colour of its state: green with a
+confirmed identity, the warning colour without one. Search and the keyboard
+from a PC are in the menu. A wide window keeps both buttons in the header next
+to the shield.
+
 <img src="screenshots/produkt/en/android_rozmowa_z_plikiem.png" alt="Conversation" width="260">
 
 Status shown on a sent message:
@@ -82,8 +93,9 @@ something it already received, and the app says so.
 
 <img src="screenshots/produkt/en/android_menu_wiadomosci.png" alt="Message menu" width="260">
 
-**The magnifier in the bar** searches the open conversation: the list keeps
-only matching messages and the hit is highlighted. The same magnifier on the
+**Search this conversation** (the magnifier in the bar on a wide window, the
+**⋮** menu on a phone) searches the open conversation: the list keeps only
+matching messages and the hit is highlighted. The same magnifier on the
 conversation list filters it by name and last message.
 
 <img src="screenshots/produkt/en/android_szukanie_w_rozmowie.png" alt="Search in a conversation" width="260">
@@ -392,8 +404,9 @@ Your usual keyboard stays the one you type with. The Chatt keyboard takes over
 for a session and gives the place back when it ends.
 
 **Starting.** Open the conversation with the other device and pick the
-keyboard button at the top. It is there only with the add-on on, and it works
-only with a green shield. The **Typing on X** screen asks the other device and
+keyboard button at the top (on a phone: the **⋮** menu, **Type on that
+device**). It is there only with the add-on on, and it works only with a green
+shield. The **Typing on X** screen asks the other device and
 waits. Over there a card appears: "X wants to type on this device", with
 **Reject**, **Accept** and a **Don't ask again for this device** box. The focus
 sits on Reject, so an Enter pressed by accident refuses. Without an answer the
@@ -609,9 +622,25 @@ nothing about what the program does.
 
 ## Appearance and language
 
-Settings is where you pick the theme (system, light, dark), the **background**
-and the language (system, Polish, English). Every choice lives in the database,
-so it survives a restart.
+Settings, under **Appearance**, is where you pick the **style**, the theme
+(system, light, dark), the **background** and the language (system, Polish,
+English). Every choice lives in the database, so it survives a restart.
+
+There are three styles, and they differ in looks alone: the same screens, the
+same information, the same buttons.
+
+- **Calm** (the default): soft surfaces, round avatars, rounded bubbles, the
+  Figtree font.
+- **Precise**: a dense list in an outlined panel, square avatars, sharper
+  corners, dates with a line across the width, section headers in capitals,
+  the IBM Plex Sans font.
+- **Warm**: every conversation on its own card with a shadow, large rounded
+  corners, the Nunito font.
+
+Each style has a light and a dark variant and its own fixed-width font for
+technical values: addresses, the identifier, the key fingerprint, the pairing
+code and file sizes. The unconfirmed identity warning is red in Calm and amber
+in Precise and Warm; no encryption is red in every style.
 
 Short messages ("Copied", "Deleted the conversation") appear in the top right
 corner with a bar counting down to when they go away. A tap closes one straight
@@ -619,10 +648,10 @@ away. Up there they never cover the button or the text field you have just
 used.
 
 Backgrounds are ready-made sets: "No background" (the plain theme colour),
-Dusk, Ocean, Forest and Sand. Each has separate colours for the light and dark
-theme, and all of them are deliberately muted: cards and bubbles sit on top and
-have to stay readable. Background service notifications follow the app
-language.
+Dusk, Ocean, Forest and Sand. Each has colours matched to the style and to the
+light and dark theme, and all of them are deliberately muted: cards and
+bubbles sit on top and have to stay readable. Background service
+notifications follow the app language.
 
 <img src="screenshots/produkt/en/android_lista_rozmow_ciemny.png" alt="Dark mode" width="260">
 
