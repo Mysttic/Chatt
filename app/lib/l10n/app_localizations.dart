@@ -989,7 +989,7 @@ abstract class AppLocalizations {
   /// No description provided for @retentionHelp.
   ///
   /// In pl, this message translates to:
-  /// **'Kasowanie dotyczy wpisów w rozmowach. Odebrane pliki zostają na dysku.'**
+  /// **'Kasowanie dotyczy wpisów w rozmowach i historii pisania. Odebrane pliki zostają na dysku.'**
   String get retentionHelp;
 
   /// No description provided for @clearHistory.
@@ -1007,7 +1007,7 @@ abstract class AppLocalizations {
   /// No description provided for @clearHistoryBody.
   ///
   /// In pl, this message translates to:
-  /// **'Znikną wszystkie wiadomości i rozmowy. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.'**
+  /// **'Znikną wszystkie wiadomości, rozmowy i historia pisania. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.'**
   String get clearHistoryBody;
 
   /// No description provided for @historyCleared.
@@ -2317,6 +2317,582 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Pisanie z klawiatury komputera'**
   String get addonKeyboardShort;
+
+  /// No description provided for @historyClearedWithTyping.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunięto wiadomości: {messages}, sesje pisania: {sessions}'**
+  String historyClearedWithTyping(int messages, int sessions);
+
+  /// No description provided for @typingHistorySwitch.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zapisuj historię pisania'**
+  String get typingHistorySwitch;
+
+  /// No description provided for @typingHistoryHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zapisuje obie strony każdej sesji. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana na tym urządzeniu.'**
+  String get typingHistoryHelp;
+
+  /// No description provided for @typingHistory.
+  ///
+  /// In pl, this message translates to:
+  /// **'Historia pisania'**
+  String get typingHistory;
+
+  /// No description provided for @typingHistoryEntryHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sesje zdalnej klawiatury zapisane na tym urządzeniu: {count}. Wyczyścić je można na ekranie historii.'**
+  String typingHistoryEntryHelp(int count);
+
+  /// No description provided for @typingHistoryOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.'**
+  String get typingHistoryOff;
+
+  /// No description provided for @typingHistoryEmptyTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak historii pisania'**
+  String get typingHistoryEmptyTitle;
+
+  /// No description provided for @typingHistoryEmptyBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tutaj pojawią się sesje zdalnej klawiatury w obu kierunkach: pisanie stąd na innych urządzeniach i pisanie innych urządzeń tutaj.'**
+  String get typingHistoryEmptyBody;
+
+  /// No description provided for @typingHistoryClear.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyść historię pisania'**
+  String get typingHistoryClear;
+
+  /// No description provided for @typingHistoryClearTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyścić historię pisania?'**
+  String get typingHistoryClearTitle;
+
+  /// No description provided for @typingHistoryClearBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Znikną wszystkie zapisane sesje pisania. Rozmowy i dziennik aplikacji zostają.'**
+  String get typingHistoryClearBody;
+
+  /// No description provided for @typingHistoryCleared.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunięto sesje pisania: {count}'**
+  String typingHistoryCleared(int count);
+
+  /// Sesja, w której to urządzenie pisało na urządzeniu {name}. Forma bezosobowa, bez rodzaju.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie stąd na: {name}'**
+  String typingHistoryOutgoing(Object name);
+
+  /// Sesja, w której urządzenie {name} pisało na tym urządzeniu. Forma bezosobowa, bez rodzaju.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie tutaj z: {name}'**
+  String typingHistoryIncoming(Object name);
+
+  /// No description provided for @typingHistorySessions.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} sesja} few{{count} sesje} many{{count} sesji} other{{count} sesji}}'**
+  String typingHistorySessions(int count);
+
+  /// No description provided for @typingHistoryChars.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} znak} few{{count} znaki} many{{count} znaków} other{{count} znaku}}'**
+  String typingHistoryChars(int count);
+
+  /// No description provided for @typingHistoryStarted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Początek'**
+  String get typingHistoryStarted;
+
+  /// No description provided for @typingHistoryEnded.
+  ///
+  /// In pl, this message translates to:
+  /// **'Koniec'**
+  String get typingHistoryEnded;
+
+  /// No description provided for @typingHistoryDuration.
+  ///
+  /// In pl, this message translates to:
+  /// **'Czas trwania'**
+  String get typingHistoryDuration;
+
+  /// No description provided for @typingHistoryCharsLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Znaki'**
+  String get typingHistoryCharsLabel;
+
+  /// No description provided for @typingHistoryApps.
+  ///
+  /// In pl, this message translates to:
+  /// **'Aplikacje'**
+  String get typingHistoryApps;
+
+  /// No description provided for @typingHistoryRequest.
+  ///
+  /// In pl, this message translates to:
+  /// **'Prośba'**
+  String get typingHistoryRequest;
+
+  /// No description provided for @typingHistoryEndReason.
+  ///
+  /// In pl, this message translates to:
+  /// **'Powód końca'**
+  String get typingHistoryEndReason;
+
+  /// No description provided for @typingHistorySessionId.
+  ///
+  /// In pl, this message translates to:
+  /// **'Identyfikator sesji'**
+  String get typingHistorySessionId;
+
+  /// No description provided for @typingHistoryNotEnded.
+  ///
+  /// In pl, this message translates to:
+  /// **'Koniec jeszcze niezapisany'**
+  String get typingHistoryNotEnded;
+
+  /// No description provided for @typingHistoryText.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odtworzony tekst'**
+  String get typingHistoryText;
+
+  /// No description provided for @typingHistoryTextNote.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tekst odtworzony z klawiszy. Ukryte pola widać jako kropki.'**
+  String get typingHistoryTextNote;
+
+  /// No description provided for @typingHistoryNoText.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nic nie trafiło do pola.'**
+  String get typingHistoryNoText;
+
+  /// No description provided for @typingHistoryTimeline.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przebieg'**
+  String get typingHistoryTimeline;
+
+  /// No description provided for @typingHistoryNoEntries.
+  ///
+  /// In pl, this message translates to:
+  /// **'W tej sesji nic nie pisano.'**
+  String get typingHistoryNoEntries;
+
+  /// No description provided for @typingHistoryHidden.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ukryty tekst'**
+  String get typingHistoryHidden;
+
+  /// No description provided for @typingFieldPassword.
+  ///
+  /// In pl, this message translates to:
+  /// **'pole hasła'**
+  String get typingFieldPassword;
+
+  /// No description provided for @typingFieldUnknown.
+  ///
+  /// In pl, this message translates to:
+  /// **'pole nieznanego rodzaju'**
+  String get typingFieldUnknown;
+
+  /// No description provided for @typingKeyEnter.
+  ///
+  /// In pl, this message translates to:
+  /// **'Enter'**
+  String get typingKeyEnter;
+
+  /// No description provided for @typingKeyBackspace.
+  ///
+  /// In pl, this message translates to:
+  /// **'Backspace'**
+  String get typingKeyBackspace;
+
+  /// No description provided for @typingKeyDelete.
+  ///
+  /// In pl, this message translates to:
+  /// **'Delete'**
+  String get typingKeyDelete;
+
+  /// No description provided for @typingResultAccepted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zgoda z karty'**
+  String get typingResultAccepted;
+
+  /// No description provided for @typingResultAcceptedAlways.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zgoda z karty, „Nie pytaj więcej”'**
+  String get typingResultAcceptedAlways;
+
+  /// No description provided for @typingResultAutomatic.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bez karty: zapamiętana zgoda'**
+  String get typingResultAutomatic;
+
+  /// No description provided for @typingResultRejected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odmowa'**
+  String get typingResultRejected;
+
+  /// No description provided for @typingResultNoAnswer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak odpowiedzi na karcie'**
+  String get typingResultNoAnswer;
+
+  /// No description provided for @typingResultBusy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zajęte przez inną sesję'**
+  String get typingResultBusy;
+
+  /// No description provided for @typingResultNotEnabled.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie wyłączone na urządzeniu odbiorcy'**
+  String get typingResultNotEnabled;
+
+  /// No description provided for @typingResultCancelled.
+  ///
+  /// In pl, this message translates to:
+  /// **'Prośba wycofana'**
+  String get typingResultCancelled;
+
+  /// No description provided for @typingResultUnreachable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak połączenia z urządzeniem'**
+  String get typingResultUnreachable;
+
+  /// No description provided for @typingResultOlderPeer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Starsza wersja Chatt po drugiej stronie'**
+  String get typingResultOlderPeer;
+
+  /// No description provided for @typingEndStoppedHere.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zakończona na tym urządzeniu'**
+  String get typingEndStoppedHere;
+
+  /// No description provided for @typingEndStoppedByPeer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zakończona przez drugą stronę'**
+  String get typingEndStoppedByPeer;
+
+  /// No description provided for @typingEndExpired.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zgoda wygasła'**
+  String get typingEndExpired;
+
+  /// No description provided for @typingEndReceiveOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyłączone pisanie na tym urządzeniu'**
+  String get typingEndReceiveOff;
+
+  /// No description provided for @typingEndAddonOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyłączony dodatek klawiatury'**
+  String get typingEndAddonOff;
+
+  /// No description provided for @typingEndReplaced.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zastąpiona nową sesją'**
+  String get typingEndReplaced;
+
+  /// No description provided for @typingEndPeerRemoved.
+  ///
+  /// In pl, this message translates to:
+  /// **'Urządzenie usunięte z listy'**
+  String get typingEndPeerRemoved;
+
+  /// No description provided for @typingEndNotAllowed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zgoda cofnięta w trakcie sesji'**
+  String get typingEndNotAllowed;
+
+  /// No description provided for @typingEndLinkLost.
+  ///
+  /// In pl, this message translates to:
+  /// **'Połączenie zerwane'**
+  String get typingEndLinkLost;
+
+  /// No description provided for @typingEndAppClosed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Aplikacja zamknięta'**
+  String get typingEndAppClosed;
+
+  /// No description provided for @typingStatusTyped.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wpisane'**
+  String get typingStatusTyped;
+
+  /// No description provided for @typingStatusNotTyped.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wpisane częściowo albo wcale'**
+  String get typingStatusNotTyped;
+
+  /// No description provided for @typingStatusPaused.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wstrzymane: czekała karta z pytaniem'**
+  String get typingStatusPaused;
+
+  /// No description provided for @typingStatusRefused.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odrzucone: zgoda już się skończyła'**
+  String get typingStatusRefused;
+
+  /// No description provided for @typingStatusUnconfirmed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bez potwierdzenia odbioru'**
+  String get typingStatusUnconfirmed;
+
+  /// No description provided for @typingStatusUnsent.
+  ///
+  /// In pl, this message translates to:
+  /// **'Niewysłane'**
+  String get typingStatusUnsent;
+
+  /// No description provided for @dataSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dane i diagnostyka'**
+  String get dataSection;
+
+  /// No description provided for @exportData.
+  ///
+  /// In pl, this message translates to:
+  /// **'Eksportuj dane'**
+  String get exportData;
+
+  /// No description provided for @exportDataHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Jeden plik ZIP z wybranymi danymi: rozmowy, urządzenia, ustawienia, historia pisania, dziennik aplikacji i odebrane pliki. Do archiwum albo do analizy w innym programie.'**
+  String get exportDataHelp;
+
+  /// No description provided for @exportDataConversations.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rozmowy, urządzenia i ustawienia'**
+  String get exportDataConversations;
+
+  /// No description provided for @exportDataCountConversations.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} rozmowa} few{{count} rozmowy} many{{count} rozmów} other{{count} rozmowy}}'**
+  String exportDataCountConversations(int count);
+
+  /// No description provided for @exportDataCountDevices.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} urządzenie} few{{count} urządzenia} many{{count} urządzeń} other{{count} urządzenia}}'**
+  String exportDataCountDevices(int count);
+
+  /// No description provided for @exportDataFiles.
+  ///
+  /// In pl, this message translates to:
+  /// **'Odebrane pliki'**
+  String get exportDataFiles;
+
+  /// No description provided for @exportDataWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst. Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.'**
+  String get exportDataWarning;
+
+  /// No description provided for @exportDataAction.
+  ///
+  /// In pl, this message translates to:
+  /// **'Eksportuj'**
+  String get exportDataAction;
+
+  /// No description provided for @exportDataBusy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Eksportuję…'**
+  String get exportDataBusy;
+
+  /// No description provided for @exportDataEstimateFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się policzyć danych do eksportu.'**
+  String get exportDataEstimateFailed;
+
+  /// No description provided for @exportDataSaved.
+  ///
+  /// In pl, this message translates to:
+  /// **'Eksport zapisany w {where}'**
+  String exportDataSaved(Object where);
+
+  /// No description provided for @exportDataDone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Eksport gotowy.'**
+  String get exportDataDone;
+
+  /// No description provided for @exportDataFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się wyeksportować danych.'**
+  String get exportDataFailed;
+
+  /// No description provided for @exportDataUnsupported.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ten system nie ma gdzie zapisać pliku eksportu.'**
+  String get exportDataUnsupported;
+
+  /// No description provided for @exportDataSkipped.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pominięte pliki: {count}'**
+  String exportDataSkipped(int count);
+
+  /// No description provided for @appLog.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dziennik aplikacji'**
+  String get appLog;
+
+  /// No description provided for @appLogHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zdarzenia sieci, parowania i plików oraz błędy z ostatnich 30 dni, do diagnostyki. Bez treści wiadomości, wpisywanego tekstu i kluczy.'**
+  String get appLogHelp;
+
+  /// No description provided for @appLogEntries.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} wpis} few{{count} wpisy} many{{count} wpisów} other{{count} wpisu}}'**
+  String appLogEntries(int count);
+
+  /// No description provided for @appLogFilterAll.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wszystko'**
+  String get appLogFilterAll;
+
+  /// No description provided for @appLogFilterProblems.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ostrzeżenia i błędy'**
+  String get appLogFilterProblems;
+
+  /// No description provided for @appLogEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dziennik jest pusty.'**
+  String get appLogEmpty;
+
+  /// No description provided for @appLogEmptyProblems.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak ostrzeżeń i błędów.'**
+  String get appLogEmptyProblems;
+
+  /// No description provided for @appLogLimit.
+  ///
+  /// In pl, this message translates to:
+  /// **'Widać najnowsze wpisy: {count}. Pełny dziennik jest w eksporcie.'**
+  String appLogLimit(int count);
+
+  /// No description provided for @appLogCopy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Kopiuj widoczne wpisy'**
+  String get appLogCopy;
+
+  /// No description provided for @appLogExport.
+  ///
+  /// In pl, this message translates to:
+  /// **'Eksportuj dziennik'**
+  String get appLogExport;
+
+  /// No description provided for @appLogClear.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyść dziennik'**
+  String get appLogClear;
+
+  /// No description provided for @appLogClearTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyczyścić dziennik aplikacji?'**
+  String get appLogClearTitle;
+
+  /// No description provided for @appLogClearBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Znikną wszystkie wpisy dziennika. Rozmowy i historia pisania zostają.'**
+  String get appLogClearBody;
+
+  /// No description provided for @appLogCleared.
+  ///
+  /// In pl, this message translates to:
+  /// **'Usunięto wpisy dziennika: {count}'**
+  String appLogCleared(int count);
+
+  /// No description provided for @appLogDetails.
+  ///
+  /// In pl, this message translates to:
+  /// **'Szczegóły'**
+  String get appLogDetails;
+
+  /// No description provided for @appLogLevelInfo.
+  ///
+  /// In pl, this message translates to:
+  /// **'Informacja'**
+  String get appLogLevelInfo;
+
+  /// No description provided for @appLogLevelWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ostrzeżenie'**
+  String get appLogLevelWarning;
+
+  /// No description provided for @appLogLevelError.
+  ///
+  /// In pl, this message translates to:
+  /// **'Błąd'**
+  String get appLogLevelError;
 }
 
 class _AppLocalizationsDelegate

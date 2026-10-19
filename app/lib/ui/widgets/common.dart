@@ -252,6 +252,33 @@ String formatClock(DateTime time) {
   return '${two(time.hour)}:${two(time.minute)}';
 }
 
+/// Godzina z sekundami: 15:30:12. Do historii pisania i dziennika, gdzie
+/// kolejność zdarzeń w obrębie minuty ma znaczenie.
+String formatClockSeconds(DateTime time) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(time.hour)}:${two(time.minute)}:${two(time.second)}';
+}
+
+/// Pełna data z godziną, bez skracania do „dziś": 18.10.2026 15:30,
+/// z [seconds] 18.10.2026 15:30:12. Historia i dziennik czyta się po
+/// czasie, więc data stoi zawsze, także dla dzisiejszych wpisów.
+String formatDateTime(DateTime time, {bool seconds = false}) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  final godzina = seconds ? formatClockSeconds(time) : formatClock(time);
+  return '${time.day}.${two(time.month)}.${time.year} $godzina';
+}
+
+/// Czas trwania po ludzku: 45 s, 3 min 05 s, 2 h 05 min. Jednostki
+/// wyglądają tak samo po polsku i po angielsku.
+String formatDuration(Duration duration) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  final sekundy = duration.isNegative ? 0 : duration.inSeconds;
+  if (sekundy < 60) return '$sekundy s';
+  final minuty = sekundy ~/ 60;
+  if (minuty < 60) return '$minuty min ${two(sekundy % 60)} s';
+  return '${minuty ~/ 60} h ${two(minuty % 60)} min';
+}
+
 /// Od tej szerokości okna pokazujemy listę rozmów i rozmowę obok siebie.
 /// Poniżej jeden ekran naraz, bo dwa panele na telefonie to dwa paski.
 const double dwupanelOd = 900;
