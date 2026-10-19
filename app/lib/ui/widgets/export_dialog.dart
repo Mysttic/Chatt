@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/file_actions.dart' show SaveResult;
 import '../../l10n/app_localizations.dart';
@@ -18,9 +19,11 @@ typedef ExportEstimator = Future<ExportEstimate> Function(
     AppServices services);
 
 /// Eksport z zapisem na tej platformie, jak [exportAndSave].
+/// [confirmOverwrite] pyta o zastąpienie istniejącego pliku.
 typedef ExportRunner
     = Future<({SaveResult result, String? where, ExportResult? export})>
-        Function(AppServices services, ExportParts parts);
+        Function(AppServices services, ExportParts parts,
+            {Future<bool> Function(String path)? confirmOverwrite});
 
 /// Pokazuje okno eksportu. [initial] to części zaznaczone na start (z
 /// dziennika aplikacji: sam dziennik). [estimate] i [exportData] podmieniają
@@ -128,7 +131,8 @@ class _ExportDialogState extends State<ExportDialog> {
     setState(() => _zajete = true);
     final komunikaty = <String>[];
     try {
-      final wynik = await widget.exportData(widget.services, czesci);
+      final wynik = await widget.exportData(widget.services, czesci,
+          confirmOverwrite: _zapytajONadpisanie);
       final napis = exportResultMessage(l10n, wynik);
       if (napis != null) komunikaty.add(napis);
       final pominiete = wynik.export?.skippedFiles.length ?? 0;
@@ -145,6 +149,40 @@ class _ExportDialogState extends State<ExportDialog> {
     for (final napis in komunikaty) {
       showToast(napis, duration: const Duration(seconds: 6));
     }
+  }
+
+  /// Pytanie o zastąpienie pliku, o który okno zapisu nie zapytało
+  /// (patrz [exportAndSave]).
+  Future<bool> _zapytajONadpisanie(String sciezka) async {
+    if (!mounted) return false;
+    final l10n = context.l10n;
+    final zgoda = await showDialog<bool>(
+      context: context,
+      builder: (kontekst) => AlertDialog(
+        title: Text(l10n.exportDataReplaceTitle),
+        content: Text(l10n.exportDataReplaceBody(p.basename(sciezka))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(kontekst).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(kontekst).pop(true),
+            child: Text(l10n.exportDataReplace),
+          ),
+        ],
+      ),
+    );
+    return zgoda ?? false;
+  }
+
+  /// Co z treści trafi do archiwum, do ostrzeżenia nad przyciskami.
+  String get _trescWybrana {
+    final czesci = _czesci;
+    if (czesci.conversations && czesci.typing) return 'both';
+    if (czesci.conversations) return 'messages';
+    if (czesci.typing) return 'typing';
+    return 'none';
   }
 
   @override
@@ -228,7 +266,7 @@ class _ExportDialogState extends State<ExportDialog> {
               ),
               const SizedBox(height: 8),
               SecurityNote(
-                l10n.exportDataWarning,
+                l10n.exportDataWarning(_trescWybrana),
                 icon: Icons.lock_open_outlined,
                 dense: true,
               ),

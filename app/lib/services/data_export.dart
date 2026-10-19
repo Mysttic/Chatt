@@ -9,6 +9,7 @@ import 'package:file_selector/file_selector.dart'
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart' show getTemporaryDirectory;
 
+import '../core/export_cache.dart';
 import '../core/file_actions.dart';
 import '../core/received_paths.dart' show diskToken;
 import '../core/version.dart';
@@ -210,6 +211,10 @@ Future<ExportResult> writeExport(
 /// - `unsupported`: platforma bez eksportu;
 /// - `failed`: zapis się nie udał (szczegóły w dzienniku aplikacji).
 ///
+/// [confirmOverwrite] pyta, czy zastąpić istniejący plik, o który okno
+/// zapisu nie zapytało (dopisane „.zip", Linux); bez niego taki plik zostaje,
+/// a wynik to `cancelled`.
+///
 /// Parametry nazwane podmieniają kawałki platformy w testach: [android]
 /// wybiera drogę, [chooseLocation] to okno zapisu na pulpicie (`null` to
 /// anulowanie), [temporaryDirectory], [saveCopy] i [share] to Android.
@@ -224,6 +229,7 @@ Future<({SaveResult result, String? where, ExportResult? export})>
   Future<({SaveResult result, String? where})> Function(String path)?
       saveCopy,
   Future<FileActionResult> Function(String path)? share,
+  Future<bool> Function(String path)? confirmOverwrite,
 }) async {
   final kiedy = now ?? DateTime.now();
   if (android ?? Platform.isAndroid) {
@@ -254,7 +260,18 @@ Future<({SaveResult result, String? where, ExportResult? export})>
   if (cel == null || cel.isEmpty) {
     return (result: SaveResult.cancelled, where: null, export: null);
   }
-  if (!cel.toLowerCase().endsWith('.zip')) cel = '$cel.zip';
+  final dopisane = !cel.toLowerCase().endsWith('.zip');
+  if (dopisane) cel = '$cel.zip';
+  // Okno zapisu na Windows pyta o nadpisanie pliku pod nazwą bez „.zip";
+  // plik z dopisanym rozszerzeniem widzi dopiero ta funkcja. Okno GTK na
+  // Linuksie o nadpisanie nie pyta wcale.
+  if ((dopisane || Platform.isLinux) &&
+      FileSystemEntity.typeSync(cel) != FileSystemEntityType.notFound) {
+    final zgoda = await (confirmOverwrite ?? (_) async => false)(cel);
+    if (!zgoda) {
+      return (result: SaveResult.cancelled, where: null, export: null);
+    }
+  }
 
   try {
     final wynik = await writeExport(services, cel, parts, now: kiedy);
@@ -275,11 +292,6 @@ Future<String?> _zapytajGdzie(String nazwa) async => (await getSaveLocation(
     ))
         ?.path;
 
-/// Podkatalog pamięci podręcznej na archiwum przed skopiowaniem do
-/// Pobranych. Ta sama nazwa stoi w `res/xml/file_paths.xml`: bez niej
-/// FileProvider nie wypuści archiwum do okna „Udostępnij".
-const _katalogEksportu = 'eksport';
-
 Future<({SaveResult result, String? where, ExportResult? export})>
     _eksportNaAndroidzie(
   AppServices services,
@@ -294,7 +306,7 @@ Future<({SaveResult result, String? where, ExportResult? export})>
   final Directory katalog;
   try {
     katalog =
-        Directory(p.join((await temporaryDirectory()).path, _katalogEksportu));
+        Directory(p.join((await temporaryDirectory()).path, exportCacheDir));
     // Poprzednie archiwa: skopiowane albo udostępnione już dawno, a każde
     // to pełna kopia danych w niezaszyfrowanym pliku.
     if (katalog.existsSync()) {
@@ -326,8 +338,9 @@ Future<({SaveResult result, String? where, ExportResult? export})>
     case SaveResult.unsupported:
       // Android starszy niż 10 albo odmowa dostawcy treści: archiwum idzie
       // do „Udostępnij" i zostaje w pamięci podręcznej, bo aplikacja, która
-      // je przyjmie, czyta je dopiero po wyborze. Następny eksport je
-      // posprząta.
+      // je przyjmie, czyta je dopiero po wyborze. Sprząta je następny
+      // eksport, „Wyczyść historię", „Wyczyść historię pisania" i start
+      // aplikacji, gdy ma ponad godzinę (patrz `clearExportCache`).
       final udostepnione = await share(sciezka);
       if (udostepnione == FileActionResult.ok) {
         return (result: SaveResult.saved, where: null, export: wynik);
@@ -1109,9 +1122,10 @@ String _historiaTekstem(_Zadanie z) {
   final ile = z.typingSessions.length;
   for (var i = 0; i < ile; i++) {
     final s = z.typingSessions[i];
+    final rozmowca = _jednaLinia(s.peerName);
     final kierunek = s.direction == MessageDirection.outgoing.name
-        ? 'outgoing: this device typed on ${s.peerName}'
-        : 'incoming: ${s.peerName} typed on this device';
+        ? 'outgoing: this device typed on $rozmowca'
+        : 'incoming: $rozmowca typed on this device';
     final koniec = s.endedAt == null
         ? 'still open'
         : '${_lokalnie(s.endedAt!)}'
@@ -1122,7 +1136,7 @@ String _historiaTekstem(_Zadanie z) {
       ..writeln('  Started:    ${_lokalnie(s.startedAt)}')
       ..writeln('  Ended:      $koniec')
       ..writeln('  Direction:  $kierunek')
-      ..writeln('  Peer:       ${s.peerName} (${s.peerGuid})')
+      ..writeln('  Peer:       $rozmowca (${s.peerGuid})')
       ..writeln('  Input:      ${s.inputId}')
       ..writeln('  Result:     ${s.result}');
     if (s.entries.isEmpty) {
@@ -1131,10 +1145,12 @@ String _historiaTekstem(_Zadanie z) {
     }
     b.writeln('  Entries:');
     for (final k in s.entries) {
-      final aplikacja = switch ((k.appLabel.isNotEmpty, k.app.isNotEmpty)) {
-        (true, true) => '${k.appLabel} (${k.app})',
-        (true, false) => k.appLabel,
-        (false, true) => k.app,
+      final etykieta = _jednaLinia(k.appLabel);
+      final pakiet = _jednaLinia(k.app);
+      final aplikacja = switch ((etykieta.isNotEmpty, pakiet.isNotEmpty)) {
+        (true, true) => '$etykieta ($pakiet)',
+        (true, false) => etykieta,
+        (false, true) => pakiet,
         (false, false) => '(unknown app)',
       };
       b
@@ -1154,13 +1170,19 @@ String _historiaTekstem(_Zadanie z) {
 
 const _poziomy = {'info': 'INFO', 'warning': 'WARN', 'error': 'ERROR'};
 
+/// Napis z sieci (nazwa rozmówcy, nazwa aplikacji) albo z dziennika w jednej
+/// linii wersji tekstowej: znak sterujący, zwłaszcza nowa linia, udawałby
+/// osobny wpis albo osobne pole.
+String _jednaLinia(String tekst) =>
+    tekst.replaceAll(RegExp(r'[\x00-\x1F\x7F]+'), ' ');
+
 String _dziennikTekstem(List<_WpisDziennika> wpisy) {
   final b = StringBuffer();
   for (final e in wpisy) {
     final kiedy = DateTime.fromMillisecondsSinceEpoch(e.atMs);
     final poziom = _poziomy[e.level] ?? e.level.toUpperCase();
     b.writeln('${_lokalnie(kiedy, millis: true)} ${poziom.padRight(5)} '
-        '${e.area}  ${e.message}');
+        '${e.area}  ${_jednaLinia(e.message)}');
     final szczegoly = e.details;
     if (szczegoly != null && szczegoly.isNotEmpty) {
       b.writeln(_wciecie(szczegoly.trimRight(), '    '));

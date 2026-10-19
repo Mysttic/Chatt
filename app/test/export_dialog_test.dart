@@ -95,7 +95,8 @@ void main() {
                 initial: initial,
                 estimate: estimate,
                 exportData: exportData ??
-                    (_, _) => throw StateError('eksport nie był oczekiwany'),
+                    (_, _, {confirmOverwrite}) =>
+                        throw StateError('eksport nie był oczekiwany'),
               ),
               child: const Text('otwórz'),
             ),
@@ -144,7 +145,7 @@ void main() {
     expect(pole(tester, teksty.exportDataFiles).value, isFalse,
         reason: 'odebrane pliki tylko na życzenie');
     expect(pole(tester, teksty.exportDataFiles).onChanged, isNotNull);
-    expect(find.text(teksty.exportDataWarning), findsOneWidget);
+    expect(find.text(teksty.exportDataWarning('both')), findsOneWidget);
     expect(eksportuj(tester).onPressed, isNotNull);
 
     // Nic nie wybrane: nie ma czego eksportować.
@@ -168,6 +169,73 @@ void main() {
     await sprzatnij(tester, services);
   });
 
+  testWidgets('ostrzeżenie mówi o treści tylko tych części, które pójdą',
+      (tester) async {
+    final services = await uruchom(tester);
+    await otworz(
+      tester,
+      services,
+      estimate: (_) async => szacunek(),
+      initial: const ExportParts(
+          conversations: false, typing: false, appLog: true, files: false),
+    );
+    await tester.pump();
+
+    // Sam dziennik: bez treści wiadomości i bez wpisywanego tekstu.
+    final sam = teksty.exportDataWarning('none');
+    expect(find.text(sam), findsOneWidget);
+    expect(sam, isNot(contains('message text')));
+    expect(sam, isNot(contains('typed text')));
+    expect(sam, contains('not encrypted'));
+
+    await tester.tap(find.widgetWithText(CheckboxListTile, teksty.typingHistory));
+    await tester.pump();
+    expect(find.text(teksty.exportDataWarning('typing')), findsOneWidget);
+
+    await tester.tap(
+        find.widgetWithText(CheckboxListTile, teksty.exportDataConversations));
+    await tester.pump();
+    expect(find.text(teksty.exportDataWarning('both')), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(CheckboxListTile, teksty.typingHistory));
+    await tester.pump();
+    expect(find.text(teksty.exportDataWarning('messages')), findsOneWidget);
+
+    await tester.tap(find.text(teksty.cancel));
+    await tester.pump(const Duration(milliseconds: 300));
+    await sprzatnij(tester, services);
+  });
+
+  testWidgets('istniejący plik: okno pyta o zastąpienie i oddaje odpowiedź',
+      (tester) async {
+    final services = await uruchom(tester);
+    final odpowiedzi = <bool>[];
+    await otworz(
+      tester,
+      services,
+      estimate: (_) async => szacunek(),
+      exportData: (_, _, {confirmOverwrite}) async {
+        // Ukośnik działa jako separator i na Windows, i na Linuksie (CI).
+        odpowiedzi.add(await confirmOverwrite!('Eksporty/kopia.zip'));
+        return (result: SaveResult.cancelled, where: null, export: null);
+      },
+    );
+    await tester.pump();
+
+    await tester.tap(find.text(teksty.exportDataAction));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(teksty.exportDataReplaceTitle), findsOneWidget);
+    expect(find.text(teksty.exportDataReplaceBody('kopia.zip')), findsOneWidget);
+    await tester.tap(find.text(teksty.exportDataReplace));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(odpowiedzi, [true]);
+    expect(find.byType(ExportDialog), findsNothing);
+
+    await sprzatnij(tester, services);
+  });
+
   testWidgets('bez sesji pisania nie ma pola historii, bez plików pole plików '
       'jest nieaktywne', (tester) async {
     final services = await uruchom(tester);
@@ -176,7 +244,7 @@ void main() {
       tester,
       services,
       estimate: (_) async => szacunek(sesje: 0, pliki: 0),
-      exportData: (_, czesci) async {
+      exportData: (_, czesci, {confirmOverwrite}) async {
         wybrane = czesci;
         return (result: SaveResult.saved, where: 'Downloads', export: null);
       },
@@ -211,7 +279,7 @@ void main() {
       tester,
       services,
       estimate: (_) async => szacunek(),
-      exportData: (s, czesci) {
+      exportData: (s, czesci, {confirmOverwrite}) {
         expect(s, same(services));
         wywolania.add(czesci);
         return eksport.future;
@@ -288,7 +356,7 @@ void main() {
         tester,
         services,
         estimate: (_) async => szacunek(),
-        exportData: (_, _) => wynik(),
+        exportData: (_, _, {confirmOverwrite}) => wynik(),
       );
       await tester.pump();
       await tester.tap(find.text(teksty.exportDataAction));
@@ -357,7 +425,7 @@ void main() {
 
     expect(find.text('Eksportuj dane'), findsOneWidget);
     expect(find.text(pl.exportDataAction), findsOneWidget);
-    expect(find.text(pl.exportDataWarning), findsOneWidget);
+    expect(find.text(pl.exportDataWarning('both')), findsOneWidget);
     expect(find.text('3 rozmowy, 120 wiadomości, 4 urządzenia'),
         findsOneWidget);
     expect(find.text('Historia pisania'), findsOneWidget);

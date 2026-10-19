@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -58,6 +59,17 @@ Future<void> _start() async {
   // i plikiem `chatt-startup-error.txt` (patrz [main]).
   logUncaughtErrors(services.log);
 
+  // Wyjście z menu zasobnika (także przed instalatorem aktualizacji) kończy
+  // proces bez sprzątania serwisu, a Android potrafi zakończyć go bez
+  // żadnego sygnału. Dziennik i historia pisania zapisują więc to, co
+  // trzymają w pamięci, przed wyjściem i przy każdym zejściu w tło.
+  TrayIcon.instance.beforeQuit = () async {
+    services.log.info(LogArea.app, 'App stopping');
+    await services.typingJournal.flush();
+    await services.log.flush();
+  };
+  WidgetsBinding.instance.addObserver(_ZapisPrzyTle(services));
+
   // Windows: pasek „Pisze: …" ze Stopem i ikona w zasobniku przez całą
   // zgodę na zdalną klawiaturę, także przy schowanym oknie.
   AppLocalizations? biezaceTeksty;
@@ -116,3 +128,20 @@ Future<void> _start() async {
   );
 }
 
+/// Zapis dziennika aplikacji i historii pisania przy każdym zejściu
+/// aplikacji w tło: Android potrafi potem zakończyć proces bez sygnału.
+class _ZapisPrzyTle with WidgetsBindingObserver {
+  _ZapisPrzyTle(this._services);
+
+  final AppServices _services;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      unawaited(_services.typingJournal.flush());
+      unawaited(_services.log.flush());
+    }
+  }
+}

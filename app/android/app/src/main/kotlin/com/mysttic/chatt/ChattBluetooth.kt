@@ -444,7 +444,7 @@ object ChattBluetooth {
         label: String,
     ) {
         val buffer = ByteArray(16 * 1024)
-        var powod = "$label: lacze zamkniete obok"
+        var powod = "$label: closed locally"
         try {
             while (!link.closed) {
                 val read = from.read(buffer)

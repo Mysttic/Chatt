@@ -159,7 +159,8 @@ void main() {
             .having((b) => b.entry, 'entry', 'duzy.bin')),
       );
       expect(zip.length, przed);
-      expect(File(sciezka('d.zip')).lengthSync(), przed);
+      // Archiwum rośnie w pliku roboczym obok celu.
+      expect(File('${sciezka('d.zip')}.part').lengthSync(), przed);
       zip.addFile('maly.bin', plik('maly.bin', losowe(1000)));
       final rozmiar = zip.close();
       expect(rozmiar, lessThanOrEqualTo(4096));
@@ -180,7 +181,7 @@ void main() {
             .having((b) => b.limit, 'limit', ZipLimit.archiveSize)),
       );
       expect(zip.length, przed);
-      expect(File(sciezka('e.zip')).lengthSync(), przed);
+      expect(File('${sciezka('e.zip')}.part').lengthSync(), przed);
       zip.addText('b.txt', 'po');
       zip.close();
       final wpisy = otworz(sciezka('e.zip'));
@@ -279,6 +280,7 @@ void main() {
     final porzucone = ZipWriter(sciezka('k.zip'))..addText('a.txt', 'a');
     porzucone.abort();
     expect(File(sciezka('k.zip')).existsSync(), isFalse);
+    expect(File('${sciezka('k.zip')}.part').existsSync(), isFalse);
     expect(() => porzucone.addText('b.txt', 'b'), throwsStateError);
 
     final zamkniete = ZipWriter(sciezka('l.zip'))..close();
@@ -286,6 +288,26 @@ void main() {
     zamkniete.abort();
     expect(File(sciezka('l.zip')).existsSync(), isTrue,
         reason: 'abort po close niczego nie kasuje');
+    expect(File('${sciezka('l.zip')}.part').existsSync(), isFalse);
+  });
+
+  test('porzucone archiwum zostawia poprzedni plik pod tą samą nazwą', () {
+    final stary = File(sciezka('m.zip'))..writeAsBytesSync([1, 2, 3]);
+    final zip = ZipWriter(stary.path)..addText('a.txt', 'nowe');
+    expect(stary.readAsBytesSync(), [1, 2, 3],
+        reason: 'w trakcie zapisu cel jest nietknięty');
+    zip.abort();
+    expect(stary.readAsBytesSync(), [1, 2, 3]);
+    expect(File('${stary.path}.part').existsSync(), isFalse);
+  });
+
+  test('zamknięte archiwum zastępuje poprzedni plik pod tą samą nazwą', () {
+    final stary = File(sciezka('n.zip'))..writeAsBytesSync([1, 2, 3]);
+    ZipWriter(stary.path)
+      ..addText('a.txt', 'nowe')
+      ..close();
+    expect(otworz(stary.path).single.nazwa, 'a.txt');
+    expect(File('${stary.path}.part').existsSync(), isFalse);
   });
 }
 

@@ -28,6 +28,17 @@ class _BladSql implements Exception {
       'parameters: Tajna treść wiadomości';
 }
 
+/// Jak [_BladSql], z parametrem na kilka linii: treść wiadomości niesie
+/// własne nowe linie, a po niej idą kolejne parametry.
+class _BladSqlWielolinijkowy implements Exception {
+  @override
+  String toString() =>
+      'SqliteException(13): while executing, database or disk is full\n'
+      '  Causing statement: INSERT INTO messages (guid, body, n) '
+      'VALUES (?, ?, ?), parameters: abc, pierwsza linia\n'
+      'Tajna druga linia\r\ntrzecia, 42';
+}
+
 /// Wyjątek, którego opis sam się wywraca.
 class _ZlyOpis implements Exception {
   @override
@@ -257,6 +268,30 @@ void main() {
     });
   });
 
+  test('clear kasuje bazę, paczkę w pamięci i okna powtórek', () async {
+    final log = dziennik(flushDelay: const Duration(hours: 1));
+    log.add(LogLevel.warning, LogArea.bt, 'Radio padło',
+        details: 'stare szczegóły',
+        collapseWithin: const Duration(minutes: 10));
+    await log.flush();
+    log.add(LogLevel.warning, LogArea.bt, 'Radio padło',
+        collapseWithin: const Duration(minutes: 10));
+    log.info(LogArea.app, 'czeka w pamięci');
+
+    expect(await log.clear(), 1);
+    await log.flush();
+    expect(await tresci(), isEmpty,
+        reason: 'ani paczka z pamięci, ani licznik nie wracają');
+
+    log.add(LogLevel.warning, LogArea.bt, 'Radio padło',
+        details: 'nowe szczegóły',
+        collapseWithin: const Duration(minutes: 10));
+    await log.flush();
+    final wpisy = await db.allLogEntries();
+    expect(wpisy.map((w) => w.message), ['Radio padło']);
+    expect(wpisy.single.details, 'nowe szczegóły');
+  });
+
   test('close zapisuje liczniki i przestaje przyjmować wpisy', () async {
     final log = dziennik(flushDelay: const Duration(hours: 1));
     log.info(LogArea.app, 'przed');
@@ -299,6 +334,23 @@ void main() {
       expect(opis, isNot(contains('tajny-plan')));
     });
 
+    test('błąd pliku traci też ścieżkę wpisaną w komunikat', () {
+      final opis = describeError(
+        const FileSystemException(
+          r"Cannot rename file to 'C:\Users\Jan Kowalski\Documents\Chatt"
+          r"\received\1a2b3c4d_Jana's tajny-plan.pdf'",
+          r'C:\x\.incomplete\abc.part',
+          OSError('The filename syntax is incorrect.', 123),
+        ),
+        StackTrace.current,
+      )!;
+      expect(opis, contains('Cannot rename file to'));
+      expect(opis, contains('The filename syntax is incorrect.'));
+      expect(opis, isNot(contains('Kowalski')));
+      expect(opis, isNot(contains('tajny-plan')));
+      expect(opis, contains('#0'), reason: 'ślad stosu zostaje');
+    });
+
     test('błąd formatu traci cytat z wejścia', () {
       final opis = describeError(
           const FormatException('Unexpected character', 'Tajna treść', 3),
@@ -311,6 +363,17 @@ void main() {
       expect(opis, contains('UNIQUE constraint failed'));
       expect(opis, contains('Causing statement'));
       expect(opis, isNot(contains('Tajna treść')));
+    });
+
+    test('błąd SQLite traci wszystkie linie parametrów', () {
+      final opis =
+          describeError(_BladSqlWielolinijkowy(), StackTrace.current)!;
+      expect(opis, contains('database or disk is full'));
+      expect(opis, contains('Causing statement'));
+      for (final tajne in ['pierwsza linia', 'Tajna', 'trzecia', '42']) {
+        expect(opis, isNot(contains(tajne)), reason: tajne);
+      }
+      expect(opis, contains('#0'), reason: 'cięcie kończy się na opisie');
     });
 
     test('opis, który się wywraca, zostaje nazwą typu', () {

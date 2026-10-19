@@ -124,8 +124,8 @@ class BtLink {
       : _nextId = initiator ? 1 : 2 {
     _reader = _pipe.input.listen(
       _onBytes,
-      onError: (Object error) => close(powod: 'blad rury: $error'),
-      onDone: () => close(powod: 'rura sie skonczyla'),
+      onError: (Object error) => close(powod: 'pipe error: $error'),
+      onDone: () => close(powod: 'pipe ended'),
       cancelOnError: true,
     );
   }
@@ -175,7 +175,7 @@ class BtLink {
     return exchange.reply.future;
   }
 
-  Future<void> close({String powod = 'zamkniete z zewnatrz'}) async {
+  Future<void> close({String powod = 'closed from outside'}) async {
     if (_closed) return;
     _closed = true;
     _closeReason = powod;
@@ -231,7 +231,7 @@ class BtLink {
       // radia. Bez niego plik wjechałby w całości do pamięci.
       await _pipe.flush();
     }).catchError((Object error) async {
-      await close(powod: 'zapis sie nie udal: $error');
+      await close(powod: 'write failed: $error');
     });
     _writes = done;
     return done;
@@ -258,7 +258,7 @@ class BtLink {
       final length = view.getUint32(5);
       if (length > _maxFrameBytes) {
         unawaited(close(
-            powod: 'ramka rodzaju $kind ma $length B, czyli wiecej niz wolno'));
+            powod: 'frame of kind $kind has $length B, over the limit'));
         return;
       }
       if (_pending.length - at - _headerBytes < length) break;

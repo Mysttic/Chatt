@@ -364,23 +364,37 @@ class _OpenEntry {
 ///
 /// Kolejne paczki do tego samego pola, z tym samym skutkiem, sklejają się
 /// w jeden kawałek, który trafia do bazy po [flushDelay] ciszy, przy
-/// zmianie pola albo skutku i na końcu sesji. Zamknięcie aplikacji nie daje
-/// żadnego sygnału (Windows kończy proces z zasobnika, Android go zabija),
-/// więc dłużej w pamięci nic nie czeka.
+/// zmianie pola albo skutku, na końcu sesji i z pierwszą paczką po
+/// [maxEntryAge] od początku kawałka (ciągłe pisanie bez przerwy). Zamknięcie
+/// aplikacji nie daje pewnego sygnału (Android potrafi zabić proces), więc
+/// dłużej w pamięci nic nie czeka.
 class TypingJournal {
   TypingJournal(
     this._db, {
     required this._enabled,
+    bool Function()? recording,
     this.flushDelay = const Duration(seconds: 1),
+    this.maxEntryAge = const Duration(seconds: 5),
     DateTime Function()? clock,
     this._onError,
-  }) : _now = clock ?? DateTime.now;
+  })  : _recording = recording ?? _enabled,
+        _now = clock ?? DateTime.now;
 
   final ChattDb _db;
   final bool Function() _enabled;
+
+  /// Czy sesja już otwarta zapisuje dalsze kawałki. Domyślnie to samo co
+  /// [enabled]; serwis podaje tu sam przełącznik historii, żeby paczka
+  /// wpisywana w chwili wyłączenia dodatku jeszcze trafiła do sesji, którą
+  /// wyłączenie zaraz zamknie.
+  final bool Function() _recording;
   final DateTime Function() _now;
   final void Function(Object error, StackTrace stack)? _onError;
   final Duration flushDelay;
+
+  /// Najdłużej tyle kawałek zbiera paczki, zanim pójdzie do bazy przy
+  /// następnej z nich.
+  final Duration maxEntryAge;
 
   final Set<TypingSessionLog> _open = {};
   Future<void> _writes = Future.value();
@@ -462,7 +476,7 @@ class TypingJournal {
     required RemoteInputTarget before,
     required RemoteInputTarget after,
   }) {
-    if (sesja == null || sesja._ended || !enabled) return;
+    if (sesja == null || sesja._ended || _closed || !_recording()) return;
     final ukryj = hideTyping(before, after);
     final nowe = TypingOp.fromRemote(ops, hide: ukryj);
     if (nowe.isEmpty) return;
@@ -474,7 +488,8 @@ class TypingJournal {
         : (after.field != RemoteInputField.text ? after.field : before.field);
     final otwarty = sesja._entry;
     if (otwarty == null ||
-        !otwarty.sameAs(cel.app, cel.appLabel, pole, status, ukryj)) {
+        !otwarty.sameAs(cel.app, cel.appLabel, pole, status, ukryj) ||
+        _now().difference(otwarty.at) >= maxEntryAge) {
       _flushEntry(sesja);
       sesja._entry =
           _OpenEntry(_now(), cel.app, cel.appLabel, pole, status, ukryj);

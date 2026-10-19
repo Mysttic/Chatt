@@ -102,7 +102,7 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
     if (zgoda != true || !mounted) return;
 
     final teksty = context.l10n;
-    final usuniete = await ref.read(appServicesProvider).db.clearLog();
+    final usuniete = await ref.read(appServicesProvider).clearLog();
     if (mounted) setState(_rozwiniete.clear);
     showToast(usuniete == 0
         ? teksty.nothingToCleanUp

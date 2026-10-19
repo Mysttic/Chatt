@@ -8,6 +8,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:chatt/core/export_cache.dart';
 import 'package:chatt/core/file_actions.dart';
 import 'package:chatt/core/received_paths.dart';
 import 'package:chatt/core/version.dart';
@@ -89,6 +90,44 @@ void main() {
     expect(DateTime.parse(napis! as String).isAtSameMomentAs(kiedy), isTrue,
         reason: '$napis i $kiedy');
   }
+
+  group('pamięć podręczna eksportu', () {
+    late Directory cache;
+    late Directory eksport;
+
+    setUp(() {
+      cache = Directory(p.join(katalog.path, 'cache-sprzatanie'));
+      eksport = Directory(p.join(cache.path, exportCacheDir))
+        ..createSync(recursive: true);
+      debugExportCacheRoot = () async => cache;
+    });
+
+    tearDown(() => debugExportCacheRoot = null);
+
+    test('olderThan zostawia świeże archiwa', () async {
+      final stare = File(p.join(eksport.path, 'stare.zip'))
+        ..writeAsStringSync('stare')
+        ..setLastModifiedSync(DateTime.now().subtract(const Duration(hours: 2)));
+      final swieze = File(p.join(eksport.path, 'swieze.zip'))
+        ..writeAsStringSync('świeże');
+      await clearExportCache(olderThan: const Duration(hours: 1));
+      expect(stare.existsSync(), isFalse);
+      expect(swieze.existsSync(), isTrue);
+    });
+
+    test('„Wyczyść historię" i „Wyczyść historię pisania" sprzątają archiwa',
+        () async {
+      final pierwsze = File(p.join(eksport.path, 'a.zip'))
+        ..writeAsStringSync('a');
+      await s.clearHistory();
+      expect(pierwsze.existsSync(), isFalse);
+
+      final drugie = File(p.join(eksport.path, 'b.zip'))
+        ..writeAsStringSync('b');
+      await s.clearTypingHistory();
+      expect(drugie.existsSync(), isFalse);
+    });
+  });
 
   test('nazwa pliku eksportu', () {
     expect(exportFileName(DateTime(2026, 10, 18, 15, 30, 59)),
@@ -569,6 +608,66 @@ void main() {
       );
       expect(wynik.result, SaveResult.failed);
       expect(wynik.export, isNull);
+      await s.log.flush();
+      expect((await s.db.allLogEntries()).last.message, 'Data export failed');
+    });
+
+    test('pulpit: dopisane .zip nie zastępuje istniejącego pliku bez pytania',
+        () async {
+      final stary = File(p.join(katalog.path, 'kopia.zip'))
+        ..writeAsBytesSync([1, 2, 3]);
+      final pytania = <String>[];
+
+      final odmowa = await exportAndSave(
+        s,
+        const ExportParts(),
+        android: false,
+        chooseLocation: (_) async => p.join(katalog.path, 'kopia'),
+        confirmOverwrite: (sciezka) async {
+          pytania.add(sciezka);
+          return false;
+        },
+      );
+      expect(odmowa.result, SaveResult.cancelled);
+      expect(pytania, [stary.path]);
+      expect(stary.readAsBytesSync(), [1, 2, 3]);
+
+      final bezPytania = await exportAndSave(
+        s,
+        const ExportParts(),
+        android: false,
+        chooseLocation: (_) async => p.join(katalog.path, 'kopia'),
+      );
+      expect(bezPytania.result, SaveResult.cancelled,
+          reason: 'bez pytania istniejący plik zostaje');
+      expect(stary.readAsBytesSync(), [1, 2, 3]);
+
+      final zgoda = await exportAndSave(
+        s,
+        const ExportParts(),
+        android: false,
+        chooseLocation: (_) async => p.join(katalog.path, 'kopia'),
+        confirmOverwrite: (_) async => true,
+      );
+      expect(zgoda.result, SaveResult.saved);
+      expect(zgoda.where, stary.path);
+      expect(_czytajZip(stary.readAsBytesSync()).keys,
+          contains('manifest.json'));
+    });
+
+    test('błąd w połowie archiwum zostawia poprzedni plik i nic po sobie',
+        () async {
+      final stary = File(p.join(katalog.path, 'przerwany.zip'))
+        ..writeAsBytesSync([7, 7, 7]);
+      // Dwa wpisy mieszczą README i ustawienia, a urządzenia już nie.
+      await expectLater(
+        writeExport(s, stary.path, const ExportParts(), now: teraz,
+            maxEntries: 2),
+        throwsA(isA<ZipLimitExceeded>()),
+      );
+      expect(stary.readAsBytesSync(), [7, 7, 7]);
+      expect(File('${stary.path}.part').existsSync(), isFalse,
+          reason: 'niedokończona, niezaszyfrowana kopia znika');
       await s.log.flush();
       expect((await s.db.allLogEntries()).last.message, 'Data export failed');
     });

@@ -265,11 +265,17 @@ void main() {
 
     TypingJournal dziennik({
       Duration flushDelay = const Duration(milliseconds: 50),
+      Duration maxEntryAge = const Duration(seconds: 5),
+      bool Function()? recording,
+      DateTime Function()? clock,
     }) =>
         TypingJournal(
           db,
           enabled: () => wlaczony,
+          recording: recording,
           flushDelay: flushDelay,
+          maxEntryAge: maxEntryAge,
+          clock: clock,
           onError: (blad, _) => bledy.add(blad),
         );
 
@@ -482,6 +488,63 @@ void main() {
           TypingEnd.addonOff);
       expect(TypingOp.decode((await db.allTypingEntries()).single.ops),
           const [TypingOp.insert('przed')]);
+    });
+
+    test('ciągłe pisanie: kawałek idzie do bazy po maxEntryAge, bez przerwy',
+        () async {
+      var teraz = DateTime(2026, 10, 19, 12);
+      final j = dziennik(
+        flushDelay: const Duration(hours: 1),
+        clock: () => teraz,
+      );
+      final sesja = zacznij(j);
+      // Dwanaście paczek co pół sekundy: przerwy na flushDelay nie ma ani
+      // jednej, a pierwszy kawałek ma trafić do bazy po pięciu sekundach.
+      for (var i = 0; i < 12; i++) {
+        zapisz(j, sesja, [RemoteInputOp.insert('$i')]);
+        teraz = teraz.add(const Duration(milliseconds: 500));
+      }
+      List<TypingEntry> wpisy = const [];
+      for (var proba = 0; proba < 50 && wpisy.isEmpty; proba++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        wpisy = await db.allTypingEntries();
+      }
+      expect(wpisy, hasLength(1), reason: 'przed końcem sesji');
+      expect(TypingOp.decode(wpisy.single.ops),
+          const [TypingOp.insert('0123456789')]);
+
+      j.end(sesja, TypingEnd.stoppedHere);
+      await j.flush();
+      expect([
+        for (final w in await db.allTypingEntries()) TypingOp.decode(w.ops),
+      ], const [
+        [TypingOp.insert('0123456789')],
+        [TypingOp.insert('1011')],
+      ]);
+    });
+
+    test('osobny warunek dalszego zapisu: paczka w locie po wyłączeniu '
+        'dodatku trafia do otwartej sesji', () async {
+      var przelacznik = true;
+      final j = dziennik(
+        flushDelay: const Duration(hours: 1),
+        recording: () => przelacznik,
+      );
+      final sesja = zacznij(j);
+      // Dodatek gaśnie: nowej sesji już nie ma, otwarta zapisuje dalej.
+      wlaczony = false;
+      expect(zacznij(j, input: 'nowa'), isNull);
+      zapisz(j, sesja, const [RemoteInputOp.insert('w locie')]);
+      // Przełącznik historii gaśnie: koniec zapisu także w otwartej sesji.
+      przelacznik = false;
+      zapisz(j, sesja, const [RemoteInputOp.insert('po')]);
+      j.end(sesja, TypingEnd.addonOff);
+      await j.flush();
+
+      expect((await db.allTypingSessions()).single.endReason,
+          TypingEnd.addonOff);
+      expect(TypingOp.decode((await db.allTypingEntries()).single.ops),
+          const [TypingOp.insert('w locie')]);
     });
 
     test('detachAll: trwająca sesja przestaje zapisywać, nowa zapisuje',

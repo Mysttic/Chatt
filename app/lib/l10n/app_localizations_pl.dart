@@ -1416,7 +1416,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get typingHistoryHelp =>
-      'Zapisuje obie strony każdej sesji. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana na tym urządzeniu.';
+      'Zapisuje na tym urządzeniu sesje w obu kierunkach: pisanie stąd i pisanie tutaj. Drugie urządzenie prowadzi własną historię według swojego przełącznika. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana.';
 
   @override
   String get typingHistory => 'Historia pisania';
@@ -1523,7 +1523,7 @@ class AppLocalizationsPl extends AppLocalizations {
       'Tekst odtworzony z klawiszy. Ukryte pola widać jako kropki.';
 
   @override
-  String get typingHistoryNoText => 'Nic nie trafiło do pola.';
+  String get typingHistoryNoText => 'Odtworzony tekst jest pusty.';
 
   @override
   String get typingHistoryTimeline => 'Przebieg';
@@ -1671,8 +1671,28 @@ class AppLocalizationsPl extends AppLocalizations {
   String get exportDataFiles => 'Odebrane pliki';
 
   @override
-  String get exportDataWarning =>
-      'Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst. Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.';
+  String exportDataWarning(String parts) {
+    String _temp0 = intl.Intl.selectLogic(parts, {
+      'both': 'Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst.',
+      'messages':
+          'Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości.',
+      'typing':
+          'Plik eksportu nie jest zaszyfrowany i zawiera wpisywany tekst.',
+      'other': 'Plik eksportu nie jest zaszyfrowany.',
+    });
+    return '$_temp0 Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.';
+  }
+
+  @override
+  String get exportDataReplaceTitle => 'Zastąpić plik?';
+
+  @override
+  String exportDataReplaceBody(Object name) {
+    return 'Plik $name już istnieje. Eksport go zastąpi.';
+  }
+
+  @override
+  String get exportDataReplace => 'Zastąp';
 
   @override
   String get exportDataAction => 'Eksportuj';

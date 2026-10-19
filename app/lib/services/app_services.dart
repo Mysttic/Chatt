@@ -15,6 +15,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/crypto.dart';
 import '../core/env.dart';
+import '../core/export_cache.dart';
 import '../core/file_actions.dart';
 import '../core/identity.dart';
 import '../core/link_preview.dart';
@@ -494,6 +495,9 @@ class AppServices {
     klawiatura.keyboardAddon.value = settings.keyboardEnabled;
     services.typingHistory.value = settings.typingHistory;
     unawaited(services._trimLog());
+    // Archiwum eksportu oddane do „Udostępnij" zostaje w pamięci podręcznej;
+    // starsze niż godzina ktoś już przyjął albo porzucił.
+    unawaited(clearExportCache(olderThan: const Duration(hours: 1)));
     services._sweepStaleParts();
     services._startRetention();
     services._startLinkPreviews();
@@ -2656,6 +2660,7 @@ class AppServices {
     );
     _retentionTimer = Timer.periodic(const Duration(hours: 6), (_) async {
       unawaited(_trimLog());
+      unawaited(clearExportCache(olderThan: const Duration(hours: 1)));
       try {
         final settings = await db.getSettings();
         if (settings != null) await applyRetention(settings.retentionDays);
@@ -2862,7 +2867,11 @@ class AppServices {
     );
     if (!await transport.start()) {
       bluetoothRunning.value = false;
-      log.warning(LogArea.bt, 'Bluetooth not started: listening failed');
+      // Radio ponawia start co 10 s: trwała porażka nasłuchu zwija się jak
+      // nieudane wywołania kanału, raz na dziesięć minut.
+      log.add(LogLevel.warning, LogArea.bt,
+          'Bluetooth not started: listening failed',
+          collapseWithin: _rzadkieZdarzenia);
       return false;
     }
     // Dodatek zgaszony w trakcie podnoszenia: radio wstało już po decyzji,
@@ -3249,6 +3258,9 @@ class AppServices {
   late final TypingJournal typingJournal = TypingJournal(
     db,
     enabled: () => keyboardAddon.value && typingHistory.value,
+    // Paczka wpisywana w chwili wyłączenia dodatku jeszcze trafia do sesji,
+    // którą wyłączenie zaraz zamknie.
+    recording: () => typingHistory.value,
     onError: (blad, slad) => log.error(
         LogArea.keyboard, 'Typing history could not be saved',
         error: blad, stack: slad),
@@ -3275,7 +3287,17 @@ class AppServices {
     await typingJournal.flush();
     typingJournal.detachAll();
     final usuniete = await db.clearTypingHistory();
+    await clearExportCache();
     log.info(LogArea.keyboard, 'Typing history cleared: $usuniete sessions');
+    return usuniete;
+  }
+
+  /// „Wyczyść dziennik" z ekranu dziennika aplikacji: wpisy w bazie i to, co
+  /// dziennik trzyma jeszcze w pamięci (patrz [AppLog.clear]). Po
+  /// czyszczeniu zostaje jeden wpis o nim. Zwraca liczbę usuniętych wpisów.
+  Future<int> clearLog() async {
+    final usuniete = await log.clear();
+    log.info(LogArea.app, 'App log cleared: $usuniete entries');
     return usuniete;
   }
 
@@ -3285,6 +3307,7 @@ class AppServices {
     await typingJournal.flush();
     typingJournal.detachAll();
     final usuniete = await db.clearHistory();
+    await clearExportCache();
     log.info(LogArea.app,
         'Conversation history cleared: $usuniete messages (typing history included)');
     return usuniete;

@@ -614,7 +614,7 @@
   },
 
   "typingHistorySwitch": "Zapisuj historię pisania",
-  "typingHistoryHelp": "Zapisuje obie strony każdej sesji. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana na tym urządzeniu.",
+  "typingHistoryHelp": "Zapisuje na tym urządzeniu sesje w obu kierunkach: pisanie stąd i pisanie tutaj. Drugie urządzenie prowadzi własną historię według swojego przełącznika. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana.",
   "typingHistory": "Historia pisania",
   "typingHistoryEntryHelp": "Sesje zdalnej klawiatury zapisane na tym urządzeniu: {count}. Wyczyścić je można na ekranie historii.",
   "@typingHistoryEntryHelp": {
@@ -659,7 +659,7 @@
   "typingHistoryNotEnded": "Koniec jeszcze niezapisany",
   "typingHistoryText": "Odtworzony tekst",
   "typingHistoryTextNote": "Tekst odtworzony z klawiszy. Ukryte pola widać jako kropki.",
-  "typingHistoryNoText": "Nic nie trafiło do pola.",
+  "typingHistoryNoText": "Odtworzony tekst jest pusty.",
   "typingHistoryTimeline": "Przebieg",
   "typingHistoryNoEntries": "W tej sesji nic nie pisano.",
   "typingHistoryHidden": "Ukryty tekst",
@@ -708,7 +708,23 @@
     "placeholders": { "count": { "type": "int" } }
   },
   "exportDataFiles": "Odebrane pliki",
-  "exportDataWarning": "Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst. Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.",
+  "exportDataWarning": "{parts, select, both{Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst.} messages{Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości.} typing{Plik eksportu nie jest zaszyfrowany i zawiera wpisywany tekst.} other{Plik eksportu nie jest zaszyfrowany.}} Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.",
+  "@exportDataWarning": {
+    "description": "Ostrzeżenie w oknie eksportu. parts: both (rozmowy i historia pisania), messages (same rozmowy), typing (sama historia pisania), none (żadna z nich).",
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "exportDataReplaceTitle": "Zastąpić plik?",
+  "exportDataReplaceBody": "Plik {name} już istnieje. Eksport go zastąpi.",
+  "@exportDataReplaceBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "exportDataReplace": "Zastąp",
   "exportDataAction": "Eksportuj",
   "exportDataBusy": "Eksportuję…",
   "exportDataEstimateFailed": "Nie udało się policzyć danych do eksportu.",

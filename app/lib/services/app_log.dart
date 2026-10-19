@@ -174,6 +174,24 @@ class AppLog {
     }
   }
 
+  /// Czyści dziennik: wpisy w bazie, paczkę czekającą na zapis i okna
+  /// powtórek. Następne wystąpienie zwiniętego wcześniej wpisu trafia do
+  /// bazy od nowa, ze szczegółami. Usunięcie idzie w kolejce zapisów, więc
+  /// paczka zapisywana właśnie teraz nie wróci po nim. Zwraca liczbę
+  /// usuniętych wpisów.
+  Future<int> clear() {
+    _timer?.cancel();
+    _timer = null;
+    _pending.clear();
+    _okna.clear();
+    _floodTimer?.cancel();
+    _floodTimer = null;
+    _floodDue = null;
+    final wynik = Zone.root.run(() => _writes.then((_) => _db.clearLog()));
+    _writes = Zone.root.run(() => wynik.then((_) {}, onError: (Object _) {}));
+    return wynik;
+  }
+
   /// Zapisuje resztę (także liczniki powtórek) i przestaje przyjmować wpisy.
   Future<void> close() {
     _closed = true;
@@ -382,10 +400,11 @@ String? _szczegolyFluttera(FlutterErrorDetails details) {
 /// Wyjątek i ślad stosu jako tekst do pola szczegółów. `null`, gdy nie ma
 /// ani jednego, ani drugiego.
 ///
-/// Opis wyjątku przechodzi przez sito: błąd pliku traci ścieżkę (w niej
-/// siedzi nazwa użytkownika i nazwa pliku), błąd formatu traci cytat
-/// z wejścia (to mogła być treść wiadomości), a błąd SQLite traci wartości
-/// parametrów zapytania (tam bywa treść wiadomości).
+/// Opis wyjątku przechodzi przez sito: błąd pliku traci ścieżkę, także tę
+/// wpisaną w treść komunikatu (w niej siedzi nazwa użytkownika i nazwa
+/// pliku), błąd formatu traci cytat z wejścia (to mogła być treść
+/// wiadomości), a błąd SQLite traci wartości parametrów zapytania razem ze
+/// wszystkim po nich (tam bywa treść wiadomości, także wielolinijkowa).
 String? describeError(Object? error, StackTrace? stack) {
   if (error == null && stack == null) return null;
   return [
@@ -398,8 +417,12 @@ String _opisBledu(Object error) {
   try {
     if (error is FileSystemException) {
       final os = error.osError;
-      return '${error.runtimeType}: ${error.message}'
-          '${os == null ? '' : ' ($os)'}';
+      // Komunikaty SDK kończą się ścieżką w apostrofach („Cannot rename file
+      // to '...'”). Cięcie od pierwszego apostrofu do końca zabiera też
+      // nazwę z apostrofem w środku.
+      final tresc =
+          error.message.replaceFirst(RegExp(r"'.*", dotAll: true), "'<path>'");
+      return '${error.runtimeType}: $tresc${os == null ? '' : ' ($os)'}';
     }
     if (error is FormatException) return 'FormatException: ${error.message}';
     return '$error'.replaceAll(_parametrySql, '');
@@ -409,7 +432,9 @@ String _opisBledu(Object error) {
 }
 
 /// Dopisek `SqliteException.toString()` z wartościami parametrów zapytania.
-final RegExp _parametrySql = RegExp(r', parameters: .*$', multiLine: true);
+/// Parametry idą na końcu opisu, a napisy w nich niosą własne nowe linie,
+/// więc sito zabiera wszystko od nich do końca opisu.
+final RegExp _parametrySql = RegExp(r', parameters: [\s\S]*');
 
 /// Rozmówca w dzienniku: nazwa i początek guid-a. Nazwa przychodzi z sieci,
 /// więc traci znaki sterujące (nowa linia udawałaby osobny wpis) i nadmiar

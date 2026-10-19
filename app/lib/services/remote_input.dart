@@ -556,7 +556,7 @@ class _RemoteInput {
       if (zgody) _endGrant(TypingEnd.stoppedByPeer);
       if (peer != null && peer.verified && (czeka != null || zgody)) {
         _s.log.info(LogArea.keyboard,
-            'Typing request withdrawn by ${peer.displayName}');
+            'Typing request withdrawn by ${_s._kto(peer)}');
       }
       return (
         status: 200,
@@ -599,7 +599,7 @@ class _RemoteInput {
     final ask = _InputAsk(guid, ++_askSeq);
     _asks[klucz] = ask;
     _s.log.info(
-        LogArea.keyboard, 'Typing request received from ${peer.displayName}');
+        LogArea.keyboard, 'Typing request received from ${_s._kto(peer)}');
     _InputReply wynik;
     try {
       wynik = await _decide(prosba, fromHost, peer, ask, klucz);
@@ -627,7 +627,7 @@ class _RemoteInput {
           result: wynikProsby,
         );
         _s.log.info(LogArea.keyboard,
-            'Typing request from ${peer.displayName} refused: $wynikProsby');
+            'Typing request from ${_s._kto(peer)} refused: $wynikProsby');
       }
     }
     if (!ask.result.isCompleted) ask.result.complete(wynik);
@@ -758,7 +758,8 @@ class _RemoteInput {
     );
     ask.granted = true;
     _s.log.info(LogArea.keyboard,
-        'Incoming typing session started: ${nowy.peerName} ($wynikProsby)');
+        'Incoming typing session started: '
+        '${peerLabel(nowy.peerName, nowy.peerGuid)} ($wynikProsby)');
     _grant = nowy;
     _startGrantClock();
     _heldOwn = null;
@@ -1007,7 +1008,8 @@ class _RemoteInput {
     }
     _s.log.info(
       LogArea.keyboard,
-      'Incoming typing session ended: $koniec (${grant.peerName}, '
+      'Incoming typing session ended: $koniec '
+      '(${peerLabel(grant.peerName, grant.peerGuid)}, '
       '${grant.packets} packets, ${grant.notTyped} not typed, '
       '${grant.paused} paused)',
     );
@@ -1055,7 +1057,7 @@ class _RemoteInput {
       unawaited(_stopSession(stara));
     }
     _s.log.info(
-        LogArea.keyboard, 'Typing request sent to ${rozmowca.displayName}');
+        LogArea.keyboard, 'Typing request sent to ${_s._kto(rozmowca)}');
 
     final prosba = InputSessionRequest(
       from: _me,
@@ -1126,7 +1128,7 @@ class _RemoteInput {
       result: TypingResult.accepted,
     );
     _s.log.info(LogArea.keyboard,
-        'Outgoing typing session started: ${rozmowca.displayName}');
+        'Outgoing typing session started: ${_s._kto(rozmowca)}');
     _publish(
       o,
       o.state.copyWith(
@@ -1152,7 +1154,7 @@ class _RemoteInput {
         result: wynik,
       );
       _s.log.info(LogArea.keyboard,
-          'Typing request to ${o.peer.displayName} refused: $wynik');
+          'Typing request to ${_s._kto(o.peer)} refused: $wynik');
     }
     return odmowa;
   }
@@ -1326,7 +1328,9 @@ class _RemoteInput {
     final stop = ops.last.kind == RemoteInputOpKind.stop;
     final pisze = ops.any((op) => op.kind.types);
     // Cel sprzed paczki: razem z celem z odpowiedzi mówi historii pisania,
-    // czy tekst ukryć.
+    // czy tekst ukryć. Paczka bez celu z odpowiedzi (cisza, odmowa, kolejka
+    // porzucona) trafia do historii z celem nieznanym, więc ukryta: odbiorca
+    // mógł w międzyczasie przejść do pola hasła.
     final przed = o.state.target;
 
     // Długie wklejenie odbiorca wpisuje znak po znaku, więc paczka z nim
@@ -1335,6 +1339,9 @@ class _RemoteInput {
     RemoteInputReply? odpowiedz;
     var rtt = Duration.zero;
     var status = -1;
+    // Próba bez odpowiedzi mogła już się wpisać u odbiorcy: odmowa na
+    // kolejną (zgoda skończyła się między nimi) nie mówi wtedy nic o tekście.
+    var bezOdpowiedzi = false;
     o.flying = ops;
     for (var proba = 0; proba < _inputPacketAttempts; proba++) {
       final zegar = Stopwatch()..start();
@@ -1357,6 +1364,7 @@ class _RemoteInput {
       // `seq`. Każda inna porażka (sesja nie wstała po ponownym uścisku,
       // starszy odbiorca, zły kształt) się nie poprawi.
       if (wynik.status != -1) break;
+      bezOdpowiedzi = true;
     }
 
     // Wynik paczki trafia do historii pisania raz, po ostatniej próbie.
@@ -1367,7 +1375,9 @@ class _RemoteInput {
       if (pisze) {
         o.packets++;
         _s.typingJournal.record(o.journal, ops,
-            status: TypingStatus.unconfirmed, before: przed, after: przed);
+            status: TypingStatus.unconfirmed,
+            before: przed,
+            after: RemoteInputTarget.none);
       }
       _s.log.warning(LogArea.keyboard,
           'Typing packet unconfirmed: ${_opsCounts(ops)}, status $status');
@@ -1379,9 +1389,14 @@ class _RemoteInput {
       if (pisze) {
         o.packets++;
         _s.typingJournal.record(o.journal, ops,
-            status: TypingStatus.refused, before: przed, after: przed);
+            status: bezOdpowiedzi
+                ? TypingStatus.unconfirmed
+                : TypingStatus.refused,
+            before: przed,
+            after: RemoteInputTarget.none);
       }
-      _s.log.info(LogArea.keyboard, 'Typing packet refused by peer: $powod');
+      _s.log.info(LogArea.keyboard,
+          'Typing packet refused by peer: ${logText(powod)}');
       o.ended = true;
       _finish(o, powod, end: TypingEnd.stoppedByPeer);
       return;
@@ -1439,7 +1454,9 @@ class _RemoteInput {
     if (!zostalo.any((op) => op.kind.types)) return;
     final cel = o.state.target;
     _s.typingJournal.record(o.journal, zostalo,
-        status: TypingStatus.unsent, before: cel, after: cel);
+        status: TypingStatus.unsent,
+        before: cel,
+        after: RemoteInputTarget.none);
     _s.log.warning(
         LogArea.keyboard, 'Typing ops not sent: ${_opsCounts(zostalo)}');
   }
@@ -1458,14 +1475,16 @@ class _RemoteInput {
       o.packets++;
       final cel = o.state.target;
       _s.typingJournal.record(o.journal, wLocie,
-          status: TypingStatus.unconfirmed, before: cel, after: cel);
+          status: TypingStatus.unconfirmed,
+          before: cel,
+          after: RemoteInputTarget.none);
     }
     _dropQueue(o);
     _s.typingJournal.end(o.journal, koniec);
     if (pierwszy && o.accepted) {
       _s.log.info(
         LogArea.keyboard,
-        'Outgoing typing session ended: $koniec (${o.peer.displayName}, '
+        'Outgoing typing session ended: $koniec (${_s._kto(o.peer)}, '
         '${o.packets} packets)',
       );
     }

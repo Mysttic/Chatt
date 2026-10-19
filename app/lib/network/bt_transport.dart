@@ -561,7 +561,7 @@ class BluetoothTransport implements PeerTransport {
       // Łącze zamknięte wcześniej po tej stronie (zerwana rura, zła ramka)
       // ma swój powód: strona natywna widzi wtedy tylko zamknięte gniazdo.
       final poTejStronie = link?.closeReason;
-      await link?.close(powod: 'natywne: ${entry.reason}');
+      await link?.close(powod: 'native: ${entry.reason}');
       if (btVerbose) {
         debugPrint('[bt] padlo lacze ${entry.id} do $address: ${entry.reason}');
       }
@@ -636,7 +636,7 @@ class BluetoothTransport implements PeerTransport {
     final link = _links.remove(address);
     if (link == null) return;
     _addressOfId.removeWhere((_, value) => value == address);
-    await link.close(powod: 'niepotrzebne po sprawdzeniu');
+    await link.close(powod: 'not needed after the check');
   }
 
   Future<BtLink?> _linkTo(String address, Duration budzet) {

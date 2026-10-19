@@ -1410,7 +1410,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get typingHistoryHelp =>
-      'Saves both sides of every session. Text typed into password fields and unknown fields stays hidden: only the character count is saved. The history is stored encrypted on this device.';
+      'Saves sessions in both directions on this device: typing from here and typing here. The other device keeps its own history under its own switch. Text typed into password fields and unknown fields stays hidden: only the character count is saved. The history is stored encrypted.';
 
   @override
   String get typingHistory => 'Typing history';
@@ -1513,7 +1513,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Rebuilt from the keys. Hidden fields show as dots.';
 
   @override
-  String get typingHistoryNoText => 'Nothing reached a field.';
+  String get typingHistoryNoText => 'The rebuilt text is empty.';
 
   @override
   String get typingHistoryTimeline => 'Timeline';
@@ -1658,8 +1658,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exportDataFiles => 'Received files';
 
   @override
-  String get exportDataWarning =>
-      'The export file is not encrypted and holds message text and typed text. Keep it somewhere safe. This device\'s keys stay out of the export.';
+  String exportDataWarning(String parts) {
+    String _temp0 = intl.Intl.selectLogic(parts, {
+      'both': 'The export file is not encrypted and holds message text and typed text.',
+      'messages': 'The export file is not encrypted and holds message text.',
+      'typing': 'The export file is not encrypted and holds typed text.',
+      'other': 'The export file is not encrypted.',
+    });
+    return '$_temp0 Keep it somewhere safe. This device\'s keys stay out of the export.';
+  }
+
+  @override
+  String get exportDataReplaceTitle => 'Replace the file?';
+
+  @override
+  String exportDataReplaceBody(Object name) {
+    return '$name already exists. The export will replace it.';
+  }
+
+  @override
+  String get exportDataReplace => 'Replace';
 
   @override
   String get exportDataAction => 'Export';

@@ -2333,7 +2333,7 @@ abstract class AppLocalizations {
   /// No description provided for @typingHistoryHelp.
   ///
   /// In pl, this message translates to:
-  /// **'Zapisuje obie strony każdej sesji. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana na tym urządzeniu.'**
+  /// **'Zapisuje na tym urządzeniu sesje w obu kierunkach: pisanie stąd i pisanie tutaj. Drugie urządzenie prowadzi własną historię według swojego przełącznika. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana.'**
   String get typingHistoryHelp;
 
   /// No description provided for @typingHistory.
@@ -2483,7 +2483,7 @@ abstract class AppLocalizations {
   /// No description provided for @typingHistoryNoText.
   ///
   /// In pl, this message translates to:
-  /// **'Nic nie trafiło do pola.'**
+  /// **'Odtworzony tekst jest pusty.'**
   String get typingHistoryNoText;
 
   /// No description provided for @typingHistoryTimeline.
@@ -2732,11 +2732,29 @@ abstract class AppLocalizations {
   /// **'Odebrane pliki'**
   String get exportDataFiles;
 
-  /// No description provided for @exportDataWarning.
+  /// Ostrzeżenie w oknie eksportu. parts: both (rozmowy i historia pisania), messages (same rozmowy), typing (sama historia pisania), none (żadna z nich).
   ///
   /// In pl, this message translates to:
-  /// **'Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst. Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.'**
-  String get exportDataWarning;
+  /// **'{parts, select, both{Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst.} messages{Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości.} typing{Plik eksportu nie jest zaszyfrowany i zawiera wpisywany tekst.} other{Plik eksportu nie jest zaszyfrowany.}} Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.'**
+  String exportDataWarning(String parts);
+
+  /// No description provided for @exportDataReplaceTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zastąpić plik?'**
+  String get exportDataReplaceTitle;
+
+  /// No description provided for @exportDataReplaceBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Plik {name} już istnieje. Eksport go zastąpi.'**
+  String exportDataReplaceBody(Object name);
+
+  /// No description provided for @exportDataReplace.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zastąp'**
+  String get exportDataReplace;
 
   /// No description provided for @exportDataAction.
   ///

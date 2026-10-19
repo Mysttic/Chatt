@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
@@ -29,6 +30,11 @@ class _Ujscie implements RemoteInputSink {
   /// Co `apply` mówi o wpisaniu: `false` to pole, które zniknęło w trakcie.
   bool wpisuj = true;
 
+  /// Zawór: gdy jest, `apply` po zapisaniu paczki czeka na niego, a
+  /// [dotarla] mówi, że paczka już się wpisuje.
+  Completer<void>? zawor;
+  final dotarla = Completer<void>();
+
   @override
   bool supported = true;
 
@@ -49,6 +55,11 @@ class _Ujscie implements RemoteInputSink {
   Future<RemoteInputApplied> apply(List<RemoteInputOp> nowe) async {
     wywolania.add('apply');
     paczki.add(List.of(nowe));
+    final c = zawor;
+    if (c != null) {
+      if (!dotarla.isCompleted) dotarla.complete();
+      await c.future;
+    }
     return (applied: wpisuj, target: cel);
   }
 
@@ -530,7 +541,8 @@ void main() {
           expect(uAlicji.endReason, TypingEnd.stoppedByPeer);
           expect(await opis(s.alicja), [
             ['typed', 'text', false, const [TypingOp.insert('a')]],
-            ['refused', 'text', false, const [TypingOp.insert('b')]],
+            // Odmowa nie niesie celu: tekst bez odpowiedzi zostaje ukryty.
+            ['refused', 'none', true, const [TypingOp.hidden(1)]],
           ]);
         },
       );
@@ -680,10 +692,112 @@ void main() {
       expect(uAlicji.endReason, TypingEnd.appClosed);
       expect(kawalkiAlicji, [
         ['typed', const [TypingOp.insert('a')]],
-        ['unconfirmed', const [TypingOp.insert('b')]],
-        ['unsent', const [TypingOp.insert('c')]],
+        // Bez odpowiedzi rodzaj pola jest nieznany: tekst zostaje ukryty.
+        ['unconfirmed', const [TypingOp.hidden(1)]],
+        ['unsent', const [TypingOp.hidden(1)]],
       ]);
     });
+  });
+
+  group('koniec sesji w trakcie paczki', () {
+    test('zerwane łącze: paczka bez odpowiedzi ukryta, koniec linkLost',
+        () async {
+      final s = await scena();
+      expect(await s.alicja.startRemoteInput(s.bartekUAlicji),
+          RemoteInputStart.accepted);
+      await wpisz(s, const [RemoteInputOp.insert('login')], 1);
+      // Bartek znika bez słowa: następna paczka nie dostaje odpowiedzi.
+      uruchomione.remove(s.bartek);
+      await s.bartek.dispose();
+      expect(s.alicja.sendRemoteInput(const [RemoteInputOp.insert('hasło1')]),
+          isTrue);
+      await czekaj(
+        () => stan(s.alicja) == OutgoingRemoteInputState.disconnected,
+        'rozłączenie',
+      );
+      await czekajNa(
+        () async => (await sesje(s.alicja)).single.endReason != null,
+        'koniec sesji u Alicji',
+      );
+
+      expect((await sesje(s.alicja)).single.endReason, TypingEnd.linkLost);
+      expect(await opis(s.alicja), [
+        ['typed', 'text', false, const [TypingOp.insert('login')]],
+        // Rodzaj pola po paczce jest nieznany: zostaje sama liczba znaków.
+        ['unconfirmed', 'none', true, const [TypingOp.hidden(6)]],
+      ]);
+      expect(await wszystko(s.alicja), isNot(contains('hasło1')));
+      expect(await zdarzenia(s.alicja),
+          contains(startsWith('Typing packet unconfirmed')));
+    });
+
+    test('Stop z tekstem w tej samej paczce: tekst wpisany po obu stronach',
+        () async {
+      final s = await scena();
+      expect(await s.alicja.startRemoteInput(s.bartekUAlicji),
+          RemoteInputStart.accepted);
+      final zawor = s.ujscie.zawor = Completer<void>();
+      expect(s.alicja.sendRemoteInput(const [RemoteInputOp.insert('a')]),
+          isTrue);
+      await s.ujscie.dotarla.future;
+      // „b" czeka w kolejce za paczką w locie i jedzie razem ze Stopem.
+      expect(s.alicja.sendRemoteInput(const [RemoteInputOp.insert('b')]),
+          isTrue);
+      s.ujscie.zawor = null;
+      final stop = s.alicja.stopRemoteInput();
+      zawor.complete();
+      await stop;
+      await czekajNa(
+        () async => (await sesje(s.bartek)).single.endReason != null,
+        'koniec zgody u Bartka',
+      );
+
+      expect(s.ujscie.tekst, 'ab');
+      for (final strona in [s.alicja, s.bartek]) {
+        expect(await opis(strona), [
+          ['typed', 'text', false, const [TypingOp.insert('ab')]],
+        ]);
+      }
+      expect((await sesje(s.alicja)).single.endReason, TypingEnd.stoppedHere);
+      expect((await sesje(s.bartek)).single.endReason,
+          TypingEnd.stoppedByPeer);
+    });
+
+    for (final (nazwa, koniec, zakoncz) in [
+      (
+        'Stop u odbiorcy',
+        TypingEnd.stoppedHere,
+        (AppServices b) async => b.stopIncomingRemoteInput(),
+      ),
+      (
+        'wyłączony dodatek',
+        TypingEnd.addonOff,
+        (AppServices b) => b.setKeyboardAddon(false),
+      ),
+    ]) {
+      test('$nazwa w trakcie wpisywania: paczka zapisana, potem $koniec',
+          () async {
+        final s = await scena();
+        expect(await s.alicja.startRemoteInput(s.bartekUAlicji),
+            RemoteInputStart.accepted);
+        final zawor = s.ujscie.zawor = Completer<void>();
+        expect(s.alicja.sendRemoteInput(const [RemoteInputOp.insert('x')]),
+            isTrue);
+        await s.ujscie.dotarla.future;
+        final konczy = zakoncz(s.bartek);
+        zawor.complete();
+        await konczy;
+        await czekajNa(
+          () async => (await sesje(s.bartek)).single.endReason != null,
+          'koniec zgody u Bartka',
+        );
+
+        expect((await sesje(s.bartek)).single.endReason, koniec);
+        expect(await opis(s.bartek), [
+          ['typed', 'text', false, const [TypingOp.insert('x')]],
+        ]);
+      });
+    }
   });
 
   group('prośba bez sesji', () {
@@ -916,16 +1030,21 @@ void main() {
       await s.alicja.stopRemoteInput();
 
       final uAlicji = await zdarzenia(s.alicja);
-      expect(uAlicji, contains('Typing request sent to Bartek'));
-      expect(uAlicji, contains('Outgoing typing session started: Bartek'));
+      // Rozmówca w dzienniku to nazwa z początkiem guid-a (peerLabel).
+      expect(uAlicji, contains(startsWith('Typing request sent to Bartek (')));
+      expect(uAlicji,
+          contains(startsWith('Outgoing typing session started: Bartek (')));
       expect(uAlicji, contains('Typing packet refused by peer: $inputNoGrant'));
       expect(uAlicji,
           contains(startsWith('Outgoing typing session ended: stoppedByPeer')));
 
       final uBartka = await zdarzenia(s.bartek);
-      expect(uBartka, contains('Typing request received from Alicja'));
       expect(uBartka,
-          contains('Incoming typing session started: Alicja (accepted)'));
+          contains(startsWith('Typing request received from Alicja (')));
+      expect(
+          uBartka,
+          contains(allOf(startsWith('Incoming typing session started: Alicja ('),
+              endsWith('(accepted)'))));
       expect(uBartka,
           contains(startsWith('Incoming typing session ended: stoppedHere')));
 

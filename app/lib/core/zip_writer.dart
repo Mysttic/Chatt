@@ -132,6 +132,10 @@ class _Ujscie implements Sink<List<int>> {
 
 /// Archiwum ZIP zapisywane strumieniem do pliku pod [path].
 ///
+/// Archiwum rośnie w pliku roboczym `[path].part` obok celu i zastępuje
+/// [path] dopiero przy udanym [close]. Eksport przerwany w połowie (pełny
+/// dysk, wyjęty pendrive) zostawia więc poprzedni plik pod [path] w spokoju.
+///
 /// Teksty idą przez DEFLATE ([addText], [addBytes]). Pliki z dysku
 /// ([addFile]) idą wprost: zdjęcia, filmy i archiwa są już skompresowane
 /// i ponowna kompresja wydłużyłaby eksport bez zysku. Nazwy wpisów są w UTF-8
@@ -148,10 +152,14 @@ class ZipWriter {
   })  : assert(maxBytes <= zipMaxBytes &&
             maxEntryBytes <= zipMaxBytes &&
             maxEntries <= zipMaxEntries),
-        _wyjscie = File(path).openSync(mode: FileMode.write);
+        _robocza = '$path.part',
+        _wyjscie = File('$path.part').openSync(mode: FileMode.write);
 
-  /// Gdzie leży archiwum.
+  /// Gdzie leży archiwum po [close].
   final String path;
+
+  /// Plik roboczy, w którym archiwum rośnie do [close].
+  final String _robocza;
 
   /// Największy rozmiar całego archiwum, z katalogiem centralnym.
   final int maxBytes;
@@ -319,11 +327,16 @@ class ZipWriter {
       ..writeFromSync(koniec.buffer.asUint8List())
       ..flushSync()
       ..closeSync();
+    // Ten sam katalog, więc ten sam dysk: zamiana jest jednym ruchem,
+    // a istniejący plik pod [path] znika dopiero razem z nią. Gdy zamiana
+    // się nie uda, [abort] skasuje plik roboczy.
+    File(_robocza).renameSync(path);
     _zamkniete = true;
     return _pozycja + rozmiarKatalogu + _koniecKatalogu;
   }
 
-  /// Porzuca archiwum: zamyka plik i go kasuje. Nic nie rzuca.
+  /// Porzuca archiwum: zamyka i kasuje plik roboczy. Plik pod [path] zostaje
+  /// taki, jaki był. Nic nie rzuca.
   void abort() {
     if (_zamkniete) return;
     _zamkniete = true;
@@ -333,7 +346,7 @@ class ZipWriter {
       // Plik już zamknięty albo dysk odpadł: i tak go kasujemy.
     }
     try {
-      File(path).deleteSync();
+      File(_robocza).deleteSync();
     } catch (_) {
       // Nie ma czego kasować.
     }
