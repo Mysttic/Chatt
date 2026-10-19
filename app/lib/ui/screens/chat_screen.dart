@@ -270,8 +270,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 controller: _search,
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration.collapsed(
+                decoration: InputDecoration(
                   hintText: context.l10n.searchHint,
+                  // Bez ramki i tła, ale na wysokość celu dotyku (48 dp).
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               )
             : Row(
@@ -612,22 +619,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     onPressed: _attachFile,
                   ),
                   Expanded(
-                    child: TextField(
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 5,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      // Przycisk „wstaw obrazek" na klawiaturze (GIF-y,
-                      // naklejki, zrzuty). Bez tego Android odmawia wstawienia,
-                      // bo domyślnie pole nie deklaruje żadnego typu treści.
-                      contentInsertionConfiguration:
-                          ContentInsertionConfiguration(
-                              onContentInserted: _insertFromKeyboard),
-                      decoration: InputDecoration(
-                        hintText: context.l10n.messageHint,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                    // Własny węzeł semantyki: bez niego czytnik ekranu
+                    // ogłaszał całą treść ekranu jako pole tekstowe, z listą
+                    // wiadomości i przyciskami w środku.
+                    child: Semantics(
+                      container: true,
+                      child: TextField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 5,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _send(),
+                        // Przycisk „wstaw obrazek" na klawiaturze (GIF-y,
+                        // naklejki, zrzuty). Bez tego Android odmawia wstawienia,
+                        // bo domyślnie pole nie deklaruje żadnego typu treści.
+                        contentInsertionConfiguration:
+                            ContentInsertionConfiguration(
+                                onContentInserted: _insertFromKeyboard),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.messageHint,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                        ),
                       ),
                     ),
                   ),
@@ -1179,9 +1192,9 @@ class _MessageBubble extends StatelessWidget {
           // pliku nie ma czego zapisywać, leży u nas od początku.
           if (message.direction == MessageDirection.incoming && dostepny) ...[
             const SizedBox(width: 4),
+            // Gęstość z motywu: na telefonie pełne 48 dp celu dotyku.
             IconButton(
               tooltip: context.l10n.saveFile,
-              visualDensity: VisualDensity.compact,
               icon: Icon(Icons.save_alt, size: 20, color: textColor),
               onPressed: () => _saveFile(context),
             ),

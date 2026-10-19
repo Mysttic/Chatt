@@ -253,30 +253,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           Text(context.l10n.themeLabel,
               style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 8),
-          SegmentedButton<AppTheme>(
-            segments: [
-              ButtonSegment(
-                value: AppTheme.system,
-                icon: const Icon(Icons.brightness_auto_outlined),
-                label: Text(context.l10n.themeSystem),
-              ),
-              ButtonSegment(
-                value: AppTheme.light,
-                icon: const Icon(Icons.light_mode_outlined),
-                label: Text(context.l10n.themeLight),
-              ),
-              ButtonSegment(
-                value: AppTheme.dark,
-                icon: const Icon(Icons.dark_mode_outlined),
-                label: Text(context.l10n.themeDark),
-              ),
-            ],
-            selected: {
-              ref.watch(settingsProvider).value?.theme ?? AppTheme.system,
-            },
-            onSelectionChanged: (wybor) =>
-                services.db.saveTheme(wybor.first),
-          ),
+          // Na wąskim ekranie same napisy, jak przy stylu: z ikoną
+          // „Systemowy” łamał się w środku słowa. Szerokie okno mieści ikony.
+          LayoutBuilder(builder: (context, miejsce) {
+            final waskie = miejsce.maxWidth < 480;
+            Widget? ikona(IconData dane) => waskie ? null : Icon(dane);
+            return SegmentedButton<AppTheme>(
+              showSelectedIcon: !waskie,
+              style: waskie
+                  ? const ButtonStyle(
+                      padding: WidgetStatePropertyAll(
+                          EdgeInsets.symmetric(horizontal: 8)),
+                    )
+                  : null,
+              segments: [
+                ButtonSegment(
+                  value: AppTheme.system,
+                  icon: ikona(Icons.brightness_auto_outlined),
+                  label: Text(context.l10n.themeSystem),
+                ),
+                ButtonSegment(
+                  value: AppTheme.light,
+                  icon: ikona(Icons.light_mode_outlined),
+                  label: Text(context.l10n.themeLight),
+                ),
+                ButtonSegment(
+                  value: AppTheme.dark,
+                  icon: ikona(Icons.dark_mode_outlined),
+                  label: Text(context.l10n.themeDark),
+                ),
+              ],
+              selected: {
+                ref.watch(settingsProvider).value?.theme ?? AppTheme.system,
+              },
+              onSelectionChanged: (wybor) =>
+                  services.db.saveTheme(wybor.first),
+            );
+          }),
           const SizedBox(height: 16),
           Text(context.l10n.background,
               style: Theme.of(context).textTheme.labelLarge),

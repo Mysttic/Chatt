@@ -92,12 +92,21 @@ into `master`.
   the same.
 - The Windows screenshots in the documentation show the new list, the
   security panel as a window and the density of the app on a PC.
+- The Android screenshots in the documentation and in the Polish guide show
+  Calm, light and dark, in Polish and in English.
 
 ### Fixed
 - **Short messages vanished at once with Remove animations on.** Android's
   setting makes Flutter shorten animations to a twentieth, and the message's
   countdown was one of them, so "Copied" stood for a fifth of a second. The
   countdown and every transition the app runs itself now keep their time.
+- **A screen reader read the whole conversation as one text field.** The
+  message field now has a node of its own, the size of the field.
+- On a phone the theme picker in Settings wrapped "Systemowy" in the middle of
+  the word; on a narrow screen it shows the names alone, as the style picker
+  does.
+- The save button on a file bubble and the search field at the top of a
+  conversation and of the list are 48 dp tall on a phone.
 
 ## [0.11.0] - 2026-10-19
 

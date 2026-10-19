@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **702 `flutter test` tests** check everything that can be
+The split is simple: **703 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -324,7 +324,7 @@ when it speaks and when it stays quiet:
   control time and follows the theme every frame during a style change; the
   clear-history question opens like a consent card over the style's scrim
 
-### Motion in the conversation (`test/chat_motion_test.dart`, 26 tests)
+### Motion in the conversation (`test/chat_motion_test.dart`, 27 tests)
 - in every style a message that arrives while the conversation is open rises
   into place in the bubble time; messages already there stand still, and a
   status change does not replay the entry
@@ -340,6 +340,9 @@ when it speaks and when it stays quiet:
 - the security panel is a sheet from the bottom on a phone and a centred
   window at most 460 dp wide on Windows, in the panel times over the style's
   scrim, and a 100 ms fade with reduced motion
+- the message field has a semantics node of its own, the size of the field:
+  a screen reader once announced the whole conversation as one text field,
+  with the list and the buttons inside it
 
 ### Dialogs and the conversation switch (`test/dialog_motion_test.dart`, 30 tests)
 - in every style a dialog opens in the consent card's time and closes in its
@@ -1313,7 +1316,15 @@ one cannot be checked on an emulator.
 ### `tool/product_shots.dart`
 Sets up a demonstration conversation and takes screenshots into
 `docs/screenshots/produkt/`. Afterwards it wipes the app data so no demo is
-left on the device.
+left on the device, which is why it refuses any device that is not an
+emulator (`ro.kernel.qemu`). `CHATT_SHOTS_LANG=en` gives the English set,
+`CHATT_SHOTS_STYLE=precyzja` (or `cieplo`) another style and `CHATT_SHOTS_DIR`
+another folder. The Polish run in Cisza also refreshes the three pictures in
+the Polish guide (`docs/screenshots/android/and16`, `and20`, `and21`: the
+pairing code, Privacy, Clear history). The status bar runs in demo mode.
+`CHATT_SHOTS_TARGETS=1` prints, for every screen, the app's tappable elements
+smaller than 48 dp and also captures the conversation menu: the walk through
+the three styles, both themes and a font scale of 1.3 runs this way.
 
 ### `tool/windows_shots.dart`
 Screenshots of the Windows window **without clicking around the desktop**: the

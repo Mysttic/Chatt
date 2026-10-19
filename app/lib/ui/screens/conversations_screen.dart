@@ -275,8 +275,15 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen>
                 controller: _search,
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration.collapsed(
+                decoration: InputDecoration(
                   hintText: context.l10n.searchConversationsHint,
+                  // Bez ramki i tła, ale na wysokość celu dotyku (48 dp).
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               )
             // Nazwa tego urządzenia: tak widzą je inni, a przy kilku

@@ -538,6 +538,31 @@ void main() {
     await sprzatnij(tester, services);
   });
 
+  testWidgets('pole wiadomości ma własny węzeł semantyki: czytnik ekranu '
+      'i narzędzia widzą samo pole, lista i przyciski stoją obok',
+      (tester) async {
+    final semantyka = tester.ensureSemantics();
+    final services = await uruchom(tester);
+    final (id, alicja) = await rozmowa(tester, services, ile: 3);
+    await tester.pumpWidget(aplikacja(services,
+        styl: AppStyle.cisza, ekran: ekranRozmowy(id, alicja)));
+    await czekajNa(tester, find.text('wczorajsza 2'));
+
+    final pole = tester.getSemantics(find.byType(TextField));
+    expect(pole.flagsCollection.isTextField, isTrue);
+    expect(pole.rect.size, tester.getSize(find.byType(TextField)),
+        reason: 'węzeł pola ma rozmiar pola');
+    var dzieci = 0;
+    pole.visitChildren((_) {
+      dzieci++;
+      return true;
+    });
+    expect(dzieci, 0, reason: 'lista i przyciski nie leżą w węźle pola');
+
+    semantyka.dispose();
+    await sprzatnij(tester, services);
+  });
+
   testWidgets('dymek, który już wjechał, po przewinięciu wraca bez wejścia',
       (tester) async {
     final services = await uruchom(tester);
