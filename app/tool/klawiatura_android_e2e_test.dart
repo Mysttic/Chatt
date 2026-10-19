@@ -259,11 +259,15 @@ void main() {
     final przycisk = await findAnyWidget(wlacz, pakiet: appPackage);
     expect(przycisk, isNotNull,
         reason: 'na karcie dodatku nie ma „Turn on the Chatt keyboard"');
-    // Przycisk na dole kadru, nad nim cała karta z tytułem.
-    await adb([
-      'shell', 'input', 'swipe', '640', '${przycisk!.$2.$2}', '640', '2550',
-      '800',
-    ]);
+    // Przycisk na dole kadru, nad nim cała karta z tytułem. Gdy już tam
+    // stoi, przesunięcie w to samo miejsce byłoby stuknięciem i otwierało
+    // ustawienia systemu przed zrzutem.
+    if ((przycisk!.$2.$2 - 2550).abs() > 100) {
+      await adb([
+        'shell', 'input', 'swipe', '640', '${przycisk.$2.$2}', '640', '2550',
+        '800',
+      ]);
+    }
     await Future<void>.delayed(const Duration(seconds: 1));
     await zrzutDoDokumentacji('and26_klawiatura_dodatek');
 
