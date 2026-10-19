@@ -126,10 +126,6 @@ class ChattTokens extends ThemeExtension<ChattTokens> {
   final double rowHeight;
   final EdgeInsets rowPadding;
   final double rowGap;
-  final double listGap;
-
-  /// Wiersze jako osobne karty z cieniem (Ciepło).
-  final bool rowCards;
   final Color unreadTime;
 
   /// Znacznik drogi na liście.
@@ -220,8 +216,6 @@ class ChattTokens extends ThemeExtension<ChattTokens> {
     required this.rowHeight,
     required this.rowPadding,
     required this.rowGap,
-    required this.listGap,
-    required this.rowCards,
     required this.unreadTime,
     required this.routeBackground,
     required this.routeBorder,
@@ -457,8 +451,6 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
         rowHeight: 76,
         rowPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         rowGap: 14,
-        listGap: 2,
-        rowCards: false,
         unreadTime: _c(dark ? 0xFF7CCDD5 : 0xFF0F6A73),
         routeBackground: _c(dark ? 0xFF2D3434 : 0xFFEDF1F0),
         routeBorder: null,
@@ -569,8 +561,6 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
         rowHeight: 68,
         rowPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         rowGap: 12,
-        listGap: 0,
-        rowCards: false,
         unreadTime: _c(dark ? 0xFFA9A7FF : 0xFF3532C8),
         routeBackground: null,
         routeBorder: _c(dark ? 0xFF3B4250 : 0xFFB9BFCB),
@@ -698,8 +688,6 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
         rowHeight: 80,
         rowPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         rowGap: 14,
-        listGap: 8,
-        rowCards: true,
         unreadTime: _c(dark ? 0xFFB8B0A8 : 0xFF6B5949),
         routeBackground: null,
         routeBorder: null,

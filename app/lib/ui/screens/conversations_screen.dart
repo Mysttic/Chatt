@@ -44,6 +44,12 @@ Future<void> _confirmDelete(
   showToast(teksty.conversationDeleted(nazwa));
 }
 
+/// Odstęp między kartami rozmów, ten sam w każdym stylu.
+const _odstepKart = 8.0;
+
+/// Wysokość rozszerzonego przycisku „W pobliżu” (Material 3).
+const _wysokoscPrzycisku = 56.0;
+
 /// Ekran główny: lista konwersacji (odpowiednik ListOfConversation.PNG).
 class ConversationsScreen extends ConsumerStatefulWidget {
   const ConversationsScreen({super.key});
@@ -258,10 +264,12 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               onTap: () => _otworz(item.conversationId, item.peer),
               onLongPress: () => _confirmDelete(context, ref, item.peer),
             );
-            if (!k.rowCards) return tile;
-            // Ciepło: każdy wiersz to osobna karta z cieniem; wybrany ma
-            // ramkę w kolorze akcentu.
+            // Każdy wiersz to osobna karta na tle ekranu. Tło daje Material:
+            // dekoracja zasłoniłaby efekt dotyku i zaznaczenie wiersza.
+            // Wybrany ma ramkę w kolorze akcentu, Precyzja odcina karty
+            // obrysem, bo cienia nie ma.
             final ksztalt = BorderRadius.circular(k.radiusRow);
+            final obrys = k.style == AppStyle.precyzja;
             return DecoratedBox(
               decoration:
                   BoxDecoration(borderRadius: ksztalt, boxShadow: k.shadow1),
@@ -270,53 +278,32 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                 clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
                   borderRadius: ksztalt,
-                  side: BorderSide(
-                    color: wybrany ? scheme.primary : Colors.transparent,
-                    width: 2,
-                  ),
+                  side: wybrany
+                      ? BorderSide(color: scheme.primary, width: 2)
+                      : obrys
+                          ? BorderSide(color: k.outline)
+                          : BorderSide.none,
                 ),
                 child: tile,
               ),
             );
           }
 
-          final lista = ListView.separated(
-            // Ostatnia rozmowa nie może chować się pod paskiem gestów.
+          return ListView.separated(
+            // Ostatnia karta kończy się nad paskiem nawigacji systemu i da
+            // się ją przewinąć spod przycisku „W pobliżu”.
             padding: EdgeInsets.fromLTRB(
-              k.rowCards ? 12 : 6,
-              k.rowCards ? 8 : 6,
-              k.rowCards ? 12 : 6,
-              (k.rowCards ? 8 : 6) + bottomSystemInset(context),
+              12,
+              8,
+              12,
+              _odstepKart +
+                  _wysokoscPrzycisku +
+                  kFloatingActionButtonMargin +
+                  bottomSystemInset(context),
             ),
             itemCount: items.length,
-            separatorBuilder: (_, _) => k.rowCards || k.listGap > 0
-                ? SizedBox(height: k.listGap)
-                : Divider(height: 1, indent: k.avatarSize + 26),
+            separatorBuilder: (_, _) => const SizedBox(height: _odstepKart),
             itemBuilder: (context, index) => wiersz(items[index]),
-          );
-          if (k.rowCards) return lista;
-          // Cisza i Precyzja: wiersze bez tła w jednym panelu. Tło daje
-          // Material, a nie dekoracja: inaczej zasłoniłoby efekt dotyku
-          // i zaznaczenie wiersza.
-          final gora =
-              BorderRadius.vertical(top: Radius.circular(k.radiusCard));
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: DecoratedBox(
-              decoration:
-                  BoxDecoration(borderRadius: gora, boxShadow: k.shadow1),
-              child: Material(
-                color: k.surface1,
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: gora,
-                  side: k.style == AppStyle.precyzja
-                      ? BorderSide(color: k.outline)
-                      : BorderSide.none,
-                ),
-                child: lista,
-              ),
-            ),
           );
         },
       ),

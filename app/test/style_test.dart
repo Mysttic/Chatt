@@ -15,6 +15,7 @@ import 'package:chatt/data/db.dart';
 import 'package:chatt/l10n/app_localizations.dart';
 import 'package:chatt/services/app_services.dart';
 import 'package:chatt/services/providers.dart';
+import 'package:chatt/ui/screens/conversations_screen.dart';
 import 'package:chatt/ui/screens/settings_screen.dart';
 import 'package:chatt/ui/styles.dart';
 import 'package:chatt/ui/widgets/common.dart';
@@ -299,6 +300,112 @@ void main() {
       expect(schowek, services.identity.guid);
       expect(chattToasts.value.map((t) => t.text), contains(teksty.copied));
       chattToasts.clear();
+
+      await sprzatnij(tester, services);
+    });
+
+    testWidgets('lista rozmów: w każdym stylu każda rozmowa jest osobną '
+        'kartą, a ostatnia kończy się nad paskiem systemu', (tester) async {
+      // Telefon z paskiem nawigacji systemu wysokim na 48 dp.
+      tester.view.physicalSize = const Size(1080, 2340);
+      tester.view.devicePixelRatio = 3;
+      tester.view.padding = const FakeViewPadding(bottom: 144);
+      tester.view.viewPadding = const FakeViewPadding(bottom: 144);
+      addTearDown(tester.view.reset);
+      const pasekSystemu = 48.0;
+
+      final services = await uruchom(tester);
+      await tester.runAsync(() async {
+        for (final nazwa in ['Alicja', 'Bartek', 'Celina']) {
+          final peer = await services.db.upsertPeer(
+            guid: 'guid-$nazwa',
+            name: nazwa,
+            welcomeMessage: '',
+            host: '',
+            port: 0,
+          );
+          await services.db.ensureConversation(peer.id);
+        }
+      });
+
+      for (final styl in AppStyle.values) {
+        final theme = chattTheme(styl, Brightness.light);
+        final k = theme.extension<ChattTokens>()!;
+        await tester.pumpWidget(ProviderScope(
+          overrides: [appServicesProvider.overrideWithValue(services)],
+          child: MaterialApp(
+            // Osobne drzewo na styl: bez przejścia od poprzedniego motywu.
+            key: ValueKey(styl),
+            theme: theme,
+            locale: const Locale('en'),
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const ConversationsScreen(),
+          ),
+        ));
+        await dokoncz(
+            tester, () => find.byType(ListTile).evaluate().length == 3);
+
+        // Najbliższy Material nad wierszem to jego karta: obejmuje tylko
+        // ten jeden wiersz i ma kształt, kolor i obrys stylu.
+        final karty = <Rect>[];
+        for (var i = 0; i < 3; i++) {
+          final karta = find
+              .ancestor(
+                  of: find.byType(ListTile).at(i),
+                  matching: find.byType(Material))
+              .first;
+          expect(find.descendant(of: karta, matching: find.byType(ListTile)),
+              findsOneWidget,
+              reason: styl.name);
+          final material = tester.widget<Material>(karta);
+          expect(material.color, k.surface1, reason: styl.name);
+          final ksztalt = material.shape! as RoundedRectangleBorder;
+          expect(ksztalt.borderRadius, BorderRadius.circular(k.radiusRow),
+              reason: styl.name);
+          expect(
+              ksztalt.side,
+              styl == AppStyle.precyzja
+                  ? BorderSide(color: k.outline)
+                  : BorderSide.none,
+              reason: styl.name);
+          final cien = tester.widget<DecoratedBox>(find
+              .ancestor(of: karta, matching: find.byType(DecoratedBox))
+              .first);
+          expect((cien.decoration as BoxDecoration).boxShadow, k.shadow1,
+              reason: styl.name);
+          karty.add(tester.getRect(karta));
+        }
+        // Między kartami 8 dp tła ekranu, bez linii oddzielających.
+        expect(karty[1].top - karty[0].bottom, 8, reason: styl.name);
+        expect(karty[2].top - karty[1].bottom, 8, reason: styl.name);
+        expect(find.byType(Divider), findsNothing, reason: styl.name);
+
+        // Listy nie obejmuje wspólny panel w kolorze powierzchni.
+        final lista = find.byType(ListView);
+        for (final material in tester.widgetList<Material>(
+            find.ancestor(of: lista, matching: find.byType(Material)))) {
+          expect(material.color, isNot(k.surface1), reason: styl.name);
+        }
+
+        // Po przewinięciu do końca ostatnia karta stoi nad przyciskiem
+        // „W pobliżu”, a ten nad paskiem systemu.
+        final dol = tester
+            .widget<ListView>(lista)
+            .padding!
+            .resolve(TextDirection.ltr)
+            .bottom;
+        final koniecListy = tester.getRect(lista).bottom;
+        final przycisk = tester.getRect(find.byType(FloatingActionButton));
+        expect(przycisk.bottom, lessThanOrEqualTo(koniecListy - pasekSystemu),
+            reason: styl.name);
+        expect(koniecListy - dol, lessThanOrEqualTo(przycisk.top),
+            reason: styl.name);
+      }
 
       await sprzatnij(tester, services);
     });
