@@ -544,7 +544,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retentionHelp =>
-      'This deletes entries in conversations. Received files stay on disk.';
+      'This deletes entries in conversations and the typing history. Received files stay on disk.';
 
   @override
   String get clearHistory => 'Clear history';
@@ -554,7 +554,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get clearHistoryBody =>
-      'Every message and conversation disappears. Devices keep their confirmed identity, and received files stay on disk.';
+      'All messages, conversations and the typing history disappear. Devices keep their confirmed identity, and received files stay on disk.';
 
   @override
   String historyCleared(int count) {
@@ -1399,4 +1399,380 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addonKeyboardShort => 'Typing from a computer\'s keyboard';
+
+  @override
+  String historyClearedWithTyping(int messages, int sessions) {
+    return 'Messages deleted: $messages, typing sessions: $sessions';
+  }
+
+  @override
+  String get typingHistorySwitch => 'Save typing history';
+
+  @override
+  String get typingHistoryHelp =>
+      'Saves sessions in both directions on this device: typing from here and typing here. The other device keeps its own history under its own switch. Text typed into password fields and unknown fields stays hidden: only the character count is saved. The history is stored encrypted.';
+
+  @override
+  String get typingHistory => 'Typing history';
+
+  @override
+  String typingHistoryEntryHelp(int count) {
+    return 'Remote keyboard sessions saved on this device: $count. The history screen can clear them.';
+  }
+
+  @override
+  String get typingHistoryOff =>
+      'Saving typing history is turned off. Turn it on in Settings, in the Keyboard from a PC add-on.';
+
+  @override
+  String get typingHistoryEmptyTitle => 'No typing history';
+
+  @override
+  String get typingHistoryEmptyBody =>
+      'Remote keyboard sessions show up here in both directions: this device typing on others, and others typing here.';
+
+  @override
+  String get typingHistoryClear => 'Clear typing history';
+
+  @override
+  String get typingHistoryClearTitle => 'Clear the typing history?';
+
+  @override
+  String get typingHistoryClearBody =>
+      'Every saved typing session disappears. Conversations and the app log stay.';
+
+  @override
+  String typingHistoryCleared(int count) {
+    return 'Typing sessions deleted: $count';
+  }
+
+  @override
+  String typingHistoryOutgoing(Object name) {
+    return 'This device typed on $name';
+  }
+
+  @override
+  String typingHistoryIncoming(Object name) {
+    return '$name typed on this device';
+  }
+
+  @override
+  String typingHistorySessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions',
+      one: '$count session',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String typingHistoryChars(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count characters',
+      one: '$count character',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get typingHistoryStarted => 'Started';
+
+  @override
+  String get typingHistoryEnded => 'Ended';
+
+  @override
+  String get typingHistoryDuration => 'Duration';
+
+  @override
+  String get typingHistoryCharsLabel => 'Characters';
+
+  @override
+  String get typingHistoryApps => 'Apps';
+
+  @override
+  String get typingHistoryRequest => 'Request';
+
+  @override
+  String get typingHistoryEndReason => 'End reason';
+
+  @override
+  String get typingHistorySessionId => 'Session ID';
+
+  @override
+  String get typingHistoryNotEnded => 'End not recorded yet';
+
+  @override
+  String get typingHistoryText => 'Rebuilt text';
+
+  @override
+  String get typingHistoryTextNote =>
+      'Rebuilt from the keys. Hidden fields show as dots.';
+
+  @override
+  String get typingHistoryNoText => 'The rebuilt text is empty.';
+
+  @override
+  String get typingHistoryTimeline => 'Timeline';
+
+  @override
+  String get typingHistoryNoEntries => 'Nothing was typed in this session.';
+
+  @override
+  String get typingHistoryHidden => 'Hidden text';
+
+  @override
+  String get typingFieldPassword => 'password field';
+
+  @override
+  String get typingFieldUnknown => 'unknown field';
+
+  @override
+  String get typingKeyEnter => 'Enter';
+
+  @override
+  String get typingKeyBackspace => 'Backspace';
+
+  @override
+  String get typingKeyDelete => 'Delete';
+
+  @override
+  String get typingResultAccepted => 'Accepted on the card';
+
+  @override
+  String get typingResultAcceptedAlways =>
+      'Accepted on the card, don\'t ask again';
+
+  @override
+  String get typingResultAutomatic => 'No card: remembered permission';
+
+  @override
+  String get typingResultRejected => 'Rejected';
+
+  @override
+  String get typingResultNoAnswer => 'No answer on the card';
+
+  @override
+  String get typingResultBusy => 'Busy with another session';
+
+  @override
+  String get typingResultNotEnabled =>
+      'Typing turned off on the receiving device';
+
+  @override
+  String get typingResultCancelled => 'Request withdrawn';
+
+  @override
+  String get typingResultUnreachable => 'Could not reach the device';
+
+  @override
+  String get typingResultOlderPeer => 'Older Chatt version on the other side';
+
+  @override
+  String get typingEndStoppedHere => 'Stopped on this device';
+
+  @override
+  String get typingEndStoppedByPeer => 'Stopped by the other side';
+
+  @override
+  String get typingEndExpired => 'Permission expired';
+
+  @override
+  String get typingEndReceiveOff => 'Typing on this device turned off';
+
+  @override
+  String get typingEndAddonOff => 'Keyboard add-on turned off';
+
+  @override
+  String get typingEndReplaced => 'Replaced by a new session';
+
+  @override
+  String get typingEndPeerRemoved => 'Device removed from the list';
+
+  @override
+  String get typingEndNotAllowed => 'Permission withdrawn during the session';
+
+  @override
+  String get typingEndLinkLost => 'Connection lost';
+
+  @override
+  String get typingEndAppClosed => 'App closed';
+
+  @override
+  String get typingStatusTyped => 'Typed';
+
+  @override
+  String get typingStatusNotTyped => 'Typed in part or not at all';
+
+  @override
+  String get typingStatusPaused => 'Paused: a card was waiting for an answer';
+
+  @override
+  String get typingStatusRefused => 'Refused: the permission had already ended';
+
+  @override
+  String get typingStatusUnconfirmed => 'Delivery not confirmed';
+
+  @override
+  String get typingStatusUnsent => 'Not sent';
+
+  @override
+  String get dataSection => 'Data and diagnostics';
+
+  @override
+  String get exportData => 'Export data';
+
+  @override
+  String get exportDataHelp =>
+      'One ZIP file with the data you choose: conversations, devices, settings, typing history, the app log and received files. For keeping or for analysis in another program.';
+
+  @override
+  String get exportDataConversations => 'Conversations, devices and settings';
+
+  @override
+  String exportDataCountConversations(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count conversations',
+      one: '$count conversation',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String exportDataCountDevices(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count devices',
+      one: '$count device',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get exportDataFiles => 'Received files';
+
+  @override
+  String exportDataWarning(String parts) {
+    String _temp0 = intl.Intl.selectLogic(parts, {
+      'both': 'The export file is not encrypted and holds message text and typed text.',
+      'messages': 'The export file is not encrypted and holds message text.',
+      'typing': 'The export file is not encrypted and holds typed text.',
+      'other': 'The export file is not encrypted.',
+    });
+    return '$_temp0 Keep it somewhere safe. This device\'s keys stay out of the export.';
+  }
+
+  @override
+  String get exportDataReplaceTitle => 'Replace the file?';
+
+  @override
+  String exportDataReplaceBody(Object name) {
+    return '$name already exists. The export will replace it.';
+  }
+
+  @override
+  String get exportDataReplace => 'Replace';
+
+  @override
+  String get exportDataAction => 'Export';
+
+  @override
+  String get exportDataBusy => 'Exporting…';
+
+  @override
+  String get exportDataEstimateFailed => 'Could not count the data to export.';
+
+  @override
+  String exportDataSaved(Object where) {
+    return 'Export saved to $where';
+  }
+
+  @override
+  String get exportDataDone => 'Export ready.';
+
+  @override
+  String get exportDataFailed => 'Could not export the data.';
+
+  @override
+  String get exportDataUnsupported =>
+      'This system has nowhere to save the export file.';
+
+  @override
+  String exportDataSkipped(int count) {
+    return 'Files left out: $count';
+  }
+
+  @override
+  String get appLog => 'App log';
+
+  @override
+  String get appLogHelp =>
+      'Network, pairing and file events and errors from the last 30 days, for diagnostics. No message text, typed text or keys.';
+
+  @override
+  String appLogEntries(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count entries',
+      one: '$count entry',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get appLogFilterAll => 'All';
+
+  @override
+  String get appLogFilterProblems => 'Warnings and errors';
+
+  @override
+  String get appLogEmpty => 'The log is empty.';
+
+  @override
+  String get appLogEmptyProblems => 'No warnings or errors.';
+
+  @override
+  String appLogLimit(int count) {
+    return 'Showing the newest entries: $count. The export holds the full log.';
+  }
+
+  @override
+  String get appLogCopy => 'Copy the entries shown';
+
+  @override
+  String get appLogExport => 'Export the log';
+
+  @override
+  String get appLogClear => 'Clear the log';
+
+  @override
+  String get appLogClearTitle => 'Clear the app log?';
+
+  @override
+  String get appLogClearBody =>
+      'Every log entry disappears. Conversations and the typing history stay.';
+
+  @override
+  String appLogCleared(int count) {
+    return 'Log entries deleted: $count';
+  }
+
+  @override
+  String get appLogDetails => 'Details';
+
+  @override
+  String get appLogLevelInfo => 'Info';
+
+  @override
+  String get appLogLevelWarning => 'Warning';
+
+  @override
+  String get appLogLevelError => 'Error';
 }

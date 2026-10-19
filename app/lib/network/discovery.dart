@@ -62,9 +62,17 @@ class DiscoveryResponder {
   /// odpowiadamy bez podpisu (nie ma z czego go policzyć).
   final Future<String?> Function(DiscoveredPeer pytajacy, String nonce)? sign;
 
+  /// Błąd gniazda nasłuchu, do dziennika aplikacji. Gniazdo żyje dalej.
+  final void Function(Object error)? onSocketError;
+
   RawDatagramSocket? _socket;
 
-  DiscoveryResponder({required this.identity, this.onPeerSeen, this.sign});
+  DiscoveryResponder({
+    required this.identity,
+    this.onPeerSeen,
+    this.sign,
+    this.onSocketError,
+  });
 
   bool get isRunning => _socket != null;
 
@@ -112,11 +120,16 @@ class DiscoveryResponder {
         datagram.address,
         datagram.port,
       );
-    }, onError: (Object _) {
+    }, onError: (Object blad) {
       // Urządzenie bez sieci (telefon w trybie samolotowym rozmawiający przez
       // Bluetooth) melduje błąd gniazda strumieniem, z pominięciem send.
       // Bez tej obsługi leciał on bokiem jako nieobsłużony i wywracał
       // wysyłkę, która z siecią nie miała nic wspólnego.
+      try {
+        onSocketError?.call(blad);
+      } catch (_) {
+        // Zgłoszenie jest dodatkiem: nasłuch ma żyć dalej.
+      }
     });
     _socket = socket;
   }

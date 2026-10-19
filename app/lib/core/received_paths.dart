@@ -31,10 +31,12 @@ String partMetaPath(String receivedDir, String messageGuid) =>
 
 /// Docelowa ścieżka odebranego pliku: skrót identyfikatora (żeby dwa pliki
 /// o tej samej nazwie się nie nadpisały) plus nazwa oczyszczona ze wszystkiego,
-/// co jest separatorem albo znakiem zakazanym w nazwach na Windows.
+/// co jest separatorem albo znakiem zakazanym w nazwach na Windows, razem ze
+/// znakami sterującymi: nadawca nie wywoła nimi celowo błędu zapisu.
 String receivedFilePath(
     String receivedDir, String messageGuid, String fileName) {
-  final safeName =
-      p.basename(fileName).replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+  final safeName = p
+      .basename(fileName)
+      .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F\x7F]'), '_');
   return p.join(receivedDir, '${diskToken(messageGuid).substring(0, 8)}_$safeName');
 }

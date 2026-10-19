@@ -15,6 +15,7 @@ import 'package:uuid/uuid.dart';
 
 import '../core/crypto.dart';
 import '../core/env.dart';
+import '../core/export_cache.dart';
 import '../core/file_actions.dart';
 import '../core/identity.dart';
 import '../core/link_preview.dart';
@@ -22,6 +23,7 @@ import '../core/pair_link.dart';
 import '../core/received_paths.dart';
 import '../core/remote_input.dart';
 import '../core/updates.dart';
+import '../core/version.dart';
 import '../data/db.dart';
 import '../data/db_open.dart';
 import '../network/bt_transport.dart';
@@ -30,6 +32,8 @@ import '../network/discovery.dart';
 import '../network/protocol.dart';
 import '../network/server.dart';
 import '../network/transport.dart';
+import 'app_log.dart';
+import 'typing_journal.dart';
 
 part 'history.dart';
 part 'remote_input.dart';
@@ -366,11 +370,18 @@ class AppServices {
 
   static const _uuid = Uuid();
 
+  /// Czy dziennik aplikacji pisze też na konsolę (patrz [start]).
+  final bool _logToConsole;
+
   AppServices._(this.db, this.client, this.server, this.responder,
-      this.receivedDir, this._identity);
+      this.receivedDir, this._identity, this._logToConsole);
 
   /// Uruchamia kompletny stos. Parametry służą testom (baza w pamięci,
   /// port 0 = dowolny wolny, wyłączone discovery przy testach izolowanych).
+  ///
+  /// [logToConsole] kopiuje wpisy dziennika aplikacji na konsolę przez
+  /// `debugPrint`. Podaje go wyłącznie `main.dart`, i tylko w buildzie
+  /// debug; testy i narzędzia go nie podają, więc zostają ciche.
   static Future<AppServices> start({
     QueryExecutor? executor,
     int? portOverride,
@@ -382,6 +393,7 @@ class AppServices {
     RemoteInputPolicy? remoteInputPolicy,
     RemoteInputSink? remoteInputSink,
     HistoryPolicy? historyPolicy,
+    bool logToConsole = false,
   }) async {
     // Testy podają własny executor (baza w pamięci) i wtedy nie ma czego
     // szyfrować ani przepisywać.
@@ -439,6 +451,11 @@ class AppServices {
           services._history.handleOffer(message, fromHost, session),
       onHistoryChunk: (chunk, fromHost, session) =>
           services._history.handleChunk(chunk, fromHost, session),
+      // Zapytanie, które przyszło przed końcem startu, trafia tu, zanim
+      // `services` istnieje. Wtedy rzuca samo zgłoszenie i serwer je połyka.
+      onHandlerError: (path, blad, slad) => services.log.error(
+          LogArea.net, 'Request handler failed: ${logText(path)}',
+          error: blad, stack: slad),
     );
     final preferred = portOverride ?? ChattEnv.tcpPort ?? settings.tcpPort;
     final actualPort = await server.start(preferredPort: preferred);
@@ -448,10 +465,18 @@ class AppServices {
       identity: () => services.identity,
       onPeerSeen: (peer) => services._rememberPeer(peer),
       sign: (pytajacy, nonce) => services._signDiscovery(pytajacy, nonce),
+      onSocketError: (blad) => services.log.add(
+        LogLevel.warning,
+        LogArea.net,
+        'Discovery responder socket error',
+        details: describeError(blad, null),
+        collapseWithin: _rzadkieZdarzenia,
+      ),
     );
 
-    services =
-        AppServices._(db, PeerClient(), server, responder, receivedDir, identity);
+    services = AppServices._(
+        db, PeerClient(), server, responder, receivedDir, identity,
+        logToConsole);
     services._identityKeys = identityKeyPair;
     services.keyProtected = opened?.keyProtected ?? true;
     services._offerPolicy = fileOfferPolicy ?? services._askUserAboutOffer;
@@ -460,9 +485,19 @@ class AppServices {
     if (remoteInputPolicy != null) klawiatura._policy = remoteInputPolicy;
     if (remoteInputSink != null) klawiatura._sink = remoteInputSink;
     if (historyPolicy != null) services._history._policy = historyPolicy;
+    // Kanały natywne są jedne na proces, więc ich błędy trafiają do
+    // dziennika instancji, która wstała ostatnia.
+    BtChannel.onCallError = services._btCallFailed;
+    RemoteInputChannel.onCallError = services._keyboardCallFailed;
+    services.client.onStreamError = services._streamFailed;
     // Dodatek klawiatury wstaje z bazy bez żadnego wywołania kanału: przy
     // starcie nie ma czego podnosić, a wyłączony ma milczeć.
     klawiatura.keyboardAddon.value = settings.keyboardEnabled;
+    services.typingHistory.value = settings.typingHistory;
+    unawaited(services._trimLog());
+    // Archiwum eksportu oddane do „Udostępnij" zostaje w pamięci podręcznej;
+    // starsze niż godzina ktoś już przyjął albo porzucił.
+    unawaited(clearExportCache(olderThan: const Duration(hours: 1)));
     services._sweepStaleParts();
     services._startRetention();
     services._startLinkPreviews();
@@ -478,7 +513,7 @@ class AppServices {
       try {
         await responder.start();
         services.discoveryListening = true;
-      } on SocketException {
+      } on SocketException catch (blad) {
         // Port discovery zajęty albo niedostępny. Aplikacja działa dalej:
         // będzie widzieć innych po skanie, ale sama zostanie znaleziona
         // dopiero po ręcznym dodaniu po adresie.
@@ -486,11 +521,111 @@ class AppServices {
         // Ten wyjątek był tu połykany bez śladu i dzięki temu przeżył długo:
         // na Androidzie `reusePort` wywracał bind, telefon przestawał
         // odpowiadać na cudze skany, a użytkownik nie miał tego skąd
-        // zobaczyć. Teraz stan wychodzi na ekran Ustawień.
+        // zobaczyć. Teraz stan wychodzi na ekran Ustawień i do dziennika.
         services.discoveryListening = false;
+        services.log.warning(LogArea.net,
+            'Discovery responder could not bind UDP port $discoveryPort',
+            error: blad);
       }
     }
+    await services._logStart(
+      migrated: opened?.migrated ?? false,
+      discovery: enableDiscovery,
+    );
     return services;
+  }
+
+  // --- Dziennik: pomocnicze -------------------------------------------------
+
+  /// Okno zwijania dla zdarzeń, które potrafią wracać co pół sekundy
+  /// (odpytywanie kanałów natywnych, błąd gniazda discovery): jeden wpis
+  /// i licznik powtórek na dziesięć minut.
+  static const Duration _rzadkieZdarzenia = Duration(minutes: 10);
+
+  /// Rozmówca w dzienniku: nazwa z listy i początek guid-a. Nigdy cały
+  /// [Peer]: jego `toString` wypisuje klucze.
+  String _kto(Peer peer) => peerLabel(peer.displayName, peer.guid);
+
+  /// Przycina dziennik (30 dni, 20 000 wpisów) i zostawia ślad, ile ubyło.
+  Future<void> _trimLog() async {
+    final usuniete = await log.trim();
+    if (usuniete > 0) {
+      log.info(LogArea.app, 'App log trimmed: $usuniete old entries removed');
+    }
+  }
+
+  /// Nieudane wywołanie kanału `chatt/bluetooth` (patrz
+  /// [BtChannel.onCallError]). Opis ze strony natywnej idzie do szczegółów
+  /// z zasłoniętymi adresami: przy szukaniu radio pyta cudzy sprzęt.
+  void _btCallFailed(String method, String code, String? message) => log.add(
+        LogLevel.warning,
+        LogArea.bt,
+        'Bluetooth native call failed: ${logText(method)} (${logText(code)})',
+        details: message == null
+            ? null
+            : maskHardwareAddresses(logText(message, maxLength: 300)),
+        collapseWithin: _rzadkieZdarzenia,
+      );
+
+  /// Nieudane wywołanie kanału `chatt/remoteinput` (patrz
+  /// [RemoteInputChannel.onCallError]): sama metoda i kod błędu.
+  void _keyboardCallFailed(String method, String code) => log.add(
+        LogLevel.warning,
+        LogArea.keyboard,
+        'Keyboard native call failed: ${logText(method)} (${logText(code)})',
+        collapseWithin: _rzadkieZdarzenia,
+      );
+
+  /// Strumień pliku zerwany w trakcie, którąkolwiek drogą. Wynik wysyłki
+  /// opisuje osobny wpis; tu jest powód.
+  void _streamFailed(PeerRoute route, String path, Object error) =>
+      log.warning(
+        LogArea.file,
+        'File stream ${logText(path)} via ${route.protocol.name} to '
+        '${logText(route.label)} broke off',
+        error: error,
+      );
+
+  /// Obserwator ustawień padł (zamknięta baza): przełącznik, który z niego
+  /// żyje, przestaje działać na żywo.
+  void _watchFailed(String what, Object error, StackTrace stack) =>
+      log.error(LogArea.app, 'Settings watcher failed: $what',
+          error: error, stack: stack);
+
+  /// Jeden wpis o tym, z czym aplikacja wstała. Bez ścieżek (w nich siedzi
+  /// nazwa użytkownika) i bez kluczy.
+  Future<void> _logStart({
+    required bool migrated,
+    required bool discovery,
+  }) async {
+    try {
+      final ustawienia = await db.getSettings();
+      String tak(bool value) => value ? 'yes' : 'no';
+      String wl(bool value) => value ? 'on' : 'off';
+      log.add(
+        LogLevel.info,
+        LogArea.app,
+        'App started: Chatt $appVersion',
+        details: [
+          'os: ${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+          'port: ${identity.tcpPort}',
+          'discovery listening: '
+              '${discovery ? tak(discoveryListening) : 'disabled'}',
+          'database key protected: ${tak(keyProtected)}',
+          'migrated to encrypted: ${tak(migrated)}',
+          'wifi: ${wl(client.wifiOn)}',
+          'bluetooth add-on: ${wl(bluetoothAddon.value)}'
+              '${bluetoothAddon.value ? ', running: ${tak(bluetoothRunning.value)}' : ''}',
+          'keyboard add-on: ${wl(keyboardAddon.value)}',
+          'typing on this device allowed: '
+              '${wl(ustawienia?.remoteInputReceive ?? false)}',
+          'typing history: ${wl(typingHistory.value)}',
+        ].join('\n'),
+      );
+    } catch (blad, slad) {
+      log.error(LogArea.app, 'App started (summary unavailable)',
+          error: blad, stack: slad);
+    }
   }
 
   /// Nick przy pierwszym starcie. Android zwraca z `localHostname` po prostu
@@ -527,11 +662,18 @@ class AppServices {
   /// Skanuje sieć; znalezieni od razu trafiają do bazy (lista "w pobliżu"
   /// i lista konwersacji aktualizują się strumieniami z bazy).
   Future<List<DiscoveredPeer>> scan({void Function(DiscoveredPeer)? onFound}) async {
-    final found = await DiscoveryScanner.scan(
-      identity,
-      onFound: onFound,
-      accept: _trustDiscovered,
-    );
+    final List<DiscoveredPeer> found;
+    try {
+      found = await DiscoveryScanner.scan(
+        identity,
+        onFound: onFound,
+        accept: _trustDiscovered,
+      );
+    } catch (blad) {
+      log.warning(LogArea.net, 'Network scan failed', error: blad);
+      rethrow;
+    }
+    log.info(LogArea.net, 'Network scan: ${found.length} devices answered');
     for (final peer in found) {
       await _rememberPeer(peer);
     }
@@ -566,7 +708,11 @@ class AppServices {
     final peer = await db.peerByGuid(found.guid);
     final ichKlucz = _peerStaticKey(peer);
     if (ichKlucz == null) return true; // nieznajomy, nie ma czego sprawdzać
-    if (tag == null) return false;
+    if (tag == null) {
+      log.warning(LogArea.net,
+          'Discovery answer for ${_kto(peer!)} from ${found.host} rejected: not signed');
+      return false;
+    }
     final podpisowy = await ChattCrypto.discoveryKey(
         myStatic: _identityKeys, theirStatic: ichKlucz);
     final expected = await ChattCrypto.discoveryTag(
@@ -575,7 +721,12 @@ class AppServices {
       tcpPort: found.tcpPort,
       nonce: nonce,
     );
-    return ChattCrypto.sameTag(expected, tag);
+    final zgodny = ChattCrypto.sameTag(expected, tag);
+    if (!zgodny) {
+      log.warning(LogArea.net,
+          'Discovery answer for ${_kto(peer!)} from ${found.host} rejected: bad signature');
+    }
+    return zgodny;
   }
 
   /// Droga, która zadziałała ostatnio. Bez tej pamięci każda wiadomość do
@@ -663,8 +814,13 @@ class AppServices {
   /// forward, przekierowanie portu na routerze) to są dwie różne rzeczy
   /// i tylko ten pierwszy da się połączyć.
   Future<Peer?> addPeerByAddress(String host, int port) async {
+    final adres = '${logText(host)}:$port';
     final info = await client.fetchInfo(IpRoute(host, port));
-    if (info == null || info.guid == identity.guid) return null;
+    if (info == null || info.guid == identity.guid) {
+      log.info(LogArea.net,
+          'Adding a device at $adres failed: ${info == null ? 'no Chatt answered' : 'this device'}');
+      return null;
+    }
     final peer = await db.upsertPeer(
       guid: info.guid,
       name: info.name,
@@ -672,6 +828,7 @@ class AppServices {
       host: host,
       port: port,
     );
+    log.info(LogArea.net, 'Device added by address: ${_kto(peer)} at $adres');
     return _przypnijKlucz(peer, info);
   }
 
@@ -691,6 +848,7 @@ class AppServices {
   /// Ręczne usunięcie urządzenia z listy (razem z rozmową). Zgoda na pisanie,
   /// prośba o nią i własna sesja pisania do niego znikają razem z nim.
   Future<void> forgetPeer(Peer peer) {
+    log.info(LogArea.app, 'Device removed: ${_kto(peer)}');
     _remoteInput.forgetPeer(peer.guid);
     _history.forgetPeer(peer.guid);
     return db.deletePeer(peer.id);
@@ -724,6 +882,8 @@ class AppServices {
   /// w [pendingPairings], żeby pokazać go na ekranie.
   /// Zwraca null, gdy druga strona nie odpowiada albo zerwała rozmowę.
   Future<String?> startPairing(Peer peer) async {
+    final kto = _kto(peer);
+    log.info(LogArea.pair, 'Pairing started with $kto');
     final keyPair = await ChattCrypto.newKeyPair();
     final myKey = await ChattCrypto.publicKeyOf(keyPair);
 
@@ -738,7 +898,10 @@ class AppServices {
         break;
       }
     }
-    if (trasa == null) return null;
+    if (trasa == null) {
+      log.warning(LogArea.pair, 'Pairing failed: $kto unreachable');
+      return null;
+    }
     _lastGoodProtocol[peer.guid] = trasa.protocol;
 
     final commit = await client.pair(
@@ -750,10 +913,17 @@ class AppServices {
       ).toJson(),
     );
     final theirKey = _decodeKey(commit.publicKey);
-    if (!commit.accepted || theirKey == null) return null;
+    if (!commit.accepted || theirKey == null) {
+      log.warning(LogArea.pair,
+          'Pairing failed: $kto answered the commitment with ${commit.outcome.name}');
+      return null;
+    }
 
     final ichStatyczny = await _staticKeyOf(peer);
-    if (ichStatyczny == null) return null;
+    if (ichStatyczny == null) {
+      log.warning(LogArea.pair, 'Pairing failed: no public key of $kto');
+      return null;
+    }
     final kod = await ChattCrypto.agreeCode(
       mine: keyPair,
       theirPublicKey: theirKey,
@@ -771,13 +941,18 @@ class AppServices {
         publicKey: base64.encode(myKey),
       ).toJson(),
     );
-    if (!reveal.accepted) return null;
+    if (!reveal.accepted) {
+      log.warning(LogArea.pair,
+          'Pairing failed: $kto answered the key with ${reveal.outcome.name}');
+      return null;
+    }
 
     _pairings[peer.guid] = _Pairing(
       code: kod,
       expiresAt: DateTime.now().add(pairingCodeLifetime),
     );
     _showPairing(peer, kod);
+    log.info(LogArea.pair, 'Pairing code shown for $kto');
     return kod;
   }
 
@@ -793,23 +968,33 @@ class AppServices {
     if (peer != null && oczekujace.isNotEmpty && oczekujace.first.fromScan) {
       await db.setPeerVerified(peer.id, true);
       _removePendingPairing(peerGuid);
+      log.info(LogArea.pair, 'Pairing confirmed after a scan by ${_kto(peer)}');
       return PairOutcome.accepted;
     }
 
     final pairing = _pairings[peerGuid];
-    if (peer == null || pairing == null) return PairOutcome.unreachable;
+    if (peer == null || pairing == null) {
+      log.warning(LogArea.pair,
+          'Pairing confirmation for ${peerLabel('', peerGuid)}: nothing to confirm');
+      return PairOutcome.unreachable;
+    }
+    final kto = _kto(peer);
     if (pairing.expired) {
       _dropPairing(peerGuid);
+      log.warning(LogArea.pair, 'Pairing with $kto expired');
       return PairOutcome.expired;
     }
 
     pairing.mineConfirmed = true;
+    log.info(LogArea.pair, 'Pairing confirmed on this device for $kto');
     final reply = await client.pair(
       route: routeOf(peer),
       payload: PairMessage(action: pairConfirm, from: identity).toJson(),
     );
     if (!reply.accepted) {
       _dropPairing(peerGuid);
+      log.warning(LogArea.pair,
+          'Pairing confirmation not accepted by $kto: ${reply.outcome.name}');
       return reply.outcome;
     }
     await _finishIfBothConfirmed(peer);
@@ -822,6 +1007,7 @@ class AppServices {
     final peer = await db.peerByGuid(peerGuid);
     _dropPairing(peerGuid);
     if (peer == null) return;
+    log.info(LogArea.pair, 'Pairing rejected on this device for ${_kto(peer)}');
     await client.pair(
       route: routeOf(peer),
       payload: PairMessage(action: pairCancel, from: identity).toJson(),
@@ -841,12 +1027,15 @@ class AppServices {
       port: message.from.tcpPort,
     );
 
+    final kto = _kto(peer);
     switch (message.action) {
       case pairScanned:
         // Ktoś twierdzi, że zeskanował nasz kod. Sam fakt niczego nie
         // dowodzi (kod z ekranu jest jawny), więc pytamy użytkownika:
         // to on wie, czy właśnie patrzył, jak jego telefon skanuje.
         if (!_identityMatchesKey(message.from)) {
+          log.warning(LogArea.pair,
+              'Pairing by scan from $kto rejected: identity does not match its key');
           return const PairReply(PairOutcome.rejected);
         }
         _showPairing(
@@ -854,6 +1043,7 @@ class AppServices {
           ChattCrypto.fingerprint(message.from.publicKey),
           fromScan: true,
         );
+        log.info(LogArea.pair, 'Pairing by scan requested by $kto');
         return const PairReply(PairOutcome.accepted);
 
       case pairCommit:
@@ -871,16 +1061,19 @@ class AppServices {
           theirCommitment: message.commit,
           expiresAt: DateTime.now().add(pairingCodeLifetime),
         );
+        log.info(LogArea.pair, 'Pairing started by $kto');
         return PairReply(PairOutcome.accepted, publicKey: base64.encode(myKey));
 
       case pairReveal:
         final pairing = _pairings[peer.guid];
         final theirKey = _decodeKey(message.publicKey);
         if (pairing == null || pairing.keyPair == null) {
+          log.warning(LogArea.pair, 'Pairing key from $kto came too late');
           return const PairReply(PairOutcome.expired);
         }
         if (pairing.expired) {
           _dropPairing(peer.guid);
+          log.warning(LogArea.pair, 'Pairing with $kto expired');
           return const PairReply(PairOutcome.expired);
         }
         // Klucz musi pasować do zobowiązania z pierwszego kroku.
@@ -888,6 +1081,8 @@ class AppServices {
             !ChattCrypto.sameTag(pairing.theirCommitment ?? '',
                 ChattCrypto.commitment(theirKey))) {
           _dropPairing(peer.guid);
+          log.warning(LogArea.pair,
+              'Pairing with $kto rejected: key does not match the commitment');
           return const PairReply(PairOutcome.rejected);
         }
 
@@ -901,22 +1096,33 @@ class AppServices {
         );
         pairing.code = kod;
         _showPairing(peer, kod);
+        log.info(LogArea.pair, 'Pairing code shown for $kto');
         return const PairReply(PairOutcome.accepted);
 
       case pairConfirm:
         final pairing = _pairings[peer.guid];
         if (pairing == null || pairing.code == null) {
+          log.warning(LogArea.pair,
+              'Pairing confirmation from $kto: nothing to confirm');
           return const PairReply(PairOutcome.expired);
         }
         if (pairing.expired) {
           _dropPairing(peer.guid);
+          log.warning(LogArea.pair, 'Pairing with $kto expired');
           return const PairReply(PairOutcome.expired);
         }
         pairing.theirsConfirmed = true;
+        log.info(LogArea.pair, 'Pairing confirmed by $kto');
         await _finishIfBothConfirmed(peer);
         return const PairReply(PairOutcome.accepted);
 
       default: // pairCancel
+        // Rezygnacja po drugiej stronie albo jej „kody się nie zgadzają".
+        // Wpis tylko wtedy, gdy było co przerywać.
+        if (_pairings.containsKey(peer.guid) ||
+            pendingPairings.value.any((p) => p.peerGuid == peer.guid)) {
+          log.info(LogArea.pair, 'Pairing rejected by $kto');
+        }
         _dropPairing(peer.guid);
         return const PairReply(PairOutcome.accepted);
     }
@@ -932,6 +1138,7 @@ class AppServices {
     if (!pairing.mineConfirmed || !pairing.theirsConfirmed) return;
     await db.setPeerVerified(peer.id, true);
     _dropPairing(peer.guid);
+    log.info(LogArea.pair, 'Pairing completed with ${_kto(peer)}');
   }
 
   void _showPairing(Peer peer, String code, {bool fromScan = false}) {
@@ -963,6 +1170,10 @@ class AppServices {
     if (info == null || !_identityMatchesKey(info) || info.guid != link.guid) {
       // Pod tym adresem nie ma urządzenia z tym kluczem: kod jest stary
       // (zmienił się adres) albo ktoś podstawił swój ekran.
+      log.warning(
+          LogArea.pair,
+          'Scanned pairing code of ${peerLabel('', link.guid)} did not match '
+          'the device at ${link.host}:${link.port}');
       return null;
     }
 
@@ -976,6 +1187,7 @@ class AppServices {
     await db.setPeerKey(peer.id, base64.encode(link.publicKey));
     await db.setPeerVerified(peer.id, true);
     _dropPairing(peer.guid);
+    log.info(LogArea.pair, 'Paired by scanning the code of ${_kto(peer)}');
 
     await client.pair(
       route: IpRoute(link.host, link.port),
@@ -1041,8 +1253,13 @@ class AppServices {
   }
 
   Future<_Session?> _handshake(Peer peer) async {
+    final kto = _kto(peer);
     final ichStatyczny = await _staticKeyOf(peer);
-    if (ichStatyczny == null) return null;
+    if (ichStatyczny == null) {
+      log.warning(LogArea.net,
+          'Handshake with $kto not possible: public key unavailable');
+      return null;
+    }
 
     final efemeryczne = await ChattCrypto.newKeyPair();
     final mojEfemeryczny = await ChattCrypto.publicKeyOf(efemeryczne);
@@ -1056,16 +1273,25 @@ class AppServices {
       // pętla idzie do następnej i niczego nie zapamiętuje.
       (reply) => reply != null && reply.peer.guid == peer.guid,
     );
-    if (odpowiedz == null) return null;
+    if (odpowiedz == null) {
+      log.warning(LogArea.net, 'Handshake with $kto failed: no reply');
+      return null;
+    }
     // Odpowiedzieć musi ten, do kogo pisaliśmy, i to swoim kluczem.
     if (!_identityMatchesKey(odpowiedz.peer) ||
         odpowiedz.peer.guid != peer.guid) {
+      log.warning(LogArea.net,
+          'Handshake with $kto rejected: reply from another identity');
       return null;
     }
     // Numer sesji wybiera odpowiadający, a numery cudzych sesji są jawne
     // w każdej kopercie. Numer, który już coś u nas znaczy, zająłby miejsce
     // cudzej sesji przychodzącej i jej ruch otwierałby się nie tym kluczem.
-    if (_sessionsById.containsKey(odpowiedz.sessionId)) return null;
+    if (_sessionsById.containsKey(odpowiedz.sessionId)) {
+      log.warning(LogArea.net,
+          'Handshake with $kto rejected: session id already in use');
+      return null;
+    }
 
     final klucz = await ChattCrypto.sessionKey(
       myStatic: _identityKeys,
@@ -1082,6 +1308,9 @@ class AppServices {
         id: odpowiedz.sessionId, peerGuid: peer.guid, key: klucz);
     _sessionsByPeer[peer.guid] = sesja;
     _sessionsById[sesja.id] = sesja;
+    final droga = _lastGoodProtocol[peer.guid];
+    log.info(LogArea.net,
+        'Session established with $kto${droga == null ? '' : ' via ${droga.name}'}');
     return sesja;
   }
 
@@ -1095,6 +1324,8 @@ class AppServices {
         ichEfemeryczny.isEmpty ||
         !_identityMatchesKey(from) ||
         from.guid == identity.guid) {
+      log.warning(LogArea.net,
+          'Incoming handshake rejected: invalid identity from ${logText(fromHost)}');
       return null;
     }
 
@@ -1128,6 +1359,7 @@ class AppServices {
     final sesja = _Session(
         id: newSessionId(), peerGuid: from.guid, key: klucz);
     _sessionsById[sesja.id] = sesja;
+    log.info(LogArea.net, 'Session accepted from ${_kto(peer)}');
     return handshakeReply(
         sessionId: sesja.id, from: identity, ephemeral: mojEfemeryczny);
   }
@@ -1323,6 +1555,14 @@ class AppServices {
 
     await db.setMessageStatus(messageId,
         wynik.delivered ? MessageStatus.delivered : MessageStatus.failed);
+    // Sam identyfikator wiadomości: treść nie ma prawa trafić do dziennika.
+    if (wynik.delivered) {
+      log.info(LogArea.net,
+          'Message ${message.messageGuid} delivered to ${_kto(peer)}');
+    } else {
+      log.warning(LogArea.net,
+          'Message ${message.messageGuid} not delivered to ${_kto(peer)}');
+    }
   }
 
   /// Wysyłka w kopercie. Gdy odbiorca odpowie, że nie zna tej sesji (restart
@@ -1338,10 +1578,15 @@ class AppServices {
         (result) => result != Delivery.failed,
       );
       if (wynik != Delivery.noSession) return wynik;
+      _logStaleSession(peer);
       _dropSession(peer.guid);
     }
     return Delivery.failed;
   }
+
+  /// Odbiorca odpowiedział 409: nie zna naszej sesji (restart, wygasła).
+  void _logStaleSession(Peer peer) => log.info(LogArea.net,
+      'Session unknown at ${_kto(peer)} (409), handshaking again');
 
   /// Zapytanie w kopercie, na które druga strona odpowiada też kopertą
   /// (zdalna klawiatura). Odpowiedź otwiera klucz sesji, w której poszło
@@ -1394,6 +1639,7 @@ class AppServices {
             );
       status = wynik.status;
       if (wynik.status == 409) {
+        _logStaleSession(peer);
         _dropSession(peer.guid);
         continue;
       }
@@ -1431,19 +1677,30 @@ class AppServices {
     // trzeba w sieci znaleźć.
     if (!client.wifiOn) return null;
 
+    final kto = _kto(peer);
     final List<DiscoveredPeer> found;
     try {
       // Z podpisem: to jest właśnie ta ścieżka, w której podszycie się pod
       // sparowanego rozmówcę przekierowałoby do napastnika cały nasz ruch.
       found = await DiscoveryScanner.scan(identity, accept: _trustDiscovered);
-    } catch (_) {
-      return null; // brak sieci, zablokowany broadcast
+    } catch (blad) {
+      // Brak sieci, zablokowany broadcast.
+      log.warning(LogArea.net, 'Looking for $kto on the network failed',
+          error: blad);
+      return null;
     }
     for (final device in found) {
       if (device.guid != peer.guid) continue;
       if (device.host == peer.host && device.tcpPort == peer.port) {
-        return null; // ten sam adres, czyli problem jest gdzie indziej
+        // Ten sam adres, czyli problem jest gdzie indziej.
+        log.info(LogArea.net,
+            '$kto answers discovery at the known address ${peer.host}:${peer.port}');
+        return null;
       }
+      log.info(
+          LogArea.net,
+          '$kto moved from ${peer.host}:${peer.port} '
+          'to ${device.host}:${device.tcpPort}');
       return db.upsertPeer(
         guid: device.guid,
         name: device.name,
@@ -1452,6 +1709,7 @@ class AppServices {
         port: device.tcpPort,
       );
     }
+    log.info(LogArea.net, '$kto not found on the network');
     return null;
   }
 
@@ -1475,9 +1733,17 @@ class AppServices {
       if (historyId == null) await db.setMessageStatus(messageId, value);
     }
 
+    // Do dziennika idą kierunek, rozmiar i wynik. Nazwa pliku nigdy: ona
+    // potrafi powiedzieć więcej niż treść wiadomości.
+    final kto = _kto(peer);
+    final ktora = '(message ${message.messageGuid}'
+        '${historyId == null ? '' : ', shared history'})';
+
     final file = File(path);
     if (!await file.exists()) {
       await status(MessageStatus.failed);
+      log.warning(LogArea.file,
+          'Outgoing file to $kto failed: file no longer on disk $ktora');
       return _bezOdpowiedzi;
     }
 
@@ -1485,6 +1751,9 @@ class AppServices {
     final name = message.fileName ?? p.basename(path);
     final progress = _transferProgress[messageId] ??= ValueNotifier(0);
     transfersRevision.value++;
+    log.info(LogArea.file, 'Outgoing file to $kto: $total bytes $ktora');
+    void nieWyszlo(String powod) => log.warning(
+        LogArea.file, 'Outgoing file to $kto failed: $powod $ktora');
     try {
       final hash = await _hashOfSentFile(message.messageGuid, file);
       var target = peer;
@@ -1494,12 +1763,14 @@ class AppServices {
         final moved = await _relocate(target);
         if (moved == null) {
           await status(MessageStatus.failed);
+          nieWyszlo('no session');
           return _bezOdpowiedzi;
         }
         target = moved;
         sesja = await _sessionFor(target);
         if (sesja == null) {
           await status(MessageStatus.failed);
+          nieWyszlo('no session');
           return _bezOdpowiedzi;
         }
       }
@@ -1525,6 +1796,7 @@ class AppServices {
       var offerPayload = await _sealFor(target, zapowiedz());
       if (offerPayload == null) {
         await status(MessageStatus.failed);
+        nieWyszlo('no session');
         return _bezOdpowiedzi;
       }
       var reply = await client.offerFile(
@@ -1533,6 +1805,8 @@ class AppServices {
       if (reply == null) {
         // Cisza pod znanym adresem: albo sesja do odnowienia, albo rozmówca
         // dostał nowy adres z DHCP. Jedno i drugie załatwia nowa sesja.
+        log.info(LogArea.file,
+            'Outgoing file offer to $kto got no answer, trying a new session $ktora');
         _dropSession(target.guid);
         final moved = await _relocate(target) ?? target;
         target = moved;
@@ -1551,6 +1825,10 @@ class AppServices {
 
       if (reply != null && !reply.accepted) {
         await status(MessageStatus.failed);
+        log.info(
+            LogArea.file,
+            'Outgoing file declined by $kto: '
+            '${logText(reply.reason ?? 'rejected')} $ktora');
         // Odmowa całej paczki, a nie tego jednego pliku: nadawca kończy
         // wysyłkę, zamiast zapowiadać po kolei resztę, której i tak nikt nie
         // przyjmie (a każda zapowiedź kosztuje przeliczenie sumy kontrolnej).
@@ -1565,12 +1843,17 @@ class AppServices {
         // paczki przy tym nie zapisał (wyszedł wcześniej), więc następna
         // zapowiedź ma go powtórzyć.
         await status(MessageStatus.delivered);
+        log.info(LogArea.file, 'Outgoing file already at $kto $ktora');
         return _bezOdpowiedzi;
       }
 
       var resumeFrom =
           (reply == null || reply.resumeFrom >= total) ? 0 : reply.resumeFrom;
       progress.value = total == 0 ? 1 : resumeFrom / total;
+      if (resumeFrom > 0) {
+        log.info(LogArea.file,
+            'Outgoing file to $kto resumes at $resumeFrom of $total bytes $ktora');
+      }
 
       var wynik = await _streamFile(message, file, target, name, total, hash,
           resumeFrom, progress, fileKey, sesja.id);
@@ -1581,9 +1864,12 @@ class AppServices {
         // Pytamy go jeszcze raz, ile faktycznie ma: sama zapowiedź odtwarza
         // też jego zgodę. Ślepe wysłanie całości od zera skończyłoby się
         // drugim monitem u odbiorcy i skasowaniem tego, co już dostał.
+        log.info(LogArea.file,
+            'Outgoing file to $kto: resume refused, asking again $ktora');
         offerPayload = await _sealFor(target, zapowiedz());
         if (offerPayload == null) {
           await status(MessageStatus.failed);
+          nieWyszlo('no session');
           return _bezOdpowiedzi;
         }
         reply = await client.offerFile(
@@ -1600,11 +1886,20 @@ class AppServices {
       }
       await status(
           delivered ? MessageStatus.delivered : MessageStatus.failed);
+      if (delivered) {
+        log.info(LogArea.file, 'Outgoing file delivered to $kto: $total bytes $ktora');
+      } else {
+        nieWyszlo('transfer ${wynik.name}');
+      }
       // „Opis dotarł" znaczy: odbiorca go zapisał, czyli zgodził się na tę
       // zapowiedź. Wszystko inne każe powtórzyć opis przy następnym pliku.
       return reply != null && reply.accepted
           ? _odpowiedziano
           : _bezOdpowiedzi;
+    } catch (blad, slad) {
+      log.error(LogArea.file, 'Outgoing file to $kto failed with an error $ktora',
+          error: blad, stack: slad);
+      rethrow;
     } finally {
       _transferProgress.remove(messageId);
       transfersRevision.value++;
@@ -1691,6 +1986,12 @@ class AppServices {
     // Duplikat (ponowienie po zgubionym ACK-u) nie ma prawa zawołać
     // powiadomienia drugi raz.
     if (inserted) _onIncoming?.call(peer, message.text, conversationId);
+    log.info(
+        LogArea.net,
+        inserted
+            ? 'Message ${message.messageGuid} received from ${_kto(peer)}'
+            : 'Message ${message.messageGuid} from ${_kto(peer)} '
+                'already received');
     return true;
   }
 
@@ -1709,6 +2010,10 @@ class AppServices {
     // Koperta już potwierdziła, kto pisze; tu pilnujemy tylko, żeby zapowiedź
     // nie przyszła w cudzej sesji.
     if (_sessionsById[session]?.peerGuid != offer.from.guid) {
+      log.warning(
+          LogArea.file,
+          'Incoming file offer from ${peerLabel(offer.from.name, offer.from.guid)} '
+          'refused: wrong session (message ${offer.messageGuid})');
       return const FileOfferReply(accepted: false, reason: 'unauthenticated');
     }
 
@@ -1725,6 +2030,15 @@ class AppServices {
     );
     final conversationId = await db.ensureConversation(peer.id);
 
+    // Kierunek, rozmiar i decyzja; nazwy pliku dziennik nie dostaje nigdy.
+    void zapisz(String wynik, {bool ostrzezenie = false}) => log.add(
+          ostrzezenie ? LogLevel.warning : LogLevel.info,
+          LogArea.file,
+          'Incoming file offer from ${_kto(peer)}: ${offer.fileSize} bytes, '
+          '$wynik (message ${offer.messageGuid}'
+          '${offer.history == null ? '' : ', shared history'})',
+        );
+
     // Plik z udostępnianej historii: jego wpis już jest (przyszedł w paczce
     // wiadomości) i czeka na bajty. Zgoda na historię objęła go z góry.
     // Nie pasuje do zgody: odmowa, nigdy zwykła karta.
@@ -1735,11 +2049,20 @@ class AppServices {
             _AcceptedOffer(offer, conversationId, session);
         _writePartMeta(offer);
       }
+      zapisz(
+        !zHistorii.accepted
+            ? 'refused: outside the history grant'
+            : zHistorii.alreadyHave
+                ? 'already here'
+                : 'accepted by the history grant',
+        ostrzezenie: !zHistorii.accepted,
+      );
       return zHistorii;
     }
 
     if (await db.messageByGuid(offer.messageGuid) != null) {
       // Ten plik już mamy, nadawca nie musi przesyłać ani bajtu.
+      zapisz('already here');
       return const FileOfferReply(accepted: true, alreadyHave: true);
     }
 
@@ -1750,14 +2073,17 @@ class AppServices {
     // rozmówcę", a nazwę urządzenia każdy może sobie ustawić dowolnie.
     // Potwierdzenia nie da się podrobić bez klucza prywatnego.
     var accepted = peer.verified && peer.autoAccept;
+    var jak = 'accepted automatically';
 
     // Dalszy plik paczki, o którą już pytaliśmy: decyzja jest zapamiętana,
     // ale obowiązuje tylko w granicach tego, co nadawca zapowiedział.
     final zapamietana = accepted ? null : _batchDecision(offer);
     if (zapamietana != null) {
       accepted = zapamietana;
+      jak = 'accepted with its batch';
       if (!accepted) {
         _discardPart(offer.messageGuid);
+        zapisz('rejected with its batch');
         return const FileOfferReply(
             accepted: false, reason: offerRejectedBatch);
       }
@@ -1775,6 +2101,7 @@ class AppServices {
         batch: offer.batch,
       ));
       accepted = decyzja == OfferDecision.accept;
+      jak = 'accepted';
       // Brak odpowiedzi to nie odmowa: zapamiętujemy tylko to, co ktoś
       // naprawdę kliknął, więc po dwóch minutach ciszy następny plik paczki
       // zapyta jeszcze raz, zamiast przepaść bez słowa.
@@ -1782,6 +2109,7 @@ class AppServices {
 
       if (!accepted) {
         _discardPart(offer.messageGuid);
+        zapisz(decyzja == OfferDecision.noAnswer ? 'no answer' : 'rejected');
         return FileOfferReply(
           accepted: false,
           // Odmowa paczki zatrzymuje nadawcę; odmowa pojedynczego pliku
@@ -1804,6 +2132,7 @@ class AppServices {
     _acceptedOffers[_offerKey(offer.from.guid, offer.messageGuid)] =
         _AcceptedOffer(offer, conversationId, session);
     _writePartMeta(offer);
+    zapisz(resumeFrom > 0 ? '$jak, resuming at $resumeFrom bytes' : jak);
     return FileOfferReply(accepted: true, resumeFrom: resumeFrom);
   }
 
@@ -1902,6 +2231,10 @@ class AppServices {
     // z nagłówka. Nie nasza sesja albo cudza, nie ma czego przyjmować.
     final sesja = _sessionsById[session];
     if (sesja == null || sesja.peerGuid != meta.from.guid || !meta.encrypted) {
+      log.warning(
+          LogArea.file,
+          'Incoming file from ${peerLabel(meta.from.name, meta.from.guid)} '
+          'refused: no matching session (message ${meta.messageGuid})');
       return FileReceiveResult.rejected;
     }
     sesja.touch();
@@ -1941,6 +2274,8 @@ class AppServices {
     // Dwa równoległe transfery tego samego pliku pisałyby do jednego pliku
     // częściowego naraz, drugi odsyłamy z 409, nadawca ponowi.
     if (!_receivingFiles.add(meta.messageGuid)) {
+      log.info(LogArea.file,
+          'Incoming file from ${_kto(peer)} already in progress (message ${meta.messageGuid})');
       return FileReceiveResult.offsetMismatch;
     }
     try {
@@ -1955,13 +2290,21 @@ class AppServices {
       _Session sesja) async {
     final part = _partFile(meta.messageGuid);
     var alreadyOnDisk = part.existsSync() ? part.lengthSync() : 0;
+    final kto = _kto(peer);
+    final ktora = '(message ${meta.messageGuid})';
 
     // Stan uzgadniamy PRZED pytaniem użytkownika: inaczej pytalibyśmy
     // o plik, którego i tak nie przyjmiemy w tym zapytaniu.
     if (meta.offset != alreadyOnDisk) {
       // Nadawca chce dopisać od innego miejsca, niż mamy: część zostaje na
       // dysku (kolejna zapowiedź powie mu, ile jej jest).
-      if (meta.offset != 0) return FileReceiveResult.offsetMismatch;
+      if (meta.offset != 0) {
+        log.info(
+            LogArea.file,
+            'Incoming file from $kto starts at ${meta.offset} bytes, '
+            'here $alreadyOnDisk $ktora');
+        return FileReceiveResult.offsetMismatch;
+      }
       // Nadawca leci od zera, nadpisujemy to, co było.
       alreadyOnDisk = 0;
     }
@@ -1973,6 +2316,8 @@ class AppServices {
     // prawdziwą nazwę, sumę kontrolną i zgodę użytkownika. Bajty bez
     // zapowiedzi albo w innej sesji niż ta zgoda nie mają czego skonsumować.
     if (accepted == null || accepted.session != sesja.id) {
+      log.warning(LogArea.file,
+          'Incoming file from $kto refused: no accepted offer $ktora');
       return FileReceiveResult.rejected;
     }
     // Rozmiar z nagłówka rządzi zapisem na dysku (pętla niżej przerywa po
@@ -1981,6 +2326,10 @@ class AppServices {
     // porównania zgoda na jeden plik 100 kB pozwalała przysłać osiem
     // gigabajtów, a przy paczce tyle razy, ile plików w zapowiedzi.
     if (meta.fileSize != accepted.offer.fileSize) {
+      log.warning(
+          LogArea.file,
+          'Incoming file from $kto refused: ${meta.fileSize} bytes announced, '
+          '${accepted.offer.fileSize} offered $ktora');
       return FileReceiveResult.rejected;
     }
     final fileKey = await ChattCrypto.fileKey(
@@ -2032,8 +2381,13 @@ class AppServices {
         }
       }
       await sink.flush();
-    } catch (_) {
+    } catch (blad) {
       // Zerwane połączenie: to, co doszło, zostaje na dysku do wznowienia.
+      log.warning(
+          LogArea.file,
+          'Incoming file from $kto interrupted at $received of '
+          '${meta.fileSize} bytes $ktora',
+          error: blad);
       return FileReceiveResult.incomplete;
     } finally {
       try {
@@ -2048,6 +2402,13 @@ class AppServices {
     if (received != meta.fileSize) {
       // Więcej, niż zapowiedziano = plik do wyrzucenia; mniej = do dokończenia.
       if (received > meta.fileSize) _discardPart(meta.messageGuid);
+      log.warning(
+          LogArea.file,
+          received > meta.fileSize
+              ? 'Incoming file from $kto discarded: more than '
+                  '${meta.fileSize} bytes $ktora'
+              : 'Incoming file from $kto incomplete: $received of '
+                  '${meta.fileSize} bytes $ktora');
       return FileReceiveResult.incomplete;
     }
 
@@ -2056,6 +2417,8 @@ class AppServices {
     final expectedHash = accepted.offer.sha256;
     if (expectedHash != null && await _sha256OfFile(part) != expectedHash) {
       _discardPart(meta.messageGuid);
+      log.warning(LogArea.file,
+          'Incoming file from $kto discarded: checksum mismatch $ktora');
       return FileReceiveResult.checksumMismatch;
     }
 
@@ -2065,7 +2428,10 @@ class AppServices {
     final targetPath = _receivedPathFor(meta.messageGuid, fileName);
     try {
       part.renameSync(targetPath);
-    } catch (_) {
+    } catch (blad) {
+      log.warning(LogArea.file,
+          'Incoming file from $kto could not be moved into place $ktora',
+          error: blad);
       return FileReceiveResult.incomplete;
     }
     // Plik z historii trafia do wpisu, który na niego czekał. Bez
@@ -2073,6 +2439,10 @@ class AppServices {
     if (accepted.offer.history != null) {
       _deletePartMeta(meta.messageGuid);
       await _history.fileReceived(accepted.offer, targetPath);
+      log.info(
+          LogArea.file,
+          'Incoming file received from $kto: $received bytes '
+          '(message ${meta.messageGuid}, shared history)');
       return FileReceiveResult.ok;
     }
     // Duplikat (ten sam guid) trafia w tę samą ścieżkę, więc rename tylko
@@ -2091,6 +2461,8 @@ class AppServices {
     if (inserted) {
       _onIncoming?.call(peer, '📎 $fileName', conversationId);
     }
+    log.info(LogArea.file,
+        'Incoming file received from $kto: $received bytes $ktora');
     return FileReceiveResult.ok;
   }
 
@@ -2283,18 +2655,37 @@ class AppServices {
   void _startRetention() {
     _retentionWatch = db.watchSettings().listen(
       (settings) => applyRetention(settings.retentionDays),
-      onError: (_) {},
+      onError: (Object blad, StackTrace slad) =>
+          _watchFailed('retention', blad, slad),
     );
     _retentionTimer = Timer.periodic(const Duration(hours: 6), (_) async {
-      final settings = await db.getSettings();
-      if (settings != null) await applyRetention(settings.retentionDays);
+      unawaited(_trimLog());
+      unawaited(clearExportCache(olderThan: const Duration(hours: 1)));
+      try {
+        final settings = await db.getSettings();
+        if (settings != null) await applyRetention(settings.retentionDays);
+      } catch (blad, slad) {
+        log.error(LogArea.app, 'Retention run failed',
+            error: blad, stack: slad);
+      }
     });
   }
 
-  /// Kasuje wiadomości starsze niż [days] dni. Zero znaczy „nie kasuj".
-  /// Zwraca liczbę usuniętych wpisów.
-  Future<int> applyRetention(int days) =>
-      days <= 0 ? Future.value(0) : db.deleteMessagesOlderThan(Duration(days: days));
+  /// Kasuje wiadomości i historię pisania starsze niż [days] dni. Zero
+  /// znaczy „nie kasuj". Zwraca liczbę usuniętych wiadomości.
+  Future<int> applyRetention(int days) async {
+    if (days <= 0) return 0;
+    final wiek = Duration(days: days);
+    final usuniete = await db.deleteMessagesOlderThan(wiek);
+    final sesje = await db.deleteTypingOlderThan(wiek);
+    if (usuniete > 0 || sesje > 0) {
+      log.info(
+          LogArea.app,
+          'Retention ($days days): $usuniete messages and $sesje typing '
+          'sessions deleted');
+    }
+    return usuniete;
+  }
 
   // --- Transporty -----------------------------------------------------------
 
@@ -2353,14 +2744,23 @@ class AppServices {
     // Z obserwatora idzie wyłącznie sieć. Dodatek ma jednego właściciela,
     // [setBluetoothAddon], więc spóźnione zdarzenie z bazy nie podniesie
     // radia po jego wyłączeniu.
-    _transportWatch = db.watchSettings().listen(_applyWifi, onError: (_) {});
+    _transportWatch = db.watchSettings().listen(
+      _applyWifi,
+      onError: (Object blad, StackTrace slad) =>
+          _watchFailed('network switch', blad, slad),
+    );
   }
 
   /// Sieć z ustawień. Przełącznik sieci należy do dodatku Bluetooth: bez
   /// dodatku sieć jest jedyną drogą, więc chodzi zawsze, cokolwiek leży
   /// w bazie.
   void _applyWifi(Setting? settings) {
+    final przedtem = client.wifiOn;
     client.useWifi(!bluetoothAddon.value || (settings?.wifiEnabled ?? true));
+    if (client.wifiOn != przedtem) {
+      log.info(LogArea.net,
+          'Local network route turned ${client.wifiOn ? 'on' : 'off'}');
+    }
   }
 
   /// Kolejka przełączeń dodatku. Każde czeka na koniec poprzedniego, więc
@@ -2382,9 +2782,12 @@ class AppServices {
 
   Future<bool> _setBluetoothAddon(bool on) async {
     if (on && !BtChannel.supported) return false;
+    if (bluetoothAddon.value != on) {
+      log.info(LogArea.bt, 'Bluetooth add-on turned ${on ? 'on' : 'off'}');
+    }
     bluetoothAddon.value = on;
     if (!on) {
-      client.useWifi(true);
+      _applyWifi(null);
       await stopBluetooth();
       await db.saveBluetoothAddon(false);
       return true;
@@ -2440,8 +2843,11 @@ class AppServices {
 
     final stan = await BtChannel.status();
     bluetoothStatus.value = stan;
+    _noteBtStatus(stan);
     if (!stan.usable) {
       bluetoothRunning.value = false;
+      log.warning(LogArea.bt,
+          'Bluetooth not started: ${_btUnusableReason(stan)}');
       return false;
     }
 
@@ -2450,10 +2856,22 @@ class AppServices {
       // ten sam routing, ci sami obsługujący, to samo szyfrowanie.
       onRequest: (request, peerAddress) =>
           server.handleBluetooth(request, peerAddress),
-      onLinkChange: (address, up) => bluetoothRevision.value++,
+      onLinkChange: _btLinkChanged,
+      onListeningChange: (listening) => log.add(
+        listening ? LogLevel.info : LogLevel.warning,
+        LogArea.bt,
+        listening
+            ? 'Bluetooth listening resumed'
+            : 'Bluetooth listening stopped by the system',
+      ),
     );
     if (!await transport.start()) {
       bluetoothRunning.value = false;
+      // Radio ponawia start co 10 s: trwała porażka nasłuchu zwija się jak
+      // nieudane wywołania kanału, raz na dziesięć minut.
+      log.add(LogLevel.warning, LogArea.bt,
+          'Bluetooth not started: listening failed',
+          collapseWithin: _rzadkieZdarzenia);
       return false;
     }
     // Dodatek zgaszony w trakcie podnoszenia: radio wstało już po decyzji,
@@ -2467,7 +2885,68 @@ class AppServices {
     client.useBluetooth(transport);
     bluetoothRunning.value = true;
     bluetoothRevision.value++;
+    log.info(LogArea.bt, 'Bluetooth started');
     return true;
+  }
+
+  /// Ostatni stan radia zapisany w dzienniku. Ponawianie co dziesięć sekund
+  /// przy zgaszonym radiu pyta o stan za każdym razem, a dziennik ma
+  /// dostać tylko zmianę.
+  String? _lastBtStatus;
+
+  void _noteBtStatus(BtStatus stan) {
+    String tak(bool value) => value ? 'yes' : 'no';
+    final opis = 'available ${tak(stan.available)}, '
+        'radio on ${tak(stan.enabled)}, '
+        'permission ${tak(stan.granted)}, '
+        'location on ${tak(stan.locationOn)}';
+    if (opis == _lastBtStatus) return;
+    _lastBtStatus = opis;
+    log.info(LogArea.bt, 'Bluetooth status: $opis');
+  }
+
+  static String _btUnusableReason(BtStatus stan) {
+    if (!stan.available) return 'no Bluetooth radio';
+    if (!stan.enabled) return 'radio off';
+    return 'permission missing';
+  }
+
+  /// Łącze Bluetooth stanęło albo padło. Adres trafia do dziennika tylko
+  /// wtedy, gdy należy do znanego rozmówcy: przy szukaniu łącza stają też
+  /// do urządzeń, o których jeszcze nic nie wiadomo.
+  void _btLinkChanged(String address, bool up, String reason) {
+    bluetoothRevision.value++;
+    unawaited(() async {
+      try {
+        final peer = await _peerByBtAddress(address);
+        final kto = peer == null
+            ? 'a device not known yet'
+            : '${_kto(peer)} at ${logText(address)}';
+        if (up) {
+          log.info(LogArea.bt, 'Bluetooth link up with $kto (${logText(reason)})');
+        } else {
+          log.add(
+            LogLevel.info,
+            LogArea.bt,
+            'Bluetooth link down with $kto',
+            details: maskHardwareAddresses(logText(reason, maxLength: 300)),
+          );
+        }
+      } catch (_) {
+        // Baza zamknięta w trakcie wyłączania: łącze i tak już nie stoi.
+      }
+    }());
+  }
+
+  Future<Peer?> _peerByBtAddress(String address) async {
+    final szukany = normalizeBtAddress(address);
+    if (szukany.isEmpty) return null;
+    final kandydaci =
+        await (db.select(db.peers)..where((p) => p.btAddress.isNotNull())).get();
+    for (final peer in kandydaci) {
+      if (normalizeBtAddress(peer.btAddress ?? '') == szukany) return peer;
+    }
+    return null;
   }
 
   Future<void> stopBluetooth() async {
@@ -2483,6 +2962,7 @@ class AppServices {
     bluetoothRevision.value++;
     _watchForRadio();
     await transport?.stop();
+    if (transport != null) log.info(LogArea.bt, 'Bluetooth stopped');
   }
 
   /// Odświeża stan radia i zgód (ekrany pytają o to przy wejściu).
@@ -2498,6 +2978,7 @@ class AppServices {
     if (!force && !bluetoothAddon.value) return bluetoothStatus.value;
     final stan = await BtChannel.status();
     bluetoothStatus.value = stan;
+    _noteBtStatus(stan);
     if (bluetoothAddon.value && _bluetooth == null && stan.usable) {
       unawaited(startBluetooth());
     }
@@ -2572,7 +3053,10 @@ class AppServices {
     while ((szuka || DateTime.now().isBefore(minimum)) &&
         DateTime.now().isBefore(koniec)) {
       // Dodatek zgaszony w trakcie szukania kończy szukanie.
-      if (_bluetooth == null) return const [];
+      if (_bluetooth == null) {
+        log.info(LogArea.bt, 'Bluetooth scan stopped: add-on turned off');
+        return const [];
+      }
       final wynik = await BtChannel.scanResults();
       szuka = wynik.scanning;
       for (final device in wynik.devices) {
@@ -2593,6 +3077,11 @@ class AppServices {
       znalezione.add(peer);
       onFound?.call(peer);
     }
+    // Same liczby: adresy z eteru to w większości cudzy sprzęt.
+    log.info(
+        LogArea.bt,
+        'Bluetooth scan: ${widziane.length} devices seen, '
+        '${znalezione.length} with Chatt');
     return znalezione;
   }
 
@@ -2601,10 +3090,16 @@ class AppServices {
   /// Przydaje się wszędzie tam, gdzie szukanie nie wchodzi w grę: Android nie
   /// oddaje wyników wyszukiwania przy wyłączonych usługach lokalizacji, a
   /// adres i tak bywa znany skądinąd (z parowania systemowego albo z kodu QR).
-  Future<Peer?> addPeerByBluetooth(String address) {
+  Future<Peer?> addPeerByBluetooth(String address) async {
     final czysty = normalizeBtAddress(address);
-    if (czysty.isEmpty || _bluetooth == null) return Future.value(null);
-    return _probeBluetooth(czysty);
+    if (czysty.isEmpty || _bluetooth == null) return null;
+    final peer = await _probeBluetooth(czysty);
+    log.info(
+        LogArea.bt,
+        peer == null
+            ? 'Adding a device by Bluetooth address failed: no Chatt answered'
+            : 'Device added by Bluetooth address: ${_kto(peer)}');
+    return peer;
   }
 
   /// Czy pod tym adresem stoi Chatt. Zapisujemy go dopiero wtedy, gdy się
@@ -2751,6 +3246,73 @@ class AppServices {
   /// Stop po stronie odbiorcy.
   void stopIncomingRemoteInput() => _remoteInput.stopIncoming();
 
+  // --- Dziennik aplikacji i historia pisania (issue #50) --------------------
+
+  /// Dziennik aplikacji do diagnostyki, w zaszyfrowanej bazie. Bez treści
+  /// wiadomości, bez wpisywanego tekstu i bez kluczy (patrz `app_log.dart`).
+  /// Echo na konsolę tylko na prośbę `main.dart` w buildzie debug.
+  late final AppLog log = AppLog(db, echo: _logToConsole);
+
+  /// Historia pisania zdalną klawiaturą, po obu stronach. Zapisuje tylko
+  /// przy włączonym dodatku i włączonym przełączniku [typingHistory].
+  late final TypingJournal typingJournal = TypingJournal(
+    db,
+    enabled: () => keyboardAddon.value && typingHistory.value,
+    // Paczka wpisywana w chwili wyłączenia dodatku jeszcze trafia do sesji,
+    // którą wyłączenie zaraz zamknie.
+    recording: () => typingHistory.value,
+    onError: (blad, slad) => log.error(
+        LogArea.keyboard, 'Typing history could not be saved',
+        error: blad, stack: slad),
+  );
+
+  /// Przełącznik „Zapisuj historię pisania" w karcie dodatku klawiatury.
+  /// Domyślnie włączony; jedynym pisarzem jest [setTypingHistory].
+  final ValueNotifier<bool> typingHistory = ValueNotifier(true);
+
+  /// Włącza albo wyłącza zapis historii pisania. Wyłączenie nie kasuje tego,
+  /// co już zapisane: do tego jest [clearTypingHistory].
+  Future<bool> setTypingHistory(bool on) async {
+    if (typingHistory.value != on) {
+      log.info(LogArea.keyboard, 'Typing history turned ${on ? 'on' : 'off'}');
+    }
+    typingHistory.value = on;
+    await db.saveTypingHistory(on);
+    return on;
+  }
+
+  /// Kasuje całą historię pisania. Trwająca sesja pisze dalej, ale już bez
+  /// zapisu. Zwraca liczbę usuniętych sesji.
+  Future<int> clearTypingHistory() async {
+    await typingJournal.flush();
+    typingJournal.detachAll();
+    final usuniete = await db.clearTypingHistory();
+    await clearExportCache();
+    log.info(LogArea.keyboard, 'Typing history cleared: $usuniete sessions');
+    return usuniete;
+  }
+
+  /// „Wyczyść dziennik" z ekranu dziennika aplikacji: wpisy w bazie i to, co
+  /// dziennik trzyma jeszcze w pamięci (patrz [AppLog.clear]). Po
+  /// czyszczeniu zostaje jeden wpis o nim. Zwraca liczbę usuniętych wpisów.
+  Future<int> clearLog() async {
+    final usuniete = await log.clear();
+    log.info(LogArea.app, 'App log cleared: $usuniete entries');
+    return usuniete;
+  }
+
+  /// „Wyczyść historię" z Ustawień: wiadomości, rozmowy i historia pisania
+  /// (patrz [ChattDb.clearHistory]). Zwraca liczbę usuniętych wiadomości.
+  Future<int> clearHistory() async {
+    await typingJournal.flush();
+    typingJournal.detachAll();
+    final usuniete = await db.clearHistory();
+    await clearExportCache();
+    log.info(LogArea.app,
+        'Conversation history cleared: $usuniete messages (typing history included)');
+    return usuniete;
+  }
+
   /// Czy wisi jakakolwiek karta z pytaniem. Zdalne pisanie wtedy czeka, żeby
   /// zdalny Enter nie odpowiedział na pytanie, którego nikt nie przeczytał.
   bool get _anyPromptPending =>
@@ -2817,7 +3379,8 @@ class AppServices {
         linkPreviews.enabled = settings.linkPreviews;
         if (!settings.linkPreviews) linkPreviews.clear();
       },
-      onError: (_) {},
+      onError: (Object blad, StackTrace slad) =>
+          _watchFailed('link previews', blad, slad),
     );
   }
 
@@ -2865,10 +3428,28 @@ class AppServices {
     try {
       final wynik = await fetchLatestRelease(client: client);
       availableRelease.value = wynik.release;
+      switch (wynik.outcome) {
+        case UpdateCheck.newer:
+          log.info(
+              LogArea.update,
+              'Update check: version '
+              '${logText(wynik.release?.version ?? '?')} available '
+              '(running $appVersion)');
+        case UpdateCheck.upToDate:
+          log.info(LogArea.update,
+              'Update check: up to date (running $appVersion)');
+        case UpdateCheck.failed:
+          log.warning(LogArea.update,
+              'Update check failed (running $appVersion)');
+      }
       // Znacznik zapisujemy także po nieudanym pytaniu: brak sieci nie ma
       // zamieniać sprawdzania co dobę w pukanie co godzinę.
       await db.markUpdateCheck(DateTime.now());
       return wynik;
+    } catch (blad, slad) {
+      log.error(LogArea.update, 'Update check failed with an error',
+          error: blad, stack: slad);
+      rethrow;
     } finally {
       checkingForUpdate.value = false;
     }
@@ -2876,9 +3457,18 @@ class AppServices {
 
   Future<void> dispose() async {
     _closing = true;
+    log.info(LogArea.app, 'App stopping');
+    // Haki kanałów natywnych są jedne na proces: zamknięta instancja zwalnia
+    // je, o ile nikt ich w międzyczasie nie przejął.
+    if (BtChannel.onCallError == _btCallFailed) BtChannel.onCallError = null;
+    if (RemoteInputChannel.onCallError == _keyboardCallFailed) {
+      RemoteInputChannel.onCallError = null;
+    }
     _bluetoothRetry?.cancel();
     await _remoteInput.dispose();
     await _history.dispose();
+    await typingJournal.close();
+    typingHistory.dispose();
     // Nikt już nie odpowie na wiszące prośby o zgodę: odmawiamy, żeby
     // nadawcy nie czekali do timeoutu.
     for (final guid in _offerDecisions.keys.toList()) {
@@ -2904,6 +3494,7 @@ class AppServices {
     responder.stop();
     await server.stop();
     client.dispose();
+    await log.close();
     await db.close();
   }
 }

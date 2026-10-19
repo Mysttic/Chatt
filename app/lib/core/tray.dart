@@ -130,13 +130,22 @@ class TrayIcon with TrayListener, WindowListener {
     await windowManager.focus();
   }
 
+  /// Krok przed końcem programu: zapis tego, co dziennik aplikacji i historia
+  /// pisania trzymają jeszcze w pamięci. Ustawia go `main.dart`.
+  Future<void> Function()? beforeQuit;
+
   /// Kończy program.
   ///
   /// Woła to menu ikony w zasobniku, a przy aktualizacji także ekran ustawień:
   /// instalator wgrywa się w miejsce działającej aplikacji, więc ta musi mu
-  /// zejść z drogi.
+  /// zejść z drogi. [beforeQuit] dostaje na to najwyżej dwie sekundy.
   Future<void> quit() async {
     if (!supported) return;
+    try {
+      await beforeQuit?.call().timeout(const Duration(seconds: 2));
+    } catch (_) {
+      // Zapis się nie zdążył albo padł: wyjście i tak ma się odbyć.
+    }
     // Zdjęcie blokady zamykania: dopiero teraz zamknięcie okna ma skończyć
     // proces, bo tego właśnie użytkownik chce.
     await windowManager.setPreventClose(false);

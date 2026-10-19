@@ -152,6 +152,22 @@ class BtChannel {
   @visibleForTesting
   static bool? debugSupported;
 
+  /// Nieudane wywołanie strony natywnej: nazwa metody, kod błędu i jego
+  /// opis. Kanał jest jeden na proces, więc i ten hak: ustawia go
+  /// `AppServices` przy starcie, a zapis do dziennika aplikacji (razem
+  /// z pilnowaniem, żeby odpytywanie co pół sekundy go nie zalało) jest już
+  /// jego sprawą.
+  static void Function(String method, String code, String? message)?
+      onCallError;
+
+  static void _zglos(String method, String code, String? message) {
+    try {
+      onCallError?.call(method, code, message);
+    } catch (_) {
+      // Zgłoszenie jest dodatkiem: wywołanie i tak kończy się „nie wyszło”.
+    }
+  }
+
   static Future<Map<String, Object?>?> _call(
     String method, [
     Map<String, Object?>? args,
@@ -160,7 +176,7 @@ class BtChannel {
     try {
       return await _channel.invokeMapMethod<String, Object?>(method, args);
     } on PlatformException catch (error) {
-      debugPrint('chatt/bluetooth $method: ${error.code} ${error.message}');
+      _zglos(method, error.code, error.message);
       return null;
     } on MissingPluginException {
       return null;
@@ -174,7 +190,8 @@ class BtChannel {
     if (!supported) return false;
     try {
       return await _channel.invokeMethod<bool>(method, args) ?? false;
-    } on PlatformException {
+    } on PlatformException catch (error) {
+      _zglos(method, error.code, error.message);
       return false;
     } on MissingPluginException {
       return false;
@@ -248,7 +265,11 @@ class BtChannel {
       // niczego by nie dodało, a odebrałoby „działa, gdy jesteście obok".
       'secure': false,
     });
-    return json != null && json['error'] == null;
+    // Windows odpowiada na nieudany nasłuch mapą z powodem i kodem WSA,
+    // bez wyjątku. To też jest nieudane wywołanie.
+    final blad = json?['error'];
+    if (blad != null) _zglos('linkStart', '${json?['code'] ?? 'error'}', '$blad');
+    return json != null && blad == null;
   }
 
   static Future<bool> linkStop() => _callBool('linkStop');
@@ -400,8 +421,20 @@ class BluetoothTransport implements PeerTransport {
       onRequest;
 
   /// Wołane, gdy łącze stanie albo padnie: po tym widać w interfejsie,
-  /// którym protokołem stoi rozmowa.
-  final void Function(String address, bool up)? onLinkChange;
+  /// którym protokołem stoi rozmowa. [reason] mówi, skąd łącze się wzięło
+  /// (`incoming`, `outgoing`) albo dlaczego padło (`native: …` z powodem ze
+  /// strony natywnej, poprzedzone `dart: …`, gdy pierwsza zamknęła je ta
+  /// strona), do dziennika aplikacji.
+  final void Function(String address, bool up, String reason)? onLinkChange;
+
+  /// Wołane, gdy natywny nasłuch padnie (radio zgaszone w systemie) albo
+  /// wróci. Tylko przy zmianie: odpytywanie co pół sekundy nie powtarza
+  /// tego samego stanu.
+  final void Function(bool listening)? onListeningChange;
+
+  /// Błąd w trakcie strumieniowania pliku po stojącym łączu, jak
+  /// `HttpTransport.onStreamError`. Ustawia go [PeerClient.useBluetooth].
+  void Function(PeerRoute route, String path, Object error)? onStreamError;
 
   final _links = <String, BtLink>{};
   final _addressOfId = <int, String>{};
@@ -411,11 +444,15 @@ class BluetoothTransport implements PeerTransport {
   Timer? _poll;
   bool _running = false;
 
+  /// Ostatni stan nasłuchu, jaki zgłosiła strona natywna.
+  bool _listening = false;
+
   /// Trwająca próba postawienia nasłuchu na nowo i chwila ostatniej próby.
   Future<void>? _relisten;
   DateTime? _lastRelisten;
 
-  BluetoothTransport({this.onRequest, this.onLinkChange});
+  BluetoothTransport(
+      {this.onRequest, this.onLinkChange, this.onListeningChange});
 
   @override
   PeerProtocol get protocol => PeerProtocol.bluetooth;
@@ -436,6 +473,7 @@ class BluetoothTransport implements PeerTransport {
     // więc bez tego telefon nie ma go jak znaleźć.
     await BtChannel.discoverable(true);
     _running = true;
+    _listening = true;
     _poll = Timer.periodic(btPollInterval, (_) => _odbierz());
     return true;
   }
@@ -492,6 +530,10 @@ class BluetoothTransport implements PeerTransport {
     // „nie słucham" i stawia go z powrotem. Przy zgaszonym radiu próba odbija
     // się od razu i wraca po [btListenRetry].
     if (_running && poll.answered && !poll.listening) _ponowNasluch();
+    if (_running && poll.answered && poll.listening != _listening) {
+      _listening = poll.listening;
+      onListeningChange?.call(poll.listening);
+    }
     if (btVerbose) {
       for (final note in poll.notes) {
         debugPrint('[bt natywne] $note');
@@ -516,11 +558,20 @@ class BluetoothTransport implements PeerTransport {
       final address = _addressOfId.remove(entry.id);
       if (address == null) continue;
       final link = _links.remove(address);
-      await link?.close(powod: 'natywne: ${entry.reason}');
+      // Łącze zamknięte wcześniej po tej stronie (zerwana rura, zła ramka)
+      // ma swój powód: strona natywna widzi wtedy tylko zamknięte gniazdo.
+      final poTejStronie = link?.closeReason;
+      await link?.close(powod: 'native: ${entry.reason}');
       if (btVerbose) {
         debugPrint('[bt] padlo lacze ${entry.id} do $address: ${entry.reason}');
       }
-      onLinkChange?.call(address, false);
+      onLinkChange?.call(
+        address,
+        false,
+        poTejStronie == null
+            ? 'native: ${entry.reason}'
+            : 'dart: $poTejStronie; native: ${entry.reason}',
+      );
     }
   }
 
@@ -571,7 +622,8 @@ class BluetoothTransport implements PeerTransport {
           '(${entry.incoming ? 'przychodzace' : 'wychodzace'}, '
           'port ${entry.port})');
     }
-    onLinkChange?.call(entry.peer, true);
+    onLinkChange?.call(
+        entry.peer, true, entry.incoming ? 'incoming' : 'outgoing');
   }
 
   /// Łącze do urządzenia: istniejące albo świeżo nawiązane. null, gdy się
@@ -584,7 +636,7 @@ class BluetoothTransport implements PeerTransport {
     final link = _links.remove(address);
     if (link == null) return;
     _addressOfId.removeWhere((_, value) => value == address);
-    await link.close(powod: 'niepotrzebne po sprawdzeniu');
+    await link.close(powod: 'not needed after the check');
   }
 
   Future<BtLink?> _linkTo(String address, Duration budzet) {
@@ -710,7 +762,12 @@ class BluetoothTransport implements PeerTransport {
         body: counted,
       );
       return TransportReply(response.status, await _zbierz(response.body));
-    } catch (_) {
+    } catch (blad) {
+      try {
+        onStreamError?.call(route, path, blad);
+      } catch (_) {
+        // Zgłoszenie jest dodatkiem: wynik to i tak „nieosiągalny”.
+      }
       return const TransportReply.unreachable();
     }
   }

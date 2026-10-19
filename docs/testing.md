@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **550 `flutter test` tests** check everything that can be
+The split is simple: **594 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -257,7 +257,7 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migrations (`test/migration_test.dart`, 7 tests)
+### Migrations (`test/migration_test.dart`, 8 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
@@ -275,7 +275,10 @@ when it speaks and when it stays quiet:
 - the step from 14 to 15 brings the Cisza style in and keeps the theme, the
   background and the nickname; a saved style comes back after reopening
 - a 0.10.0 database (schema 13, with neither `restored_at` nor `style`) goes
-  to 15 in one opening and keeps the peer, the message and the settings
+  to the current schema in one opening and keeps the peer, the message and
+  the settings, and the typing history and app log tables are there
+- the step from 15 to 16 adds `typing_sessions`, `typing_entries`, `app_log`
+  and their index, keeps every row, and turns on Save typing history
 
 ### Styles (`test/style_test.dart`, 29 tests)
 - each of the six variants (three styles, light and dark) carries its own
@@ -851,6 +854,169 @@ The native bar, the tray and the window are replaced by recorders:
   posts "Switch the keyboard to Chatt" during a grant, and nothing without
   one
 
+### Typing history inside (`test/typing_journal_test.dart`, 28 tests)
+The journal against an in-memory database, with a short flush delay and,
+where time matters, a clock of its own:
+- `TypingOp` goes to JSON and back, hidden text included; a broken row, an
+  unknown or incomplete operation drops out; its description holds no text
+- operations from the protocol: visible text or only a number of characters,
+  ping and stop drop out, neighbouring pieces of text join
+- the rebuilt text: Backspace past the start leaves it empty and takes a
+  whole emoji, Delete changes nothing, Enter is a new line, hidden text is one
+  dot per character; the text export writes keys in square brackets
+- hiding: only a text field before and after the packet stays visible, so the
+  first packet after leaving a password field is hidden too
+- a session row appears at once with the request's result; packets into the
+  same field join into one piece; a change of status, field or app starts a
+  new one; a piece goes to the database after a quiet second, and while
+  typing goes on without a pause at most five seconds after it started; the
+  end writes the last piece and the reason; a refused request is a row
+  ended at once
+- a journal that is off writes nothing; turned off mid-session it writes the
+  end only; a session already open still takes the packet in flight when
+  the add-on goes off and the switch stays on
+- after a clear the open session writes nothing and writes queued before the
+  clear do not bring the history back; closing ends open sessions with
+  `appClosed`; a failed write reaches `onError` and the queue goes on
+
+### Typing history between two devices (`test/typing_history_test.dart`, 27 tests)
+Alicja types on Bartek over real sockets, with the harness of the remote
+keyboard tests (a recording sink, with a valve that holds a packet while it
+is being typed):
+- both sides keep a session under the same request id, outgoing and
+  incoming, with the text and the end reason; the request result is a card
+  answer, "Don't ask again", and then no card at all
+- a password field and a field of unknown kind keep only the number of
+  characters on both sides, and the text is nowhere in the typing tables or
+  the app log
+- a card on the receiver's screen gives `paused`, a field that went away
+  gives `notTyped`
+- every way a session ends on the receiver (Stop, receiving off, add-on off,
+  device removed, shield taken away) gives that reason there and
+  `stoppedByPeer` on the sender after its next packet, or after a ping when it
+  types nothing; on the sender the add-on off, a new session, a removed device
+  and closing the app give their own reasons
+- a link that breaks after a confirmed packet gives `linkLost`, and the
+  packet with no reply is kept hidden; text that rides with Stop is typed and
+  recorded on both sides; Stop or the add-on going off while a packet is
+  being typed still records that packet before the end
+- a refusal, receiving off and a request withdrawn while the card is up leave
+  an ended row on both sides; an unverified sender leaves nothing in the
+  history and a warning in the log
+- the add-on off or the switch off records nothing; retention, Clear typing
+  history in the middle of a session and Clear history remove it
+- the app log has the keyboard events with each device named with the start
+  of its identifier, and none of the typed text
+
+### Typing history on screen (`test/typing_history_ui_test.dart`, 8 tests)
+- the Save typing history switch is on the add-on card only while the add-on
+  is on and writes to the database; the card's button opens an empty history
+- the list goes newest first, says the direction and the result in words and
+  sets a refusal apart; the detail shows the rebuilt text, a hidden field as
+  dots and keys as small symbols, never the text of a password
+- Clear typing history asks and clears; Clear history in Settings takes the
+  typing history too
+- Data and diagnostics sits between Privacy and Add-ons and shows Typing
+  history only once there is a session, then the log and the export
+- every result, end reason and status has words in both languages, and the
+  fixed names are right in Polish
+
+### The app log (`test/app_log_test.dart`, 28 tests)
+- entries wait in memory and reach the database after the flush delay; a
+  flush writes at once and waits; an entry after the database closed throws
+  nothing
+- trimming keeps 30 days and 20,000 entries and reports how many went
+- the same entry inside its window is counted; the count is written on flush,
+  at the end of the window on its own, or with the next entry after it; a
+  flood that goes on after a flush stays collapsed; another level or area is
+  another entry; a caller can ask for a longer window
+- Clear the log removes the database rows, the batch in memory and the open
+  windows, so the next occurrence comes back with its details; closing writes
+  the counts and takes no more entries
+- error descriptions: a file error loses its path, also the one written into
+  the message; a format error loses the quoted input; an SQLite error loses
+  every line of its parameters; a description that throws becomes the type
+  name
+- the console echo is off by default and, when on, prints stored entries
+  without the repeats
+- uncaught errors land in the log as errors and go on to the handler that was
+  there before
+- names from outside lose control characters and get the start of the
+  identifier, long text is cut, hardware addresses are hidden
+
+### What the app log records (`test/app_log_events_test.dart`, 7 tests)
+Two real instances:
+- the start leaves one summary entry with no paths
+- pairing leaves entries on both sides with no code, and a refused pairing
+  shows on both sides
+- a delivered and an undelivered message log the identifier with no body
+- a file logs its direction, size and result with no name, a refused file
+  its result on both sides
+- after closing, the last entry is in the database and the channel hooks are
+  free
+
+### The app log on screen (`test/app_log_ui_test.dart`, 7 tests)
+- entries go newest first with date, level and area, details on a tap; the
+  "Warnings and errors" filter hides the rest; copying gives the visible
+  entries as text, oldest first
+- Clear the log asks and clears; an empty log and an empty filter have their
+  own text
+- the export button opens the dialog with only the log ticked; the Settings
+  button opens the screen, in Polish too
+
+### The ZIP writer (`test/zip_writer_test.dart`, 16 tests)
+Archives are read back by a small reader written in the test:
+- CRC-32 matches the reference vectors, piece by piece too; an empty archive
+  is the end record alone
+- text is compressed, files go in as they are, Polish names are UTF-8; a
+  file's own date goes into its entry
+- the format limits: one more entry, a file over the size of the archive and
+  compression that runs over in the middle of an entry are refused and leave
+  the archive whole; room can be kept for entries that come later; an
+  entry's size counts before compression; `entryBound` is an upper bound
+- a missing source file leaves no trace; repeated names regardless of case
+  and names that try to leave the archive are refused
+- the archive grows in `<name>.part`: abort leaves an older file under the
+  name untouched and removes the working file, close replaces the older file
+
+### The data export (`test/data_export_test.dart`, 22 tests)
+A real instance with peers, a conversation with text and files (one of them
+gone from disk), typing sessions with a hidden piece, log entries and an old
+session key on a peer:
+- the file name; the estimate counts data and the received files still on
+  disk
+- every part on: the layout, the manifest and the README; the JSON of
+  settings, devices and conversations; the typing history with hidden text and
+  the rebuilt text; the log in JSON with milliseconds and in lines of text;
+  each part alone gives only its own entries; without received files there is
+  no `files/`, no `archivePath` and nothing skipped
+- no entry anywhere carries the identity key, the session key or the
+  database passphrase
+- a file over the archive limit is skipped as `tooLarge`, and a limit right at
+  the full size still gives a whole archive inside it
+- the export writes what was still in memory and leaves an entry in the log
+- desktop: the save dialog gets the suggested name and `.zip` is appended; a
+  closed dialog saves nothing; a place with no access ends as failed; an
+  appended `.zip` that already exists is replaced only after a yes; a failure
+  in the middle leaves an older file in place and no partial copy
+- Android: a copy to Downloads cleans the cache; without that copy the
+  archive goes to the share sheet; a failed share and a failed copy remove the
+  archive
+- an archive waiting in the cache goes when it is over an hour old at start,
+  and on Clear history and Clear typing history
+
+### The export dialog (`test/export_dialog_test.dart`, 8 tests)
+- counts next to the parts, received files off by default; the warning names
+  only what the chosen parts hold (message text, typed text, both or neither)
+- an existing file: the dialog asks about replacing it and passes the answer
+  on
+- without typing sessions there is no typing part, without files the files
+  part is off
+- the export goes with the chosen parts, the dialog waits busy, then a
+  message says where the file went; a failed export, a closed save dialog and
+  no place to save each have their message; a failed count still offers every
+  part; the dialog in Polish
+
 ## Scenarios on live hardware
 
 ### `tool/klawiatura_android_e2e_test.dart`
@@ -1210,6 +1376,14 @@ Deliberate holes in coverage, to be checked by hand at release time:
 - **The keyboard's 8-hour limit, the card's two-minute timeout and the cap of
   8 waiting requests**: no test waits that long or raises nine cards. The idle
   clock has a test of its own, with a shortened duration.
+- **Exporting on a real device**: the copy to Downloads on its worker thread,
+  the share sheet over the `cache/eksport/` root and the Windows save dialog
+  never run under `flutter test`; the tests swap them for stand-ins. The
+  archive itself was opened by Python's `zipfile`, `bsdtar` and .NET; the
+  Explorer ZIP viewer with Polish names is checked by hand.
+- **Quit from the tray and a process ended by the system**: the steps that
+  save the app log and the typing history before the end are in `main.dart`,
+  which no test starts.
 
 - **Router behaviour**: client isolation on a guest network, broadcasts between
   the 2.4 and 5 GHz bands, masks other than /24 (the scanner computes the
