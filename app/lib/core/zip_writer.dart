@@ -29,7 +29,8 @@ const int zipMaxEntries = 0xFFFF;
 
 /// Która granica formatu by pękła.
 enum ZipLimit {
-  /// Wpis ma więcej niż [zipMaxBytes] bajtów przed kompresją.
+  /// Wpis ma przed kompresją więcej bajtów, niż mieści pole rozmiaru
+  /// ([zipMaxBytes]).
   entrySize,
 
   /// Archiwum urosłoby ponad dozwolony rozmiar.
@@ -136,18 +137,29 @@ class _Ujscie implements Sink<List<int>> {
 /// i ponowna kompresja wydłużyłaby eksport bez zysku. Nazwy wpisów są w UTF-8
 /// z ustawionym bitem 11, więc polskie znaki przechodzą bez strat.
 ///
-/// [maxBytes] i [maxEntries] to granice formatu; testy podają mniejsze.
+/// [maxBytes], [maxEntryBytes] i [maxEntries] to granice formatu; testy
+/// podają mniejsze.
 class ZipWriter {
   ZipWriter(
     this.path, {
     this.maxBytes = zipMaxBytes,
+    this.maxEntryBytes = zipMaxBytes,
     this.maxEntries = zipMaxEntries,
-  })  : assert(maxBytes <= zipMaxBytes && maxEntries <= zipMaxEntries),
+  })  : assert(maxBytes <= zipMaxBytes &&
+            maxEntryBytes <= zipMaxBytes &&
+            maxEntries <= zipMaxEntries),
         _wyjscie = File(path).openSync(mode: FileMode.write);
 
   /// Gdzie leży archiwum.
   final String path;
+
+  /// Największy rozmiar całego archiwum, z katalogiem centralnym.
   final int maxBytes;
+
+  /// Największy rozmiar jednego wpisu przed kompresją.
+  final int maxEntryBytes;
+
+  /// Najwięcej wpisów w archiwum.
   final int maxEntries;
 
   final RandomAccessFile _wyjscie;
@@ -352,7 +364,7 @@ class ZipWriter {
     if (_wpisy.length + 1 + reserveEntries > maxEntries) {
       throw ZipLimitExceeded(ZipLimit.entryCount, name);
     }
-    if (expected != null && expected > zipMaxBytes) {
+    if (expected != null && expected > maxEntryBytes) {
       throw ZipLimitExceeded(ZipLimit.entrySize, name);
     }
 
@@ -395,7 +407,7 @@ class ZipWriter {
       _pozycja = poczatek + naglowek;
       zrodlo((kawalek) {
         surowe += kawalek.length;
-        if (surowe > zipMaxBytes) {
+        if (surowe > maxEntryBytes) {
           throw ZipLimitExceeded(ZipLimit.entrySize, name);
         }
         crc.add(kawalek);

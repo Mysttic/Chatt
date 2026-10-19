@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:drift/drift.dart' show OrderingTerm;
+import 'package:drift/drift.dart'
+    show BooleanExpressionOperators, OrderingTerm;
 import 'package:file_selector/file_selector.dart'
     show XTypeGroup, getSaveLocation;
 import 'package:path/path.dart' as p;
@@ -200,12 +201,13 @@ Future<ExportResult> writeExport(
 /// [FileActions.saveCopy].
 ///
 /// Wyniki:
-/// - `saved`: archiwum leży w `where` (pulpit: pełna ścieżka, Android:
-///   katalog w Pobranych);
+/// - `saved` z `where`: archiwum leży w `where` (pulpit: pełna ścieżka,
+///   Android: katalog w Pobranych);
+/// - `saved` bez `where`: Android bez zapisu do Pobranych (starszy niż 10
+///   albo odmowa dostawcy treści), archiwum poszło do systemowego okna
+///   „Udostępnij";
 /// - `cancelled`: użytkownik zamknął okno zapisu;
-/// - `unsupported` z `export`: Android bez zapisu do Pobranych, archiwum
-///   poszło do systemowego okna „Udostępnij";
-/// - `unsupported` bez `export`: platforma bez eksportu;
+/// - `unsupported`: platforma bez eksportu;
 /// - `failed`: zapis się nie udał (szczegóły w dzienniku aplikacji).
 ///
 /// Parametry nazwane podmieniają kawałki platformy w testach: [android]
@@ -258,7 +260,7 @@ Future<({SaveResult result, String? where, ExportResult? export})>
     final wynik = await writeExport(services, cel, parts, now: kiedy);
     return (result: SaveResult.saved, where: cel, export: wynik);
   } catch (_) {
-    // Błąd jest już w dzienniku (writeExport), a niedokończony plik
+    // Błąd jest już w dzienniku (writeExport), niedokończony plik
     // skasowany.
     return (result: SaveResult.failed, where: null, export: null);
   }
@@ -328,7 +330,7 @@ Future<({SaveResult result, String? where, ExportResult? export})>
       // posprząta.
       final udostepnione = await share(sciezka);
       if (udostepnione == FileActionResult.ok) {
-        return (result: SaveResult.unsupported, where: null, export: wynik);
+        return (result: SaveResult.saved, where: null, export: wynik);
       }
       services.log.warning(
           LogArea.app, 'Export share failed: ${udostepnione.name}');
@@ -1158,7 +1160,7 @@ String _dziennikTekstem(List<_WpisDziennika> wpisy) {
     final kiedy = DateTime.fromMillisecondsSinceEpoch(e.atMs);
     final poziom = _poziomy[e.level] ?? e.level.toUpperCase();
     b.writeln('${_lokalnie(kiedy, millis: true)} ${poziom.padRight(5)} '
-        '${e.area.padRight(8)} ${e.message}');
+        '${e.area}  ${e.message}');
     final szczegoly = e.details;
     if (szczegoly != null && szczegoly.isNotEmpty) {
       b.writeln(_wciecie(szczegoly.trimRight(), '    '));
@@ -1190,7 +1192,9 @@ String _readme(_Zadanie z) {
     ],
     if (z.files)
       ('files/',
-          'received files; conversations.json points to each one with "archivePath"'),
+          z.conversations
+              ? 'received files; conversations.json points to each one with "archivePath"'
+              : 'received files'),
   ];
   final zawartoscPl = <(String, String)>[
     ('README.txt', 'ten plik'),
@@ -1211,7 +1215,9 @@ String _readme(_Zadanie z) {
     ],
     if (z.files)
       ('files/',
-          'odebrane pliki; conversations.json wskazuje każdy z nich polem "archivePath"'),
+          z.conversations
+              ? 'odebrane pliki; conversations.json wskazuje każdy z nich polem "archivePath"'
+              : 'odebrane pliki'),
   ];
   String lista(List<(String, String)> pozycje) => pozycje
       .map((pozycja) => '  ${pozycja.$1.padRight(21)} ${pozycja.$2}')
