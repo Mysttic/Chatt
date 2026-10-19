@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io' show FileSystemException;
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart'
+    show FlutterError, FlutterErrorDetails, debugPrint;
 
 import '../data/db.dart';
 
@@ -46,7 +48,8 @@ abstract final class LogArea {
 /// Zalew tych samych wpisów (pętla odpytywania, która co pół sekundy trafia
 /// w ten sam błąd) zwija się: pierwszy wpis idzie do bazy od razu, kolejne
 /// identyczne w ciągu [floodWindow] są tylko liczone, a po zamknięciu okna
-/// trafia jeden wpis z dopiskiem „(repeated N times)”.
+/// (albo przy [flush] i [close]) trafia jeden wpis z dopiskiem
+/// „(repeated N times)”.
 class AppLog {
   AppLog(
     this._db, {
@@ -136,13 +139,18 @@ class AppLog {
 
   /// Zapisuje to, co czeka, razem z licznikami otwartych okien powtórek,
   /// i czeka na koniec zapisu.
+  ///
+  /// Okna zostają otwarte z wyzerowanym licznikiem: zapis (eksport, ekran
+  /// dziennika) ma pokazać to, co się nazbierało, a zalew, który trwa dalej,
+  /// ma dalej być zwijany. Zamyka je dopiero ich czas albo [close].
   Future<void> flush() {
     try {
       final teraz = _now();
       for (final okno in _okna.values) {
         _wypiszPowtorki(okno, teraz);
+        okno.count = 0;
       }
-      _okna.clear();
+      if (_closed) _okna.clear();
       _floodTimer?.cancel();
       _floodTimer = null;
       _floodDue = null;
@@ -293,6 +301,76 @@ class _Okno {
   _Okno(this.level, this.area, this.message, this.start, this.length);
 
   DateTime get end => start.add(length);
+}
+
+/// Podpina dziennik pod błędy, których nikt nie złapał: błędy ramówki
+/// (budowanie, układ, rysowanie, gesty) i błędy asynchroniczne ze strefy
+/// głównej. Woła to `main.dart` zaraz po starcie [AppServices]; błąd sprzed
+/// tej chwili ląduje w `chatt-startup-error.txt`.
+///
+/// Obie obsługi dopisują wpis na poziomie [LogLevel.error] w obszarze
+/// [LogArea.error] (typ wyjątku w treści, opis i ślad stosu w szczegółach)
+/// i oddają błąd dalej temu, kto obsługiwał go wcześniej: w buildzie debug
+/// czerwony ekran i wydruk na konsoli zostają, jakie były.
+///
+/// `PlatformDispatcher.onError` zwraca `true`, gdy wcześniej nikt go nie
+/// obsługiwał: błąd jest wtedy obsłużony, bo leży w dzienniku (a w buildzie
+/// debug także na konsoli, przez echo dziennika), więc silnik nie powtarza
+/// go na stderr. Działanie aplikacji to nie zmienia: nieobsłużony błąd
+/// asynchroniczny nie zamyka procesu i z tą obsługą też go nie zamyka.
+/// Wcześniejsza obsługa, jeśli była, decyduje sama.
+void logUncaughtErrors(AppLog log) {
+  final poprzedniFluttera = FlutterError.onError;
+  FlutterError.onError = (details) {
+    try {
+      final biblioteka = details.library;
+      log.add(
+        LogLevel.error,
+        LogArea.error,
+        'Uncaught Flutter error: ${details.exception.runtimeType}'
+        '${biblioteka == null ? '' : ' (${logText(biblioteka)})'}',
+        details: _szczegolyFluttera(details),
+      );
+    } catch (_) {
+      // Dziennik nie ma prawa zasłonić błędu, który właśnie opisuje.
+    }
+    poprzedniFluttera?.call(details);
+  };
+
+  final poprzedniPlatformy = PlatformDispatcher.instance.onError;
+  PlatformDispatcher.instance.onError = (blad, slad) {
+    try {
+      log.add(
+        LogLevel.error,
+        LogArea.error,
+        'Uncaught error: ${blad.runtimeType}',
+        details: describeError(blad, slad),
+      );
+    } catch (_) {
+      // Jak wyżej: wpis jest dodatkiem do obsługi błędu.
+    }
+    return poprzedniPlatformy?.call(blad, slad) ?? true;
+  };
+}
+
+/// Szczegóły błędu ramówki: w czym się zdarzył („while building …") oraz
+/// opis wyjątku ze śladem stosu, przez to samo sito co [describeError].
+/// Reszty raportu (drzewa widżetów) nie bierzemy: widżet tekstu wypisuje
+/// w nim swoją treść, a to bywa treść wiadomości.
+String? _szczegolyFluttera(FlutterErrorDetails details) {
+  String? kontekst;
+  try {
+    kontekst = details.context?.toDescription();
+  } catch (_) {
+    kontekst = null;
+  }
+  final opis = describeError(details.exception, details.stack);
+  final czesci = [
+    if (kontekst != null && kontekst.trim().isNotEmpty)
+      'context: ${logText(kontekst, maxLength: 200)}',
+    ?opis,
+  ];
+  return czesci.isEmpty ? null : czesci.join('\n');
 }
 
 /// Wyjątek i ślad stosu jako tekst do pola szczegółów. `null`, gdy nie ma

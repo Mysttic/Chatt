@@ -158,6 +158,9 @@ class _HistoryGrant {
   final String token;
   final int conversationId;
   final HistorySummary summary;
+
+  /// Rozmówca w dzienniku aplikacji (nazwa i początek guid-a).
+  final String kto;
   final DateTime started = DateTime.now();
   DateTime lastUsed = DateTime.now();
 
@@ -183,6 +186,7 @@ class _HistoryGrant {
     required this.token,
     required this.conversationId,
     required this.summary,
+    required this.kto,
   });
 
   bool get expired {
@@ -341,13 +345,19 @@ class _History {
     if (_share != null) return HistoryShareResult.busy;
     final peer = await _s.db.peerForConversation(conversationId);
     if (peer == null) return HistoryShareResult.failed;
+    final kto = _s._kto(peer);
     final zrodlo = sourceConversationId ?? conversationId;
     if (zrodlo != conversationId && !peer.verified) {
+      _s.log.info(LogArea.history,
+          'History share to $kto not started: older conversation needs a verified device');
       return HistoryShareResult.needsVerified;
     }
 
     final rows = await _doOddania(zrodlo, since);
-    if (rows.isEmpty) return HistoryShareResult.nothingToShare;
+    if (rows.isEmpty) {
+      _s.log.info(LogArea.history, 'History share to $kto: nothing to share');
+      return HistoryShareResult.nothingToShare;
+    }
 
     final items = <HistoryItem>[];
     final zPlikami = <Message>[];
@@ -383,9 +393,20 @@ class _History {
 
     final udzial = _HistoryShare(peer, AppServices._uuid.v4());
     _share = udzial;
+    // Do dziennika idą same liczby: ani treści, ani nazw plików.
+    _s.log.info(
+        LogArea.history,
+        'History share to $kto started: ${summary.count} messages, '
+        '${summary.files} files, ${summary.bytes} bytes'
+        '${answering == null ? '' : ', answering a request'}'
+        '${zrodlo == conversationId ? '' : ', from an older conversation'}');
     try {
-      return await _run(udzial, items, zPlikami, summary, answering);
-    } catch (_) {
+      final wynik = await _run(udzial, items, zPlikami, summary, answering);
+      _zapiszWynikUdostepniania(kto, wynik, summary);
+      return wynik;
+    } catch (blad, slad) {
+      _s.log.error(LogArea.history, 'History share to $kto failed',
+          error: blad, stack: slad);
       // Odbiorca ma się dowiedzieć, że nic więcej nie przyjdzie: inaczej jego
       // pasek przywracania wisiałby do wygaśnięcia zgody.
       await _cancel(udzial);
@@ -393,6 +414,32 @@ class _History {
     } finally {
       _share = null;
       _set(outgoing, null);
+    }
+  }
+
+  /// Wynik własnego udostępniania w dzienniku aplikacji.
+  void _zapiszWynikUdostepniania(
+      String kto, HistoryShareResult wynik, HistorySummary summary) {
+    switch (wynik) {
+      case HistoryShareResult.done:
+        _s.log.info(
+            LogArea.history,
+            'History share to $kto finished: ${summary.count} messages and '
+            '${summary.files} files sent');
+      case HistoryShareResult.cancelled:
+        _s.log.info(LogArea.history, 'History share to $kto cancelled');
+      case HistoryShareResult.rejected:
+      case HistoryShareResult.noAnswer:
+      case HistoryShareResult.busy:
+        _s.log.info(
+            LogArea.history, 'History share to $kto declined: ${wynik.name}');
+      case HistoryShareResult.needsVerified:
+      case HistoryShareResult.nothingToShare:
+      case HistoryShareResult.olderVersion:
+      case HistoryShareResult.unreachable:
+      case HistoryShareResult.failed:
+        _s.log.warning(
+            LogArea.history, 'History share to $kto failed: ${wynik.name}');
     }
   }
 
@@ -484,6 +531,10 @@ class _History {
         if (wynik == null && o.status == 403) break;
       }
       if (wynik == null || !wynik.ok) {
+        _s.log.warning(
+            LogArea.history,
+            'History share to ${_s._kto(peer)}: chunk $seq refused '
+            '(${logText(wynik?.reason ?? 'no reply')})');
         await _cancel(udzial);
         return HistoryShareResult.failed;
       }
@@ -552,6 +603,8 @@ class _History {
     if (_closed) return HistoryRequestResult.unreachable;
     final peer = await _s.db.peerForConversation(conversationId);
     if (peer == null) return HistoryRequestResult.unreachable;
+    final kto = _s._kto(peer);
+    _s.log.info(LogArea.history, 'History requested from $kto');
     final id = AppServices._uuid.v4();
     // Wpis przed wysłaniem: zapowiedź potrafi przyjść, zanim wróci odpowiedź.
     _myRequests[id] = (
@@ -578,6 +631,16 @@ class _History {
                     _ => HistoryRequestResult.rejected,
                   };
     if (wynik != HistoryRequestResult.accepted) _myRequests.remove(id);
+    _s.log.add(
+      switch (wynik) {
+        HistoryRequestResult.olderVersion ||
+        HistoryRequestResult.unreachable =>
+          LogLevel.warning,
+        _ => LogLevel.info,
+      },
+      LogArea.history,
+      'History request to $kto: ${wynik.name}',
+    );
     return wynik;
   }
 
@@ -625,7 +688,12 @@ class _History {
             grant.peerGuid == guid &&
             grant.id == message.id &&
             grant.token == message.token) {
-          _endGrant(finished: message.op == historyOpDone);
+          _endGrant(
+            finished: message.op == historyOpDone,
+            reason: message.op == historyOpDone
+                ? 'finished'
+                : 'cancelled by the sender',
+          );
         }
         return _reply(message.id, accepted: true);
     }
@@ -667,12 +735,19 @@ class _History {
     final summary = message.summary!;
     final peer = await _s.db.peerByGuid(guid);
     if (peer == null) {
+      _s.log.warning(LogArea.history,
+          'History offer from unknown device ${peerLabel('', guid)} refused');
       return _reply(message.id, accepted: false, reason: historyRejected);
     }
     _s._drogaPrzychodzaca(guid, fromHost);
+    final kto = _s._kto(peer);
+    final co = '${summary.count} messages, ${summary.files} files, '
+        '${summary.bytes} bytes';
 
     final grant = _grant;
     if (grant != null && !grant.expired && grant.peerGuid != guid) {
+      _s.log.info(LogArea.history,
+          'History offer from $kto ($co) refused: another history in progress');
       return _reply(message.id, accepted: false, reason: historyBusy);
     }
 
@@ -684,7 +759,10 @@ class _History {
     if (prosba != null && prosba.peerGuid == guid) {
       _myRequests.remove(message.answering);
       decyzja = HistoryDecision.accept;
+      _s.log.info(LogArea.history,
+          'History offer from $kto ($co) answers our request');
     } else {
+      _s.log.info(LogArea.history, 'History offer from $kto ($co)');
       decyzja = await _policy(PendingHistory(
         id: klucz,
         kind: PendingHistoryKind.offer,
@@ -699,8 +777,10 @@ class _History {
     if (_closed) decyzja = HistoryDecision.noAnswer;
     switch (decyzja) {
       case HistoryDecision.reject:
+        _s.log.info(LogArea.history, 'History offer from $kto rejected');
         return _reply(message.id, accepted: false, reason: historyRejected);
       case HistoryDecision.noAnswer:
+        _s.log.info(LogArea.history, 'History offer from $kto: no answer');
         return _reply(message.id, accepted: false, reason: historyNoAnswer);
       case HistoryDecision.accept:
       case HistoryDecision.acceptWithoutFiles:
@@ -709,9 +789,11 @@ class _History {
     // Przez dwie minuty karty ktoś inny mógł zacząć oddawać swoją.
     final teraz = _grant;
     if (teraz != null && !teraz.expired && teraz.peerGuid != guid) {
+      _s.log.info(LogArea.history,
+          'History offer from $kto refused: another history in progress');
       return _reply(message.id, accepted: false, reason: historyBusy);
     }
-    if (teraz != null) _endGrant();
+    if (teraz != null) _endGrant(reason: 'replaced');
     // Rozmowa powstaje dopiero po zgodzie.
     final conversationId = await _s.db.ensureConversation(peer.id);
     final nowa = _HistoryGrant(
@@ -720,11 +802,13 @@ class _History {
       token: newSessionId(),
       conversationId: conversationId,
       summary: summary,
+      kto: kto,
     );
     _grant = nowa;
+    _s.log.info(LogArea.history, 'History offer from $kto accepted');
     _grantClock?.cancel();
     _grantClock = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (_grant?.expired ?? false) _endGrant();
+      if (_grant?.expired ?? false) _endGrant(reason: 'expired');
     });
     _set(
         incoming,
@@ -742,21 +826,34 @@ class _History {
     final guid = message.from.guid;
     final peer = await _s.db.peerByGuid(guid);
     if (peer == null) {
+      _s.log.warning(LogArea.history,
+          'History request from unknown device ${peerLabel('', guid)} refused');
       return _reply(message.id, accepted: false, reason: historyRejected);
     }
     _s._drogaPrzychodzaca(guid, fromHost);
+    final kto = _s._kto(peer);
     if (_share != null) {
+      _s.log.info(LogArea.history,
+          'History request from $kto refused: own share in progress');
       return _reply(message.id, accepted: false, reason: historyBusy);
     }
     // Bez rozmowy nie ma czego oddać, a pytanie o nią nie zakłada nowej.
     final conversationId = await _s.db.conversationOfPeer(peer.id);
     if (conversationId == null) {
+      _s.log.info(
+          LogArea.history, 'History request from $kto: nothing to share');
       return _reply(message.id, accepted: false, reason: historyEmpty);
     }
     final co = await preview(conversationId);
     if (co.messages == 0) {
+      _s.log.info(
+          LogArea.history, 'History request from $kto: nothing to share');
       return _reply(message.id, accepted: false, reason: historyEmpty);
     }
+    _s.log.info(
+        LogArea.history,
+        'History request from $kto (${co.messages} messages, '
+        '${co.files} files, ${co.bytes} bytes)');
     var decyzja = await _policy(PendingHistory(
       id: klucz,
       kind: PendingHistoryKind.request,
@@ -775,25 +872,34 @@ class _History {
     if (_closed) decyzja = HistoryDecision.noAnswer;
     switch (decyzja) {
       case HistoryDecision.reject:
+        _s.log.info(LogArea.history, 'History request from $kto rejected');
         return _reply(message.id, accepted: false, reason: historyRejected);
       case HistoryDecision.noAnswer:
+        _s.log.info(LogArea.history, 'History request from $kto: no answer');
         return _reply(message.id, accepted: false, reason: historyNoAnswer);
       case HistoryDecision.accept:
       case HistoryDecision.acceptWithoutFiles:
         break;
     }
     if (_share != null) {
+      _s.log.info(LogArea.history,
+          'History request from $kto refused: own share in progress');
       return _reply(message.id, accepted: false, reason: historyBusy);
     }
     // Zapowiedź rusza dopiero po odpowiedzi: proszący najpierw ma się
     // dowiedzieć, że się zgodziliśmy.
     final zPlikami = decyzja == HistoryDecision.accept;
+    _s.log.info(
+        LogArea.history,
+        'History request from $kto accepted '
+        '${zPlikami ? 'with files' : 'without files'}');
     Timer.run(() async {
       try {
         await share(conversationId, withFiles: zPlikami, answering: message.id);
-      } catch (_) {
-        // `share` sam kończy zgodę po drugiej stronie; tu nie ma komu
-        // zgłosić błędu.
+      } catch (blad, slad) {
+        // `share` sam kończy zgodę po drugiej stronie; zostaje ślad.
+        _s.log.error(LogArea.history, 'History share to $kto failed',
+            error: blad, stack: slad);
       }
     });
     return _reply(message.id, accepted: true);
@@ -828,12 +934,19 @@ class _History {
 
   Future<_HistoryAnswer> _answerChunk(HistoryChunk chunk) async {
     final grant = _grant;
-    if (grant != null && grant.expired) _endGrant();
+    if (grant != null && grant.expired) _endGrant(reason: 'expired');
     if (grant == null ||
         grant.expired ||
         grant.peerGuid != chunk.from.guid ||
         grant.id != chunk.id ||
         grant.token != chunk.token) {
+      _s.log.add(
+        LogLevel.warning,
+        LogArea.history,
+        'History chunk from ${peerLabel('', chunk.from.guid)} refused: no grant',
+        // Spóźnione paczki po przerwaniu przychodzą seriami.
+        collapseWithin: const Duration(minutes: 1),
+      );
       return _chunkReply(chunk, ok: false, reason: historyNoGrant);
     }
     grant.lastUsed = DateTime.now();
@@ -852,9 +965,15 @@ class _History {
     var bajty = 0;
     final od = grant.summary.first.subtract(_zapasDat);
     final do_ = grant.summary.last.add(_zapasDat);
+    _HistoryAnswer ponadZapowiedz(String co) {
+      _s.log.warning(LogArea.history,
+          'History chunk ${chunk.seq} from ${grant.kto} refused: $co');
+      return _chunkReply(chunk, ok: false, reason: historyOverLimit);
+    }
+
     for (final item in chunk.items) {
       if (item.sentAt.isBefore(od) || item.sentAt.isAfter(do_)) {
-        return _chunkReply(chunk, ok: false, reason: historyOverLimit);
+        return ponadZapowiedz('message outside the announced dates');
       }
       if (!item.fileFollows) continue;
       final opis = (name: item.fileName!, size: item.fileSize ?? 0);
@@ -862,7 +981,7 @@ class _History {
           grant.files[item.messageGuid] ?? nowePliki[item.messageGuid];
       if (znany != null) {
         if (znany != opis) {
-          return _chunkReply(chunk, ok: false, reason: historyOverLimit);
+          return ponadZapowiedz('file changed between chunks');
         }
         continue;
       }
@@ -872,7 +991,7 @@ class _History {
     if (grant.messages + chunk.items.length > grant.summary.count ||
         grant.files.length + nowePliki.length > grant.summary.files ||
         grant.fileBytes + bajty > grant.summary.bytes) {
-      return _chunkReply(chunk, ok: false, reason: historyOverLimit);
+      return ponadZapowiedz('more than announced');
     }
 
     final teraz = DateTime.now();
@@ -943,7 +1062,7 @@ class _History {
       return odmowa;
     }
     if (grant.expired) {
-      _endGrant();
+      _endGrant(reason: 'expired');
       return odmowa;
     }
     final zapowiedziany = grant.files[offer.messageGuid];
@@ -1020,13 +1139,15 @@ class _History {
   }
 
   /// Koniec zgody. [finished]: udostępniający powiedział, że skończył, więc
-  /// pasek pokazuje wynik, zanim zniknie.
-  void _endGrant({bool finished = false}) {
+  /// pasek pokazuje wynik, zanim zniknie. [reason] trafia do dziennika
+  /// aplikacji razem z liczbami.
+  void _endGrant({bool finished = false, required String reason}) {
     final grant = _grant;
     _grant = null;
     _grantClock?.cancel();
     _grantClock = null;
     if (grant == null) return;
+    _zapiszKoniecZgody(grant, reason);
     final postep = incoming.value;
     if (finished && postep != null) {
       _set(
@@ -1042,10 +1163,17 @@ class _History {
     }
   }
 
+  /// Koniec przyjmowania historii w dzienniku aplikacji: same liczby.
+  void _zapiszKoniecZgody(_HistoryGrant grant, String reason) => _s.log.info(
+      LogArea.history,
+      'History from ${grant.kto} ended ($reason): '
+      '${grant.imported} messages imported, ${grant.skipped} skipped, '
+      '${grant.filesDone} of ${grant.summary.files} files received');
+
   /// Przerwanie przywracania po stronie odbierającej: zgoda gaśnie, pasek
   /// znika, a następna porcja od udostępniającego dostaje `no_grant`.
   void stopIncoming() {
-    if (_grant != null) _endGrant();
+    if (_grant != null) _endGrant(reason: 'stopped here');
   }
 
   /// Pasek „Przywrócono" po zakończeniu zamyka użytkownik.
@@ -1054,7 +1182,7 @@ class _History {
   }
 
   void forgetPeer(String guid) {
-    if (_grant?.peerGuid == guid) _endGrant();
+    if (_grant?.peerGuid == guid) _endGrant(reason: 'device removed');
     for (final ask in pending.value.where((a) => a.peerGuid == guid).toList()) {
       respond(ask.id, HistoryDecision.noAnswer);
     }
@@ -1067,6 +1195,8 @@ class _History {
       respond(id, HistoryDecision.noAnswer);
     }
     cancelShare();
+    final grant = _grant;
+    if (grant != null) _zapiszKoniecZgody(grant, 'app closed');
     _closed = true;
     _grant = null;
     _grantClock?.cancel();

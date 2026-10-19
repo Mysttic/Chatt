@@ -373,16 +373,14 @@ class AppServices {
   final bool _logToConsole;
 
   AppServices._(this.db, this.client, this.server, this.responder,
-      this.receivedDir, this._identity,
-      {bool logToConsole = false})
-      : _logToConsole = logToConsole;
+      this.receivedDir, this._identity, this._logToConsole);
 
   /// Uruchamia kompletny stos. Parametry służą testom (baza w pamięci,
   /// port 0 = dowolny wolny, wyłączone discovery przy testach izolowanych).
   ///
-  /// [logToConsole] kopiuje wpisy dziennika aplikacji na konsolę. Włącza to
-  /// `main.dart` w buildzie debug; testy i narzędzia go nie podają, więc
-  /// zostają ciche.
+  /// [logToConsole] kopiuje wpisy dziennika aplikacji na konsolę przez
+  /// `debugPrint`. Podaje go wyłącznie `main.dart`, i tylko w buildzie
+  /// debug; testy i narzędzia go nie podają, więc zostają ciche.
   static Future<AppServices> start({
     QueryExecutor? executor,
     int? portOverride,
@@ -455,7 +453,7 @@ class AppServices {
       // Zapytanie, które przyszło przed końcem startu, trafia tu, zanim
       // `services` istnieje. Wtedy rzuca samo zgłoszenie i serwer je połyka.
       onHandlerError: (path, blad, slad) => services.log.error(
-          LogArea.net, 'Request handler failed: $path',
+          LogArea.net, 'Request handler failed: ${logText(path)}',
           error: blad, stack: slad),
     );
     final preferred = portOverride ?? ChattEnv.tcpPort ?? settings.tcpPort;
@@ -477,7 +475,7 @@ class AppServices {
 
     services = AppServices._(
         db, PeerClient(), server, responder, receivedDir, identity,
-        logToConsole: logToConsole);
+        logToConsole);
     services._identityKeys = identityKeyPair;
     services.keyProtected = opened?.keyProtected ?? true;
     services._offerPolicy = fileOfferPolicy ?? services._askUserAboutOffer;
@@ -490,6 +488,7 @@ class AppServices {
     // dziennika instancji, która wstała ostatnia.
     BtChannel.onCallError = services._btCallFailed;
     RemoteInputChannel.onCallError = services._keyboardCallFailed;
+    services.client.onStreamError = services._streamFailed;
     // Dodatek klawiatury wstaje z bazy bez żadnego wywołania kanału: przy
     // starcie nie ma czego podnosić, a wyłączony ma milczeć.
     klawiatura.keyboardAddon.value = settings.keyboardEnabled;
@@ -531,6 +530,63 @@ class AppServices {
     );
     return services;
   }
+
+  // --- Dziennik: pomocnicze -------------------------------------------------
+
+  /// Okno zwijania dla zdarzeń, które potrafią wracać co pół sekundy
+  /// (odpytywanie kanałów natywnych, błąd gniazda discovery): jeden wpis
+  /// i licznik powtórek na dziesięć minut.
+  static const Duration _rzadkieZdarzenia = Duration(minutes: 10);
+
+  /// Rozmówca w dzienniku: nazwa z listy i początek guid-a. Nigdy cały
+  /// [Peer]: jego `toString` wypisuje klucze.
+  String _kto(Peer peer) => peerLabel(peer.displayName, peer.guid);
+
+  /// Przycina dziennik (30 dni, 20 000 wpisów) i zostawia ślad, ile ubyło.
+  Future<void> _trimLog() async {
+    final usuniete = await log.trim();
+    if (usuniete > 0) {
+      log.info(LogArea.app, 'App log trimmed: $usuniete old entries removed');
+    }
+  }
+
+  /// Nieudane wywołanie kanału `chatt/bluetooth` (patrz
+  /// [BtChannel.onCallError]). Opis ze strony natywnej idzie do szczegółów
+  /// z zasłoniętymi adresami: przy szukaniu radio pyta cudzy sprzęt.
+  void _btCallFailed(String method, String code, String? message) => log.add(
+        LogLevel.warning,
+        LogArea.bt,
+        'Bluetooth native call failed: ${logText(method)} (${logText(code)})',
+        details: message == null
+            ? null
+            : maskHardwareAddresses(logText(message, maxLength: 300)),
+        collapseWithin: _rzadkieZdarzenia,
+      );
+
+  /// Nieudane wywołanie kanału `chatt/remoteinput` (patrz
+  /// [RemoteInputChannel.onCallError]): sama metoda i kod błędu.
+  void _keyboardCallFailed(String method, String code) => log.add(
+        LogLevel.warning,
+        LogArea.keyboard,
+        'Keyboard native call failed: ${logText(method)} (${logText(code)})',
+        collapseWithin: _rzadkieZdarzenia,
+      );
+
+  /// Strumień pliku zerwany w trakcie, którąkolwiek drogą. Wynik wysyłki
+  /// opisuje osobny wpis; tu jest powód.
+  void _streamFailed(PeerRoute route, String path, Object error) =>
+      log.warning(
+        LogArea.file,
+        'File stream ${logText(path)} via ${route.protocol.name} to '
+        '${logText(route.label)} broke off',
+        error: error,
+      );
+
+  /// Obserwator ustawień padł (zamknięta baza): przełącznik, który z niego
+  /// żyje, przestaje działać na żywo.
+  void _watchFailed(String what, Object error, StackTrace stack) =>
+      log.error(LogArea.app, 'Settings watcher failed: $what',
+          error: error, stack: stack);
 
   /// Jeden wpis o tym, z czym aplikacja wstała. Bez ścieżek (w nich siedzi
   /// nazwa użytkownika) i bez kluczy.
@@ -602,11 +658,18 @@ class AppServices {
   /// Skanuje sieć; znalezieni od razu trafiają do bazy (lista "w pobliżu"
   /// i lista konwersacji aktualizują się strumieniami z bazy).
   Future<List<DiscoveredPeer>> scan({void Function(DiscoveredPeer)? onFound}) async {
-    final found = await DiscoveryScanner.scan(
-      identity,
-      onFound: onFound,
-      accept: _trustDiscovered,
-    );
+    final List<DiscoveredPeer> found;
+    try {
+      found = await DiscoveryScanner.scan(
+        identity,
+        onFound: onFound,
+        accept: _trustDiscovered,
+      );
+    } catch (blad) {
+      log.warning(LogArea.net, 'Network scan failed', error: blad);
+      rethrow;
+    }
+    log.info(LogArea.net, 'Network scan: ${found.length} devices answered');
     for (final peer in found) {
       await _rememberPeer(peer);
     }
@@ -641,7 +704,11 @@ class AppServices {
     final peer = await db.peerByGuid(found.guid);
     final ichKlucz = _peerStaticKey(peer);
     if (ichKlucz == null) return true; // nieznajomy, nie ma czego sprawdzać
-    if (tag == null) return false;
+    if (tag == null) {
+      log.warning(LogArea.net,
+          'Discovery answer for ${_kto(peer!)} from ${found.host} rejected: not signed');
+      return false;
+    }
     final podpisowy = await ChattCrypto.discoveryKey(
         myStatic: _identityKeys, theirStatic: ichKlucz);
     final expected = await ChattCrypto.discoveryTag(
@@ -650,7 +717,12 @@ class AppServices {
       tcpPort: found.tcpPort,
       nonce: nonce,
     );
-    return ChattCrypto.sameTag(expected, tag);
+    final zgodny = ChattCrypto.sameTag(expected, tag);
+    if (!zgodny) {
+      log.warning(LogArea.net,
+          'Discovery answer for ${_kto(peer!)} from ${found.host} rejected: bad signature');
+    }
+    return zgodny;
   }
 
   /// Droga, która zadziałała ostatnio. Bez tej pamięci każda wiadomość do
@@ -738,8 +810,13 @@ class AppServices {
   /// forward, przekierowanie portu na routerze) to są dwie różne rzeczy
   /// i tylko ten pierwszy da się połączyć.
   Future<Peer?> addPeerByAddress(String host, int port) async {
+    final adres = '${logText(host)}:$port';
     final info = await client.fetchInfo(IpRoute(host, port));
-    if (info == null || info.guid == identity.guid) return null;
+    if (info == null || info.guid == identity.guid) {
+      log.info(LogArea.net,
+          'Adding a device at $adres failed: ${info == null ? 'no Chatt answered' : 'this device'}');
+      return null;
+    }
     final peer = await db.upsertPeer(
       guid: info.guid,
       name: info.name,
@@ -747,6 +824,7 @@ class AppServices {
       host: host,
       port: port,
     );
+    log.info(LogArea.net, 'Device added by address: ${_kto(peer)} at $adres');
     return _przypnijKlucz(peer, info);
   }
 
@@ -766,6 +844,7 @@ class AppServices {
   /// Ręczne usunięcie urządzenia z listy (razem z rozmową). Zgoda na pisanie,
   /// prośba o nią i własna sesja pisania do niego znikają razem z nim.
   Future<void> forgetPeer(Peer peer) {
+    log.info(LogArea.app, 'Device removed: ${_kto(peer)}');
     _remoteInput.forgetPeer(peer.guid);
     _history.forgetPeer(peer.guid);
     return db.deletePeer(peer.id);
@@ -2572,12 +2651,18 @@ class AppServices {
   void _startRetention() {
     _retentionWatch = db.watchSettings().listen(
       (settings) => applyRetention(settings.retentionDays),
-      onError: (_) {},
+      onError: (Object blad, StackTrace slad) =>
+          _watchFailed('retention', blad, slad),
     );
     _retentionTimer = Timer.periodic(const Duration(hours: 6), (_) async {
-      unawaited(log.trim());
-      final settings = await db.getSettings();
-      if (settings != null) await applyRetention(settings.retentionDays);
+      unawaited(_trimLog());
+      try {
+        final settings = await db.getSettings();
+        if (settings != null) await applyRetention(settings.retentionDays);
+      } catch (blad, slad) {
+        log.error(LogArea.app, 'Retention run failed',
+            error: blad, stack: slad);
+      }
     });
   }
 
@@ -2587,7 +2672,13 @@ class AppServices {
     if (days <= 0) return 0;
     final wiek = Duration(days: days);
     final usuniete = await db.deleteMessagesOlderThan(wiek);
-    await db.deleteTypingOlderThan(wiek);
+    final sesje = await db.deleteTypingOlderThan(wiek);
+    if (usuniete > 0 || sesje > 0) {
+      log.info(
+          LogArea.app,
+          'Retention ($days days): $usuniete messages and $sesje typing '
+          'sessions deleted');
+    }
     return usuniete;
   }
 
@@ -2648,14 +2739,23 @@ class AppServices {
     // Z obserwatora idzie wyłącznie sieć. Dodatek ma jednego właściciela,
     // [setBluetoothAddon], więc spóźnione zdarzenie z bazy nie podniesie
     // radia po jego wyłączeniu.
-    _transportWatch = db.watchSettings().listen(_applyWifi, onError: (_) {});
+    _transportWatch = db.watchSettings().listen(
+      _applyWifi,
+      onError: (Object blad, StackTrace slad) =>
+          _watchFailed('network switch', blad, slad),
+    );
   }
 
   /// Sieć z ustawień. Przełącznik sieci należy do dodatku Bluetooth: bez
   /// dodatku sieć jest jedyną drogą, więc chodzi zawsze, cokolwiek leży
   /// w bazie.
   void _applyWifi(Setting? settings) {
+    final przedtem = client.wifiOn;
     client.useWifi(!bluetoothAddon.value || (settings?.wifiEnabled ?? true));
+    if (client.wifiOn != przedtem) {
+      log.info(LogArea.net,
+          'Local network route turned ${client.wifiOn ? 'on' : 'off'}');
+    }
   }
 
   /// Kolejka przełączeń dodatku. Każde czeka na koniec poprzedniego, więc
@@ -2677,9 +2777,12 @@ class AppServices {
 
   Future<bool> _setBluetoothAddon(bool on) async {
     if (on && !BtChannel.supported) return false;
+    if (bluetoothAddon.value != on) {
+      log.info(LogArea.bt, 'Bluetooth add-on turned ${on ? 'on' : 'off'}');
+    }
     bluetoothAddon.value = on;
     if (!on) {
-      client.useWifi(true);
+      _applyWifi(null);
       await stopBluetooth();
       await db.saveBluetoothAddon(false);
       return true;
@@ -2735,8 +2838,11 @@ class AppServices {
 
     final stan = await BtChannel.status();
     bluetoothStatus.value = stan;
+    _noteBtStatus(stan);
     if (!stan.usable) {
       bluetoothRunning.value = false;
+      log.warning(LogArea.bt,
+          'Bluetooth not started: ${_btUnusableReason(stan)}');
       return false;
     }
 
@@ -2745,10 +2851,18 @@ class AppServices {
       // ten sam routing, ci sami obsługujący, to samo szyfrowanie.
       onRequest: (request, peerAddress) =>
           server.handleBluetooth(request, peerAddress),
-      onLinkChange: (address, up) => bluetoothRevision.value++,
+      onLinkChange: _btLinkChanged,
+      onListeningChange: (listening) => log.add(
+        listening ? LogLevel.info : LogLevel.warning,
+        LogArea.bt,
+        listening
+            ? 'Bluetooth listening resumed'
+            : 'Bluetooth listening stopped by the system',
+      ),
     );
     if (!await transport.start()) {
       bluetoothRunning.value = false;
+      log.warning(LogArea.bt, 'Bluetooth not started: listening failed');
       return false;
     }
     // Dodatek zgaszony w trakcie podnoszenia: radio wstało już po decyzji,
@@ -2762,7 +2876,68 @@ class AppServices {
     client.useBluetooth(transport);
     bluetoothRunning.value = true;
     bluetoothRevision.value++;
+    log.info(LogArea.bt, 'Bluetooth started');
     return true;
+  }
+
+  /// Ostatni stan radia zapisany w dzienniku. Ponawianie co dziesięć sekund
+  /// przy zgaszonym radiu pyta o stan za każdym razem, a dziennik ma
+  /// dostać tylko zmianę.
+  String? _lastBtStatus;
+
+  void _noteBtStatus(BtStatus stan) {
+    String tak(bool value) => value ? 'yes' : 'no';
+    final opis = 'available ${tak(stan.available)}, '
+        'radio on ${tak(stan.enabled)}, '
+        'permission ${tak(stan.granted)}, '
+        'location on ${tak(stan.locationOn)}';
+    if (opis == _lastBtStatus) return;
+    _lastBtStatus = opis;
+    log.info(LogArea.bt, 'Bluetooth status: $opis');
+  }
+
+  static String _btUnusableReason(BtStatus stan) {
+    if (!stan.available) return 'no Bluetooth radio';
+    if (!stan.enabled) return 'radio off';
+    return 'permission missing';
+  }
+
+  /// Łącze Bluetooth stanęło albo padło. Adres trafia do dziennika tylko
+  /// wtedy, gdy należy do znanego rozmówcy: przy szukaniu łącza stają też
+  /// do urządzeń, o których jeszcze nic nie wiadomo.
+  void _btLinkChanged(String address, bool up, String reason) {
+    bluetoothRevision.value++;
+    unawaited(() async {
+      try {
+        final peer = await _peerByBtAddress(address);
+        final kto = peer == null
+            ? 'a device not known yet'
+            : '${_kto(peer)} at ${logText(address)}';
+        if (up) {
+          log.info(LogArea.bt, 'Bluetooth link up with $kto (${logText(reason)})');
+        } else {
+          log.add(
+            LogLevel.info,
+            LogArea.bt,
+            'Bluetooth link down with $kto',
+            details: maskHardwareAddresses(logText(reason, maxLength: 300)),
+          );
+        }
+      } catch (_) {
+        // Baza zamknięta w trakcie wyłączania: łącze i tak już nie stoi.
+      }
+    }());
+  }
+
+  Future<Peer?> _peerByBtAddress(String address) async {
+    final szukany = normalizeBtAddress(address);
+    if (szukany.isEmpty) return null;
+    final kandydaci =
+        await (db.select(db.peers)..where((p) => p.btAddress.isNotNull())).get();
+    for (final peer in kandydaci) {
+      if (normalizeBtAddress(peer.btAddress ?? '') == szukany) return peer;
+    }
+    return null;
   }
 
   Future<void> stopBluetooth() async {
@@ -2778,6 +2953,7 @@ class AppServices {
     bluetoothRevision.value++;
     _watchForRadio();
     await transport?.stop();
+    if (transport != null) log.info(LogArea.bt, 'Bluetooth stopped');
   }
 
   /// Odświeża stan radia i zgód (ekrany pytają o to przy wejściu).
@@ -2793,6 +2969,7 @@ class AppServices {
     if (!force && !bluetoothAddon.value) return bluetoothStatus.value;
     final stan = await BtChannel.status();
     bluetoothStatus.value = stan;
+    _noteBtStatus(stan);
     if (bluetoothAddon.value && _bluetooth == null && stan.usable) {
       unawaited(startBluetooth());
     }
@@ -2867,7 +3044,10 @@ class AppServices {
     while ((szuka || DateTime.now().isBefore(minimum)) &&
         DateTime.now().isBefore(koniec)) {
       // Dodatek zgaszony w trakcie szukania kończy szukanie.
-      if (_bluetooth == null) return const [];
+      if (_bluetooth == null) {
+        log.info(LogArea.bt, 'Bluetooth scan stopped: add-on turned off');
+        return const [];
+      }
       final wynik = await BtChannel.scanResults();
       szuka = wynik.scanning;
       for (final device in wynik.devices) {
@@ -2888,6 +3068,11 @@ class AppServices {
       znalezione.add(peer);
       onFound?.call(peer);
     }
+    // Same liczby: adresy z eteru to w większości cudzy sprzęt.
+    log.info(
+        LogArea.bt,
+        'Bluetooth scan: ${widziane.length} devices seen, '
+        '${znalezione.length} with Chatt');
     return znalezione;
   }
 
@@ -2896,10 +3081,16 @@ class AppServices {
   /// Przydaje się wszędzie tam, gdzie szukanie nie wchodzi w grę: Android nie
   /// oddaje wyników wyszukiwania przy wyłączonych usługach lokalizacji, a
   /// adres i tak bywa znany skądinąd (z parowania systemowego albo z kodu QR).
-  Future<Peer?> addPeerByBluetooth(String address) {
+  Future<Peer?> addPeerByBluetooth(String address) async {
     final czysty = normalizeBtAddress(address);
-    if (czysty.isEmpty || _bluetooth == null) return Future.value(null);
-    return _probeBluetooth(czysty);
+    if (czysty.isEmpty || _bluetooth == null) return null;
+    final peer = await _probeBluetooth(czysty);
+    log.info(
+        LogArea.bt,
+        peer == null
+            ? 'Adding a device by Bluetooth address failed: no Chatt answered'
+            : 'Device added by Bluetooth address: ${_kto(peer)}');
+    return peer;
   }
 
   /// Czy pod tym adresem stoi Chatt. Zapisujemy go dopiero wtedy, gdy się
@@ -3050,7 +3241,8 @@ class AppServices {
 
   /// Dziennik aplikacji do diagnostyki, w zaszyfrowanej bazie. Bez treści
   /// wiadomości, bez wpisywanego tekstu i bez kluczy (patrz `app_log.dart`).
-  late final AppLog log = AppLog(db);
+  /// Echo na konsolę tylko na prośbę `main.dart` w buildzie debug.
+  late final AppLog log = AppLog(db, echo: _logToConsole);
 
   /// Historia pisania zdalną klawiaturą, po obu stronach. Zapisuje tylko
   /// przy włączonym dodatku i włączonym przełączniku [typingHistory].
@@ -3069,6 +3261,9 @@ class AppServices {
   /// Włącza albo wyłącza zapis historii pisania. Wyłączenie nie kasuje tego,
   /// co już zapisane: do tego jest [clearTypingHistory].
   Future<bool> setTypingHistory(bool on) async {
+    if (typingHistory.value != on) {
+      log.info(LogArea.keyboard, 'Typing history turned ${on ? 'on' : 'off'}');
+    }
     typingHistory.value = on;
     await db.saveTypingHistory(on);
     return on;
@@ -3079,7 +3274,9 @@ class AppServices {
   Future<int> clearTypingHistory() async {
     await typingJournal.flush();
     typingJournal.detachAll();
-    return db.clearTypingHistory();
+    final usuniete = await db.clearTypingHistory();
+    log.info(LogArea.keyboard, 'Typing history cleared: $usuniete sessions');
+    return usuniete;
   }
 
   /// „Wyczyść historię" z Ustawień: wiadomości, rozmowy i historia pisania
@@ -3087,7 +3284,10 @@ class AppServices {
   Future<int> clearHistory() async {
     await typingJournal.flush();
     typingJournal.detachAll();
-    return db.clearHistory();
+    final usuniete = await db.clearHistory();
+    log.info(LogArea.app,
+        'Conversation history cleared: $usuniete messages (typing history included)');
+    return usuniete;
   }
 
   /// Czy wisi jakakolwiek karta z pytaniem. Zdalne pisanie wtedy czeka, żeby
@@ -3156,7 +3356,8 @@ class AppServices {
         linkPreviews.enabled = settings.linkPreviews;
         if (!settings.linkPreviews) linkPreviews.clear();
       },
-      onError: (_) {},
+      onError: (Object blad, StackTrace slad) =>
+          _watchFailed('link previews', blad, slad),
     );
   }
 
@@ -3204,10 +3405,28 @@ class AppServices {
     try {
       final wynik = await fetchLatestRelease(client: client);
       availableRelease.value = wynik.release;
+      switch (wynik.outcome) {
+        case UpdateCheck.newer:
+          log.info(
+              LogArea.update,
+              'Update check: version '
+              '${logText(wynik.release?.version ?? '?')} available '
+              '(running $appVersion)');
+        case UpdateCheck.upToDate:
+          log.info(LogArea.update,
+              'Update check: up to date (running $appVersion)');
+        case UpdateCheck.failed:
+          log.warning(LogArea.update,
+              'Update check failed (running $appVersion)');
+      }
       // Znacznik zapisujemy także po nieudanym pytaniu: brak sieci nie ma
       // zamieniać sprawdzania co dobę w pukanie co godzinę.
       await db.markUpdateCheck(DateTime.now());
       return wynik;
+    } catch (blad, slad) {
+      log.error(LogArea.update, 'Update check failed with an error',
+          error: blad, stack: slad);
+      rethrow;
     } finally {
       checkingForUpdate.value = false;
     }
@@ -3215,6 +3434,13 @@ class AppServices {
 
   Future<void> dispose() async {
     _closing = true;
+    log.info(LogArea.app, 'App stopping');
+    // Haki kanałów natywnych są jedne na proces: zamknięta instancja zwalnia
+    // je, o ile nikt ich w międzyczasie nie przejął.
+    if (BtChannel.onCallError == _btCallFailed) BtChannel.onCallError = null;
+    if (RemoteInputChannel.onCallError == _keyboardCallFailed) {
+      RemoteInputChannel.onCallError = null;
+    }
     _bluetoothRetry?.cancel();
     await _remoteInput.dispose();
     await _history.dispose();

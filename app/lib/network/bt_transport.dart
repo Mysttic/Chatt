@@ -422,14 +422,19 @@ class BluetoothTransport implements PeerTransport {
 
   /// Wołane, gdy łącze stanie albo padnie: po tym widać w interfejsie,
   /// którym protokołem stoi rozmowa. [reason] mówi, skąd łącze się wzięło
-  /// (`incoming`, `outgoing`) albo dlaczego padło (powód ze strony
-  /// natywnej), do dziennika aplikacji.
+  /// (`incoming`, `outgoing`) albo dlaczego padło (`native: …` z powodem ze
+  /// strony natywnej, poprzedzone `dart: …`, gdy pierwsza zamknęła je ta
+  /// strona), do dziennika aplikacji.
   final void Function(String address, bool up, String reason)? onLinkChange;
 
   /// Wołane, gdy natywny nasłuch padnie (radio zgaszone w systemie) albo
   /// wróci. Tylko przy zmianie: odpytywanie co pół sekundy nie powtarza
   /// tego samego stanu.
   final void Function(bool listening)? onListeningChange;
+
+  /// Błąd w trakcie strumieniowania pliku po stojącym łączu, jak
+  /// `HttpTransport.onStreamError`. Ustawia go [PeerClient.useBluetooth].
+  void Function(PeerRoute route, String path, Object error)? onStreamError;
 
   final _links = <String, BtLink>{};
   final _addressOfId = <int, String>{};
@@ -553,11 +558,20 @@ class BluetoothTransport implements PeerTransport {
       final address = _addressOfId.remove(entry.id);
       if (address == null) continue;
       final link = _links.remove(address);
+      // Łącze zamknięte wcześniej po tej stronie (zerwana rura, zła ramka)
+      // ma swój powód: strona natywna widzi wtedy tylko zamknięte gniazdo.
+      final poTejStronie = link?.closeReason;
       await link?.close(powod: 'natywne: ${entry.reason}');
       if (btVerbose) {
         debugPrint('[bt] padlo lacze ${entry.id} do $address: ${entry.reason}');
       }
-      onLinkChange?.call(address, false, entry.reason);
+      onLinkChange?.call(
+        address,
+        false,
+        poTejStronie == null
+            ? 'native: ${entry.reason}'
+            : 'dart: $poTejStronie; native: ${entry.reason}',
+      );
     }
   }
 
@@ -748,7 +762,12 @@ class BluetoothTransport implements PeerTransport {
         body: counted,
       );
       return TransportReply(response.status, await _zbierz(response.body));
-    } catch (_) {
+    } catch (blad) {
+      try {
+        onStreamError?.call(route, path, blad);
+      } catch (_) {
+        // Zgłoszenie jest dodatkiem: wynik to i tak „nieosiągalny”.
+      }
       return const TransportReply.unreachable();
     }
   }
