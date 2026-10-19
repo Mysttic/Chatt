@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/links.dart';
 
+import '../styles.dart';
+
 /// Treść wiadomości: odnośniki klikalne, szukany napis podświetlony.
 ///
 /// Odnośnik jest tu **napisem ze zdarzeniem**, a nie niczym więcej: dotknięcie
@@ -159,15 +161,16 @@ class _LinkedTextState extends State<LinkedText> {
     return Text.rich(TextSpan(children: kawalki));
   }
 
-  /// Kolor odnośnika. Na własnym dymku tło jest kolorem głównym motywu, więc
-  /// zwykły „niebieski odnośnik" bywa na nim nieczytelny: bierzemy wtedy
-  /// kolor napisu i tylko podkreślamy.
+  /// Kolor odnośnika. Na własnym dymku tło ma kolor stylu, na którym zwykły
+  /// kolor odnośnika bywa nieczytelny: bierzemy wtedy kolor napisu i tylko
+  /// podkreślamy.
   Color _linkColor(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final naDymku = widget.style.color;
     if (naDymku == null) return scheme.primary;
-    // Kontrast napisu z tłem jest już dobrany, więc trzymamy się go i tylko
-    // odróżniamy odnośnik od reszty odcieniem.
-    return naDymku == scheme.onPrimary ? naDymku : scheme.primary;
+    // Kontrast napisu z tłem jest już dobrany, więc trzymamy się go.
+    return naDymku == ChattTokens.of(context).onBubbleMine
+        ? naDymku
+        : scheme.primary;
   }
 }

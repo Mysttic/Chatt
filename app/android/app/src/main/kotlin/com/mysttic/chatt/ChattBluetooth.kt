@@ -53,7 +53,7 @@ import kotlin.concurrent.thread
  *
  * Kanał `chatt/bluetooth`. Metody dzielą się na trzy rodziny:
  *
- *  - stan radia: `status`, `openSettings`, `discoverable`
+ *  - stan radia: `status`, `openSettings`, `discoverable`, `showSelf`
  *  - wyszukiwanie: `scan`, `scanResults`
  *  - łącza: `linkStart`, `linkStop`, `linkConnect`, `linkPoll`, `linkClose`
  *  - pomiar (rozpoznanie, `tool/bt_spike.dart`): `bench*`
@@ -76,6 +76,15 @@ object ChattBluetooth {
 
     /** Kod żądania zgód; 1 należy do powiadomień, 0x4348 do wyboru plików. */
     private const val requestCode = 0x4254
+
+    /** Kod pytania o BLUETOOTH_ADVERTISE przed pokazaniem telefonu. */
+    private const val advertiseRequestCode = 0x4255
+
+    /** Kod systemowego okienka widoczności. */
+    private const val visibleRequestCode = 0x4256
+
+    /** Na ile sekund telefon pokazuje się w pobliżu; tyle domyślnie daje Android. */
+    private const val visibleSeconds = 120
 
     /** Pamięć o odmowie na stałe (patrz [onPermissionResult]). */
     private const val prefsName = "chatt_bluetooth"
@@ -189,6 +198,12 @@ object ChattBluetooth {
                 }
                 "requestPermission" -> {
                     result.success(requestPermission(app))
+                    return@setMethodCallHandler
+                }
+                // Okienko otwiera okno aplikacji, więc to musi się dziać
+                // na wątku głównym.
+                "showSelf" -> {
+                    result.success(pokazSie(app))
                     return@setMethodCallHandler
                 }
                 "scanResults" -> {
@@ -614,12 +629,71 @@ object ChattBluetooth {
     }
 
     /**
-     * Androida to nie dotyczy: telefon jest wykrywalny wtedy, gdy użytkownik
-     * tak ustawi w systemie, a proszenie o to okienkiem przy każdym starcie
-     * aplikacji byłoby natręctwem. Windows ma tu prawdziwą implementację, bo
-     * tam bez tego komputera po prostu nie da się znaleźć.
+     * Androida to nie dotyczy: proszenie o widoczność okienkiem przy każdym
+     * starcie aplikacji byłoby natręctwem. Telefon pokazuje się na żądanie
+     * użytkownika, przyciskiem w „W pobliżu" ([pokazSie]). Windows ma tu
+     * prawdziwą implementację, bo tam bez tego komputera po prostu nie da się
+     * znaleźć.
      */
     private fun discoverable(context: Context, call: MethodCall): Boolean = false
+
+    /**
+     * Pokazuje ten telefon urządzeniom w pobliżu na [visibleSeconds] sekund.
+     * Bez tego drugi telefon nie znajdzie go w eterze: Android jest widoczny
+     * tylko przy otwartym ekranie parowania w ustawieniach. System pozwala na
+     * to wyłącznie przez własne okienko z pytaniem, więc decyzja zostaje przy
+     * użytkowniku.
+     *
+     * Od Androida 12 okienko wymaga BLUETOOTH_ADVERTISE. Ta zgoda należy do
+     * tej samej grupy co CONNECT i SCAN, więc przy wydanych tamtych system
+     * przyznaje ją bez pytania, a okienko otwiera dopiero [onPermissionResult].
+     *
+     * false znaczy, że nie ma jak zapytać: okno zamknięte albo radio zgaszone.
+     */
+    private fun pokazSie(context: Context): Boolean {
+        val host = activity?.get() ?: return false
+        val adapter = adapterOf(context) ?: return false
+        if (!adapter.isEnabled) return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_ADVERTISE,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                host,
+                arrayOf(Manifest.permission.BLUETOOTH_ADVERTISE),
+                advertiseRequestCode,
+            )
+            return true
+        }
+        return otworzOkienkoWidocznosci(host)
+    }
+
+    /**
+     * Z wynikiem, bo starsze Androidy bez niego nie znają pytającego
+     * i w okienku zamiast nazwy Chatta stoi „aplikacja". Sam wynik nie jest
+     * potrzebny: stan widoczności podaje [status].
+     */
+    @SuppressLint("MissingPermission")
+    private fun otworzOkienkoWidocznosci(host: Activity): Boolean = try {
+        host.startActivityForResult(
+            Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+                .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, visibleSeconds),
+            visibleRequestCode,
+        )
+        true
+    } catch (error: Exception) {
+        false
+    }
+
+    /** Czy telefon jest teraz widoczny w eterze. Bez BLUETOOTH_SCAN nie wiadomo. */
+    @SuppressLint("MissingPermission")
+    private fun widoczny(adapter: BluetoothAdapter?): Boolean = try {
+        adapter?.scanMode == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE
+    } catch (error: SecurityException) {
+        false
+    }
 
     // --- stan radia ----------------------------------------------------------
 
@@ -650,6 +724,10 @@ object ChattBluetooth {
             // druga strona odczytuje go z przyjętego połączenia.
             "address" to null,
             "paired" to paired,
+            // Telefon pokazuje się tylko na żądanie (`showSelf`); Windows
+            // tych pól nie podaje, bo jest widoczny przez cały czas dodatku.
+            "canShowSelf" to true,
+            "visible" to widoczny(adapter),
         )
     }
 
@@ -711,6 +789,14 @@ object ChattBluetooth {
         permissions: Array<out String>,
         results: IntArray,
     ) {
+        if (code == advertiseRequestCode) {
+            // Odmowa niczego nie zapisuje: przycisk zostaje i można spróbować
+            // jeszcze raz.
+            if (results.isNotEmpty() && results[0] == PackageManager.PERMISSION_GRANTED) {
+                otworzOkienkoWidocznosci(host)
+            }
+            return
+        }
         if (code != requestCode || results.isEmpty()) return
         val naStale = permissions.indices.any {
             results[it] != PackageManager.PERMISSION_GRANTED &&

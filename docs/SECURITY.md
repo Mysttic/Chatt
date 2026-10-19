@@ -47,7 +47,11 @@ turned on:
   the two routes parse whatever any device with a session sends, and a string
   from a verified sender becomes keystrokes in another app there. The keyboard
   add-on is off by default, and while it is off its native channel gets no
-  call apart from the switch itself.
+  call apart from the switch itself,
+- **shared history** (`app/lib/services/history.dart`, the history shapes in
+  `app/lib/network/protocol.dart` and `ChattDb.importHistory`): a peer with a
+  session sends whole conversations that end up in the database, and file
+  rows that later take bytes without a per-file question.
 
 The threat model is written down in [architecture.md](architecture.md),
 together with what it deliberately does not cover.
@@ -79,7 +83,13 @@ These are design decisions:
   name and the radio's MAC address are visible to anyone in range, exactly as
   the device name and port are visible to everyone on the Wi-Fi. With the
   add-on on, the computer is discoverable to everyone nearby; the add-on's card
-  in Settings says so.
+  in Settings says so. A phone is discoverable only for the two minutes after
+  **Show this phone nearby** and the system's own prompt.
+- **A restored message is the peer's word.** A shared history can claim
+  anything, including that we wrote something: nothing signs a message.
+  Restored rows are marked (`messages.restoredAt`), the card says whether the
+  sending device has a green shield, and the consent is bounded by the counts
+  and bytes on the card.
 - **A radio address is a route.** `Peers.btAddress` is a new lasting
   identifier in the database. Who somebody is still comes from the guid, and
   the address is overwritten on every contact. Measured on hardware

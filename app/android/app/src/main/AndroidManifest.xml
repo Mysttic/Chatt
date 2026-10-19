@@ -25,9 +25,11 @@
          nawiązania łącza RFCOMM, SCAN do znalezienia drugiego urządzenia bez
          wpisywania adresu. Przy SCAN jest neverForLocation, bo szukamy
          komputera obok i położenie użytkownika nic tu nie wnosi: bez tego
-         Android wymusiłby zgodę na położenie. Rozgłaszania (BLUETOOTH_ADVERTISE)
-         świadomie nie ma: telefon jest wykrywalny wtedy, gdy użytkownik tak
-         ustawi w systemie, a to komputer jest stroną, która nasłuchuje.
+         Android wymusiłby zgodę na położenie. ADVERTISE wyłącznie do
+         systemowego okienka „pokaż ten telefon" na dwie minuty, otwieranego
+         przyciskiem w „W pobliżu": bez niego drugi telefon nie znajdzie tego
+         w eterze. Należy do tej samej grupy co CONNECT i SCAN, więc system
+         przyznaje ją bez osobnego pytania.
          Do Androida 11 te same rzeczy załatwiały dwie stare zgody plus
          położenie. Brak <uses-feature>, żeby aplikacja nie zniknęła ze Sklepu
          urządzeniom bez radia. Zgody leżą w manifeście, bo
@@ -37,6 +39,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
     <uses-permission android:name="android.permission.BLUETOOTH"
         android:maxSdkVersion="30"/>
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"

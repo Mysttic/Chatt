@@ -8,6 +8,73 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.11.0] - 2026-10-19
+
+Two bigger things and two fixes. A conversation's history can come back from
+the other device after a reinstall or a new phone. The app has three looks to
+pick from, each light and dark. A phone can show itself over Bluetooth so that
+another phone finds it, and on Windows a link with `=` in it opens in the
+browser again.
+
+### Added
+- **Getting a conversation's history back** (issue #36). A conversation lives
+  on both devices, so when one loses it (a reinstall, a new phone, "Clear
+  history", automatic deletion) the other can hand its copy back: **Share
+  history** in the conversation's menu (everything or since a date, with files
+  or without), or **Ask for history** on the side that lost it. The receiving
+  side gets a card with the counts, the date range, the shield and what comes
+  back; restored messages keep their times and directions, arrive read,
+  raise no notification and carry a history icon. Files follow under the same
+  consent, received files still on disk are linked without travelling again,
+  and sharing again resumes without duplicates. After a reinstall or on a new
+  phone the old conversation stays under the old entry; once the new entry has
+  a green shield, the share dialog can hand the older conversation over and
+  merge the two on the sharing side. Both progress bars have **Stop**. New
+  routes `/history-offer` and `/history-chunk`, schema 14
+  (`messages.restoredAt`).
+- **Dates in the conversation.** The first message of each day gets "Today",
+  "Yesterday" or the full date above it.
+- **"File not available"** on a file bubble whose content is not on this device.
+- **Three styles** (issue #37): **Calm** (Cisza), **Precise** (Precyzja) and
+  **Warm** (Ciepło), each in a light and a dark variant, picked in Settings
+  under Appearance. They change looks alone (colours, fonts, corners, density,
+  avatars, bubbles); every screen shows the same information in each. Each
+  style has its own fixed-width font for addresses, identifiers, fingerprints,
+  the pairing code and file sizes, and the five backgrounds follow the style.
+  Schema 15 (`settings.style`), Calm by default.
+- **"This device" panel** at the bottom of Settings: the addresses the device
+  listens on, its Bluetooth address, the identifier and the key fingerprint,
+  each with a copy button.
+
+### Changed
+- The top of the conversation list shows this device's name; the version
+  number moved to Settings, under Updates.
+- On a phone the conversation's header holds only the shield and the menu;
+  search and the keyboard from a PC moved into the menu. The shield sits on a
+  background in the colour of its state.
+- Settings follow a new order (Profile, Appearance, background listening,
+  Windows, Links, Updates, Privacy, Add-ons, This device), and the add-on cards
+  carry a one-line description.
+- Security warnings use the style's warning frame: red in Calm, amber in
+  Precise and Warm. No encryption stays red everywhere.
+- The route on the conversation list is an icon alone, with its name in the
+  tooltip.
+
+### Fixed
+- **A link with `=` in it opened the Documents folder on Windows** (issue #31).
+  The address went to `explorer.exe` as an argument, and Explorer splits its
+  command line on commas and equals signs. It now goes to `ShellExecuteW` as
+  one string, through a small native channel that checks the scheme once more.
+- **A phone can show itself to devices nearby.** Android is visible over the
+  radio only while its own pairing screen stands open, so a Bluetooth search
+  from one phone never found another. In Nearby, with Bluetooth picked,
+  Android has **Show this phone nearby**: it opens the system's prompt that
+  makes the phone discoverable for two minutes, and while it is, a note stands
+  in place of the button. A search that finds nothing now says to show the
+  other phone first. A PC needs none of this: the add-on keeps it visible.
+  New permission `BLUETOOTH_ADVERTISE`, granted together with the add-on's
+  Nearby devices permission, without a question of its own.
+
 ## [0.10.0] - 2026-10-16
 
 A second add-on: typing on a PC's keyboard into the field that has focus on
@@ -873,6 +940,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.11.0]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1

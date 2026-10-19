@@ -13,7 +13,9 @@
 // Same zrzuty dodatku „Klawiatura z PC" (06 do 16):
 //   flutter test tool/windows_shots.dart --plain-name klawiatury
 //
-// Wynik: docs/screenshots/windows/{pl,en}/*.png
+// Wynik: docs/screenshots/windows/{pl,en}/*.png. CHATT_SHOTS_DIR kieruje
+// zrzuty gdzie indziej, a CHATT_SHOTS_STYLE=precyzja albo cieplo zmienia styl
+// (domyślnie Cisza), np. żeby obejrzeć wszystkie trzy obok siebie.
 //
 // ignore_for_file: avoid_print
 @Timeout(Duration(minutes: 5))
@@ -91,6 +93,16 @@ const Map<String, String> _en = {
 };
 
 final String jezyk = Platform.environment['CHATT_SHOTS_LANG'] ?? 'pl';
+final AppStyle styl = AppStyle.values.firstWhere(
+    (s) => s.name == Platform.environment['CHATT_SHOTS_STYLE'],
+    orElse: () => AppStyle.cisza);
+
+/// Katalog na zrzuty: CHATT_SHOTS_DIR albo zrzuty dokumentacji.
+Directory katalogZrzutow() => Directory(
+    Platform.environment['CHATT_SHOTS_DIR'] ??
+        p.join(Directory.current.path, '..', 'docs', 'screenshots', 'windows',
+            jezyk))
+  ..createSync(recursive: true);
 final Map<String, String> t = jezyk == 'en' ? _en : _pl;
 
 late Directory shots;
@@ -172,26 +184,28 @@ Future<List<int>> demoObrazek() async {
 }
 
 /// Harness testowy nie wczytuje czcionek z pubspec: bez tego każdy napis
-/// renderuje się jako kwadraty. Te same pliki, które dołączamy do aplikacji.
+/// renderuje się jako kwadraty. Bierzemy dokładnie to, co pubspec deklaruje
+/// (fonty trzech stylów i ikony), więc nowy font nie wymaga zmian tutaj.
 Future<void> wczytajCzcionki() async {
-  Future<ByteData> plik(String nazwa) async =>
-      File(p.join('fonts', nazwa)).readAsBytesSync().buffer.asByteData();
-  final roboto = FontLoader('Roboto')
-    ..addFont(plik('Roboto-Regular.ttf'))
-    ..addFont(plik('Roboto-Medium.ttf'))
-    ..addFont(plik('Roboto-Bold.ttf'));
-  await roboto.load();
-  final ikony = FontLoader('MaterialIcons')
-    ..addFont(plik('MaterialIcons-Regular.otf'));
-  await ikony.load();
-  // Odciski w panelu bezpieczeństwa idą krojem „monospace" z systemu.
-  // Harness go nie zna; bierzemy Consolas z Windows, tylko do zrzutu.
-  final consolas = File(r'C:\Windows\Fonts\consola.ttf');
-  if (consolas.existsSync()) {
-    final staly = FontLoader('monospace')
-      ..addFont(Future.value(
-          consolas.readAsBytesSync().buffer.asByteData()));
-    await staly.load();
+  final rodziny = <String, List<String>>{};
+  String? rodzina;
+  for (final linia in File('pubspec.yaml').readAsLinesSync()) {
+    final r = RegExp(r'^\s*- family:\s*(\S+)').firstMatch(linia);
+    if (r != null) {
+      rodzina = r.group(1);
+      rodziny[rodzina!] = [];
+      continue;
+    }
+    final a = RegExp(r'^\s*- asset:\s*(fonts/\S+)').firstMatch(linia);
+    if (a != null && rodzina != null) rodziny[rodzina]!.add(a.group(1)!);
+  }
+  for (final MapEntry(key: nazwa, value: pliki) in rodziny.entries) {
+    final loader = FontLoader(nazwa);
+    for (final plik in pliki) {
+      loader.addFont(
+          Future.value(File(plik).readAsBytesSync().buffer.asByteData()));
+    }
+    await loader.load();
   }
 }
 
@@ -226,6 +240,7 @@ Future<AppServices> mojKomputer(Directory work, {RemoteInputSink? ujscie}) async
   await ja.db.saveLanguage(
       jezyk == 'en' ? AppLanguage.english : AppLanguage.polish);
   await ja.db.saveTheme(AppTheme.light);
+  await ja.db.saveStyle(styl);
   await ja.db.saveSettings(
     nickname: t['ja']!,
     welcomeMessage: '',
@@ -329,9 +344,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     final work = Directory.systemTemp.createTempSync('chatt_windows_shots');
-    shots = Directory(p.join(
-        Directory.current.path, '..', 'docs', 'screenshots', 'windows', jezyk))
-      ..createSync(recursive: true);
+    shots = katalogZrzutow();
 
     late AppServices ja;
     late AppServices anna;
@@ -452,9 +465,7 @@ void main() {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
-    shots = Directory(p.join(
-        Directory.current.path, '..', 'docs', 'screenshots', 'windows', jezyk))
-      ..createSync(recursive: true);
+    shots = katalogZrzutow();
     final work = Directory.systemTemp.createTempSync('chatt_windows_shots');
     addTearDown(() => work.deleteSync(recursive: true));
     await tester.runAsync(wczytajCzcionki);

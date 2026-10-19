@@ -1,7 +1,7 @@
 name: chatt
 description: "Komunikator P2P w sieci lokalnej: wiadomości i pliki bez serwera."
 publish_to: 'none'
-version: 0.10.0+20
+version: 0.11.0+22
 
 environment:
   sdk: ^3.13.2
@@ -63,13 +63,33 @@ flutter:
   # (desktop Linux w kontenerze testowym nie ma czcionek systemowych) oraz
   # poprawne ikony/teksty w testach golden.
   fonts:
-    - family: Roboto
+    # Trzy style wyglądu (issue #37). Pliki zmienne (Figtree, IBM Plex Sans,
+    # Nunito, Spline Sans Mono) obsługują każdą grubość: Flutter przekłada
+    # FontWeight na oś wght. Licencje: fonts/OFL-*.txt.
+    - family: Figtree
       fonts:
-        - asset: fonts/Roboto-Regular.ttf
-        - asset: fonts/Roboto-Medium.ttf
+        - asset: fonts/Figtree-VariableFont.ttf
+    - family: IBMPlexSans
+      fonts:
+        - asset: fonts/IBMPlexSans-VariableFont.ttf
+    - family: Nunito
+      fonts:
+        - asset: fonts/Nunito-VariableFont.ttf
+    - family: DMMono
+      fonts:
+        - asset: fonts/DMMono-Regular.ttf
+        - asset: fonts/DMMono-Medium.ttf
           weight: 500
-        - asset: fonts/Roboto-Bold.ttf
-          weight: 700
+    - family: IBMPlexMono
+      fonts:
+        - asset: fonts/IBMPlexMono-Regular.ttf
+        - asset: fonts/IBMPlexMono-Medium.ttf
+          weight: 500
+        - asset: fonts/IBMPlexMono-SemiBold.ttf
+          weight: 600
+    - family: SplineSansMono
+      fonts:
+        - asset: fonts/SplineSansMono-VariableFont.ttf
     - family: MaterialIcons
       fonts:
         - asset: fonts/MaterialIcons-Regular.otf

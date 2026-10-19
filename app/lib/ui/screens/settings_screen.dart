@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/autostart.dart';
@@ -19,6 +20,7 @@ import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../backgrounds.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import '../widgets/common.dart';
 import '../widgets/toasts.dart';
 import '../widgets/update_card.dart';
@@ -168,6 +170,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         child: ListView(
         padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomSystemInset(context)),
         children: [
+          _Sekcja(context.l10n.profileSection, pierwsza: true),
           Form(
             key: _form,
             child: Column(
@@ -177,7 +180,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   controller: _nickname,
                   decoration: InputDecoration(
                     labelText: context.l10n.nicknameLabel,
-                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) => (value == null || value.trim().isEmpty)
                       ? context.l10n.nicknameRequired
@@ -189,7 +191,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   decoration: InputDecoration(
                     labelText: context.l10n.welcomeLabel,
                     helperText: context.l10n.welcomeHelper,
-                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -198,7 +199,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: context.l10n.portFieldLabel,
-                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) {
                     final port = int.tryParse((value ?? '').trim());
@@ -216,9 +216,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          Text(context.l10n.appearance,
-              style: Theme.of(context).textTheme.titleMedium),
+          _Sekcja(context.l10n.appearance),
+          // Styl zmienia wyłącznie wygląd: te same ekrany i informacje.
+          Text(context.l10n.styleLabel,
+              style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 8),
+          SegmentedButton<AppStyle>(
+            showSelectedIcon: false,
+            segments: [
+              for (final styl in AppStyle.values)
+                ButtonSegment(value: styl, label: Text(styl.label(context))),
+            ],
+            selected: {
+              ref.watch(settingsProvider).value?.style ?? AppStyle.cisza,
+            },
+            onSelectionChanged: (wybor) =>
+                services.db.saveStyle(wybor.first),
+          ),
+          const SizedBox(height: 16),
+          Text(context.l10n.themeLabel,
+              style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 8),
           SegmentedButton<AppTheme>(
             segments: [
@@ -246,7 +263,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           const SizedBox(height: 16),
           Text(context.l10n.background,
-              style: Theme.of(context).textTheme.titleMedium),
+              style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 8),
           SizedBox(
             height: 96,
@@ -268,7 +285,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           const SizedBox(height: 16),
           Text(context.l10n.language,
-              style: Theme.of(context).textTheme.titleMedium),
+              style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 8),
           // Lista, a nie rzędek przycisków: kolejny język to jedna pozycja
           // więcej, bez przebudowy układu (patrz core/languages.dart).
@@ -276,7 +293,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             initialValue:
                 ref.watch(settingsProvider).value?.language ?? AppLanguage.system,
             decoration: const InputDecoration(
-              border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.translate_outlined),
             ),
             items: [
@@ -292,10 +308,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           // Tylko Android: na desktopie proces żyje tak długo, jak okno.
           if (Platform.isAndroid) ...[
-            const SizedBox(height: 24),
-            Text(context.l10n.backgroundListening,
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
+            _Sekcja(context.l10n.backgroundListening),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -337,10 +350,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           // Tylko Windows: na Androidzie ciągłość nasłuchu załatwia usługa
           // pierwszoplanowa, a zasobnika nie ma.
           if (Autostart.supported) ...[
-            const SizedBox(height: 24),
-            Text(context.l10n.windowsSection,
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
+            _Sekcja(context.l10n.windowsSection),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: _autostart,
@@ -366,7 +376,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ],
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: _cleanUpPeers,
             icon: const Icon(Icons.cleaning_services_outlined),
@@ -377,20 +387,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             context.l10n.cleanUpHelp,
             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
-          const SizedBox(height: 32),
-          Text(context.l10n.links,
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          _Sekcja(context.l10n.links),
           const _LinkPreviewsSection(),
-          const SizedBox(height: 32),
-          Text(context.l10n.updates,
-              style: Theme.of(context).textTheme.titleMedium),
+          _Sekcja(context.l10n.updates),
+          // Numer wersji mieszka tutaj: na górze aplikacji stoi nazwa
+          // urządzenia.
+          Text('${context.l10n.version} $appVersion',
+              style: ChattTokens.of(context)
+                  .mono
+                  .copyWith(color: scheme.onSurfaceVariant)),
           const SizedBox(height: 8),
           const _UpdatesSection(),
-          const SizedBox(height: 32),
-          Text(context.l10n.privacy,
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          _Sekcja(context.l10n.privacy),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -441,7 +449,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             initialValue: ref.watch(settingsProvider).value?.retentionDays ?? 0,
             decoration: InputDecoration(
               labelText: context.l10n.retentionLabel,
-              border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.auto_delete_outlined),
             ),
             items: [
@@ -472,57 +479,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             label: Text(context.l10n.clearHistory),
             style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
           ),
-          const SizedBox(height: 32),
-          Text(context.l10n.addons,
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            context.l10n.addonsHelp,
-            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
+          _Sekcja(context.l10n.addons),
           const BluetoothAddonCard(),
           const SizedBox(height: 8),
           const KeyboardAddonCard(),
-          const SizedBox(height: 32),
-          Text(context.l10n.thisDevice,
-              style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          _Sekcja(context.l10n.thisDevice),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _InfoRow(label: context.l10n.version, value: appVersion),
-                  const SizedBox(height: 8),
-                  _InfoRow(
-                    label: context.l10n.listeningOn,
-                    value: _addresses.isEmpty
-                        ? context.l10n.listeningPort(services.identity.tcpPort)
-                        : _addresses
-                            .map((a) => '$a:${services.identity.tcpPort}')
-                            .join('\n'),
-                  ),
-                  const SizedBox(height: 8),
-                  _InfoRow(
-                      label: context.l10n.deviceIdentifier,
-                      value: services.identity.guid),
-                  const SizedBox(height: 8),
-                  // Odcisk własnego klucza: to jego dyktujesz rozmówcy, gdy
-                  // chcecie sprawdzić, czy rozmawiacie ze sobą.
-                  _InfoRow(
-                    label: context.l10n.fingerprintMine,
-                    value: ChattCrypto.fingerprint(services.identity.publicKey),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.l10n.manualPairingHint,
-                    style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
-                  ),
-                ],
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+              child: ValueListenableBuilder<BtStatus>(
+                valueListenable: services.bluetoothStatus,
+                builder: (context, radio, _) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Wartosc(
+                      label: context.l10n.listeningOn,
+                      value: _addresses.isEmpty
+                          ? context.l10n.listeningPort(services.identity.tcpPort)
+                          : _addresses
+                              .map((a) => '$a:${services.identity.tcpPort}')
+                              .join('\n'),
+                    ),
+                    // Własny adres radia: Android go nie podaje, więc tam
+                    // tego wiersza nie ma.
+                    if (services.bluetoothAddon.value && radio.address.isNotEmpty)
+                      _Wartosc(
+                          label: context.l10n.btAddressLabel,
+                          value: radio.address),
+                    _Wartosc(
+                        label: context.l10n.deviceIdentifier,
+                        value: services.identity.guid),
+                    // Odcisk własnego klucza: to jego dyktujesz rozmówcy, gdy
+                    // chcecie sprawdzić, czy rozmawiacie ze sobą.
+                    _Wartosc(
+                      label: context.l10n.fingerprintMine,
+                      value:
+                          ChattCrypto.fingerprint(services.identity.publicKey),
+                    ),
+                  ],
+                ),
               ),
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.manualPairingHint,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
         ],
         ),
@@ -682,7 +684,7 @@ class BluetoothAddonCardState extends ConsumerState<BluetoothAddonCard> {
                   secondary: const Icon(Icons.bluetooth),
                   title: Text(context.l10n.transportBluetooth),
                   subtitle: Text(wspierany
-                      ? context.l10n.transportBluetoothHelp
+                      ? context.l10n.addonBluetoothShort
                       : context.l10n.transportBluetoothUnsupported),
                 ),
                 if (wlaczony) ...[
@@ -708,8 +710,9 @@ class BluetoothAddonCardState extends ConsumerState<BluetoothAddonCard> {
                       padding: const EdgeInsets.only(top: 4),
                       child: SelectableText(
                         context.l10n.myBtAddress(stan.address),
-                        style: TextStyle(
-                            color: scheme.onSurfaceVariant, fontSize: 12),
+                        style: ChattTokens.of(context)
+                            .mono
+                            .copyWith(color: scheme.onSurfaceVariant),
                       ),
                     ),
                   // Przy działającym radiu komputer widzi każdy, kto się
@@ -724,18 +727,11 @@ class BluetoothAddonCardState extends ConsumerState<BluetoothAddonCard> {
                     onChanged: _setWifi,
                     secondary: const Icon(Icons.wifi),
                     title: Text(context.l10n.transportWifi),
-                    subtitle: Text(context.l10n.transportWifiHelp),
                   ),
                   if (!wifi && !services.bluetoothRunning.value)
                     _uwaga(scheme, Icons.warning_amber_outlined,
                         context.l10n.transportBothOff,
                         bad: true),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.l10n.transportsHelp,
-                    style:
-                        TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
-                  ),
                 ],
               ],
             );
@@ -886,17 +882,9 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
                           _przelacz(() => services.setKeyboardAddon(value)),
                   secondary: const Icon(Icons.keyboard_outlined),
                   title: Text(context.l10n.keyboardAddon),
-                  subtitle: Text(context.l10n.keyboardAddonHelp),
+                  subtitle: Text(context.l10n.addonKeyboardShort),
                 ),
                 if (wlaczony) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(left: 56),
-                    child: Text(
-                      context.l10n.remoteInputSendHint,
-                      style: TextStyle(
-                          color: scheme.onSurfaceVariant, fontSize: 12),
-                    ),
-                  ),
                   const Divider(height: 24),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -907,9 +895,9 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
                             () => services.setRemoteInputReceive(value)),
                     secondary: const Icon(Icons.keyboard_alt_outlined),
                     title: Text(context.l10n.remoteInputReceive),
-                    subtitle: Text(przyjmuje
-                        ? context.l10n.remoteInputReceiveHelp
-                        : context.l10n.remoteInputUnsupported),
+                    subtitle: przyjmuje
+                        ? null
+                        : Text(context.l10n.remoteInputUnsupported),
                   ),
                   if (odbior && przyjmuje)
                     Padding(
@@ -1198,9 +1186,8 @@ class _UpdatesSectionState extends ConsumerState<_UpdatesSection> {
   }
 }
 
-/// Podgląd jednego tła: prostokąt z gradientem i podpis pod spodem.
-/// „Bez tła" pokazuje kolor powierzchni z motywu, żeby wybór wyglądał
-/// tak samo jak reszta.
+/// Podgląd jednego tła w bieżącym stylu: prostokąt z gradientem i podpis
+/// pod spodem. „Bez tła" pokazuje kolor tła stylu.
 class _BackgroundChip extends StatelessWidget {
   final ChattBackground background;
   final bool selected;
@@ -1215,9 +1202,8 @@ class _BackgroundChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final kolory = background.plain
-        ? [scheme.surfaceContainerHighest, scheme.surfaceContainerHighest]
-        : background.colorsFor(Theme.of(context).brightness);
+    final wypelnienie = wallDecoration(background.wallIn(context),
+        borderRadius: BorderRadius.circular(12));
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -1228,13 +1214,7 @@ class _BackgroundChip extends StatelessWidget {
           Container(
             width: 88,
             height: 60,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: kolory,
-              ),
-              borderRadius: BorderRadius.circular(12),
+            decoration: wypelnienie.copyWith(
               border: Border.all(
                 color: selected ? scheme.primary : scheme.outlineVariant,
                 width: selected ? 3 : 1,
@@ -1262,25 +1242,80 @@ class _BackgroundChip extends StatelessWidget {
 /// Granice wieku wiadomości do wyboru. Zero to „nie kasuj".
 const _retentionChoices = [0, 7, 30, 90, 365];
 
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
+/// Nagłówek sekcji Ustawień w stylu (wersaliki w Precyzji).
+class _Sekcja extends StatelessWidget {
+  final String title;
+  final bool pierwsza;
 
-  const _InfoRow({required this.label, required this.value});
+  const _Sekcja(this.title, {this.pierwsza = false});
 
   @override
   Widget build(BuildContext context) {
+    final k = ChattTokens.of(context);
+    return Padding(
+      padding: EdgeInsets.only(top: pierwsza ? 0 : 32, bottom: 8),
+      child: Text(
+        k.overlineText(title),
+        style: k.overline
+            .copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
+/// Wartość techniczna z podpisem i przyciskiem kopiowania. Font o stałej
+/// szerokości stylu, bo te wartości się przepisuje i porównuje.
+class _Wartosc extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _Wartosc({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(
-          width: 110,
-          child: Text(label,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 2),
+                SelectableText(value,
+                    style: ChattTokens.of(context)
+                        .mono
+                        .copyWith(color: scheme.onSurface)),
+              ],
+            ),
+          ),
         ),
-        Expanded(child: SelectableText(value)),
+        IconButton(
+          tooltip: context.l10n.copy,
+          icon: const Icon(Icons.copy_outlined, size: 20),
+          onPressed: () async {
+            final teksty = context.l10n;
+            await Clipboard.setData(
+                ClipboardData(text: value.replaceAll('\n', ' ')));
+            showToast(teksty.copied);
+          },
+        ),
       ],
     );
   }
+}
+
+extension on AppStyle {
+  String label(BuildContext context) => switch (this) {
+        AppStyle.cisza => context.l10n.styleCisza,
+        AppStyle.precyzja => context.l10n.stylePrecyzja,
+        AppStyle.cieplo => context.l10n.styleCieplo,
+      };
 }

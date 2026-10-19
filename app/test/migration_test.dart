@@ -195,7 +195,144 @@ void main() {
 
     final wersja =
         await druga.customSelect('PRAGMA user_version;').getSingle();
-    expect(wersja.read<int>('user_version'), 13);
+    expect(wersja.read<int>('user_version'), druga.schemaVersion);
+  });
+
+  /// Schemat 14 oznacza wiadomości przywrócone z kopii historii rozmówcy.
+  /// Wszystko sprzed zmiany przyszło zwykłą drogą: zostaje, jak było,
+  /// z pustym znacznikiem.
+  test('przejście na schemat 14 nie oznacza starych wiadomości jako przywróconych',
+      () async {
+    final katalog = Directory.systemTemp.createTempSync('chatt-migracja-14');
+    addTearDown(() => katalog.deleteSync(recursive: true));
+    final plik = File(p.join(katalog.path, 'chatt.db'));
+
+    final pierwsza = ChattDb(NativeDatabase(plik));
+    final peer = await pierwsza.upsertPeer(
+      guid: 'guid-1',
+      name: 'Alicja',
+      welcomeMessage: '',
+      host: '192.168.0.2',
+      port: 47780,
+    );
+    final rozmowa = await pierwsza.ensureConversation(peer.id);
+    await pierwsza.insertIncoming(
+      conversationId: rozmowa,
+      messageGuid: 'wiadomosc-1',
+      body: 'wiadomość sprzed migracji',
+      sentAt: DateTime(2026, 9, 1, 12),
+    );
+    await pierwsza.close();
+
+    final surowa = raw.sqlite3.open(plik.path);
+    surowa.execute('ALTER TABLE messages DROP COLUMN restored_at;');
+    surowa.execute('PRAGMA user_version = 13;');
+    surowa.close();
+
+    final druga = ChattDb(NativeDatabase(plik));
+    addTearDown(druga.close);
+    final wiadomosci = await druga.watchMessages(rozmowa).first;
+    expect(wiadomosci, hasLength(1));
+    expect(wiadomosci.single.body, 'wiadomość sprzed migracji');
+    expect(wiadomosci.single.restoredAt, isNull);
+    final wersja =
+        await druga.customSelect('PRAGMA user_version;').getSingle();
+    expect(wersja.read<int>('user_version'), druga.schemaVersion);
+  });
+
+  /// Schemat 15 zapamiętuje styl wyglądu. Baza sprzed zmiany dostaje
+  /// Ciszę, a motyw, tło i reszta ustawień zostają, jak były.
+  test('przejście na schemat 15 daje styl Cisza i nie rusza reszty wyglądu',
+      () async {
+    final katalog = Directory.systemTemp.createTempSync('chatt-migracja-15');
+    addTearDown(() => katalog.deleteSync(recursive: true));
+    final plik = File(p.join(katalog.path, 'chatt.db'));
+
+    final pierwsza = ChattDb(NativeDatabase(plik));
+    await pierwsza.ensureSettings(
+      identityFactory: () async => ('klucz', 'guid-ja'),
+      defaultNickname: 'Ja',
+      defaultPort: 47777,
+    );
+    await pierwsza.saveTheme(AppTheme.dark);
+    await pierwsza.saveBackground(3);
+    await pierwsza.close();
+
+    final surowa = raw.sqlite3.open(plik.path);
+    surowa.execute('ALTER TABLE settings DROP COLUMN style;');
+    surowa.execute('PRAGMA user_version = 14;');
+    surowa.close();
+
+    final druga = ChattDb(NativeDatabase(plik));
+    addTearDown(druga.close);
+    final ustawienia = await druga.getSettings();
+    expect(ustawienia, isNotNull);
+    expect(ustawienia!.style, AppStyle.cisza);
+    expect(ustawienia.theme, AppTheme.dark);
+    expect(ustawienia.background, 3);
+    expect(ustawienia.nickname, 'Ja');
+
+    await druga.saveStyle(AppStyle.cieplo);
+    expect((await druga.getSettings())!.style, AppStyle.cieplo);
+
+    final wersja =
+        await druga.customSelect('PRAGMA user_version;').getSingle();
+    expect(wersja.read<int>('user_version'), 15);
+  });
+
+  /// Kształt bazy z 0.10.0: schemat 13, bez `messages.restored_at` i bez
+  /// `settings.style`. Jedno otwarcie przechodzi oba kroki naraz.
+  test('przejście z 0.10.0 (schemat 13) na 15 za jednym otwarciem', () async {
+    final katalog = Directory.systemTemp.createTempSync('chatt-migracja-13-15');
+    addTearDown(() => katalog.deleteSync(recursive: true));
+    final plik = File(p.join(katalog.path, 'chatt.db'));
+
+    final pierwsza = ChattDb(NativeDatabase(plik));
+    final peer = await pierwsza.upsertPeer(
+      guid: 'guid-1',
+      name: 'Alicja',
+      welcomeMessage: '',
+      host: '192.168.0.2',
+      port: 47780,
+    );
+    await pierwsza.setPeerVerified(peer.id, true);
+    final rozmowa = await pierwsza.ensureConversation(peer.id);
+    await pierwsza.insertIncoming(
+      conversationId: rozmowa,
+      messageGuid: 'wiadomosc-1',
+      body: 'wiadomość z 0.10.0',
+      sentAt: DateTime(2026, 10, 1, 12),
+    );
+    await pierwsza.ensureSettings(
+      identityFactory: () async => ('klucz', 'guid-ja'),
+      defaultNickname: 'Ja',
+      defaultPort: 47777,
+    );
+    await pierwsza.saveTheme(AppTheme.dark);
+    await pierwsza.saveBackground(2);
+    await pierwsza.close();
+
+    final surowa = raw.sqlite3.open(plik.path);
+    surowa.execute('ALTER TABLE messages DROP COLUMN restored_at;');
+    surowa.execute('ALTER TABLE settings DROP COLUMN style;');
+    surowa.execute('PRAGMA user_version = 13;');
+    surowa.close();
+
+    final druga = ChattDb(NativeDatabase(plik));
+    addTearDown(druga.close);
+    final po = await druga.allPeers();
+    expect(po.single.name, 'Alicja');
+    expect(po.single.verified, isTrue);
+    final wiadomosci = await druga.watchMessages(rozmowa).first;
+    expect(wiadomosci.single.body, 'wiadomość z 0.10.0');
+    expect(wiadomosci.single.restoredAt, isNull);
+    final ustawienia = await druga.getSettings();
+    expect(ustawienia!.style, AppStyle.cisza);
+    expect(ustawienia.theme, AppTheme.dark);
+    expect(ustawienia.background, 2);
+    final wersja =
+        await druga.customSelect('PRAGMA user_version;').getSingle();
+    expect(wersja.read<int>('user_version'), 15);
   });
 
   /// Rozmówca poznany wyłącznie przez radio nie ma adresu w sieci, a rozmówca

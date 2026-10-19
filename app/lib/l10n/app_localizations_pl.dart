@@ -789,26 +789,10 @@ class AppLocalizationsPl extends AppLocalizations {
   String get addons => 'Dodatki';
 
   @override
-  String get addonsHelp =>
-      'Funkcje, których większość osób nie potrzebuje. Wyłączony dodatek nie wychodzi poza tę sekcję: nie widać go na żadnym innym ekranie i niczego nie uruchamia.';
-
-  @override
-  String get transportsHelp =>
-      'Dwie drogi, obie mogą być włączone naraz. Sieć jest kilkadziesiąt razy szybsza, Bluetooth działa bez żadnej sieci, gdy urządzenia są obok siebie.';
-
-  @override
   String get transportWifi => 'Sieć lokalna';
 
   @override
-  String get transportWifiHelp =>
-      'Wiadomości i pliki przez Wi-Fi albo kabel. Wymaga, żeby oba urządzenia były w tej samej sieci.';
-
-  @override
   String get transportBluetooth => 'Bluetooth';
-
-  @override
-  String get transportBluetoothHelp =>
-      'Wiadomości i pliki przez radio, bez routera, adresu i wspólnej sieci. Kilkadziesiąt razy wolniej niż Wi-Fi, więc duży plik potrwa. Włączenie dodaje szukanie przez Bluetooth w „W pobliżu” i znacznik drogi w rozmowach.';
 
   @override
   String get transportBluetoothUnsupported =>
@@ -840,15 +824,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get keyboardAddon => 'Klawiatura z PC';
 
   @override
-  String get keyboardAddonHelp =>
-      'Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.';
-
-  @override
   String get remoteInputReceive => 'Pozwól pisać na tym urządzeniu';
-
-  @override
-  String get remoteInputReceiveHelp =>
-      'Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.';
 
   @override
   String get remoteInputSafety =>
@@ -911,10 +887,6 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get remoteInputImeReady => 'Klawiatura Chatt jest włączona.';
-
-  @override
-  String get remoteInputSendHint =>
-      'Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz klawiaturę u góry ekranu.';
 
   @override
   String get remoteInputDontAskAgain => 'Nie pytaj więcej dla tego urządzenia';
@@ -1103,7 +1075,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get scanNothingFoundBluetooth =>
-      'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Możesz też dodać je po adresie radia.';
+      'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Telefon z Androidem trzeba najpierw pokazać: na nim w „W pobliżu” przy wybranym Bluetoothcie stuknij „Pokaż ten telefon w pobliżu”. Możesz też dodać urządzenie po adresie radia.';
 
   @override
   String get searchBluetoothNoLocation =>
@@ -1111,6 +1083,21 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get turnOnLocation => 'Włącz lokalizację';
+
+  @override
+  String get showThisPhone => 'Pokaż ten telefon w pobliżu';
+
+  @override
+  String get showThisPhoneHint =>
+      'Android pokazuje telefon innym urządzeniom tylko na żądanie. Gdy drugie urządzenie ma znaleźć ten telefon, stuknij przycisk, potwierdź w okienku i uruchom szukanie tam.';
+
+  @override
+  String get thisPhoneVisible =>
+      'Ten telefon jest teraz widoczny dla urządzeń w pobliżu, przez około dwie minuty. Uruchom szukanie na drugim urządzeniu.';
+
+  @override
+  String get showThisPhoneFailed =>
+      'Android nie pokazał pytania o widoczność. Ten sam skutek daje otwarty ekran parowania w ustawieniach Bluetooth telefonu.';
 
   @override
   String get addByBtAddress => 'Dodaj po adresie radia';
@@ -1137,4 +1124,285 @@ class AppLocalizationsPl extends AppLocalizations {
   String myBtAddress(String address) {
     return 'Adres tego radia: $address';
   }
+
+  @override
+  String get historyMenu => 'Więcej';
+
+  @override
+  String get historyShare => 'Udostępnij historię';
+
+  @override
+  String get historyRequest => 'Poproś o historię';
+
+  @override
+  String get historyShareTitle => 'Udostępnij historię rozmowy';
+
+  @override
+  String historyShareBody(Object name) {
+    return '$name dostanie kopię waszej rozmowy, oznaczoną jako przywrócona. Najpierw zobaczy kartę z pytaniem.';
+  }
+
+  @override
+  String get historyRangeAll => 'Całość';
+
+  @override
+  String historyRangeSince(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Od $dateString';
+  }
+
+  @override
+  String get historyPickDate => 'Wybierz datę';
+
+  @override
+  String get historyWithFiles => 'Z plikami';
+
+  @override
+  String get historyWithoutFiles => 'Bez plików';
+
+  @override
+  String historyCountMessages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wiadomości',
+      many: '$count wiadomości',
+      few: '$count wiadomości',
+      one: '$count wiadomość',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String historyCountFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count plików',
+      many: '$count plików',
+      few: '$count pliki',
+      one: '$count plik',
+      zero: 'bez plików',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String historyRange(DateTime from, DateTime to) {
+    final intl.DateFormat fromDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String fromString = fromDateFormat.format(from);
+    final intl.DateFormat toDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String toString = toDateFormat.format(to);
+
+    return 'od $fromString do $toString';
+  }
+
+  @override
+  String historyMissingFiles(int count) {
+    return 'Plików, których już tu nie ma, pójdzie bez treści: $count';
+  }
+
+  @override
+  String get historyNothing => 'W tej rozmowie nie ma czego udostępnić.';
+
+  @override
+  String get historyShareAction => 'Udostępnij';
+
+  @override
+  String get historyShareDone => 'Historia udostępniona.';
+
+  @override
+  String historyShareRejected(Object name) {
+    return '$name nie przyjmuje historii.';
+  }
+
+  @override
+  String get historyNoAnswer =>
+      'Nikt nie odpowiedział na karcie po drugiej stronie.';
+
+  @override
+  String get historyBusy =>
+      'Trwa już inne przesyłanie historii. Spróbuj później.';
+
+  @override
+  String get historyOlderVersion =>
+      'Tamto urządzenie ma starszą wersję Chatt, bez udostępniania historii.';
+
+  @override
+  String get historyUnreachable => 'Tamto urządzenie nie odpowiada.';
+
+  @override
+  String get historyCancelled =>
+      'Udostępnianie przerwane. To, co doszło, zostaje po drugiej stronie.';
+
+  @override
+  String get historyFailed =>
+      'Udostępnianie się nie udało. Spróbuj jeszcze raz: to, co doszło, się nie zdubluje.';
+
+  @override
+  String get historyRequestSent => 'Prośba wysłana, czekam na odpowiedź.';
+
+  @override
+  String historyRequestAccepted(Object name) {
+    return '$name: zgoda. Historia zaraz zacznie spływać.';
+  }
+
+  @override
+  String historyRequestRejected(Object name) {
+    return '$name: odmowa.';
+  }
+
+  @override
+  String historyRequestEmpty(Object name) {
+    return '$name nie ma u siebie tej rozmowy.';
+  }
+
+  @override
+  String historyOfferTitle(Object name) {
+    return '$name chce przywrócić historię waszej rozmowy';
+  }
+
+  @override
+  String get historyOfferDeleted =>
+      'Wróci także to, co zostało tu wcześniej usunięte.';
+
+  @override
+  String get historyOfferMarked =>
+      'Przywrócone wiadomości są oznaczone: to kopia rozmówcy i nikt jej nie podpisuje.';
+
+  @override
+  String get historyOfferUnverified =>
+      'Tożsamość niepotwierdzona: historię może przysyłać ktoś, kto podaje się za tę osobę.';
+
+  @override
+  String historyOfferRetention(int days) {
+    return 'Wiadomości starsze niż $days dni nie wejdą, bo tyle trzyma je ustawienie przechowywania.';
+  }
+
+  @override
+  String historyRequestTitle(Object name) {
+    return '$name prosi o historię waszej rozmowy';
+  }
+
+  @override
+  String get historyRequestBody =>
+      'Dostanie kopię tego, co jest tutaj w tej rozmowie, oznaczoną jako przywrócona.';
+
+  @override
+  String historySharing(Object name) {
+    return 'Udostępnianie historii: $name';
+  }
+
+  @override
+  String historyRestoring(Object name) {
+    return 'Przywracanie historii od: $name';
+  }
+
+  @override
+  String historyRestored(Object name) {
+    return 'Historia od $name przywrócona';
+  }
+
+  @override
+  String historyProgressMessages(int done, int total) {
+    return 'Wiadomości: $done z $total';
+  }
+
+  @override
+  String historyProgressFiles(int done, int total) {
+    return 'Pliki: $done z $total';
+  }
+
+  @override
+  String historySkipped(int count) {
+    return 'Pominięte, bo już były albo są za stare: $count';
+  }
+
+  @override
+  String get historyStop => 'Przerwij';
+
+  @override
+  String messageRestored(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(localeName);
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Przywrócona $dateString z kopii rozmówcy';
+  }
+
+  @override
+  String get fileUnavailable => 'Plik niedostępny';
+
+  @override
+  String get fileAwaiting => 'Czeka na przesłanie';
+
+  @override
+  String get dateToday => 'Dzisiaj';
+
+  @override
+  String get dateYesterday => 'Wczoraj';
+
+  @override
+  String dateSeparator(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMMEEEEd(
+      localeName,
+    );
+    final String dateString = dateDateFormat.format(date);
+
+    return '$dateString';
+  }
+
+  @override
+  String get historySource => 'Skąd';
+
+  @override
+  String get historySourceThis => 'Ta rozmowa';
+
+  @override
+  String historySourceOther(Object name, int count) {
+    return 'Starsza rozmowa z: $name ($count)';
+  }
+
+  @override
+  String get historySourceHint =>
+      'Po reinstalacji albo na nowym telefonie to samo urządzenie przychodzi pod nowym wpisem. Starszą rozmowę z dawnym wpisem możesz oddać tutaj.';
+
+  @override
+  String get historySourceNeedsShield =>
+      'Starszą rozmowę z innym wpisem można oddać tylko urządzeniu z zieloną tarczą. Najpierw potwierdź jego tożsamość.';
+
+  @override
+  String get historyMergeLocally => 'Połącz u mnie tamtą rozmowę z tą';
+
+  @override
+  String get historyNeedsVerified =>
+      'Najpierw potwierdź tożsamość tego urządzenia (zielona tarcza).';
+
+  @override
+  String get historyMerged => 'Rozmowy połączone.';
+
+  @override
+  String get profileSection => 'Profil';
+
+  @override
+  String get styleLabel => 'Styl';
+
+  @override
+  String get styleCisza => 'Cisza';
+
+  @override
+  String get stylePrecyzja => 'Precyzja';
+
+  @override
+  String get styleCieplo => 'Ciepło';
+
+  @override
+  String get themeLabel => 'Motyw';
+
+  @override
+  String get addonBluetoothShort => 'Rozmowy bez wspólnej sieci Wi-Fi';
+
+  @override
+  String get addonKeyboardShort => 'Pisanie z klawiatury komputera';
 }

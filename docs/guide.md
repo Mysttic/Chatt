@@ -20,8 +20,13 @@ PC.
 3. Open **Settings** and set the nickname that identifies this device in the
    other side's list.
 
-The bar over the conversation list carries the version number, and Settings
-repeats it under "This device". Worth having at hand when reporting a problem.
+The top of the conversation list carries this device's name. The version
+number is in Settings, under **Updates**. At the very bottom of Settings the
+**This device** panel gathers the addresses the device listens on, its
+Bluetooth address (with the add-on on, when the system reports it), the
+identifier and the key fingerprint. The button next to each value copies it.
+Worth having at hand when reporting a problem or adding a device by IP
+address.
 
 ## Finding the other device
 
@@ -57,6 +62,12 @@ while the device is answering on the network, and a green shield next to the
 name once its identity has been confirmed. The list asks every known device
 every 30 seconds, and only while it is on screen.
 
+On a phone the conversation's header holds only the shield and the **⋮**
+menu. The shield sits on a background in the colour of its state: green with a
+confirmed identity, the warning colour without one. Search and the keyboard
+from a PC are in the menu. A wide window keeps both buttons in the header next
+to the shield.
+
 <img src="screenshots/produkt/en/android_rozmowa_z_plikiem.png" alt="Conversation" width="260">
 
 Status shown on a sent message:
@@ -82,11 +93,54 @@ something it already received, and the app says so.
 
 <img src="screenshots/produkt/en/android_menu_wiadomosci.png" alt="Message menu" width="260">
 
-**The magnifier in the bar** searches the open conversation: the list keeps
-only matching messages and the hit is highlighted. The same magnifier on the
+**Search this conversation** (the magnifier in the bar on a wide window, the
+**⋮** menu on a phone) searches the open conversation: the list keeps only
+matching messages and the hit is highlighted. The same magnifier on the
 conversation list filters it by name and last message.
 
 <img src="screenshots/produkt/en/android_szukanie_w_rozmowie.png" alt="Search in a conversation" width="260">
+
+Bubbles show only the time. The first message of each day gets the date above
+it: "Today", "Yesterday", or the full date.
+
+## Getting a conversation's history back
+
+A conversation lives on both devices. When yours loses it (a reinstall, a new
+phone, **Clear history**, automatic deletion), the other side can hand its
+copy back. The **⋮** menu in the conversation has two items:
+
+- **Share history**, on the device that has it: everything or since a date,
+  with files or without, and the counts before anything goes;
+- **Ask for history**, on the device that lost it: a card on the other device
+  asks whether to share, with files, without them, or not at all.
+
+The receiving side always gets a card first: who sends, how many messages and
+files, the date range, a warning when that device's identity is not
+confirmed, and a note when automatic deletion would skip older messages.
+Messages deleted here on purpose come back too, and the card says so. An answer
+to your own **Ask for history** goes in without a second card.
+
+Restored messages keep their original times and directions, arrive already
+read, and raise no notification. Each one carries a small history icon next to
+the time, with the restore date in its tooltip: the other side's copy is their
+word, and nothing signs a message.
+
+Files ride after the messages. Both sides see a progress bar above the input
+field, each with **Stop**. A file whose bytes the other side no
+longer has arrives as "File not available"; a received file that is still on
+your disk is linked without travelling again. Sharing a second time resumes:
+nothing is duplicated and the missing files arrive.
+
+**After a reinstall or on a new phone** the identity comes from a new key, so
+the other side sees a new device and the old conversation stays under the old
+entry. Once that new device has a green shield, the share dialog there offers
+**From**: this conversation or an older one with another entry. Pick the old
+one and, if you like, **Merge that conversation into this one here**: after
+the share the two become one on the sharing side, and the old entry stays on
+the device list. Without the shield only this conversation can go, so nobody
+who borrows a friend's name gets the friend's conversation with you.
+
+Both devices need this version; an older Chatt is reported as such.
 
 ## Links in messages
 
@@ -246,6 +300,14 @@ and phones are asked first and headphones last, and a device lands on the list
 the moment it answers, so the computer next to you usually shows up within
 half a minute, while the rest of the search is still going.
 
+**A phone has to show itself.** Android is visible over the radio only while
+the pairing screen in its Bluetooth settings stands open, so a search does not
+find a phone by itself. On the phone that is to be found, open **Nearby**, pick
+**Bluetooth** and tap **Show this phone nearby**. Android asks in a prompt of
+its own; after that the phone is visible for about two minutes and a note
+stands where the button was. Start the search on the other device during that
+time. A PC needs none of this: the add-on keeps it visible.
+
 On Android the search needs location services switched on. Chatt never asks
 where you are, but without them Android hands out no search results at all;
 the Nearby screen says so and offers a **Turn location on** button. When that
@@ -342,8 +404,9 @@ Your usual keyboard stays the one you type with. The Chatt keyboard takes over
 for a session and gives the place back when it ends.
 
 **Starting.** Open the conversation with the other device and pick the
-keyboard button at the top. It is there only with the add-on on, and it works
-only with a green shield. The **Typing on X** screen asks the other device and
+keyboard button at the top (on a phone: the **⋮** menu, **Type on that
+device**). It is there only with the add-on on, and it works only with a green
+shield. The **Typing on X** screen asks the other device and
 waits. Over there a card appears: "X wants to type on this device", with
 **Reject**, **Accept** and a **Don't ask again for this device** box. The focus
 sits on Reject, so an Enter pressed by accident refuses. Without an answer the
@@ -559,9 +622,25 @@ nothing about what the program does.
 
 ## Appearance and language
 
-Settings is where you pick the theme (system, light, dark), the **background**
-and the language (system, Polish, English). Every choice lives in the database,
-so it survives a restart.
+Settings, under **Appearance**, is where you pick the **style**, the theme
+(system, light, dark), the **background** and the language (system, Polish,
+English). Every choice lives in the database, so it survives a restart.
+
+There are three styles, and they differ in looks alone: the same screens, the
+same information, the same buttons.
+
+- **Calm** (the default): soft surfaces, round avatars, rounded bubbles, the
+  Figtree font.
+- **Precise**: a dense list in an outlined panel, square avatars, sharper
+  corners, dates with a line across the width, section headers in capitals,
+  the IBM Plex Sans font.
+- **Warm**: every conversation on its own card with a shadow, large rounded
+  corners, the Nunito font.
+
+Each style has a light and a dark variant and its own fixed-width font for
+technical values: addresses, the identifier, the key fingerprint, the pairing
+code and file sizes. The unconfirmed identity warning is red in Calm and amber
+in Precise and Warm; no encryption is red in every style.
 
 Short messages ("Copied", "Deleted the conversation") appear in the top right
 corner with a bar counting down to when they go away. A tap closes one straight
@@ -569,10 +648,10 @@ away. Up there they never cover the button or the text field you have just
 used.
 
 Backgrounds are ready-made sets: "No background" (the plain theme colour),
-Dusk, Ocean, Forest and Sand. Each has separate colours for the light and dark
-theme, and all of them are deliberately muted: cards and bubbles sit on top and
-have to stay readable. Background service notifications follow the app
-language.
+Dusk, Ocean, Forest and Sand. Each has colours matched to the style and to the
+light and dark theme, and all of them are deliberately muted: cards and
+bubbles sit on top and have to stay readable. Background service
+notifications follow the app language.
 
 <img src="screenshots/produkt/en/android_lista_rozmow_ciemny.png" alt="Dark mode" width="260">
 
@@ -588,8 +667,10 @@ The same place has two things you can do by hand:
 - **Delete messages older than**: 7, 30, 90 or 365 days. Off by default. The
   app sweeps at startup, after the setting changes, and every six hours.
 - **Clear history**: deletes every message and conversation at once. It cannot
-  be undone, so it asks for confirmation. Devices keep their confirmed
-  identities, so there is no need to pair again.
+  be undone here, so it asks for confirmation. Devices keep their confirmed
+  identities, so there is no need to pair again. The other side keeps its
+  copy and can hand it back
+  ([Getting a conversation's history back](#getting-a-conversations-history-back)).
 
 In both cases **received files stay on disk**. The app deletes its own entries,
 not content that the user opens with other programs.

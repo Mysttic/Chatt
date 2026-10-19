@@ -242,12 +242,8 @@
   "discoveryDeaf": "This device does not answer scans. Others will find it only by adding its address by hand. The usual cause is another program holding port 47777.",
 
   "addons": "Add-ons",
-  "addonsHelp": "Features most people never need. An add-on that is off stays inside this section: it shows on no other screen and starts nothing.",
-  "transportsHelp": "Two roads, and both can be on at once. The network is tens of times faster; Bluetooth works with no network at all, as long as the devices are next to each other.",
   "transportWifi": "Local network",
-  "transportWifiHelp": "Messages and files over Wi-Fi or a cable. Both devices have to be on the same network.",
   "transportBluetooth": "Bluetooth",
-  "transportBluetoothHelp": "Messages and files over the radio, with no router, no address and no shared network. Tens of times slower than Wi-Fi, so a big file will take a while. Turning it on adds searching over Bluetooth to Nearby and shows which road each conversation takes.",
   "transportBluetoothUnsupported": "Chatt has no Bluetooth on this system.",
   "transportBluetoothRadioOff": "Turn Bluetooth on in the system settings.",
   "transportBluetoothNoPermission": "Chatt has no permission for nearby devices.",
@@ -256,9 +252,7 @@
   "transportBothOff": "The network is off and Bluetooth is not running: this device will reach nobody.",
   "transportBluetoothDiscoverable": "While the add-on is on, this PC is visible to nearby devices. It goes away with the switch.",
   "keyboardAddon": "Keyboard from a PC",
-  "keyboardAddonHelp": "Type on a computer's keyboard into the field that has focus on another device, in any app. Only between devices with a confirmed identity, over the same encrypted channel as conversations.",
   "remoteInputReceive": "Allow typing on this device",
-  "remoteInputReceiveHelp": "A confirmed device can ask to type here. Every session starts with a question on this screen.",
   "remoteInputSafety": "The other device types here like an ordinary keyboard: it can send a message, submit a form, enter a password. A session lasts until Stop or half an hour without typing.",
   "remoteInputUnsupported": "Typing from another device works on Android and Windows.",
   "remoteInputRequestTitle": "{name} wants to type on this device",
@@ -275,7 +269,6 @@
   "remoteInputImeNotSelected": "Pick the Chatt keyboard for the time of typing. The previous one comes back after the session.",
   "remoteInputImePick": "Pick keyboard",
   "remoteInputImeReady": "The Chatt keyboard is on.",
-  "remoteInputSendHint": "To type on another device, open the conversation with it and pick the keyboard at the top.",
   "remoteInputDontAskAgain": "Don't ask again for this device",
   "remoteInputBannerTarget": "{name} is typing into {app}",
   "remoteInputAllowTitle": "Typing without asking",
@@ -324,10 +317,14 @@
   "scanStartBluetooth": "Search over Bluetooth",
   "nearbyBeforeScanBluetooth": "Search over Bluetooth to see which devices next to you answer.",
   "nearbyScanningBluetooth": "Nothing has answered yet. Devices show up here one by one, as soon as they answer.",
-  "scanNothingFoundBluetooth": "No devices found over Bluetooth. Check that Chatt is running on the other device with the Bluetooth add-on on, and that it is a few metres away at most. You can also add it by radio address.",
+  "scanNothingFoundBluetooth": "No devices found over Bluetooth. Check that Chatt is running on the other device with the Bluetooth add-on on, and that it is a few metres away at most. An Android phone has to be shown first: on it, in “Nearby” with Bluetooth picked, tap “Show this phone nearby”. You can also add the device by radio address.",
 
   "searchBluetoothNoLocation": "Android hands out no search results while location services are off. The connection itself does not need them, and Chatt never asks where you are.",
   "turnOnLocation": "Turn location on",
+  "showThisPhone": "Show this phone nearby",
+  "showThisPhoneHint": "Android shows a phone to other devices only when asked. When another device has to find this phone, tap the button, confirm in the system prompt and start the search over there.",
+  "thisPhoneVisible": "This phone is visible to devices nearby now, for about two minutes. Start the search on the other device.",
+  "showThisPhoneFailed": "Android did not show the visibility prompt. An open pairing screen in the phone's Bluetooth settings does the same.",
   "addByBtAddress": "Add by radio address",
   "manualAddBtTitle": "Add by Bluetooth address",
   "manualAddBtHelp": "The other device shows its address in its Bluetooth settings. A PC also shows its own in Chatt's Settings, under Add-ons.",
@@ -340,5 +337,138 @@
   "myBtAddress": "This radio's address: {address}",
   "@myBtAddress": {
     "placeholders": { "address": { "type": "String" } }
-  }
+  },
+  "historyMenu": "More",
+  "historyShare": "Share history",
+  "historyRequest": "Ask for history",
+  "historyShareTitle": "Share the conversation's history",
+  "historyShareBody": "{name} gets a copy of your conversation, marked as restored. A card asks them first.",
+  "@historyShareBody": {
+    "placeholders": { "name": {} }
+  },
+  "historyRangeAll": "Everything",
+  "historyRangeSince": "Since {date}",
+  "@historyRangeSince": {
+    "placeholders": { "date": { "type": "DateTime", "format": "yMMMd" } }
+  },
+  "historyPickDate": "Pick a date",
+  "historyWithFiles": "With files",
+  "historyWithoutFiles": "Without files",
+  "historyCountMessages": "{count, plural, one{{count} message} other{{count} messages}}",
+  "@historyCountMessages": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "historyCountFiles": "{count, plural, =0{no files} one{{count} file} other{{count} files}}",
+  "@historyCountFiles": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "historyRange": "from {from} to {to}",
+  "@historyRange": {
+    "placeholders": {
+      "from": { "type": "DateTime", "format": "yMMMd" },
+      "to": { "type": "DateTime", "format": "yMMMd" }
+    }
+  },
+  "historyMissingFiles": "Files no longer here go without content: {count}",
+  "@historyMissingFiles": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "historyNothing": "There is nothing to share in this conversation.",
+  "historyShareAction": "Share",
+  "historyShareDone": "History shared.",
+  "historyShareRejected": "{name} declined the history.",
+  "@historyShareRejected": {
+    "placeholders": { "name": {} }
+  },
+  "historyNoAnswer": "Nobody answered the card on the other side.",
+  "historyBusy": "Another history transfer is running. Try later.",
+  "historyOlderVersion": "That device runs an older Chatt, without history sharing.",
+  "historyUnreachable": "That device is not answering.",
+  "historyCancelled": "Sharing stopped. What arrived stays on the other side.",
+  "historyFailed": "Sharing failed. Try again: what arrived will not be duplicated.",
+  "historyRequestSent": "Request sent, waiting for an answer.",
+  "historyRequestAccepted": "{name} agreed. The history is on its way.",
+  "@historyRequestAccepted": {
+    "placeholders": { "name": {} }
+  },
+  "historyRequestRejected": "{name} declined.",
+  "@historyRequestRejected": {
+    "placeholders": { "name": {} }
+  },
+  "historyRequestEmpty": "{name} does not have this conversation.",
+  "@historyRequestEmpty": {
+    "placeholders": { "name": {} }
+  },
+  "historyOfferTitle": "{name} wants to restore your conversation's history",
+  "@historyOfferTitle": {
+    "placeholders": { "name": {} }
+  },
+  "historyOfferDeleted": "What was deleted here before comes back too.",
+  "historyOfferMarked": "Restored messages are marked: this is the other side's copy, and nothing signs it.",
+  "historyOfferUnverified": "Identity not confirmed: the history may come from someone posing as this person.",
+  "historyOfferRetention": "Messages older than {days} days do not come in: that is how long the retention setting keeps them.",
+  "@historyOfferRetention": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "historyRequestTitle": "{name} asks for your conversation's history",
+  "@historyRequestTitle": {
+    "placeholders": { "name": {} }
+  },
+  "historyRequestBody": "They get a copy of what this conversation holds here, marked as restored.",
+  "historySharing": "Sharing history: {name}",
+  "@historySharing": {
+    "placeholders": { "name": {} }
+  },
+  "historyRestoring": "Restoring history from: {name}",
+  "@historyRestoring": {
+    "placeholders": { "name": {} }
+  },
+  "historyRestored": "History from {name} restored",
+  "@historyRestored": {
+    "placeholders": { "name": {} }
+  },
+  "historyProgressMessages": "Messages: {done} of {total}",
+  "@historyProgressMessages": {
+    "placeholders": { "done": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "historyProgressFiles": "Files: {done} of {total}",
+  "@historyProgressFiles": {
+    "placeholders": { "done": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "historySkipped": "Skipped, already here or too old: {count}",
+  "@historySkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "historyStop": "Stop",
+  "messageRestored": "Restored on {date} from the other side's copy",
+  "@messageRestored": {
+    "placeholders": { "date": { "type": "DateTime", "format": "yMMMd" } }
+  },
+  "fileUnavailable": "File not available",
+  "fileAwaiting": "Waiting for the file",
+  "dateToday": "Today",
+  "dateYesterday": "Yesterday",
+  "dateSeparator": "{date}",
+  "@dateSeparator": {
+    "placeholders": { "date": { "type": "DateTime", "format": "yMMMMEEEEd" } }
+  },
+  "historySource": "From",
+  "historySourceThis": "This conversation",
+  "historySourceOther": "Older conversation with: {name} ({count})",
+  "@historySourceOther": {
+    "placeholders": { "name": {}, "count": { "type": "int" } }
+  },
+  "historySourceHint": "After a reinstall or on a new phone the same device comes under a new entry. You can hand over the older conversation with the old entry here.",
+  "historySourceNeedsShield": "An older conversation with another entry goes only to a device with a green shield. Confirm its identity first.",
+  "historyMergeLocally": "Merge that conversation into this one here",
+  "historyNeedsVerified": "Confirm this device's identity first (green shield).",
+  "historyMerged": "Conversations merged.",
+  "profileSection": "Profile",
+  "styleLabel": "Style",
+  "styleCisza": "Calm",
+  "stylePrecyzja": "Precise",
+  "styleCieplo": "Warm",
+  "themeLabel": "Theme",
+  "addonBluetoothShort": "Conversations with no shared Wi-Fi",
+  "addonKeyboardShort": "Typing from a computer's keyboard"
 }

@@ -38,12 +38,24 @@ listed here because it is proprietary and ships inside the Android APK.
 
 ## Fonts bundled in the app
 
-Both are in `app/fonts/` and are declared in `app/pubspec.yaml`.
+All of them are in `app/fonts/` and are declared in `app/pubspec.yaml`. The
+OFL fonts are the unmodified files from
+[google/fonts](https://github.com/google/fonts), only renamed, and each comes
+with its license file (`app/fonts/OFL-*.txt`).
 
 | Component | License | Copyright |
 |---|---|---|
-| [Roboto](https://fonts.google.com/specimen/Roboto) (Regular, Medium, Bold) | Apache-2.0 | Copyright Google LLC |
+| [Figtree](https://fonts.google.com/specimen/Figtree) (variable) | OFL-1.1 | Copyright 2022 The Figtree Project Authors |
+| [IBM Plex Sans](https://fonts.google.com/specimen/IBM+Plex+Sans) (variable) | OFL-1.1 | Copyright 2017 IBM Corp., Reserved Font Name "Plex" |
+| [Nunito](https://fonts.google.com/specimen/Nunito) (variable) | OFL-1.1 | Copyright 2014 The Nunito Project Authors |
+| [DM Mono](https://fonts.google.com/specimen/DM+Mono) (Regular, Medium) | OFL-1.1 | Copyright 2020 The DM Mono Project Authors |
+| [IBM Plex Mono](https://fonts.google.com/specimen/IBM+Plex+Mono) (Regular, Medium, SemiBold) | OFL-1.1 | Copyright 2017 IBM Corp., Reserved Font Name "Plex" |
+| [Spline Sans Mono](https://fonts.google.com/specimen/Spline+Sans+Mono) (variable) | OFL-1.1 | Copyright 2022 The Spline Sans Mono Project Authors |
 | Material Icons | Apache-2.0 | Copyright Google LLC |
+
+[Roboto](https://fonts.google.com/specimen/Roboto) (Apache-2.0, Copyright
+Google LLC) also sits in `app/fonts/`, but only the screenshot and store
+graphics tools in `app/tool/` use it; the app does not bundle it.
 
 ## Build-time only
 

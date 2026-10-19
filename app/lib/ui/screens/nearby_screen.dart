@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,7 @@ import '../../network/bt_transport.dart';
 import '../../network/transport.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import '../widgets/common.dart';
 import 'chat_screen.dart';
 import '../widgets/toasts.dart';
@@ -306,6 +309,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                         itemBuilder: (context, index) {
                           final peer = items[index];
                           return ListTile(
+                            visualDensity: VisualDensity.standard,
                             leading: InitialsAvatar(name: peer.displayName),
                             title: PeerName(
                               name: peer.displayName,
@@ -437,7 +441,101 @@ class _WyborProtokolu extends ConsumerWidget {
                   );
                 },
               ),
+            if (radioStoi && wybrany == PeerProtocol.bluetooth)
+              const _Widocznosc(),
           ],
+        );
+      },
+    );
+  }
+}
+
+/// „Pokaż ten telefon w pobliżu". Android jest widoczny w eterze tylko przy
+/// otwartym ekranie parowania w ustawieniach, więc drugie urządzenie nie
+/// znajdzie telefonu, dopóki ten się na chwilę nie pokaże. Komputer
+/// z Windows jest widoczny przez cały czas dodatku i przycisku nie dostaje.
+class _Widocznosc extends ConsumerStatefulWidget {
+  const _Widocznosc();
+
+  @override
+  ConsumerState<_Widocznosc> createState() => _WidocznoscState();
+}
+
+class _WidocznoscState extends ConsumerState<_Widocznosc> {
+  /// Odpytywanie stanu po prośbie o widoczność. Okienko systemowe nie oddaje
+  /// wyniku do Darta, a widoczność gaśnie sama po dwóch minutach.
+  Timer? _pilnuj;
+
+  /// Do kiedy odpytujemy: dwie minuty widoczności plus czas na decyzję.
+  DateTime? _pilnujDo;
+
+  @override
+  void dispose() {
+    _pilnuj?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _pokaz() async {
+    final services = ref.read(appServicesProvider);
+    final teksty = context.l10n;
+    if (!await services.showThisDeviceNearby()) {
+      showToast(teksty.showThisPhoneFailed);
+      return;
+    }
+    _pilnujDo = DateTime.now().add(const Duration(minutes: 3));
+    _pilnuj ??= Timer.periodic(const Duration(seconds: 2), (_) {
+      final koniec = _pilnujDo;
+      if (!mounted || koniec == null || DateTime.now().isAfter(koniec)) {
+        _pilnuj?.cancel();
+        _pilnuj = null;
+        return;
+      }
+      unawaited(services.refreshBluetoothStatus());
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final services = ref.read(appServicesProvider);
+    final scheme = Theme.of(context).colorScheme;
+    return ValueListenableBuilder<BtStatus>(
+      valueListenable: services.bluetoothStatus,
+      builder: (context, stan, _) {
+        if (!stan.canShowSelf) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (stan.visible)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.visibility, size: 18, color: scheme.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        context.l10n.thisPhoneVisible,
+                        style: TextStyle(color: scheme.primary, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                OutlinedButton.icon(
+                  onPressed: _pokaz,
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: Text(context.l10n.showThisPhone),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  context.l10n.showThisPhoneHint,
+                  style:
+                      TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                ),
+              ],
+            ],
+          ),
         );
       },
     );
@@ -506,8 +604,9 @@ class _ManualAddBluetoothDialogState
                 padding: const EdgeInsets.only(top: 12),
                 child: SelectableText(
                   context.l10n.myBtAddress(stan.address),
-                  style:
-                      TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                  style: ChattTokens.of(context)
+                      .mono
+                      .copyWith(color: scheme.onSurfaceVariant),
                 ),
               );
             },

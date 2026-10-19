@@ -108,6 +108,15 @@ class BtStatus {
   final String address;
   final List<BtDevice> paired;
 
+  /// Czy to urządzenie pokazuje się w pobliżu tylko na żądanie
+  /// ([BtChannel.showSelf]). Tak jest na Androidzie: telefon jest widoczny
+  /// wyłącznie przy otwartym ekranie parowania w ustawieniach. Komputer
+  /// z Windows jest widoczny przez cały czas dodatku i tego nie potrzebuje.
+  final bool canShowSelf;
+
+  /// Czy urządzenie jest teraz widoczne w eterze.
+  final bool visible;
+
   const BtStatus({
     this.available = false,
     this.enabled = false,
@@ -117,6 +126,8 @@ class BtStatus {
     this.name = '',
     this.address = '',
     this.paired = const [],
+    this.canShowSelf = false,
+    this.visible = false,
   });
 
   /// Czy da się w ogóle spróbować. Reszta to już sprawa drugiej strony.
@@ -183,6 +194,9 @@ class BtChannel {
       name: json['name'] is String ? json['name'] as String : '',
       address: json['address'] is String ? json['address'] as String : '',
       paired: _devices(json['paired']),
+      // Brak pól znaczy „nie dotyczy": tak odpowiada Windows.
+      canShowSelf: json['canShowSelf'] == true,
+      visible: json['visible'] == true,
     );
   }
 
@@ -204,6 +218,12 @@ class BtChannel {
   /// nie ma go jak znaleźć.
   static Future<bool> discoverable(bool on) =>
       _callBool('discoverable', {'on': on});
+
+  /// Systemowe okienko „pokaż ten telefon w pobliżu" na dwie minuty. Dotyczy
+  /// Androida ([BtStatus.canShowSelf]). Decyzję podejmuje użytkownik
+  /// w okienku, a jej skutek widać w [BtStatus.visible]. false znaczy, że nie
+  /// ma jak zapytać (zamknięte okno, zgaszone radio).
+  static Future<bool> showSelf() => _callBool('showSelf');
 
   static Future<bool> scan() async {
     final json = await _call('scan');

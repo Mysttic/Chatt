@@ -7,6 +7,11 @@ part 'db.g.dart';
 /// Wybór motywu. `system` idzie za ustawieniem systemu.
 enum AppTheme { system, light, dark }
 
+/// Styl wyglądu (issue #37). Ten sam układ i te same informacje, różnią się
+/// wyłącznie kolory, fonty, zaokrąglenia i gęstość (patrz `ui/styles.dart`).
+/// Kolejność jest zapisana w bazie: nowe style tylko na końcu.
+enum AppStyle { cisza, precyzja, cieplo }
+
 /// Język interfejsu. `system` idzie za ustawieniem systemu.
 enum AppLanguage { system, polish, english }
 
@@ -26,6 +31,11 @@ class Settings extends Table {
 
   IntColumn get theme =>
       intEnum<AppTheme>().withDefault(Constant(AppTheme.system.index))();
+
+  /// Styl wyglądu. Domyślnie Cisza: od schematu v15 dotychczasowy fiolet
+  /// z jednego koloru bazowego nie istnieje.
+  IntColumn get style =>
+      intEnum<AppStyle>().withDefault(Constant(AppStyle.cisza.index))();
 
   /// Domyślnie angielski, a nie język systemu: aplikacja jest wydawana
   /// międzynarodowo, więc pierwsze uruchomienie ma być zrozumiałe wszędzie.
@@ -189,6 +199,39 @@ class Messages extends Table {
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get deliveredAt => dateTime().nullable()();
   DateTimeColumn get readAt => dateTime().nullable()();
+
+  /// Kiedy wiadomość wróciła z kopii historii rozmówcy (issue #36). `null`
+  /// znaczy zwykłą drogę. Treść i autorstwo przywróconej wiadomości to
+  /// twierdzenie rozmówcy: nic jej nie podpisuje, więc interfejs ją oznacza.
+  DateTimeColumn get restoredAt => dateTime().nullable()();
+}
+
+/// Wiadomość z kopii historii rozmówcy, już z naszego punktu widzenia:
+/// to, co on napisał, jest u nas przychodzące, a to, co napisaliśmy my,
+/// wychodzące.
+class RestoredMessage {
+  final String messageGuid;
+  final MessageDirection direction;
+  final DateTime sentAt;
+  final String body;
+
+  /// Pola pliku; [fileName] jest null przy zwykłej wiadomości.
+  final String? fileName;
+  final int? fileSize;
+
+  /// Plik, który przetrwał u nas na dysku. `null` przy pliku znaczy wpis bez
+  /// treści: bajty dopiero jadą albo nie przyjadą wcale.
+  final String? filePath;
+
+  const RestoredMessage({
+    required this.messageGuid,
+    required this.direction,
+    required this.sentAt,
+    required this.body,
+    this.fileName,
+    this.fileSize,
+    this.filePath,
+  });
 }
 
 /// Wiersz listy konwersacji: rozmówca + ostatnia wiadomość + nieprzeczytane.
@@ -234,7 +277,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -320,6 +363,17 @@ class ChattDb extends _$ChattDb {
         await _dodajKolumneJesliBrak(m, settings, settings.remoteInputReceive);
         await _dodajKolumneJesliBrak(m, peers, peers.remoteInput);
       }
+      if (from < 14) {
+        // v14: wiadomości przywrócone z kopii historii rozmówcy. Wszystko,
+        // co już leży w bazie, przyszło zwykłą drogą, więc kolumna zostaje
+        // pusta.
+        await _dodajKolumneJesliBrak(m, messages, messages.restoredAt);
+      }
+      if (from < 15) {
+        // v15: styl wyglądu (Cisza, Precyzja, Ciepło). Wartość domyślna
+        // daje Ciszę; reszta ustawień wyglądu (motyw, tło, język) zostaje.
+        await _dodajKolumneJesliBrak(m, settings, settings.style);
+      }
     },
   );
 
@@ -392,6 +446,10 @@ class ChattDb extends _$ChattDb {
   Future<void> saveTheme(AppTheme theme) =>
       (update(settings)..where((s) => s.id.equals(1)))
           .write(SettingsCompanion(theme: Value(theme)));
+
+  Future<void> saveStyle(AppStyle style) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(style: Value(style)));
 
   Future<void> saveLanguage(AppLanguage language) =>
       (update(settings)..where((s) => s.id.equals(1)))
@@ -666,6 +724,13 @@ class ChattDb extends _$ChattDb {
     );
   }
 
+  /// Rozmowa z rozmówcą [peerId], jeśli już jest. Bez zakładania nowej:
+  /// samo pytanie o nią nie ma zostawiać pustego wpisu na liście rozmów.
+  Future<int?> conversationOfPeer(int peerId) async => (await (select(
+        conversations,
+      )..where((c) => c.peerId.equals(peerId))).getSingleOrNull())
+          ?.id;
+
   Future<Peer?> peerForConversation(int conversationId) async {
     final conv = await (select(
       conversations,
@@ -819,6 +884,153 @@ class ChattDb extends _$ChattDb {
   /// drugiej stronie zapomnieć czegoś, co już dostała. Plik na dysku zostaje.
   Future<void> deleteMessage(int id) =>
       (delete(messages)..where((m) => m.id.equals(id))).go();
+
+  // --- Udostępnianie historii (issue #36) -----------------------------------
+
+  /// Wiadomości do udostępnienia rozmówcy, od najstarszej. Wychodzące tylko
+  /// dostarczone: oczekujące i nieudane nigdy do niego nie dotarły, więc nie
+  /// należą do wspólnej historii.
+  Future<List<Message>> messagesForHistory(int conversationId,
+          {DateTime? since}) =>
+      (select(messages)
+            ..where((m) {
+              var warunek = m.conversationId.equals(conversationId) &
+                  (m.direction.equalsValue(MessageDirection.incoming) |
+                      m.status.equalsValue(MessageStatus.delivered));
+              if (since != null) {
+                warunek = warunek & m.createdAt.isBiggerOrEqualValue(since);
+              }
+              return warunek;
+            })
+            ..orderBy([
+              (m) => OrderingTerm.asc(m.createdAt),
+              (m) => OrderingTerm.asc(m.id),
+            ]))
+          .get();
+
+  /// Dopisuje wiadomości z kopii historii rozmówcy, w jednej transakcji.
+  ///
+  /// Odpadają: te, które już są (ten sam `messageGuid`, w dowolnej
+  /// rozmowie), te sprzed [notBefore] (retencja i tak by je skasowała) i te
+  /// późniejsze niż [notAfter] (zegar nadawcy, którego nikt nie sprawdza).
+  /// Przychodzące wchodzą jako przeczytane: to stara rozmowa, a nie nowe
+  /// wiadomości, więc nie liczą się do nieprzeczytanych.
+  Future<({int imported, int skipped})> importHistory({
+    required int conversationId,
+    required List<RestoredMessage> items,
+    required DateTime restoredAt,
+    required DateTime notAfter,
+    DateTime? notBefore,
+  }) =>
+      transaction(() async {
+        final guidy = {for (final item in items) item.messageGuid};
+        final juzSa = guidy.isEmpty
+            ? <String>{}
+            : (await (select(messages)
+                      ..where((m) => m.messageGuid.isIn(guidy)))
+                    .get())
+                .map((m) => m.messageGuid)
+                .toSet();
+        var imported = 0;
+        var skipped = 0;
+        for (final item in items) {
+          final kiedy = item.sentAt.toLocal();
+          if (juzSa.contains(item.messageGuid) ||
+              kiedy.isAfter(notAfter) ||
+              (notBefore != null && kiedy.isBefore(notBefore))) {
+            skipped++;
+            continue;
+          }
+          // Ta sama wiadomość dwa razy w jednej paczce wchodzi raz.
+          juzSa.add(item.messageGuid);
+          await into(messages).insert(
+            MessagesCompanion.insert(
+              messageGuid: item.messageGuid,
+              conversationId: conversationId,
+              direction: item.direction,
+              status: MessageStatus.delivered,
+              kind: Value(
+                  item.fileName == null ? MessageKind.text : MessageKind.file),
+              body: item.body,
+              fileName: Value(item.fileName),
+              fileSize: Value(item.fileSize),
+              filePath: Value(item.filePath),
+              createdAt: kiedy,
+              deliveredAt: Value(kiedy),
+              readAt: Value(item.direction == MessageDirection.incoming
+                  ? restoredAt
+                  : null),
+              restoredAt: Value(restoredAt),
+            ),
+          );
+          imported++;
+        }
+        return (imported: imported, skipped: skipped);
+      });
+
+  /// Rozmowy inne niż [exceptConversationId], z liczbą wiadomości, od
+  /// najświeższej. Źródło do udostępnienia starszej rozmowy urządzeniu,
+  /// które po reinstalacji przyszło pod nowym wpisem.
+  Future<List<({int conversationId, Peer peer, int messages})>>
+      otherConversations(int exceptConversationId) async {
+    final rows = await customSelect(
+      '''
+      SELECT c.id AS conversation_id, c.peer_id AS peer_id,
+             (SELECT COUNT(*) FROM messages m
+                WHERE m.conversation_id = c.id) AS messages,
+             (SELECT MAX(m.created_at) FROM messages m
+                WHERE m.conversation_id = c.id) AS last_at
+      FROM conversations c
+      WHERE c.id != ?
+      ORDER BY COALESCE(last_at, c.updated_at) DESC
+      ''',
+      variables: [Variable.withInt(exceptConversationId)],
+      readsFrom: {conversations, messages},
+    ).get();
+    final wynik = <({int conversationId, Peer peer, int messages})>[];
+    for (final row in rows) {
+      final ile = row.read<int>('messages');
+      if (ile == 0) continue;
+      final peer = await peerById(row.read<int>('peer_id'));
+      if (peer == null) continue;
+      wynik.add((
+        conversationId: row.read<int>('conversation_id'),
+        peer: peer,
+        messages: ile,
+      ));
+    }
+    return wynik;
+  }
+
+  /// Przenosi wszystkie wiadomości z rozmowy [from] do [into] i kasuje pustą
+  /// już [from]. Rozmówca starej rozmowy zostaje na liście urządzeń: usunąć
+  /// go można osobno. Zwraca liczbę przeniesionych wiadomości.
+  Future<int> mergeConversation({required int from, required int into}) =>
+      transaction(() async {
+        if (from == into) return 0;
+        final przeniesione = await (update(messages)
+              ..where((m) => m.conversationId.equals(from)))
+            .write(MessagesCompanion(conversationId: Value(into)));
+        await (delete(conversations)..where((c) => c.id.equals(from))).go();
+        await touchConversation(into);
+        return przeniesione;
+      });
+
+  /// Przywrócony wpis pliku, który czeka na bajty: z kopii historii, bez
+  /// treści na dysku. Tylko do takiego wiersza wolno dopisać plik z historii.
+  Future<Message?> restoredFileAwaiting(String messageGuid) =>
+      (select(messages)
+            ..where((m) =>
+                m.messageGuid.equals(messageGuid) &
+                m.restoredAt.isNotNull() &
+                m.kind.equalsValue(MessageKind.file) &
+                m.filePath.isNull()))
+          .getSingleOrNull();
+
+  /// Podpina plik pod przywrócony wpis, gdy bajty już dojechały.
+  Future<void> attachRestoredFile(int id, String path) =>
+      (update(messages)..where((m) => m.id.equals(id)))
+          .write(MessagesCompanion(filePath: Value(path)));
 
   Future<void> markConversationRead(int conversationId) =>
       (update(messages)..where(

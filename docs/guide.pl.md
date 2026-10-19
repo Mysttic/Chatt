@@ -25,8 +25,12 @@ klawiaturą komputera w polu na telefonie albo na innym komputerze.
 3. Wejdź w **Ustawienia** i ustaw nick, po którym rozpoznasz to urządzenie
    na liście u rozmówcy.
 
-Numer wersji stoi w pasku nad listą rozmów, a Ustawienia powtarzają go
-w sekcji „To urządzenie". Przydaje się przy zgłaszaniu problemu.
+Na górze listy rozmów stoi nazwa tego urządzenia. Numer wersji jest
+w Ustawieniach, w sekcji **Aktualizacje**. Na samym dole Ustawień panel **To
+urządzenie** zbiera adresy, pod którymi urządzenie słucha, adres Bluetooth
+(przy włączonym dodatku, gdy system go podaje), identyfikator i odcisk klucza.
+Każdą wartość kopiuje przycisk obok. Przydaje się przy zgłaszaniu problemu
+i przy dodawaniu po adresie IP.
 
 ## Znajdowanie drugiego urządzenia
 
@@ -58,6 +62,14 @@ radio na cały swój czas, więc rusza dopiero po Twoim kliknięciu.
 Komputery i telefony są pytane najpierw, słuchawki na końcu, a urządzenie
 trafia na listę w chwili, gdy odpowie, więc komputer obok zwykle widać po pół
 minuty, jeszcze w trakcie szukania.
+
+**Telefon musi się pokazać.** Android jest widoczny przez radio tylko przy
+otwartym ekranie parowania w ustawieniach Bluetooth, więc szukanie samo
+telefonu nie znajdzie. Na telefonie, który ma zostać znaleziony, otwórz „W
+pobliżu", wybierz Bluetooth i stuknij **Pokaż ten telefon w pobliżu**. Android
+zapyta własnym okienkiem, a potem telefon jest widoczny przez około dwie
+minuty i w miejscu przycisku stoi napis. W tym czasie uruchom szukanie na
+drugim urządzeniu. Komputer tego nie potrzebuje: dodatek trzyma go widocznym.
 
 Na Androidzie szukanie wymaga włączonych usług lokalizacji. Chatt nie pyta,
 gdzie jesteś, ale bez nich Android nie oddaje żadnych wyników; ekran „W
@@ -170,8 +182,9 @@ Na co dzień piszesz dalej swoją klawiaturą. Klawiatura Chatt przejmuje
 miejsce na czas sesji i oddaje je, gdy sesja się skończy.
 
 **Początek.** Otwórz rozmowę z drugim urządzeniem i wybierz przycisk
-klawiatury u góry. Jest tam tylko przy włączonym dodatku i działa tylko przy
-zielonej tarczy. Ekran **Piszesz na: X** prosi drugie urządzenie i czeka. Tam
+klawiatury u góry (na telefonie: menu **⋮**, **Pisz na tamtym urządzeniu**).
+Jest tam tylko przy włączonym dodatku i działa tylko przy zielonej tarczy.
+Ekran **Piszesz na: X** prosi drugie urządzenie i czeka. Tam
 pojawia się karta „X chce pisać na tym urządzeniu” z przyciskami **Odrzuć**
 i **Akceptuj** oraz polem **Nie pytaj więcej dla tego urządzenia**. Fokus stoi
 na Odrzuć, więc przypadkowy Enter odmawia. Bez odpowiedzi prośba gaśnie po
@@ -264,9 +277,14 @@ w tej chwili dostępny.
 Wpisy na liście rozmów niosą zieloną kropkę na awatarze, dopóki urządzenie
 odpowiada w sieci, i zieloną tarczę przy nazwie, gdy jego tożsamość jest
 potwierdzona. Z włączonym dodatkiem Bluetooth dochodzi ikona drogi (Wi‑Fi
-albo Bluetooth), którą poszła ostatnia wymiana; w nagłówku rozmowy ta sama
-ikona stoi z podpisem. Lista pyta każde znane urządzenie co 30 sekund, tylko
-przy otwartym ekranie.
+albo Bluetooth), którą poszła ostatnia wymiana; w nagłówku rozmowy stoi ta
+sama ikona, a jej podpis pokazuje się po najechaniu albo przytrzymaniu. Lista
+pyta każde znane urządzenie co 30 sekund, tylko przy otwartym ekranie.
+
+Na telefonie nagłówek rozmowy ma tylko tarczę i menu **⋮**. Tarcza stoi na
+tle w kolorze stanu: zielonym przy potwierdzonej tożsamości, w kolorze
+ostrzeżenia przy niepotwierdzonej. Szukanie i klawiatura z PC siedzą w menu.
+Na szerokim oknie oba przyciski stoją w nagłówku obok tarczy.
 
 <img src="screenshots/produkt/android_rozmowa_z_plikiem.png" alt="Rozmowa" width="260">
 
@@ -295,11 +313,56 @@ zapomnieć czegoś, co już dostała, i aplikacja mówi to wprost.
 
 <img src="screenshots/produkt/android_menu_wiadomosci.png" alt="Menu wiadomości" width="260">
 
-**Lupa w pasku** szuka w otwartej rozmowie: lista zostawia same pasujące
+**Szukaj w rozmowie** (lupa w pasku na szerokim oknie, menu **⋮** na
+telefonie) szuka w otwartej rozmowie: lista zostawia same pasujące
 wiadomości, a trafienie jest podświetlone. Ta sama lupa na liście rozmów
 filtruje ją po nazwie rozmówcy i ostatniej wiadomości.
 
 <img src="screenshots/produkt/android_szukanie_w_rozmowie.png" alt="Szukanie" width="260">
+
+Dymki pokazują samą godzinę. Pierwsza wiadomość każdego dnia dostaje nad sobą
+datę: „Dzisiaj", „Wczoraj" albo pełną datę.
+
+## Odzyskiwanie historii rozmowy
+
+Rozmowa żyje na obu urządzeniach. Gdy Twoje ją straci (reinstalacja, nowy
+telefon, **Wyczyść historię**, samoczynne kasowanie), druga strona może oddać
+swoją kopię. Menu **⋮** w rozmowie ma dwie pozycje:
+
+- **Udostępnij historię**, na urządzeniu, które ją ma: całość albo od daty,
+  z plikami albo bez, z liczbami, zanim cokolwiek pójdzie;
+- **Poproś o historię**, na urządzeniu, które ją straciło: karta na drugim
+  urządzeniu pyta, czy oddać, z plikami, bez nich, czy wcale.
+
+Strona przyjmująca zawsze dostaje najpierw kartę: kto wysyła, ile wiadomości
+i plików, z jakiego okresu, ostrzeżenie, gdy tożsamość tamtego urządzenia nie
+jest potwierdzona, i uwaga, gdy samoczynne kasowanie pominie starsze
+wiadomości. Wracają także wiadomości usunięte tu celowo i karta mówi o tym
+wprost. Odpowiedź na Twoje własne **Poproś o historię** wchodzi bez drugiej
+karty.
+
+Przywrócone wiadomości mają oryginalne godziny i kierunki, wchodzą jako
+przeczytane i nie wywołują powiadomień. Każda ma przy godzinie małą ikonę
+historii, a w podpowiedzi datę przywrócenia: kopia rozmówcy to jego słowo,
+a wiadomości nic nie podpisuje.
+
+Pliki jadą po wiadomościach. Obie strony widzą pasek postępu nad polem
+pisania, każda z **Przerwij**. Plik, którego bajtów druga strona
+już nie ma, przychodzi jako „Plik niedostępny"; odebrany plik, który wciąż
+leży u Ciebie na dysku, podpina się bez ponownego przesyłania. Drugie
+udostępnienie wznawia: nic się nie dubluje, a brakujące pliki dojeżdżają.
+
+**Po reinstalacji albo na nowym telefonie** tożsamość bierze się z nowego
+klucza, więc druga strona widzi nowe urządzenie, a stara rozmowa zostaje pod
+starym wpisem. Gdy to nowe urządzenie ma zieloną tarczę, okno udostępniania
+pokazuje **Skąd**: ta rozmowa albo starsza, z innym wpisem. Wybierz starszą
+i, jeśli chcesz, **Połącz u mnie tamtą rozmowę z tą**: po udostępnieniu obie
+staną się jedną po stronie udostępniającej, a stary wpis zostaje na liście
+urządzeń. Bez tarczy pójść może tylko ta rozmowa, więc nikt, kto pożyczy imię
+znajomego, nie dostanie jego rozmowy z Tobą.
+
+Oba urządzenia potrzebują tej wersji; o starszym Chatcie aplikacja mówi
+wprost.
 
 ## Odnośniki w wiadomościach
 
@@ -568,10 +631,27 @@ zmieniłby nic w tym, co robi program.
 
 ## Wygląd i język
 
-W Ustawieniach wybierasz motyw (systemowy, jasny, ciemny), **tło** i język
-(systemowy, polski, angielski). Wszystkie wybory siedzą w bazie, więc
-przeżywają restart. Świeża instalacja startuje po angielsku, polski jest
-o jedno dotknięcie dalej.
+W Ustawieniach, w sekcji **Wygląd**, wybierasz **styl**, motyw (systemowy,
+jasny, ciemny), **tło** i język (systemowy, polski, angielski). Wszystkie
+wybory siedzą w bazie, więc przeżywają restart. Świeża instalacja startuje po
+angielsku, polski jest o jedno dotknięcie dalej.
+
+Style są trzy i różnią się wyłącznie wyglądem: te same ekrany, te same
+informacje, te same przyciski.
+
+- **Cisza** (domyślny): miękkie powierzchnie, okrągłe awatary, zaokrąglone
+  dymki, font Figtree.
+- **Precyzja**: gęsta lista w panelu z obrysem, kwadratowe awatary, ostrzejsze
+  rogi, daty z linią przez całą szerokość, nagłówki sekcji wersalikami, font
+  IBM Plex Sans.
+- **Ciepło**: każda rozmowa na osobnej karcie z cieniem, duże zaokrąglenia,
+  font Nunito.
+
+Każdy styl ma wariant jasny i ciemny oraz własny font o stałej szerokości do
+wartości technicznych: adresów, identyfikatora, odcisku klucza, kodu
+parowania i rozmiarów plików. Ostrzeżenie o niepotwierdzonej tożsamości jest
+czerwone w Ciszy i bursztynowe w Precyzji i Cieple; brak szyfrowania jest
+czerwony w każdym stylu.
 
 Krótkie komunikaty („Skopiowano", „Usunięto rozmowę") pokazują się w prawym
 górnym rogu, z paskiem odliczającym czas do zniknięcia. Kliknięcie zamyka je od
@@ -579,8 +659,9 @@ razu. Na górze nie zasłaniają przycisku ani pola tekstowego, którego przed
 chwilą użyłeś.
 
 Tła to gotowe zestawy: „Bez tła" (zwykły kolor motywu), Zmierzch, Ocean,
-Las i Piasek. Każdy ma osobne kolory na motyw jasny i ciemny, a wszystkie są
-celowo przygaszone: na tle leżą dymki i karty, które muszą zostać czytelne.
+Las i Piasek. Każde ma kolory dobrane do stylu i do motywu jasnego
+i ciemnego, a wszystkie są celowo przygaszone: na tle leżą dymki i karty,
+które muszą zostać czytelne.
 Powiadomienia usługi w tle też idą za językiem aplikacji.
 
 <img src="screenshots/produkt/android_lista_rozmow_ciemny.png" alt="Tryb ciemny" width="260">
@@ -600,8 +681,10 @@ Tam samym są dwie rzeczy do zrobienia ręcznie:
   Domyślnie wyłączone. Aplikacja sprząta przy starcie, po zmianie ustawienia
   i co sześć godzin.
 - **Wyczyść historię**: kasuje wszystkie wiadomości i rozmowy od razu.
-  Nieodwracalne, więc pyta o potwierdzenie. Urządzenia razem z potwierdzoną
-  tożsamością zostają, więc nie trzeba się parować od nowa.
+  Po tej stronie nieodwracalne, więc pyta o potwierdzenie. Urządzenia razem
+  z potwierdzoną tożsamością zostają, więc nie trzeba się parować od nowa.
+  Druga strona ma swoją kopię i może ją oddać
+  ([Odzyskiwanie historii rozmowy](#odzyskiwanie-historii-rozmowy)).
 
 <img src="screenshots/android/and21_wyczysc_historie.png" alt="Wyczyść historię" width="260">
 

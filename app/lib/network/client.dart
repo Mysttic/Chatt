@@ -164,6 +164,24 @@ class PeerClient {
   }) =>
       _json(route, '/input', payload, timeout);
 
+  /// Zapowiedź historii, prośba o nią, jej koniec albo przerwanie. Odpowiedź
+  /// jest zapieczętowana i wraca surowa, jak przy [requestInputSession].
+  /// Limit czasu obejmuje kartę zgody u drugiej strony.
+  Future<TransportReply> historyOffer({
+    required PeerRoute route,
+    required Map<String, Object?> payload,
+    Duration timeout = historyRequestTimeout,
+  }) =>
+      _json(route, '/history-offer', payload, timeout);
+
+  /// Paczka wiadomości udostępnianej historii.
+  Future<TransportReply> historyChunk({
+    required PeerRoute route,
+    required Map<String, Object?> payload,
+    Duration timeout = historyChunkTimeout,
+  }) =>
+      _json(route, '/history-chunk', payload, timeout);
+
   Future<TransportReply> _json(
     PeerRoute route,
     String path,

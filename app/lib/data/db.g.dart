@@ -74,6 +74,16 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         defaultValue: Constant(AppTheme.system.index),
       ).withConverter<AppTheme>($SettingsTable.$convertertheme);
   @override
+  late final GeneratedColumnWithTypeConverter<AppStyle, int> style =
+      GeneratedColumn<int>(
+        'style',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: Constant(AppStyle.cisza.index),
+      ).withConverter<AppStyle>($SettingsTable.$converterstyle);
+  @override
   late final GeneratedColumnWithTypeConverter<AppLanguage, int> language =
       GeneratedColumn<int>(
         'language',
@@ -228,6 +238,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     nickname,
     welcomeMessage,
     theme,
+    style,
     language,
     tcpPort,
     background,
@@ -408,6 +419,12 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
           data['${effectivePrefix}theme'],
         )!,
       ),
+      style: $SettingsTable.$converterstyle.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}style'],
+        )!,
+      ),
       language: $SettingsTable.$converterlanguage.fromSql(
         attachedDatabase.typeMapping.read(
           DriftSqlType.int,
@@ -464,6 +481,8 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
 
   static JsonTypeConverter2<AppTheme, int, int> $convertertheme =
       const EnumIndexConverter<AppTheme>(AppTheme.values);
+  static JsonTypeConverter2<AppStyle, int, int> $converterstyle =
+      const EnumIndexConverter<AppStyle>(AppStyle.values);
   static JsonTypeConverter2<AppLanguage, int, int> $converterlanguage =
       const EnumIndexConverter<AppLanguage>(AppLanguage.values);
 }
@@ -481,6 +500,10 @@ class Setting extends DataClass implements Insertable<Setting> {
   final String nickname;
   final String welcomeMessage;
   final AppTheme theme;
+
+  /// Styl wyglądu. Domyślnie Cisza: od schematu v15 dotychczasowy fiolet
+  /// z jednego koloru bazowego nie istnieje.
+  final AppStyle style;
 
   /// Domyślnie angielski, a nie język systemu: aplikacja jest wydawana
   /// międzynarodowo, więc pierwsze uruchomienie ma być zrozumiałe wszędzie.
@@ -540,6 +563,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.nickname,
     required this.welcomeMessage,
     required this.theme,
+    required this.style,
     required this.language,
     required this.tcpPort,
     required this.background,
@@ -562,6 +586,9 @@ class Setting extends DataClass implements Insertable<Setting> {
     map['welcome_message'] = Variable<String>(welcomeMessage);
     {
       map['theme'] = Variable<int>($SettingsTable.$convertertheme.toSql(theme));
+    }
+    {
+      map['style'] = Variable<int>($SettingsTable.$converterstyle.toSql(style));
     }
     {
       map['language'] = Variable<int>(
@@ -591,6 +618,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       nickname: Value(nickname),
       welcomeMessage: Value(welcomeMessage),
       theme: Value(theme),
+      style: Value(style),
       language: Value(language),
       tcpPort: Value(tcpPort),
       background: Value(background),
@@ -621,6 +649,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       theme: $SettingsTable.$convertertheme.fromJson(
         serializer.fromJson<int>(json['theme']),
       ),
+      style: $SettingsTable.$converterstyle.fromJson(
+        serializer.fromJson<int>(json['style']),
+      ),
       language: $SettingsTable.$converterlanguage.fromJson(
         serializer.fromJson<int>(json['language']),
       ),
@@ -648,6 +679,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       'theme': serializer.toJson<int>(
         $SettingsTable.$convertertheme.toJson(theme),
       ),
+      'style': serializer.toJson<int>(
+        $SettingsTable.$converterstyle.toJson(style),
+      ),
       'language': serializer.toJson<int>(
         $SettingsTable.$converterlanguage.toJson(language),
       ),
@@ -671,6 +705,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     String? nickname,
     String? welcomeMessage,
     AppTheme? theme,
+    AppStyle? style,
     AppLanguage? language,
     int? tcpPort,
     int? background,
@@ -689,6 +724,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     nickname: nickname ?? this.nickname,
     welcomeMessage: welcomeMessage ?? this.welcomeMessage,
     theme: theme ?? this.theme,
+    style: style ?? this.style,
     language: language ?? this.language,
     tcpPort: tcpPort ?? this.tcpPort,
     background: background ?? this.background,
@@ -717,6 +753,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           ? data.welcomeMessage.value
           : this.welcomeMessage,
       theme: data.theme.present ? data.theme.value : this.theme,
+      style: data.style.present ? data.style.value : this.style,
       language: data.language.present ? data.language.value : this.language,
       tcpPort: data.tcpPort.present ? data.tcpPort.value : this.tcpPort,
       background: data.background.present
@@ -758,6 +795,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('nickname: $nickname, ')
           ..write('welcomeMessage: $welcomeMessage, ')
           ..write('theme: $theme, ')
+          ..write('style: $style, ')
           ..write('language: $language, ')
           ..write('tcpPort: $tcpPort, ')
           ..write('background: $background, ')
@@ -781,6 +819,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     nickname,
     welcomeMessage,
     theme,
+    style,
     language,
     tcpPort,
     background,
@@ -803,6 +842,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.nickname == this.nickname &&
           other.welcomeMessage == this.welcomeMessage &&
           other.theme == this.theme &&
+          other.style == this.style &&
           other.language == this.language &&
           other.tcpPort == this.tcpPort &&
           other.background == this.background &&
@@ -823,6 +863,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<String> nickname;
   final Value<String> welcomeMessage;
   final Value<AppTheme> theme;
+  final Value<AppStyle> style;
   final Value<AppLanguage> language;
   final Value<int> tcpPort;
   final Value<int> background;
@@ -841,6 +882,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.nickname = const Value.absent(),
     this.welcomeMessage = const Value.absent(),
     this.theme = const Value.absent(),
+    this.style = const Value.absent(),
     this.language = const Value.absent(),
     this.tcpPort = const Value.absent(),
     this.background = const Value.absent(),
@@ -860,6 +902,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     required String nickname,
     this.welcomeMessage = const Value.absent(),
     this.theme = const Value.absent(),
+    this.style = const Value.absent(),
     this.language = const Value.absent(),
     this.tcpPort = const Value.absent(),
     this.background = const Value.absent(),
@@ -880,6 +923,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<String>? nickname,
     Expression<String>? welcomeMessage,
     Expression<int>? theme,
+    Expression<int>? style,
     Expression<int>? language,
     Expression<int>? tcpPort,
     Expression<int>? background,
@@ -899,6 +943,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (nickname != null) 'nickname': nickname,
       if (welcomeMessage != null) 'welcome_message': welcomeMessage,
       if (theme != null) 'theme': theme,
+      if (style != null) 'style': style,
       if (language != null) 'language': language,
       if (tcpPort != null) 'tcp_port': tcpPort,
       if (background != null) 'background': background,
@@ -921,6 +966,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<String>? nickname,
     Value<String>? welcomeMessage,
     Value<AppTheme>? theme,
+    Value<AppStyle>? style,
     Value<AppLanguage>? language,
     Value<int>? tcpPort,
     Value<int>? background,
@@ -940,6 +986,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       nickname: nickname ?? this.nickname,
       welcomeMessage: welcomeMessage ?? this.welcomeMessage,
       theme: theme ?? this.theme,
+      style: style ?? this.style,
       language: language ?? this.language,
       tcpPort: tcpPort ?? this.tcpPort,
       background: background ?? this.background,
@@ -975,6 +1022,11 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (theme.present) {
       map['theme'] = Variable<int>(
         $SettingsTable.$convertertheme.toSql(theme.value),
+      );
+    }
+    if (style.present) {
+      map['style'] = Variable<int>(
+        $SettingsTable.$converterstyle.toSql(style.value),
       );
     }
     if (language.present) {
@@ -1024,6 +1076,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('nickname: $nickname, ')
           ..write('welcomeMessage: $welcomeMessage, ')
           ..write('theme: $theme, ')
+          ..write('style: $style, ')
           ..write('language: $language, ')
           ..write('tcpPort: $tcpPort, ')
           ..write('background: $background, ')
@@ -2418,6 +2471,17 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _restoredAtMeta = const VerificationMeta(
+    'restoredAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> restoredAt = GeneratedColumn<DateTime>(
+    'restored_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2433,6 +2497,7 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
     createdAt,
     deliveredAt,
     readAt,
+    restoredAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2520,6 +2585,12 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         readAt.isAcceptableOrUnknown(data['read_at']!, _readAtMeta),
       );
     }
+    if (data.containsKey('restored_at')) {
+      context.handle(
+        _restoredAtMeta,
+        restoredAt.isAcceptableOrUnknown(data['restored_at']!, _restoredAtMeta),
+      );
+    }
     return context;
   }
 
@@ -2587,6 +2658,10 @@ class $MessagesTable extends Messages with TableInfo<$MessagesTable, Message> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}read_at'],
       ),
+      restoredAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}restored_at'],
+      ),
     );
   }
 
@@ -2623,6 +2698,11 @@ class Message extends DataClass implements Insertable<Message> {
   final DateTime createdAt;
   final DateTime? deliveredAt;
   final DateTime? readAt;
+
+  /// Kiedy wiadomość wróciła z kopii historii rozmówcy (issue #36). `null`
+  /// znaczy zwykłą drogę. Treść i autorstwo przywróconej wiadomości to
+  /// twierdzenie rozmówcy: nic jej nie podpisuje, więc interfejs ją oznacza.
+  final DateTime? restoredAt;
   const Message({
     required this.id,
     required this.messageGuid,
@@ -2637,6 +2717,7 @@ class Message extends DataClass implements Insertable<Message> {
     required this.createdAt,
     this.deliveredAt,
     this.readAt,
+    this.restoredAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2674,6 +2755,9 @@ class Message extends DataClass implements Insertable<Message> {
     if (!nullToAbsent || readAt != null) {
       map['read_at'] = Variable<DateTime>(readAt);
     }
+    if (!nullToAbsent || restoredAt != null) {
+      map['restored_at'] = Variable<DateTime>(restoredAt);
+    }
     return map;
   }
 
@@ -2702,6 +2786,9 @@ class Message extends DataClass implements Insertable<Message> {
       readAt: readAt == null && nullToAbsent
           ? const Value.absent()
           : Value(readAt),
+      restoredAt: restoredAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(restoredAt),
     );
   }
 
@@ -2730,6 +2817,7 @@ class Message extends DataClass implements Insertable<Message> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       deliveredAt: serializer.fromJson<DateTime?>(json['deliveredAt']),
       readAt: serializer.fromJson<DateTime?>(json['readAt']),
+      restoredAt: serializer.fromJson<DateTime?>(json['restoredAt']),
     );
   }
   @override
@@ -2755,6 +2843,7 @@ class Message extends DataClass implements Insertable<Message> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'deliveredAt': serializer.toJson<DateTime?>(deliveredAt),
       'readAt': serializer.toJson<DateTime?>(readAt),
+      'restoredAt': serializer.toJson<DateTime?>(restoredAt),
     };
   }
 
@@ -2772,6 +2861,7 @@ class Message extends DataClass implements Insertable<Message> {
     DateTime? createdAt,
     Value<DateTime?> deliveredAt = const Value.absent(),
     Value<DateTime?> readAt = const Value.absent(),
+    Value<DateTime?> restoredAt = const Value.absent(),
   }) => Message(
     id: id ?? this.id,
     messageGuid: messageGuid ?? this.messageGuid,
@@ -2786,6 +2876,7 @@ class Message extends DataClass implements Insertable<Message> {
     createdAt: createdAt ?? this.createdAt,
     deliveredAt: deliveredAt.present ? deliveredAt.value : this.deliveredAt,
     readAt: readAt.present ? readAt.value : this.readAt,
+    restoredAt: restoredAt.present ? restoredAt.value : this.restoredAt,
   );
   Message copyWithCompanion(MessagesCompanion data) {
     return Message(
@@ -2808,6 +2899,9 @@ class Message extends DataClass implements Insertable<Message> {
           ? data.deliveredAt.value
           : this.deliveredAt,
       readAt: data.readAt.present ? data.readAt.value : this.readAt,
+      restoredAt: data.restoredAt.present
+          ? data.restoredAt.value
+          : this.restoredAt,
     );
   }
 
@@ -2826,7 +2920,8 @@ class Message extends DataClass implements Insertable<Message> {
           ..write('filePath: $filePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('deliveredAt: $deliveredAt, ')
-          ..write('readAt: $readAt')
+          ..write('readAt: $readAt, ')
+          ..write('restoredAt: $restoredAt')
           ..write(')'))
         .toString();
   }
@@ -2846,6 +2941,7 @@ class Message extends DataClass implements Insertable<Message> {
     createdAt,
     deliveredAt,
     readAt,
+    restoredAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2863,7 +2959,8 @@ class Message extends DataClass implements Insertable<Message> {
           other.filePath == this.filePath &&
           other.createdAt == this.createdAt &&
           other.deliveredAt == this.deliveredAt &&
-          other.readAt == this.readAt);
+          other.readAt == this.readAt &&
+          other.restoredAt == this.restoredAt);
 }
 
 class MessagesCompanion extends UpdateCompanion<Message> {
@@ -2880,6 +2977,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
   final Value<DateTime> createdAt;
   final Value<DateTime?> deliveredAt;
   final Value<DateTime?> readAt;
+  final Value<DateTime?> restoredAt;
   const MessagesCompanion({
     this.id = const Value.absent(),
     this.messageGuid = const Value.absent(),
@@ -2894,6 +2992,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     this.createdAt = const Value.absent(),
     this.deliveredAt = const Value.absent(),
     this.readAt = const Value.absent(),
+    this.restoredAt = const Value.absent(),
   });
   MessagesCompanion.insert({
     this.id = const Value.absent(),
@@ -2909,6 +3008,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     required DateTime createdAt,
     this.deliveredAt = const Value.absent(),
     this.readAt = const Value.absent(),
+    this.restoredAt = const Value.absent(),
   }) : messageGuid = Value(messageGuid),
        conversationId = Value(conversationId),
        direction = Value(direction),
@@ -2929,6 +3029,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? deliveredAt,
     Expression<DateTime>? readAt,
+    Expression<DateTime>? restoredAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2944,6 +3045,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       if (createdAt != null) 'created_at': createdAt,
       if (deliveredAt != null) 'delivered_at': deliveredAt,
       if (readAt != null) 'read_at': readAt,
+      if (restoredAt != null) 'restored_at': restoredAt,
     });
   }
 
@@ -2961,6 +3063,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     Value<DateTime>? createdAt,
     Value<DateTime?>? deliveredAt,
     Value<DateTime?>? readAt,
+    Value<DateTime?>? restoredAt,
   }) {
     return MessagesCompanion(
       id: id ?? this.id,
@@ -2976,6 +3079,7 @@ class MessagesCompanion extends UpdateCompanion<Message> {
       createdAt: createdAt ?? this.createdAt,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       readAt: readAt ?? this.readAt,
+      restoredAt: restoredAt ?? this.restoredAt,
     );
   }
 
@@ -3027,6 +3131,9 @@ class MessagesCompanion extends UpdateCompanion<Message> {
     if (readAt.present) {
       map['read_at'] = Variable<DateTime>(readAt.value);
     }
+    if (restoredAt.present) {
+      map['restored_at'] = Variable<DateTime>(restoredAt.value);
+    }
     return map;
   }
 
@@ -3045,7 +3152,8 @@ class MessagesCompanion extends UpdateCompanion<Message> {
           ..write('filePath: $filePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('deliveredAt: $deliveredAt, ')
-          ..write('readAt: $readAt')
+          ..write('readAt: $readAt, ')
+          ..write('restoredAt: $restoredAt')
           ..write(')'))
         .toString();
   }
@@ -3077,6 +3185,7 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   required String nickname,
   Value<String> welcomeMessage,
   Value<AppTheme> theme,
+  Value<AppStyle> style,
   Value<AppLanguage> language,
   Value<int> tcpPort,
   Value<int> background,
@@ -3096,6 +3205,7 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<String> nickname,
   Value<String> welcomeMessage,
   Value<AppTheme> theme,
+  Value<AppStyle> style,
   Value<AppLanguage> language,
   Value<int> tcpPort,
   Value<int> background,
@@ -3146,6 +3256,12 @@ class $$SettingsTableFilterComposer
   ColumnWithTypeConverterFilters<AppTheme, AppTheme, int> get theme =>
       $composableBuilder(
         column: $table.theme,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnWithTypeConverterFilters<AppStyle, AppStyle, int> get style =>
+      $composableBuilder(
+        column: $table.style,
         builder: (column) => ColumnWithTypeConverterFilters(column),
       );
 
@@ -3245,6 +3361,11 @@ class $$SettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get style => $composableBuilder(
+    column: $table.style,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get language => $composableBuilder(
     column: $table.language,
     builder: (column) => ColumnOrderings(column),
@@ -3334,6 +3455,9 @@ class $$SettingsTableAnnotationComposer
   GeneratedColumnWithTypeConverter<AppTheme, int> get theme =>
       $composableBuilder(column: $table.theme, builder: (column) => column);
 
+  GeneratedColumnWithTypeConverter<AppStyle, int> get style =>
+      $composableBuilder(column: $table.style, builder: (column) => column);
+
   GeneratedColumnWithTypeConverter<AppLanguage, int> get language =>
       $composableBuilder(column: $table.language, builder: (column) => column);
 
@@ -3420,6 +3544,7 @@ class $$SettingsTableTableManager
                 Value<String> nickname = const Value.absent(),
                 Value<String> welcomeMessage = const Value.absent(),
                 Value<AppTheme> theme = const Value.absent(),
+                Value<AppStyle> style = const Value.absent(),
                 Value<AppLanguage> language = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
                 Value<int> background = const Value.absent(),
@@ -3438,6 +3563,7 @@ class $$SettingsTableTableManager
                 nickname: nickname,
                 welcomeMessage: welcomeMessage,
                 theme: theme,
+                style: style,
                 language: language,
                 tcpPort: tcpPort,
                 background: background,
@@ -3458,6 +3584,7 @@ class $$SettingsTableTableManager
                 required String nickname,
                 Value<String> welcomeMessage = const Value.absent(),
                 Value<AppTheme> theme = const Value.absent(),
+                Value<AppStyle> style = const Value.absent(),
                 Value<AppLanguage> language = const Value.absent(),
                 Value<int> tcpPort = const Value.absent(),
                 Value<int> background = const Value.absent(),
@@ -3476,6 +3603,7 @@ class $$SettingsTableTableManager
                 nickname: nickname,
                 welcomeMessage: welcomeMessage,
                 theme: theme,
+                style: style,
                 language: language,
                 tcpPort: tcpPort,
                 background: background,
@@ -4413,6 +4541,7 @@ typedef $$MessagesTableCreateCompanionBuilder = MessagesCompanion Function({
   required DateTime createdAt,
   Value<DateTime?> deliveredAt,
   Value<DateTime?> readAt,
+  Value<DateTime?> restoredAt,
 });
 typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<int> id,
@@ -4428,6 +4557,7 @@ typedef $$MessagesTableUpdateCompanionBuilder = MessagesCompanion Function({
   Value<DateTime> createdAt,
   Value<DateTime?> deliveredAt,
   Value<DateTime?> readAt,
+  Value<DateTime?> restoredAt,
 });
 
 final class $$MessagesTableReferences
@@ -4525,6 +4655,11 @@ class $$MessagesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$ConversationsTableFilterComposer get conversationId {
     final $$ConversationsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -4618,6 +4753,11 @@ class $$MessagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ConversationsTableOrderingComposer get conversationId {
     final $$ConversationsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -4691,6 +4831,11 @@ class $$MessagesTableAnnotationComposer
   GeneratedColumn<DateTime> get readAt =>
       $composableBuilder(column: $table.readAt, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get restoredAt => $composableBuilder(
+    column: $table.restoredAt,
+    builder: (column) => column,
+  );
+
   $$ConversationsTableAnnotationComposer get conversationId {
     final $$ConversationsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -4756,6 +4901,7 @@ class $$MessagesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> deliveredAt = const Value.absent(),
                 Value<DateTime?> readAt = const Value.absent(),
+                Value<DateTime?> restoredAt = const Value.absent(),
               }) => MessagesCompanion(
                 id: id,
                 messageGuid: messageGuid,
@@ -4770,6 +4916,7 @@ class $$MessagesTableTableManager
                 createdAt: createdAt,
                 deliveredAt: deliveredAt,
                 readAt: readAt,
+                restoredAt: restoredAt,
               ),
           createCompanionCallback:
               ({
@@ -4786,6 +4933,7 @@ class $$MessagesTableTableManager
                 required DateTime createdAt,
                 Value<DateTime?> deliveredAt = const Value.absent(),
                 Value<DateTime?> readAt = const Value.absent(),
+                Value<DateTime?> restoredAt = const Value.absent(),
               }) => MessagesCompanion.insert(
                 id: id,
                 messageGuid: messageGuid,
@@ -4800,6 +4948,7 @@ class $$MessagesTableTableManager
                 createdAt: createdAt,
                 deliveredAt: deliveredAt,
                 readAt: readAt,
+                restoredAt: restoredAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

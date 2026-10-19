@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/search.dart';
-import '../../core/version.dart';
 import '../../data/db.dart';
 import '../../services/presence.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import '../widgets/common.dart';
 import '../widgets/protocol_badge.dart';
 import 'chat_screen.dart';
@@ -134,27 +134,18 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                 controller: _search,
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration(
+                decoration: InputDecoration.collapsed(
                   hintText: context.l10n.searchConversationsHint,
-                  border: InputBorder.none,
                 ),
               )
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(context.l10n.appTitle),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: Text(
-                      appVersion,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ),
-                ],
+            // Nazwa tego urządzenia: tak widzą je inni, a przy kilku
+            // urządzeniach od razu wiadomo, na którym się jest. Numer wersji
+            // mieszka w Ustawieniach, w sekcji Aktualizacje.
+            : Text(
+                ref.watch(settingsProvider).value?.nickname ??
+                    context.l10n.appTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
         actions: [
           IconButton(
@@ -204,58 +195,128 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               ),
             );
           }
-          return ListView.separated(
-            // Ostatnia rozmowa nie może chować się pod paskiem gestów.
-            padding: EdgeInsets.only(bottom: bottomSystemInset(context)),
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const Divider(height: 1, indent: 72),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return ListTile(
-                leading: InitialsAvatar(
-                  name: item.peer.displayName,
-                  online: presence[item.peer.guid],
-                ),
-                title: PeerName(
-                  name: item.peer.displayName,
-                  verified: item.peer.verified,
-                ),
-                subtitle: Text(
-                  item.lastBody ?? item.peer.welcomeMessage,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Sama ikona: w wierszu listy nie ma miejsca na
-                        // podpis, a różnicę między sekundą a minutą przy tym
-                        // samym pliku trzeba pokazać.
-                        ProtocolBadge(
-                          peer: item.peer,
-                          compact: true,
-                          padding: const EdgeInsets.only(right: 6),
+          final k = ChattTokens.of(context);
+          final scheme = Theme.of(context).colorScheme;
+          final dwupanel = czyDwupanel(context);
+          Widget wiersz(ConversationSummary item) {
+            final wybrany =
+                item.conversationId == _wybranaRozmowa && dwupanel;
+            final tile = ListTile(
+              contentPadding: k.rowPadding,
+              // Wysokość wiersza ze stylu liczy już odstępy; ListTile dokłada
+              // je osobno.
+              minTileHeight: k.rowHeight - k.rowPadding.vertical,
+              horizontalTitleGap: k.rowGap,
+              // Na pulpicie gęstość kompaktowa przycina awatar i kolumnę
+              // z godziną do 48 px.
+              visualDensity: VisualDensity.standard,
+              leading: InitialsAvatar(
+                name: item.peer.displayName,
+                online: presence[item.peer.guid],
+              ),
+              title: PeerName(
+                name: item.peer.displayName,
+                verified: item.peer.verified,
+              ),
+              subtitle: Text(
+                item.lastBody ?? item.peer.welcomeMessage,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Sama ikona: w wierszu listy nie ma miejsca na
+                      // podpis, a różnicę między sekundą a minutą przy tym
+                      // samym pliku trzeba pokazać.
+                      ProtocolBadge(
+                        peer: item.peer,
+                        compact: true,
+                        padding: const EdgeInsets.only(right: 6),
+                      ),
+                      Text(
+                        formatWhen(item.lastAt),
+                        style: k.caption.copyWith(
+                          color: item.unreadCount > 0
+                              ? k.unreadTime
+                              : scheme.onSurfaceVariant,
                         ),
-                        Text(formatWhen(item.lastAt),
-                            style: Theme.of(context).textTheme.bodySmall),
-                      ],
-                    ),
-                    if (item.unreadCount > 0) ...[
-                      const SizedBox(height: 4),
-                      Badge.count(count: item.unreadCount),
+                      ),
                     ],
+                  ),
+                  if (item.unreadCount > 0) ...[
+                    const SizedBox(height: 4),
+                    UnreadCount(count: item.unreadCount),
                   ],
+                ],
+              ),
+              selected: wybrany,
+              onTap: () => _otworz(item.conversationId, item.peer),
+              onLongPress: () => _confirmDelete(context, ref, item.peer),
+            );
+            if (!k.rowCards) return tile;
+            // Ciepło: każdy wiersz to osobna karta z cieniem; wybrany ma
+            // ramkę w kolorze akcentu.
+            final ksztalt = BorderRadius.circular(k.radiusRow);
+            return DecoratedBox(
+              decoration:
+                  BoxDecoration(borderRadius: ksztalt, boxShadow: k.shadow1),
+              child: Material(
+                color: k.surface1,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: ksztalt,
+                  side: BorderSide(
+                    color: wybrany ? scheme.primary : Colors.transparent,
+                    width: 2,
+                  ),
                 ),
-                selected: item.conversationId == _wybranaRozmowa &&
-                    czyDwupanel(context),
-                onTap: () => _otworz(item.conversationId, item.peer),
-                onLongPress: () => _confirmDelete(context, ref, item.peer),
-              );
-            },
+                child: tile,
+              ),
+            );
+          }
+
+          final lista = ListView.separated(
+            // Ostatnia rozmowa nie może chować się pod paskiem gestów.
+            padding: EdgeInsets.fromLTRB(
+              k.rowCards ? 12 : 6,
+              k.rowCards ? 8 : 6,
+              k.rowCards ? 12 : 6,
+              (k.rowCards ? 8 : 6) + bottomSystemInset(context),
+            ),
+            itemCount: items.length,
+            separatorBuilder: (_, _) => k.rowCards || k.listGap > 0
+                ? SizedBox(height: k.listGap)
+                : Divider(height: 1, indent: k.avatarSize + 26),
+            itemBuilder: (context, index) => wiersz(items[index]),
+          );
+          if (k.rowCards) return lista;
+          // Cisza i Precyzja: wiersze bez tła w jednym panelu. Tło daje
+          // Material, a nie dekoracja: inaczej zasłoniłoby efekt dotyku
+          // i zaznaczenie wiersza.
+          final gora =
+              BorderRadius.vertical(top: Radius.circular(k.radiusCard));
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+            child: DecoratedBox(
+              decoration:
+                  BoxDecoration(borderRadius: gora, boxShadow: k.shadow1),
+              child: Material(
+                color: k.surface1,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: gora,
+                  side: k.style == AppStyle.precyzja
+                      ? BorderSide(color: k.outline)
+                      : BorderSide.none,
+                ),
+                child: lista,
+              ),
+            ),
           );
         },
       ),

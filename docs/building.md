@@ -175,6 +175,7 @@ The manifest permissions and what they are for:
 | `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` | the exemption request, called only from settings |
 | `REQUEST_INSTALL_PACKAGES` | handing a downloaded update to the system installer |
 | `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN` (`neverForLocation`) | the Bluetooth add-on, asked only when it goes on |
+| `BLUETOOTH_ADVERTISE` | **Show this phone nearby** in Nearby: the system prompt that makes the phone visible for two minutes. Same group as the two above, so the system grants it without a question of its own |
 | `BLUETOOTH`, `BLUETOOTH_ADMIN`, `ACCESS_FINE_LOCATION` (up to API 30) | the Bluetooth add-on on Android 11 and older: the first two come with the install, and a radio search there needs location, which Chatt never asks for, so the other device is added by its radio address |
 | `CAMERA` (added by `mobile_scanner`) | scanning the pairing QR code, only when asked |
 

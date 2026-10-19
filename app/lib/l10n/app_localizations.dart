@@ -1400,41 +1400,17 @@ abstract class AppLocalizations {
   /// **'Dodatki'**
   String get addons;
 
-  /// No description provided for @addonsHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Funkcje, których większość osób nie potrzebuje. Wyłączony dodatek nie wychodzi poza tę sekcję: nie widać go na żadnym innym ekranie i niczego nie uruchamia.'**
-  String get addonsHelp;
-
-  /// No description provided for @transportsHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Dwie drogi, obie mogą być włączone naraz. Sieć jest kilkadziesiąt razy szybsza, Bluetooth działa bez żadnej sieci, gdy urządzenia są obok siebie.'**
-  String get transportsHelp;
-
   /// No description provided for @transportWifi.
   ///
   /// In pl, this message translates to:
   /// **'Sieć lokalna'**
   String get transportWifi;
 
-  /// No description provided for @transportWifiHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Wiadomości i pliki przez Wi-Fi albo kabel. Wymaga, żeby oba urządzenia były w tej samej sieci.'**
-  String get transportWifiHelp;
-
   /// No description provided for @transportBluetooth.
   ///
   /// In pl, this message translates to:
   /// **'Bluetooth'**
   String get transportBluetooth;
-
-  /// No description provided for @transportBluetoothHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Wiadomości i pliki przez radio, bez routera, adresu i wspólnej sieci. Kilkadziesiąt razy wolniej niż Wi-Fi, więc duży plik potrwa. Włączenie dodaje szukanie przez Bluetooth w „W pobliżu” i znacznik drogi w rozmowach.'**
-  String get transportBluetoothHelp;
 
   /// No description provided for @transportBluetoothUnsupported.
   ///
@@ -1484,23 +1460,11 @@ abstract class AppLocalizations {
   /// **'Klawiatura z PC'**
   String get keyboardAddon;
 
-  /// No description provided for @keyboardAddonHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Pisanie z klawiatury komputera w polu, które ma fokus na drugim urządzeniu, w dowolnej aplikacji. Tylko między urządzeniami z potwierdzoną tożsamością, tym samym szyfrowanym kanałem co rozmowy.'**
-  String get keyboardAddonHelp;
-
   /// No description provided for @remoteInputReceive.
   ///
   /// In pl, this message translates to:
   /// **'Pozwól pisać na tym urządzeniu'**
   String get remoteInputReceive;
-
-  /// No description provided for @remoteInputReceiveHelp.
-  ///
-  /// In pl, this message translates to:
-  /// **'Potwierdzone urządzenie może poprosić o pisanie tutaj. Każda sesja zaczyna się od pytania na tym ekranie.'**
-  String get remoteInputReceiveHelp;
 
   /// No description provided for @remoteInputSafety.
   ///
@@ -1597,12 +1561,6 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Klawiatura Chatt jest włączona.'**
   String get remoteInputImeReady;
-
-  /// No description provided for @remoteInputSendHint.
-  ///
-  /// In pl, this message translates to:
-  /// **'Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz klawiaturę u góry ekranu.'**
-  String get remoteInputSendHint;
 
   /// No description provided for @remoteInputDontAskAgain.
   ///
@@ -1895,7 +1853,7 @@ abstract class AppLocalizations {
   /// No description provided for @scanNothingFoundBluetooth.
   ///
   /// In pl, this message translates to:
-  /// **'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Możesz też dodać je po adresie radia.'**
+  /// **'Nie znaleziono urządzeń przez Bluetooth. Sprawdź, czy Chatt działa na drugim urządzeniu i ma włączony dodatek Bluetooth, i czy stoi najwyżej kilka metrów dalej. Telefon z Androidem trzeba najpierw pokazać: na nim w „W pobliżu” przy wybranym Bluetoothcie stuknij „Pokaż ten telefon w pobliżu”. Możesz też dodać urządzenie po adresie radia.'**
   String get scanNothingFoundBluetooth;
 
   /// No description provided for @searchBluetoothNoLocation.
@@ -1909,6 +1867,30 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Włącz lokalizację'**
   String get turnOnLocation;
+
+  /// No description provided for @showThisPhone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pokaż ten telefon w pobliżu'**
+  String get showThisPhone;
+
+  /// No description provided for @showThisPhoneHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android pokazuje telefon innym urządzeniom tylko na żądanie. Gdy drugie urządzenie ma znaleźć ten telefon, stuknij przycisk, potwierdź w okienku i uruchom szukanie tam.'**
+  String get showThisPhoneHint;
+
+  /// No description provided for @thisPhoneVisible.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ten telefon jest teraz widoczny dla urządzeń w pobliżu, przez około dwie minuty. Uruchom szukanie na drugim urządzeniu.'**
+  String get thisPhoneVisible;
+
+  /// No description provided for @showThisPhoneFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android nie pokazał pytania o widoczność. Ten sam skutek daje otwarty ekran parowania w ustawieniach Bluetooth telefonu.'**
+  String get showThisPhoneFailed;
 
   /// No description provided for @addByBtAddress.
   ///
@@ -1951,6 +1933,390 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Adres tego radia: {address}'**
   String myBtAddress(String address);
+
+  /// No description provided for @historyMenu.
+  ///
+  /// In pl, this message translates to:
+  /// **'Więcej'**
+  String get historyMenu;
+
+  /// No description provided for @historyShare.
+  ///
+  /// In pl, this message translates to:
+  /// **'Udostępnij historię'**
+  String get historyShare;
+
+  /// No description provided for @historyRequest.
+  ///
+  /// In pl, this message translates to:
+  /// **'Poproś o historię'**
+  String get historyRequest;
+
+  /// No description provided for @historyShareTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Udostępnij historię rozmowy'**
+  String get historyShareTitle;
+
+  /// No description provided for @historyShareBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} dostanie kopię waszej rozmowy, oznaczoną jako przywrócona. Najpierw zobaczy kartę z pytaniem.'**
+  String historyShareBody(Object name);
+
+  /// No description provided for @historyRangeAll.
+  ///
+  /// In pl, this message translates to:
+  /// **'Całość'**
+  String get historyRangeAll;
+
+  /// No description provided for @historyRangeSince.
+  ///
+  /// In pl, this message translates to:
+  /// **'Od {date}'**
+  String historyRangeSince(DateTime date);
+
+  /// No description provided for @historyPickDate.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wybierz datę'**
+  String get historyPickDate;
+
+  /// No description provided for @historyWithFiles.
+  ///
+  /// In pl, this message translates to:
+  /// **'Z plikami'**
+  String get historyWithFiles;
+
+  /// No description provided for @historyWithoutFiles.
+  ///
+  /// In pl, this message translates to:
+  /// **'Bez plików'**
+  String get historyWithoutFiles;
+
+  /// No description provided for @historyCountMessages.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} wiadomość} few{{count} wiadomości} many{{count} wiadomości} other{{count} wiadomości}}'**
+  String historyCountMessages(int count);
+
+  /// No description provided for @historyCountFiles.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, =0{bez plików} one{{count} plik} few{{count} pliki} many{{count} plików} other{{count} plików}}'**
+  String historyCountFiles(int count);
+
+  /// No description provided for @historyRange.
+  ///
+  /// In pl, this message translates to:
+  /// **'od {from} do {to}'**
+  String historyRange(DateTime from, DateTime to);
+
+  /// No description provided for @historyMissingFiles.
+  ///
+  /// In pl, this message translates to:
+  /// **'Plików, których już tu nie ma, pójdzie bez treści: {count}'**
+  String historyMissingFiles(int count);
+
+  /// No description provided for @historyNothing.
+  ///
+  /// In pl, this message translates to:
+  /// **'W tej rozmowie nie ma czego udostępnić.'**
+  String get historyNothing;
+
+  /// No description provided for @historyShareAction.
+  ///
+  /// In pl, this message translates to:
+  /// **'Udostępnij'**
+  String get historyShareAction;
+
+  /// No description provided for @historyShareDone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Historia udostępniona.'**
+  String get historyShareDone;
+
+  /// No description provided for @historyShareRejected.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} nie przyjmuje historii.'**
+  String historyShareRejected(Object name);
+
+  /// No description provided for @historyNoAnswer.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nikt nie odpowiedział na karcie po drugiej stronie.'**
+  String get historyNoAnswer;
+
+  /// No description provided for @historyBusy.
+  ///
+  /// In pl, this message translates to:
+  /// **'Trwa już inne przesyłanie historii. Spróbuj później.'**
+  String get historyBusy;
+
+  /// No description provided for @historyOlderVersion.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tamto urządzenie ma starszą wersję Chatt, bez udostępniania historii.'**
+  String get historyOlderVersion;
+
+  /// No description provided for @historyUnreachable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tamto urządzenie nie odpowiada.'**
+  String get historyUnreachable;
+
+  /// No description provided for @historyCancelled.
+  ///
+  /// In pl, this message translates to:
+  /// **'Udostępnianie przerwane. To, co doszło, zostaje po drugiej stronie.'**
+  String get historyCancelled;
+
+  /// No description provided for @historyFailed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Udostępnianie się nie udało. Spróbuj jeszcze raz: to, co doszło, się nie zdubluje.'**
+  String get historyFailed;
+
+  /// No description provided for @historyRequestSent.
+  ///
+  /// In pl, this message translates to:
+  /// **'Prośba wysłana, czekam na odpowiedź.'**
+  String get historyRequestSent;
+
+  /// No description provided for @historyRequestAccepted.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name}: zgoda. Historia zaraz zacznie spływać.'**
+  String historyRequestAccepted(Object name);
+
+  /// No description provided for @historyRequestRejected.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name}: odmowa.'**
+  String historyRequestRejected(Object name);
+
+  /// No description provided for @historyRequestEmpty.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} nie ma u siebie tej rozmowy.'**
+  String historyRequestEmpty(Object name);
+
+  /// No description provided for @historyOfferTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} chce przywrócić historię waszej rozmowy'**
+  String historyOfferTitle(Object name);
+
+  /// No description provided for @historyOfferDeleted.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wróci także to, co zostało tu wcześniej usunięte.'**
+  String get historyOfferDeleted;
+
+  /// No description provided for @historyOfferMarked.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przywrócone wiadomości są oznaczone: to kopia rozmówcy i nikt jej nie podpisuje.'**
+  String get historyOfferMarked;
+
+  /// No description provided for @historyOfferUnverified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tożsamość niepotwierdzona: historię może przysyłać ktoś, kto podaje się za tę osobę.'**
+  String get historyOfferUnverified;
+
+  /// No description provided for @historyOfferRetention.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wiadomości starsze niż {days} dni nie wejdą, bo tyle trzyma je ustawienie przechowywania.'**
+  String historyOfferRetention(int days);
+
+  /// No description provided for @historyRequestTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'{name} prosi o historię waszej rozmowy'**
+  String historyRequestTitle(Object name);
+
+  /// No description provided for @historyRequestBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dostanie kopię tego, co jest tutaj w tej rozmowie, oznaczoną jako przywrócona.'**
+  String get historyRequestBody;
+
+  /// No description provided for @historySharing.
+  ///
+  /// In pl, this message translates to:
+  /// **'Udostępnianie historii: {name}'**
+  String historySharing(Object name);
+
+  /// No description provided for @historyRestoring.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przywracanie historii od: {name}'**
+  String historyRestoring(Object name);
+
+  /// No description provided for @historyRestored.
+  ///
+  /// In pl, this message translates to:
+  /// **'Historia od {name} przywrócona'**
+  String historyRestored(Object name);
+
+  /// No description provided for @historyProgressMessages.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wiadomości: {done} z {total}'**
+  String historyProgressMessages(int done, int total);
+
+  /// No description provided for @historyProgressFiles.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pliki: {done} z {total}'**
+  String historyProgressFiles(int done, int total);
+
+  /// No description provided for @historySkipped.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pominięte, bo już były albo są za stare: {count}'**
+  String historySkipped(int count);
+
+  /// No description provided for @historyStop.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przerwij'**
+  String get historyStop;
+
+  /// No description provided for @messageRestored.
+  ///
+  /// In pl, this message translates to:
+  /// **'Przywrócona {date} z kopii rozmówcy'**
+  String messageRestored(DateTime date);
+
+  /// No description provided for @fileUnavailable.
+  ///
+  /// In pl, this message translates to:
+  /// **'Plik niedostępny'**
+  String get fileUnavailable;
+
+  /// No description provided for @fileAwaiting.
+  ///
+  /// In pl, this message translates to:
+  /// **'Czeka na przesłanie'**
+  String get fileAwaiting;
+
+  /// No description provided for @dateToday.
+  ///
+  /// In pl, this message translates to:
+  /// **'Dzisiaj'**
+  String get dateToday;
+
+  /// No description provided for @dateYesterday.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wczoraj'**
+  String get dateYesterday;
+
+  /// No description provided for @dateSeparator.
+  ///
+  /// In pl, this message translates to:
+  /// **'{date}'**
+  String dateSeparator(DateTime date);
+
+  /// No description provided for @historySource.
+  ///
+  /// In pl, this message translates to:
+  /// **'Skąd'**
+  String get historySource;
+
+  /// No description provided for @historySourceThis.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ta rozmowa'**
+  String get historySourceThis;
+
+  /// No description provided for @historySourceOther.
+  ///
+  /// In pl, this message translates to:
+  /// **'Starsza rozmowa z: {name} ({count})'**
+  String historySourceOther(Object name, int count);
+
+  /// No description provided for @historySourceHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Po reinstalacji albo na nowym telefonie to samo urządzenie przychodzi pod nowym wpisem. Starszą rozmowę z dawnym wpisem możesz oddać tutaj.'**
+  String get historySourceHint;
+
+  /// No description provided for @historySourceNeedsShield.
+  ///
+  /// In pl, this message translates to:
+  /// **'Starszą rozmowę z innym wpisem można oddać tylko urządzeniu z zieloną tarczą. Najpierw potwierdź jego tożsamość.'**
+  String get historySourceNeedsShield;
+
+  /// No description provided for @historyMergeLocally.
+  ///
+  /// In pl, this message translates to:
+  /// **'Połącz u mnie tamtą rozmowę z tą'**
+  String get historyMergeLocally;
+
+  /// No description provided for @historyNeedsVerified.
+  ///
+  /// In pl, this message translates to:
+  /// **'Najpierw potwierdź tożsamość tego urządzenia (zielona tarcza).'**
+  String get historyNeedsVerified;
+
+  /// No description provided for @historyMerged.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rozmowy połączone.'**
+  String get historyMerged;
+
+  /// No description provided for @profileSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Profil'**
+  String get profileSection;
+
+  /// No description provided for @styleLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Styl'**
+  String get styleLabel;
+
+  /// No description provided for @styleCisza.
+  ///
+  /// In pl, this message translates to:
+  /// **'Cisza'**
+  String get styleCisza;
+
+  /// No description provided for @stylePrecyzja.
+  ///
+  /// In pl, this message translates to:
+  /// **'Precyzja'**
+  String get stylePrecyzja;
+
+  /// No description provided for @styleCieplo.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ciepło'**
+  String get styleCieplo;
+
+  /// No description provided for @themeLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'Motyw'**
+  String get themeLabel;
+
+  /// No description provided for @addonBluetoothShort.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rozmowy bez wspólnej sieci Wi-Fi'**
+  String get addonBluetoothShort;
+
+  /// No description provided for @addonKeyboardShort.
+  ///
+  /// In pl, this message translates to:
+  /// **'Pisanie z klawiatury komputera'**
+  String get addonKeyboardShort;
 }
 
 class _AppLocalizationsDelegate

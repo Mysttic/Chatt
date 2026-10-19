@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **387 `flutter test` tests** check everything that can be
+The split is simple: **442 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -257,7 +257,7 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migrations (`test/migration_test.dart`, 4 tests)
+### Migrations (`test/migration_test.dart`, 7 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
@@ -271,8 +271,94 @@ when it speaks and when it stays quiet:
   taking files without asking), its messages and the settings, the Bluetooth
   add-on included, and brings the keyboard add-on, receiving and typing
   without a card in switched off
+- the step from 13 to 14 keeps the messages and marks none of them as restored
+- the step from 14 to 15 brings the Cisza style in and keeps the theme, the
+  background and the nickname; a saved style comes back after reopening
+- a 0.10.0 database (schema 13, with neither `restored_at` nor `style`) goes
+  to 15 in one opening and keeps the peer, the message and the settings
 
-### Links in messages (`test/links_test.dart`, 23 tests)
+### Styles (`test/style_test.dart`, 12 tests)
+- each of the six variants (three styles, light and dark) carries its own
+  tokens, its text font and its fixed-width font
+- in each variant body text, secondary text, both bubbles, the primary button,
+  the warning, danger and confirmation frames and the corner message reach at
+  least 4.5:1, and a link on the other side's bubble and the time inside a
+  bubble at least 3:1
+- every variant has five walls and an avatar palette
+- the unconfirmed identity warning is red in Cisza and amber in Precyzja and
+  Ciepło
+- every font a style names is declared in `pubspec.yaml`
+- the unread counter in a list row is the size of its number in every style
+  (it once stretched across the whole row and covered the name)
+- a bare `MaterialApp` with no tokens falls back to Cisza
+- the whole app switches style as soon as the database changes, fonts
+  included, and the top of the conversation list carries the device name with
+  no version number
+- the style picker in Settings writes to the database, and the "This device"
+  panel shows the fingerprint and the identifier in the fixed-width font and
+  copies the identifier with a "Copied" message
+
+### Sharing history (`test/history_test.dart`, 29 tests)
+Two or three real instances over real sockets, paired, with a conversation both
+ways and a file from each side. The recipient loses its history and the other
+side hands it back:
+- the shared history comes back with every direction flipped, the original
+  times, both files (the recipient's own one included, from the sharer's
+  received copy), incoming messages already read, `restoredAt` on every row,
+  no notification, and nothing changes on the sharing side
+- the card carries the counts, the bytes, the shield and the recipient's
+  retention
+- without files the file rows arrive without content; a received file that
+  survived "Clear history" is linked at import and does not travel again
+- sharing twice duplicates nothing and brings the files that were missing
+- a refusal and silence on the card let nothing in; an empty conversation has
+  nothing to share and a request for it comes back `empty` without a card
+- after a "reinstall" (a new instance under a new identity) the older
+  conversation is offered as a source, goes only once the new entry has a
+  green shield (`needsVerified` before), arrives with the directions right and
+  the files in place, and merges into the new conversation on the sharing
+  side while the old entry stays on the device list
+- a request shows a card on the asked side, and the offer that answers it goes
+  in on the asking side without one; a refusal and "share without files" on
+  the asked side do what they say
+- the consent holds within the announcement: more messages or more files than
+  announced is `over_limit` and nothing goes in, a wrong token or another
+  history's identifier is `no_grant`, a chunk repeated under the same number is
+  not counted twice, messages from the future and from before the recipient's
+  retention are skipped, a second history while one is coming in is `busy`,
+  and a cancel ends the grant while keeping what arrived
+- a chunk number that already went in imports nothing new, whatever it carries
+  the second time; a file announced once keeps its name and size; a message
+  outside the date range on the card drops the whole chunk; a second card from
+  the same sender is `busy`
+- a history file offered under another name than its waiting row (a ".jpg"
+  row taking an ".exe") is refused and the row stays empty, and a history file
+  outside the grant is refused without ever raising the ordinary file card
+- both routes answer plaintext with 409 and leave no trace, and a sealed body of
+  the wrong shape with 400 and no card
+- the parsers: a chunk goes in whole or not at all (a bad identifier, a bad
+  time, a body or a file name over the limit, a negative size, file fields on a
+  plain message, an empty chunk or one over 200), a summary whose numbers do
+  not add up is dropped, an end without a token is dropped, and a reply that
+  carries `from`, answers another history or another chunk does not count
+
+### History on screen (`test/history_ui_test.dart`, 6 tests)
+- restored bubbles carry the history icon and plain ones do not; the first
+  bubble of each day gets "Today", "Yesterday" or the full date above it; a
+  file row without content says "File not available" and offers no save
+- the conversation's menu leads to the share dialog, which shows the counts
+  and how many files would go without content
+- the offer card shows the counts, the warnings (deleted messages come back,
+  restored messages are marked, the identity is not confirmed, retention skips
+  the older ones), no "without files" button, and has the focus on Reject
+- the request card offers "without files" only when there are files
+- the share dialog offers an older conversation as the source only for a peer
+  with a green shield (without it, a note says why), and the merge option
+  appears once an older conversation is picked
+- the progress bars: both sides get Stop while it runs, another conversation
+  sees nothing, and a finished restore shows the skipped count and closes
+
+### Links in messages (`test/links_test.dart`, 25 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
   `file:`, `mailto:`, `intent:` and `content:` stay plain text
 - the full stop ending a sentence is not part of the address, a bracket that
@@ -289,6 +375,9 @@ when it speaks and when it stays quiet:
   where an off-by-one in the ranges would show
 - `openExternalLink` refuses a scheme other than `http`/`https` before it
   starts any process
+- on Windows the address goes to the `chatt/links` channel whole, equals signs
+  and fragment included (the shape from issue #31), the channel's "no" comes
+  back as a failure, and without the channel nothing is started at all
 
 ### Link previews (`test/link_preview_test.dart`, 37 tests)
 - the card is built from `og:`, then `twitter:`, then `<title>` and
@@ -436,13 +525,19 @@ you shows up after five seconds or after a minute:
 - an address seen only over BLE is dropped: RFCOMM to it waits out the whole
   page timeout and never connects
 
-### The Bluetooth add-on (`test/bluetooth_addon_test.dart`, 11 tests)
+### The Bluetooth add-on (`test/bluetooth_addon_test.dart`, 12 tests)
 Bluetooth is an add-on, and an add-on that is off must not exist. The test
 mocks the `chatt/bluetooth` channel, records every call that reaches it (with
 the argument of `discoverable`) and sets `BtChannel.debugSupported`, so on the
 Linux CI the add-on is the only thing keeping the channel silent:
 - with the add-on off, asking for the radio state, starting the transport,
-  searching and adding by radio address make no call to the channel at all
+  searching, adding by radio address and showing the phone make no call to the
+  channel at all
+- a phone shows itself only on request and only with the radio running: a
+  status with no visibility fields (Windows) offers nothing, an Android status
+  does, `showThisDeviceNearby` makes exactly one `showSelf` call, the visibility
+  the system granted shows up in the next status, and with the add-on off the
+  call stays out of the channel
 - the add-on raises the radio (state, listening, discoverability on) and polls
   for links; switched off, it turns discoverability off and stops listening,
   and after that no polling and no question reaches the channel
@@ -466,7 +561,7 @@ Linux CI the add-on is the only thing keeping the channel silent:
   included; on a platform with no native code the same database gives no
   add-on at all
 
-### The add-on on screen (`test/bluetooth_addon_ui_test.dart`, 4 tests)
+### The add-on on screen (`test/bluetooth_addon_ui_test.dart`, 5 tests)
 - the road mark takes no space with the add-on off, padding included, and
   shows once the add-on is on
 - Nearby has no road picker with the add-on off; it appears with the add-on
@@ -474,6 +569,9 @@ Linux CI the add-on is the only thing keeping the channel silent:
 - the add-on's card is a single switch while the add-on is off; the local
   network switch appears only with the add-on
 - a peer known only over the radio shows no radio address with the add-on off
+- **Show this phone nearby** stands in Nearby only on a phone, with the radio
+  running and Bluetooth picked; a visible phone gets a note in its place, and
+  a PC (no visibility fields in the status) gets neither
 
 ### The keyboard add-on (`test/keyboard_addon_test.dart`, 12 tests)
 The add-on that is off must not exist, as with Bluetooth. The test mocks the
@@ -500,7 +598,7 @@ thing keeping the channel silent:
 - an add-on saved in the database comes up with the app without a single call,
   and a verified peer then gets a grant
 
-### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 12 tests)
+### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 13 tests)
 - the add-on's card is a single switch while the add-on is off; the receive
   switch appears with the add-on and goes away with it
 - turning receiving on with the real switches shows the safety note; turning
@@ -516,6 +614,9 @@ thing keeping the channel silent:
   keyboard icon
 - the conversation's keyboard button appears with the add-on, is active only
   with a confirmed identity, and goes away with the add-on
+- on a phone the header holds neither search nor the keyboard: both are in the
+  conversation's menu, and without a confirmed identity the keyboard item is
+  greyed out with the reason under it
 - the consent card names the device, holds the focus on Reject after a frame,
   and Enter refuses: the sender hears `rejected` and no grant exists
 - Accept alone writes nothing; "Don't ask again" with Accept writes
@@ -972,7 +1073,9 @@ app renders in the `flutter_test` harness at 1600x900, with its own in-memory
 stack and two peers in the same process, and the image comes straight out of
 the engine (`RepaintBoundary.toImage`). There are no private conversations in
 the screenshots, and the result is the same on every machine.
-`CHATT_SHOTS_LANG=en` gives the English version. One trap: the harness replaces
+`CHATT_SHOTS_LANG=en` gives the English version, `CHATT_SHOTS_STYLE=precyzja`
+(or `cieplo`) another style, and `CHATT_SHOTS_DIR` sends the pictures
+somewhere other than `docs/screenshots/windows/`. One trap: the harness replaces
 `HttpClient` with a fake answering 400, so the script restores the real one
 (`HttpOverrides.global = null`). Three more tests, run alone with
 `--plain-name klawiatury`, take the keyboard add-on for `docs/keyboard.md`:
@@ -986,8 +1089,9 @@ before `pumpWidget`: a request sent under the harness's fake clock can fail on
 a pooled connection, though the same run outside the harness takes
 milliseconds. Before every capture the script repaints every node with
 shadows on (cards in scrolled lists sit on layers of their own and kept the
-outline the harness draws while shadows are off), and it loads Consolas as the
-`monospace` font for the fingerprints. The floating bar (17) is the one
+outline the harness draws while shadows are off), and it loads every font
+family `pubspec.yaml` declares, the three styles' fonts and the icons, because
+the harness loads none by itself. The floating bar (17) is the one
 picture taken from the live desktop: `GetWindowRect` of the
 `ChattRemoteInputBar` window during a session, cropped to the bar alone.
 

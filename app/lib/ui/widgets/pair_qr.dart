@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/pair_link.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 
 /// Kod QR tego urządzenia do zeskanowania przez drugie.
 ///
@@ -86,7 +87,7 @@ class _PairQrDialogState extends ConsumerState<_PairQrDialog> {
               const SizedBox(height: 12),
               Text(
                 '${_adresy[_wybrany]}:${services.identity.tcpPort}',
-                style: const TextStyle(fontFamily: 'monospace'),
+                style: ChattTokens.of(context).mono,
               ),
               if (_adresy.length > 1)
                 TextButton.icon(

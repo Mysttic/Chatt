@@ -7,6 +7,7 @@ import '../../core/identity.dart';
 import '../../data/db.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
+import '../styles.dart';
 import 'pair_qr.dart';
 import 'toasts.dart';
 
@@ -51,23 +52,26 @@ class _SecuritySheet extends ConsumerWidget {
             ) ??
         this.peer;
     final klucz = DeviceIdentity.decodeKey(peer.publicKey);
+    final k = ChattTokens.of(context);
 
-    final (ikona, kolor, naglowek, opis) = switch ((klucz.isNotEmpty, peer.verified)) {
+    // Brak szyfrowania to zagrożenie w każdym stylu; niepotwierdzona
+    // tożsamość to ostrzeżenie w kolorze stylu.
+    final (ikona, kolory, naglowek, opis) = switch ((klucz.isNotEmpty, peer.verified)) {
       (false, _) => (
           Icons.gpp_bad_outlined,
-          scheme.error,
+          k.dangerNote,
           context.l10n.securityNoEncryptionTitle,
           context.l10n.securityNoEncryptionBody,
         ),
       (true, false) => (
-          Icons.lock_outline,
-          scheme.primary,
+          Icons.gpp_maybe_outlined,
+          k.security,
           context.l10n.securityEncryptedTitle,
           context.l10n.securityEncryptedBody,
         ),
       (true, true) => (
           Icons.verified_user,
-          Colors.green,
+          k.verifiedNote,
           context.l10n.securityVerifiedTitle,
           context.l10n.securityVerifiedBody,
         ),
@@ -82,18 +86,42 @@ class _SecuritySheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Icon(ikona, color: kolor, size: 28),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(naglowek,
-                      style: Theme.of(context).textTheme.titleMedium),
-                ),
-              ],
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: kolory.background,
+                borderRadius: BorderRadius.circular(k.radiusWarning),
+                border: kolory.border == null || kolory.borderWidth == 0
+                    ? null
+                    : Border.all(
+                        color: kolory.border!, width: kolory.borderWidth),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(ikona, color: kolory.icon, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(naglowek,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(color: kolory.foreground)),
+                        const SizedBox(height: 4),
+                        Text(opis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: kolory.foreground)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(opis, style: TextStyle(color: scheme.onSurfaceVariant)),
             const SizedBox(height: 20),
             _Nazwa(peer: peer),
             const SizedBox(height: 20),
@@ -322,6 +350,7 @@ class _Odcisk extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final k = ChattTokens.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -333,20 +362,28 @@ class _Odcisk extends StatelessWidget {
             Clipboard.setData(ClipboardData(text: odcisk));
             showToast(context.l10n.copied);
           },
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(k.radiusField),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
             decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(10),
+              color: k.surface2,
+              borderRadius: BorderRadius.circular(k.radiusField),
             ),
-            child: Text(
-              odcisk,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 17,
-                letterSpacing: 1.5,
+            // Grupy cyfr fontem kodu stylu, zawijane całymi grupami: tak
+            // czyta się je na głos i porównuje z drugim ekranem.
+            child: Semantics(
+              label: odcisk,
+              excludeSemantics: true,
+              child: Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 16,
+                runSpacing: 4,
+                children: [
+                  for (final grupa in odcisk.split(' '))
+                    Text(grupa,
+                        style: k.code.copyWith(color: scheme.onSurface)),
+                ],
               ),
             ),
           ),

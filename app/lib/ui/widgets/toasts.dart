@@ -11,6 +11,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../styles.dart';
 
 /// Jeden komunikat w kolejce.
 class ToastMessage {
@@ -165,13 +166,15 @@ class _ToastCardState extends State<_ToastCard>
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: scheme.inverseSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(ChattTokens.of(context).radiusField),
         elevation: 6,
         child: InkWell(
           // Kliknięcie zamyka od razu: komunikat ma nie stać na drodze ani
           // sekundy dłużej, niż użytkownik chce.
           onTap: () => chattToasts.dismiss(message.id),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius:
+              BorderRadius.circular(ChattTokens.of(context).radiusField),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: () {

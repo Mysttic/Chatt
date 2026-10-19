@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/languages.dart';
@@ -8,12 +7,10 @@ import 'l10n/app_localizations.dart';
 import 'services/providers.dart';
 import 'ui/backgrounds.dart';
 import 'ui/screens/conversations_screen.dart';
+import 'ui/styles.dart';
 import 'ui/widgets/prompt_overlay.dart';
 import 'ui/widgets/remote_input_banner.dart';
 import 'ui/widgets/toasts.dart';
-
-/// Fiolet odziedziczony po pierwotnej wersji projektu (ikona MAUI #512BD4).
-const chattSeedColor = Color(0xFF512BD4);
 
 class ChattApp extends ConsumerWidget {
   const ChattApp({super.key});
@@ -35,29 +32,12 @@ class ChattApp extends ConsumerWidget {
     // Karty i dymki zostają nieprzezroczyste, na nich stoi czytelność.
     final tlo = backgroundAt(settings?.background ?? 0);
 
-    ThemeData theme(Brightness brightness) => ThemeData(
-          colorScheme:
-              ColorScheme.fromSeed(seedColor: chattSeedColor, brightness: brightness),
-          fontFamily: 'Roboto',
-          useMaterial3: true,
-          scaffoldBackgroundColor: tlo.plain ? null : Colors.transparent,
-          appBarTheme: tlo.plain
-              ? null
-              : AppBarTheme(
-                  backgroundColor: Colors.transparent,
-                  scrolledUnderElevation: 0,
-                  // Jasność ikon paska systemowego trzeba podać wprost:
-                  // Flutter liczy ją z koloru paska aplikacji, a ten jest
-                  // teraz przezroczysty i wychodziło z tego białe na jasnym.
-                  systemOverlayStyle: brightness == Brightness.dark
-                      ? SystemUiOverlayStyle.light
-                      : SystemUiOverlayStyle.dark,
-                ),
-          // Na pulpicie steruje się myszą, a nie palcem: listy i przyciski
-          // dostają ciaśniejsze odstępy, przez co na monitorze mieści się
-          // więcej niż trzy wiersze. Na telefonie bez zmian.
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-        );
+    // Styl (Cisza, Precyzja, Ciepło) zmienia wyłącznie wygląd: kolory,
+    // fonty, zaokrąglenia i gęstość siedzą w ui/styles.dart.
+    final styl = settings?.style ?? AppStyle.cisza;
+
+    ThemeData theme(Brightness brightness) =>
+        chattTheme(styl, brightness, gradient: !tlo.plain);
 
     return MaterialApp(
       // Tytuł okna/zadania: przed pierwszą klatką nie ma jeszcze skąd wziąć

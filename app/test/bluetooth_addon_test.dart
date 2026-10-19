@@ -85,7 +85,7 @@ void main() {
         'status' => radio,
         'linkStart' => const <String, Object?>{'listening': true},
         'linkPoll' => <String, Object?>{'listening': nasluch},
-        'discoverable' || 'linkStop' => true,
+        'discoverable' || 'linkStop' || 'showSelf' => true,
         _ => null,
       };
     });
@@ -126,9 +126,40 @@ void main() {
     expect(await services.startBluetooth(), isFalse);
     expect(await services.scanBluetooth(), isEmpty);
     expect(await services.addPeerByBluetooth('70:D8:C2:64:D9:B1'), isNull);
+    expect(await services.showThisDeviceNearby(), isFalse);
 
     expect(wywolania, isEmpty);
     expect(services.bluetoothRunning.value, isFalse);
+  });
+
+  test('telefon pokazuje się kanałem na żądanie, tylko z działającym radiem',
+      () async {
+    final services = await instancja('Alicja');
+
+    // Windows nie podaje pól widoczności: komputer jest widoczny przez cały
+    // czas dodatku i przycisku nie potrzebuje.
+    expect(await services.setBluetoothAddon(true), isTrue);
+    expect(services.bluetoothStatus.value.canShowSelf, isFalse);
+    expect(services.bluetoothStatus.value.visible, isFalse);
+
+    radio = {...radioGotowe, 'canShowSelf': true, 'visible': false};
+    await services.refreshBluetoothStatus();
+    expect(services.bluetoothStatus.value.canShowSelf, isTrue);
+    expect(services.bluetoothStatus.value.visible, isFalse);
+
+    wywolania.clear();
+    expect(await services.showThisDeviceNearby(), isTrue);
+    expect(wywolania.where((m) => m == 'showSelf'), hasLength(1));
+
+    // Zgodę w okienku widać dopiero w stanie radia.
+    radio = {...radioGotowe, 'canShowSelf': true, 'visible': true};
+    await services.refreshBluetoothStatus();
+    expect(services.bluetoothStatus.value.visible, isTrue);
+
+    await services.setBluetoothAddon(false);
+    wywolania.clear();
+    expect(await services.showThisDeviceNearby(), isFalse);
+    expect(wywolania, isEmpty);
   });
 
   test('dodatek podnosi radio, a wyłączony gasi je i więcej go nie rusza',
