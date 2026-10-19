@@ -347,7 +347,7 @@ historii, a w podpowiedzi datę przywrócenia: kopia rozmówcy to jego słowo,
 a wiadomości nic nie podpisuje.
 
 Pliki jadą po wiadomościach. Obie strony widzą pasek postępu nad polem
-pisania, a udostępniająca ma **Przerwij**. Plik, którego bajtów druga strona
+pisania, każda z **Przerwij**. Plik, którego bajtów druga strona
 już nie ma, przychodzi jako „Plik niedostępny"; odebrany plik, który wciąż
 leży u Ciebie na dysku, podpina się bez ponownego przesyłania. Drugie
 udostępnienie wznawia: nic się nie dubluje, a brakujące pliki dojeżdżają.
