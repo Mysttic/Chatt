@@ -1422,6 +1422,11 @@ class AppLocalizationsPl extends AppLocalizations {
   String get typingHistory => 'Historia pisania';
 
   @override
+  String typingHistoryEntryHelp(int count) {
+    return 'Sesje zdalnej klawiatury zapisane na tym urządzeniu: $count. Wyczyścić je można na ekranie historii.';
+  }
+
+  @override
   String get typingHistoryOff =>
       'Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.';
 

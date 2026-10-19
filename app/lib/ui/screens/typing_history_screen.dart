@@ -338,7 +338,7 @@ class _TypingSessionScreenState extends ConsumerState<TypingSessionScreen> {
     final tekst = typingTranscript(wszystkie);
 
     final naglowek = <Widget>[
-      _Naglowek(session: sesja, entries: wszystkie),
+      _Naglowek(session: sesja, entries: kawalki),
       if (zaczeta) ...[
         _Tytul(
           l10n.typingHistoryText,
@@ -381,10 +381,11 @@ class _TypingSessionScreenState extends ConsumerState<TypingSessionScreen> {
 
 /// Fakty o sesji w karcie: kierunek, początek, koniec, czas trwania, znaki,
 /// aplikacje, wynik prośby, powód końca i identyfikator do zestawienia
-/// z historią drugiej strony.
+/// z historią drugiej strony. Znaki i aplikacje liczy z kawałków, więc
+/// pojawiają się, gdy [entries] już przyszły z bazy.
 class _Naglowek extends StatelessWidget {
   final TypingSession session;
-  final List<TypingEntry> entries;
+  final List<TypingEntry>? entries;
 
   const _Naglowek({required this.session, required this.entries});
 
@@ -395,9 +396,9 @@ class _Naglowek extends StatelessWidget {
     final zaczeta = TypingResult.started(session.result);
     final znak = _znakSesji(context, session);
     final koniec = session.endedAt;
-    final znaki = entries.fold<int>(0, (suma, e) => suma + e.chars);
+    final kawalki = entries;
     final aplikacje = <String>{
-      for (final e in entries)
+      for (final e in kawalki ?? const <TypingEntry>[])
         if (e.appLabel.isNotEmpty)
           e.appLabel
         else if (e.app.isNotEmpty)
@@ -440,10 +441,12 @@ class _Naglowek extends StatelessWidget {
                   label: l10n.typingHistoryDuration,
                   value: formatDuration(koniec.difference(session.startedAt)),
                 ),
-              _Fakt(
-                label: l10n.typingHistoryCharsLabel,
-                value: l10n.typingHistoryChars(znaki),
-              ),
+              if (kawalki != null)
+                _Fakt(
+                  label: l10n.typingHistoryCharsLabel,
+                  value: l10n.typingHistoryChars(
+                      kawalki.fold(0, (suma, e) => suma + e.chars)),
+                ),
               if (aplikacje.isNotEmpty)
                 _Fakt(
                   label: l10n.typingHistoryApps,

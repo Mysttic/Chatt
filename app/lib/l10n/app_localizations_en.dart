@@ -1416,6 +1416,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get typingHistory => 'Typing history';
 
   @override
+  String typingHistoryEntryHelp(int count) {
+    return 'Remote keyboard sessions saved on this device: $count. The history screen can clear them.';
+  }
+
+  @override
   String get typingHistoryOff =>
       'Saving typing history is turned off. Turn it on in Settings, in the Keyboard from a PC add-on.';
 

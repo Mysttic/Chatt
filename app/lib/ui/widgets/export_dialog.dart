@@ -141,7 +141,7 @@ class _ExportDialogState extends State<ExportDialog> {
       komunikaty.add(l10n.exportDataFailed);
     }
     if (mounted) Navigator.of(context).pop();
-    // Komunikat nie należy do okna: zostaje po jego zamknięciu.
+    // Komunikat zostaje na ekranie po zamknięciu okna.
     for (final napis in komunikaty) {
       showToast(napis, duration: const Duration(seconds: 6));
     }
@@ -204,8 +204,9 @@ class _ExportDialogState extends State<ExportDialog> {
                   value: _pisanie,
                   onChanged: (v) => _pisanie = v,
                   title: l10n.typingHistory,
-                  subtitle:
-                      s == null ? null : l10n.typingHistorySessions(s.typingSessions),
+                  subtitle: s == null
+                      ? null
+                      : l10n.typingHistorySessions(s.typingSessions),
                 ),
               czesc(
                 value: _dziennik,

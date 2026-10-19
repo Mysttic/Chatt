@@ -477,6 +477,7 @@
   "typingHistorySwitch": "Save typing history",
   "typingHistoryHelp": "Saves both sides of every session. Text typed into password fields and unknown fields stays hidden: only the character count is saved. The history is stored encrypted on this device.",
   "typingHistory": "Typing history",
+  "typingHistoryEntryHelp": "Remote keyboard sessions saved on this device: {count}. The history screen can clear them.",
   "typingHistoryOff": "Saving typing history is turned off. Turn it on in Settings, in the Keyboard from a PC add-on.",
   "typingHistoryEmptyTitle": "No typing history",
   "typingHistoryEmptyBody": "Remote keyboard sessions show up here in both directions: this device typing on others, and others typing here.",

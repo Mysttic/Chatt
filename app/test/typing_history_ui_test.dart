@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
@@ -36,18 +37,36 @@ void main() {
   });
 
   Future<AppServices> uruchom(WidgetTester tester) async =>
-      (await tester.runAsync(() => AppServices.start(
-            executor: NativeDatabase.memory(),
-            portOverride: 0,
-            nameOverride: 'Bartek',
-            enableDiscovery: false,
-            receivedDirOverride: '${katalog.path}/Bartek',
-          )))!;
+      (await tester.runAsync(() async {
+        final services = await AppServices.start(
+          executor: NativeDatabase.memory(),
+          portOverride: 0,
+          nameOverride: 'Bartek',
+          enableDiscovery: false,
+          receivedDirOverride: '${katalog.path}/Bartek',
+        );
+        // Dziennik pisania powstaje przy pierwszym użyciu. Utworzony
+        // w fałszywym czasie testu miałby tam swoją kolejkę zapisów,
+        // a zamknięcie stosu czekałoby na nią w prawdziwym bez końca.
+        await services.typingJournal.flush();
+        return services;
+      }))!;
 
+  /// Drzewo schodzi przed zamknięciem stosu. Zamknięcie idzie na zmianę
+  /// w prawdziwym i fałszywym czasie: kolejki zapisów dziennika i historii
+  /// pisania mogły dostać kolejne kroki ze stuknięć, czyli z fałszywej
+  /// strefy, i tylko tam da się je dokończyć.
   Future<void> sprzatnij(WidgetTester tester, AppServices services) async {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
-    await tester.runAsync(services.dispose);
+    var zamkniete = false;
+    unawaited(services.dispose().whenComplete(() => zamkniete = true));
+    for (var i = 0; i < 300 && !zamkniete; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(zamkniete, isTrue, reason: 'stos się nie zamknął');
   }
 
   Widget aplikacja(AppServices services, Widget ekran) => ProviderScope(
@@ -189,7 +208,8 @@ void main() {
     expect(find.text(teksty.typingHistoryEmptyBody), findsOneWidget);
     // Zapis włączony: bez uwagi o wyłączonym zapisie.
     expect(find.text(teksty.typingHistoryOff), findsNothing);
-    final wyczysc = find.widgetWithIcon(IconButton, Icons.delete_sweep_outlined);
+    final wyczysc =
+        find.widgetWithIcon(IconButton, Icons.delete_sweep_outlined);
     expect(tester.widget<IconButton>(wyczysc).onPressed, isNull,
         reason: 'nie ma czego czyścić');
 
@@ -322,8 +342,11 @@ void main() {
         findsOneWidget);
 
     await tester.tap(find.text('Alicja typed on this device'));
-    await dokoncz(
-        tester, () => find.text(teksty.typingHistoryTimeline).evaluate().isNotEmpty);
+    // Odtworzony tekst stoi dopiero, gdy kawałki przyszły z bazy.
+    final odtworzony = find.byWidgetPredicate(
+        (w) => w is SelectableText && w.data == 'Hej\n••••••••');
+    await dokoncz(tester, () => odtworzony.evaluate().isNotEmpty);
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(TypingSessionScreen), findsOneWidget);
 
     // Nagłówek.
@@ -340,10 +363,8 @@ void main() {
 
     // Odtworzony tekst: Backspace zabrał wykrzyknik, Enter to nowa linia,
     // hasło to kropki, Delete nie zmienia tekstu, wstrzymane nie weszło.
-    expect(
-        find.byWidgetPredicate(
-            (w) => w is SelectableText && w.data == 'Hej\n••••••••'),
-        findsOneWidget);
+    expect(odtworzony, findsOneWidget);
+    expect(find.byTooltip(teksty.copyText), findsOneWidget);
     expect(find.text(teksty.typingHistoryTextNote), findsOneWidget);
 
     // Przebieg: tekst, znaczki klawiszy, kropki z liczbą znaków, rodzaj
@@ -464,6 +485,61 @@ void main() {
     expect(chattToasts.value.map((t) => t.text),
         contains(teksty.historyClearedWithTyping(1, 1)));
     expect(await tester.runAsync(services.db.allTypingSessions), isEmpty);
+
+    await sprzatnij(tester, services);
+  });
+
+  testWidgets('„Dane i diagnostyka": między Prywatnością a Dodatkami, '
+      'historia pisania tylko z sesjami, potem dziennik i eksport',
+      (tester) async {
+    // Wysokie okno: cała lista Ustawień naraz, bez przewijania.
+    tester.view.physicalSize = const Size(800, 6000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final services = await uruchom(tester);
+
+    await tester.pumpWidget(aplikacja(services, const SettingsScreen()));
+    await dokoncz(
+        tester, () => find.text(teksty.dataSection).evaluate().isNotEmpty);
+    double y(Finder f) => tester.getTopLeft(f).dy;
+    final przyciskHistorii =
+        find.widgetWithText(OutlinedButton, teksty.typingHistory);
+    final przyciskDziennika =
+        find.widgetWithText(OutlinedButton, teksty.appLog);
+    final przyciskEksportu =
+        find.widgetWithText(OutlinedButton, teksty.exportData);
+
+    // Bez sesji i bez dodatku nie ma wejścia do historii pisania.
+    expect(przyciskHistorii, findsNothing);
+    expect(find.text(teksty.appLogHelp), findsOneWidget);
+    expect(find.text(teksty.exportDataHelp), findsOneWidget);
+    expect(y(find.text(teksty.clearHistory)),
+        lessThan(y(find.text(teksty.dataSection))));
+    expect(y(find.text(teksty.dataSection)), lessThan(y(przyciskDziennika)));
+    expect(y(przyciskDziennika), lessThan(y(przyciskEksportu)));
+    expect(y(przyciskEksportu), lessThan(y(find.text(teksty.addons))));
+
+    // Pierwsza sesja w historii: wejście pojawia się na górze sekcji, choć
+    // dodatek jest wyłączony.
+    await sesja(
+      tester,
+      services,
+      direction: MessageDirection.incoming,
+      peer: 'Alicja',
+      result: TypingResult.rejected,
+      start: DateTime(2026, 10, 18, 10),
+      end: DateTime(2026, 10, 18, 10),
+    );
+    await dokoncz(tester, () => przyciskHistorii.evaluate().isNotEmpty);
+    expect(services.keyboardAddon.value, isFalse);
+    expect(find.text(teksty.typingHistoryEntryHelp(1)), findsOneWidget);
+    expect(y(find.text(teksty.dataSection)), lessThan(y(przyciskHistorii)));
+    expect(y(przyciskHistorii), lessThan(y(przyciskDziennika)));
+
+    await tester.tap(przyciskHistorii);
+    await dokoncz(tester,
+        () => find.text('Alicja typed on this device').evaluate().isNotEmpty);
+    expect(find.byType(TypingHistoryScreen), findsOneWidget);
 
     await sprzatnij(tester, services);
   });

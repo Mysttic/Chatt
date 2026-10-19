@@ -616,6 +616,10 @@
   "typingHistorySwitch": "Zapisuj historię pisania",
   "typingHistoryHelp": "Zapisuje obie strony każdej sesji. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana na tym urządzeniu.",
   "typingHistory": "Historia pisania",
+  "typingHistoryEntryHelp": "Sesje zdalnej klawiatury zapisane na tym urządzeniu: {count}. Wyczyścić je można na ekranie historii.",
+  "@typingHistoryEntryHelp": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "typingHistoryOff": "Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.",
   "typingHistoryEmptyTitle": "Brak historii pisania",
   "typingHistoryEmptyBody": "Tutaj pojawią się sesje zdalnej klawiatury w obu kierunkach: pisanie stąd na innych urządzeniach i pisanie innych urządzeń tutaj.",

@@ -2342,6 +2342,12 @@ abstract class AppLocalizations {
   /// **'Historia pisania'**
   String get typingHistory;
 
+  /// No description provided for @typingHistoryEntryHelp.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sesje zdalnej klawiatury zapisane na tym urządzeniu: {count}. Wyczyścić je można na ekranie historii.'**
+  String typingHistoryEntryHelp(int count);
+
   /// No description provided for @typingHistoryOff.
   ///
   /// In pl, this message translates to:

@@ -47,6 +47,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   bool _batteryOptimized = false;
   bool _autostart = false;
 
+  /// Liczba sesji w historii pisania, na żywo. Jeden strumień na życie
+  /// ekranu: przebudowa nie zakłada nowego zapytania w bazie.
+  late final Stream<int> _sesjePisania =
+      ref.read(appServicesProvider).db.watchTypingSessionCount();
+
   @override
   void initState() {
     super.initState();
@@ -489,20 +494,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             label: Text(context.l10n.clearHistory),
             style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
           ),
-          // Eksport i dziennik: wszystko, co aplikacja wie, da się stąd
-          // wynieść do analizy poza nią.
+          // Historia pisania, dziennik i eksport: wszystko, co aplikacja
+          // wie, da się stąd przejrzeć i wynieść do analizy poza nią.
           _Sekcja(context.l10n.dataSection),
-          OutlinedButton.icon(
-            onPressed: () => showExportDialog(context, services: services),
-            icon: const Icon(Icons.archive_outlined),
-            label: Text(context.l10n.exportData),
+          // Wejście do historii pisania stoi tu, póki historia ma choć jedną
+          // sesję: po wyłączeniu dodatku klawiatury jego karta chowa
+          // przycisk, a zapisane sesje dalej da się przejrzeć i wyczyścić.
+          StreamBuilder<int>(
+            stream: _sesjePisania,
+            builder: (context, snapshot) {
+              final sesje = snapshot.data ?? 0;
+              if (sesje == 0) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const TypingHistoryScreen()),
+                    ),
+                    icon: const Icon(Icons.manage_history_outlined),
+                    label: Text(context.l10n.typingHistory),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    context.l10n.typingHistoryEntryHelp(sesje),
+                    style:
+                        TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 4),
-          Text(
-            context.l10n.exportDataHelp,
-            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AppLogScreen()),
@@ -513,6 +537,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           const SizedBox(height: 4),
           Text(
             context.l10n.appLogHelp,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => showExportDialog(context, services: services),
+            icon: const Icon(Icons.archive_outlined),
+            label: Text(context.l10n.exportData),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.exportDataHelp,
             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
           ),
           _Sekcja(context.l10n.addons),
@@ -963,8 +998,8 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
                   if (odbior && przyjmuje && _ime != null) ..._klawiatura(
                       context, scheme, _ime!),
                   // Historia pisania: obie strony sesji, w zaszyfrowanej
-                  // bazie. Wyłączenie przełącznika nie kasuje tego, co już
-                  // zapisane; do tego jest przycisk na ekranie historii.
+                  // bazie. Zapisane sesje zostają po wyłączeniu
+                  // przełącznika; kasuje je przycisk na ekranie historii.
                   const Divider(height: 24),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
