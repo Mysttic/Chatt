@@ -119,22 +119,28 @@ These are design decisions:
   session key or the database key, and the `README.txt` inside says the file
   is not encrypted. Wherever it lands (Downloads on Android, the place picked
   in the save dialog on Windows, an app it was shared with), it is as readable
-  as any other file there.
+  as any other file there. After the share sheet, a copy also stays in the
+  app's cache (`cache/eksport/`) until the next export, "Clear history",
+  "Clear typing history", or the next start once it is an hour old.
 - **The typing history holds what was typed.** With the keyboard add-on on
   and **Save typing history** on (its default), both devices keep the text of
   every session in their encrypted database: what was typed, into which app,
   when, and whether it landed. Text bound for a password field
   or a field of unknown kind is kept as a number of characters. A password
   field that its app does not mark as one is an ordinary text field to the
-  sink, and its text is kept. The app log holds no typed text.
+  sink, and its text is kept. Each device follows its own switch, so turning
+  it off on one device leaves the other's record running. The app log holds
+  no typed text.
 - **There is no app lock.** Whoever holds an unlocked device with Chatt reads
   its conversations, its typing history and its app log, and can export them.
   The database encryption protects a copied disk or a copied file; a stolen
   unlocked device shows everything Chatt keeps.
 - **Nothing leaves the local network on its own.** There is no server, no
   telemetry and no crash reporting, so there is no reporting channel to abuse
-  either. The app log stays in the database until the user exports it. Two
-  exceptions, both off by default:
+  either. The app log is kept only in the encrypted database (30 days and
+  20,000 entries at most). It leaves the database only when the user exports
+  it or copies entries from its screen, and both leave the entries in place.
+  Two exceptions, both off by default:
   - with update checks turned on, or when the button in Settings is pressed,
     the app asks `api.github.com` about the newest release. GitHub sees what
     any HTTPS server sees, an IP address and the time. Nothing about the

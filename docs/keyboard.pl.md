@@ -440,7 +440,8 @@ sesję w swojej zaszyfrowanej bazie: komputer to, co wysłał, i to, co
 odpowiedziało drugie urządzenie, a urządzenie, na którym się pisze, to, co
 przyszło, i to, co wpisała jego klawiatura. Przełącznik jest na karcie
 dodatku, włączony od początku, i działa tylko przy włączonym dodatku:
-wyłączony dodatek niczego nie zapisuje. Wyłączenie przełącznika zostawia to,
+wyłączony dodatek niczego nie zapisuje. Każde urządzenie prowadzi własną
+historię według swojego przełącznika. Wyłączenie przełącznika zostawia to,
 co już zapisane.
 
 Sesja w historii pokazuje:
@@ -455,9 +456,9 @@ Sesja w historii pokazuje:
   tekst, Backspace, Delete i Enter;
 - czy każdy kawałek dotarł: wpisany, niewpisany (pole zniknęło, ekran się
   zablokował, Stop był pierwszy), wstrzymany przez kartę, odrzucony,
-  niepotwierdzony (komputer nie dostał odpowiedzi, więc nie wiadomo, czy
-  dotarł) albo niewysłany (czekał jeszcze na komputerze, gdy sesja się
-  skończyła).
+  niepotwierdzony (komputer nie dostał odpowiedzi albo dostał odmowę po
+  próbie bez odpowiedzi, więc nie wiadomo, czy dotarł) albo niewysłany
+  (czekał jeszcze na komputerze, gdy sesja się skończyła).
 
 **Pola haseł.** Tekst wpisany w pole hasła albo w pole, którego rodzaju
 Chatt nie rozpozna, zostaje zapisany jako liczba znaków i pokazuje się jako
@@ -465,8 +466,11 @@ kropki. Rodzaj pola wiadomo dopiero z odpowiedzi drugiego urządzenia, więc
 kawałek liczy się jako ukryty, gdy pole przed nim albo po nim nie było
 zwykłym polem tekstowym: pierwsze znaki w świeżo stukniętym polu hasła
 zostają ukryte, tak samo jak pierwsze znaki w zwykłym polu tuż po polu hasła.
-Pole hasła, którego aplikacja nie oznacza jako hasła, wygląda dla Chatt jak
-zwykłe pole, a to, co się w nie wpisze, zostaje zapisane jako tekst.
+Na komputerze kawałek bez odpowiedzi, która mówi, dokąd trafił
+(niepotwierdzony, odrzucony, niewysłany), też zostaje zapisany jako liczba
+znaków, bo pole, do którego szedł, jest nieznane. Pole hasła, którego
+aplikacja nie oznacza jako hasła, wygląda dla Chatt jak zwykłe pole, a to, co
+się w nie wpisze, zostaje zapisane jako tekst.
 
 **Tekst jest odtwarzany z klawiszy.** Backspace zabiera ostatni znak, a Enter
 zaczyna nową linię. Delete niczego w nim nie zmienia, bo Chatt nie wie, gdzie
@@ -474,9 +478,10 @@ po drugiej stronie stał kursor, a tekstu, który był w polu przed sesją, nie
 widać. Dokładnym zapisem są same klawisze i to je niesie eksport.
 
 **Gdzie to znaleźć.** Ustawienia, **Dane i diagnostyka**, **Historia
-pisania**. Oba urządzenia zapisują sesję pod tym samym identyfikatorem, więc
-zapis z komputera i zapis z urządzenia, na którym się pisało, da się położyć
-obok siebie.
+pisania**, widoczna tam, gdy zapisze się choć jedna sesja, albo przycisk
+**Historia pisania** na karcie dodatku. Oba urządzenia zapisują sesję pod tym
+samym identyfikatorem, więc zapis z komputera i zapis z urządzenia, na którym
+się pisało, da się położyć obok siebie.
 
 **Kasowanie.** **Kasuj wiadomości starsze niż** i **Wyczyść historię**
 w Ustawieniach, w sekcji Prywatność, zabierają też historię pisania,
@@ -521,7 +526,7 @@ nie piętrzy: to, co przychodzi w czasie paczki w drodze, jedzie następną.
   hasła albo pola nieznanego rodzaju zostaje zapisany jako liczba znaków,
   a dziennik aplikacji nie zawiera wpisywanego tekstu. Kto ma w ręku
   odblokowane urządzenie, może tę historię przeczytać, więc wyłącz
-  przełącznik, gdy nie chcesz jej trzymać (patrz
+  przełącznik na każdym urządzeniu, które ma jej nie trzymać (patrz
   [Historia pisania](#historia-pisania)).
 - **Karty z pytaniami Chatt są poza zasięgiem.** Dopóki na urządzeniu, na
   którym się pisze, czeka karta, paczki dostają odpowiedź „wstrzymane” i nic

@@ -9,8 +9,9 @@ account, no sign-in, no analytics and no crash reporting. Everything you type
 or send goes directly from one device to the other, on your local network or,
 with the Bluetooth add-on, over the radio, and stays on those two devices.
 What each device keeps (the conversations, a typing history for Keyboard from
-a PC, a diagnostic log) lies in its encrypted database and leaves it only in
-an export you make yourself.
+a PC, a diagnostic log) lies in its encrypted database and leaves it only when
+you take it out yourself: an export, **Share history** for a conversation, or
+a copy to the clipboard from its screen.
 
 ## What data the app handles and where it lives
 
@@ -26,7 +27,7 @@ an export you make yourself.
 | Text typed with Keyboard from a PC (add-on only) | travels encrypted to the device being typed on and lands in the field you chose there. With **Save typing history** on (the default), both devices keep it in their typing history, in the encrypted database: what was typed, into which app, when, and whether it landed. Text typed into a password field or a field of unknown kind is kept as a number of characters | the two devices, and anyone who gets an export made on either of them |
 | The name of the app with the focused field and the kind of that field (ordinary or password) on the device being typed on (Keyboard from a PC only) | sent encrypted to the device that types, during a session, for its "Typing into" line; with the typing history on, both devices keep them next to what was typed | the two devices |
 | App log: what the app did and what went wrong (connections, pairing, file transfers, Bluetooth, typing sessions without their text, errors), with device names, addresses and file sizes | on your device, in the encrypted database, for 30 days at most | only you, and anyone who gets an export you made |
-| An export made with **Export data** | one ZIP file, not encrypted, where you saved it or whichever app you handed it to | anyone who can open that file |
+| An export made with **Export data** | one ZIP file, not encrypted, where you saved it or whichever app you handed it to. On Android, after the share sheet, a copy waits in the app's private cache until the next export, **Clear history**, **Clear typing history**, or the next start once it is an hour old | anyone who can open that file |
 
 None of the above is sent to the app's author or to anyone outside your local
 network. An export goes only where you take it. See "Connections outside your
@@ -50,7 +51,9 @@ off until you turn them on.
 
 ## Typing history, app log and export
 
-All three are in Settings, in the **Data and diagnostics** section.
+All three are in Settings, in the **Data and diagnostics** section; Typing
+history shows there once at least one session is saved, and the keyboard
+add-on's card opens it too while the add-on is on.
 
 **Typing history.** With the Keyboard from a PC add-on on, both devices keep a
 record of every typing session: which device typed on which, when the session
@@ -61,7 +64,8 @@ password field, or into a field whose kind Chatt cannot tell, is kept as a
 number of characters and shown as dots. A password field that its app does
 not mark as one looks like an ordinary field to Chatt, and what is typed into
 it is kept as text. The **Save typing history** switch on the add-on's card
-turns the record off; it starts on. With the add-on off nothing is recorded,
+turns the record off on that device; it starts on, and each device keeps its
+own history under its own switch. With the add-on off nothing is recorded,
 and turning the switch off keeps what is already saved.
 
 **App log.** Each device keeps a log of what the app did, so that a problem
@@ -69,14 +73,17 @@ can be traced: connections and the road they took, pairing, file transfers,
 Bluetooth, typing sessions and errors. It holds device names, network and
 radio addresses and file sizes. It never holds message text, typed text,
 pairing codes, keys or window titles. Entries older than 30 days are deleted,
-and the log keeps 20,000 entries at most.
+and the log keeps 20,000 entries at most. **Clear the log** on its screen
+deletes all of it.
 
 **Export.** **Export data** writes one ZIP file with the parts you pick:
 conversations with devices and settings, the typing history, the app log, and
 received files (the dialog shows their size). On Android 10 and newer the file
-goes to Downloads; on older Android the system's share sheet lets you pick
-where it goes. On Windows you pick the place in the system's save dialog. The
-export itself sends nothing anywhere.
+goes to Downloads; on older Android, or when saving to Downloads fails, the
+system's share sheet lets you pick where it goes, and Chatt keeps a copy in
+its private cache until the next export, **Clear history**, **Clear typing
+history**, or the next start once it is an hour old. On Windows you pick the
+place in the system's save dialog. The export itself sends nothing anywhere.
 
 ## Permissions
 
@@ -150,9 +157,11 @@ All data is on your device and under your control:
 - "Clear history" in settings deletes every message and conversation, and the
   typing history with them,
 - "Clear typing history" deletes the typing history alone,
+- both also delete an export still waiting in the app's cache on Android,
 - automatic deletion of messages older than a chosen number of days runs on
   its own once you enable it, and takes the typing history of that age along,
-- the app log deletes its own entries after 30 days,
+- "Clear the log" on the App log screen deletes every log entry at once, and
+  the log deletes entries older than 30 days by itself,
 - uninstalling the app removes its data (on Windows the database in Documents
   is left for you to delete, because those are your documents),
 - an export you saved is a file of yours: Chatt never deletes it, so delete
@@ -171,8 +180,8 @@ nothing.
 
 ## Children
 
-The app is not directed at children and collects no data, so there is nothing
-to regulate separately.
+The app is not directed at children. It sends no data to its author or to
+anyone else, so there is nothing to regulate separately.
 
 ## Changes
 

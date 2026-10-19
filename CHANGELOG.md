@@ -17,9 +17,12 @@ into `master`.
   ended, and what was typed, piece by piece, with the app it went into and
   whether it landed (typed, not typed, paused, refused, unconfirmed, not
   sent). Text typed into a password field or a field of unknown kind is kept
-  as a number of characters. A **Save typing history** switch on the add-on's
-  card, on by default, turns it off, and an add-on that is off records
-  nothing. **Delete messages older than** and **Clear history** take the
+  as a number of characters, and so is a piece the typing device sent with no
+  answer saying where it went. A **Save typing history** switch on the
+  add-on's card, on by default, turns it off on that device, since each device
+  keeps its own history, and an add-on that is off records nothing. During
+  steady typing a piece goes to the database about 5 seconds after it
+  started. **Delete messages older than** and **Clear history** take the
   typing history along, and **Clear typing history** deletes it alone. Both
   sides write a session under the same request id, so the two records can be
   laid side by side.
@@ -28,16 +31,26 @@ into `master`.
   shared history, Bluetooth, keyboard sessions, update checks and uncaught
   errors, each entry with a level and an area. It never holds message text,
   typed text, pairing codes, keys, remote-input tokens or window titles.
-  Entries older than 30 days go, and at most 20,000 stay.
+  Identical entries in a burst are written once, followed by one entry with
+  ` (repeated N times)`. Entries older than 30 days go, at most 20,000 stay,
+  and **Clear the log** on the App log screen deletes them all. **Quit Chatt**
+  in the Windows tray menu and every move to the background save what the log
+  and the typing history hold in memory.
 - **Export data** (issue #50). One ZIP with the parts picked in a dialog:
   conversations with devices and settings, the typing history, the app log,
   and received files with their size shown. JSON for programs, text for
   reading, a `README.txt` and a `manifest.json`. No private key, session key
   or database key goes in, and the file is not encrypted. Android 10 and newer
-  save it to Downloads, older Android hands it to the share sheet, and Windows
-  asks with the save dialog.
+  save it to Downloads. Older Android, or a failed copy to Downloads, hands it
+  to the share sheet, and that copy waits in the app's cache until the next
+  export, **Clear history**, **Clear typing history**, or the next start once
+  it is an hour old. Windows asks with the save dialog, and the app asks
+  before replacing a file the dialog did not ask about. The archive is
+  written to `<name>.part` and replaces the target only when complete, so a
+  failed export leaves no partial file.
 - **Data and diagnostics**, a new Settings section between Privacy and
-  Add-ons, holds Typing history, App log and Export data.
+  Add-ons, holds App log and Export data, plus Typing history once at least
+  one session is saved.
 - Schema 16: the tables `typing_sessions`, `typing_entries` and `app_log`, and
   `settings.typingHistory`, on by default.
 
@@ -48,7 +61,8 @@ into `master`.
   in their encrypted database, text for password fields as a number of
   characters. The app log holds no typed text.
 - **Clear history** and **Delete messages older than** cover the typing
-  history as well. The app log keeps its own 30 days.
+  history as well. The app log keeps its own 30 days and has its own
+  **Clear the log**.
 - **The documentation follows.** The privacy policy covers the typing
   history, the app log, the export and how each is deleted.
   `docs/SECURITY.md` takes the three into scope and lists the plaintext

@@ -425,8 +425,9 @@ With **Save typing history** on, both devices keep a record of every session
 in their encrypted database: the PC what it sent and what the other device
 answered, the device being typed on what came in and what its keyboard typed.
 The switch is on the add-on's card, on from the start, and it counts only
-while the add-on is on: an add-on that is off records nothing. Turning the
-switch off keeps what is already saved.
+while the add-on is on: an add-on that is off records nothing. Each device
+keeps its own history under its own switch. Turning the switch off keeps what
+is already saved.
 
 A session in the history shows:
 
@@ -440,17 +441,21 @@ A session in the history shows:
   the text, Backspace, Delete and Enter;
 - whether each piece landed: typed, not typed (the field went away, the
   screen locked, Stop came first), paused by a card, refused, unconfirmed
-  (the PC got no answer, so nobody knows whether it landed) or not sent (it
-  was still waiting on the PC when the session ended).
+  (the PC got no answer, or a refusal after an attempt with no answer, so
+  nobody knows whether it landed) or not sent (it was still waiting on the PC
+  when the session ended).
 
 **Password fields.** Text typed into a password field, or into a field
 Chatt cannot tell, is kept as a number of characters and shows as dots. The
 kind of field is known only once the other device answers, so a piece counts
 as hidden when the field was not an ordinary text field before it or after it:
 the first characters in a password field you have just tapped stay hidden,
-and so do the first ones in an ordinary field right after a password field. A
-password field that its app does not mark as one looks like an ordinary field
-to Chatt, and what you type into it is kept as text.
+and so do the first ones in an ordinary field right after a password field.
+On the PC, a piece whose answer did not say where it went (unconfirmed,
+refused or not sent) is kept as a number of characters too, since the field
+it was bound for is unknown. A password field that its app does not mark as one
+looks like an ordinary field to Chatt, and what you type into it is kept as
+text.
 
 **The text is rebuilt from the keys.** Backspace takes the last character
 away and Enter starts a new line. Delete changes nothing in it, because Chatt
@@ -458,9 +463,11 @@ does not know where the cursor was over there, and text that was in the field
 before the session does not show. The keys themselves are the exact record,
 and an export carries them.
 
-**Where to find it.** Settings, **Data and diagnostics**, **Typing history**.
-Both devices write a session under the same identifier, so the record on the
-PC and the one on the device being typed on can be laid side by side.
+**Where to find it.** Settings, **Data and diagnostics**, **Typing history**,
+shown there once a session is saved, or the **Typing history** button on the
+add-on's card. Both devices write a session under the same identifier, so the
+record on the PC and the one on the device being typed on can be laid side by
+side.
 
 **Deleting it.** **Delete messages older than** and **Clear history** in
 Settings, Privacy, take the typing history along, and **Clear typing history**
@@ -505,8 +512,8 @@ leaves in the next one.
   which app, when, and whether it landed. Text for a password field or a
   field of unknown kind is kept as a number of characters, and the app log
   holds no typed text. Whoever has one of the devices unlocked in hand can
-  read that history, so turn the switch off when you would rather not keep
-  it (see [Typing history](#typing-history)).
+  read that history, so turn the switch off on each device that should not
+  keep it (see [Typing history](#typing-history)).
 - **Chatt's question cards stay out of reach.** While a card waits on the
   device being typed on, packets are answered "paused" and nothing is typed.
   On Windows, a long packet that is being typed into Chatt's own window stops

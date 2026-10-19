@@ -48,8 +48,8 @@
 - **Twoje dane w jednym pliku**: **Eksportuj dane** zapisuje ZIP z rozmowami,
   urządzeniami i ustawieniami, historią pisania, dziennikiem aplikacji i, na
   życzenie, odebranymi plikami, w JSON-ie dla programów i w tekście do
-  czytania. Żaden klucz do niego nie trafia, a plik nie jest zaszyfrowany, co
-  mówi też README w środku.
+  czytania. Nie trafia do niego żaden klucz prywatny, klucz sesji ani klucz
+  bazy, a plik nie jest zaszyfrowany, co mówi też README w środku.
 - **Dziennik aplikacji na wypadek awarii**: 30 dni tego, co aplikacja robiła
   i co się nie udało (połączenia, parowanie, pliki, Bluetooth, błędy),
   w zaszyfrowanej bazie i nigdy z treścią wiadomości, wpisywanym tekstem ani
@@ -90,8 +90,8 @@ pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
   komputera; skróty i mysz zostają w domu. Tylko klawiatura, szyfrowana, bez
   konta, między urządzeniami, które już się nawzajem potwierdziły. Oba
   urządzenia prowadzą historię pisania każdej sesji (co wpisano, gdzie i czy
-  dotarło), a tekst do pól haseł zapisują jako liczbę znaków; jeden
-  przełącznik na karcie dodatku ją wyłącza.
+  dotarło), a tekst do pól haseł zapisują jako liczbę znaków; przełącznik na
+  karcie dodatku wyłącza ją na danym urządzeniu.
 
 | Pisanie z komputera na telefonie | Karta zgody |
 |---|---|
@@ -139,7 +139,7 @@ Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 387 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura
+flutter test        # 594 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style, historia pisania, dziennik, eksport
 flutter analyze
 ```
 

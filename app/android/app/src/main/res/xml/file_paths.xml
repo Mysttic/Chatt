@@ -20,8 +20,9 @@
      danych (services/data_export.dart). Wychodzi stąd tylko wtedy, gdy
      zapis do Pobranych jest niedostępny (Android starszy niż 10 albo odmowa
      dostawcy treści) i archiwum idzie do okna „Udostępnij". Ten katalog
-     trzyma wyłącznie archiwum ostatniego eksportu, każdy kolejny eksport go
-     czyści. -->
+     trzyma wyłącznie archiwum ostatniego eksportu. Czyści go każdy kolejny
+     eksport, „Wyczyść historię", „Wyczyść historię pisania" i start
+     aplikacji, gdy archiwum ma ponad godzinę (core/export_cache.dart). -->
 <paths>
     <files-path name="odebrane" path="Chatt/received/" />
     <files-path name="aktualizacje" path="Chatt/updates/" />

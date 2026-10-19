@@ -68,8 +68,8 @@ mouse between PCs. Chatt fills the gap between them:
 - **Your data in one file**: **Export data** writes a ZIP with the
   conversations, devices and settings, the typing history, the app log and,
   if you like, the received files, as JSON for programs and text for reading.
-  No key goes into it, and the file is not encrypted, which the README inside
-  says too.
+  No private key, session key or database key goes into it, and the file is
+  not encrypted, which the README inside says too.
 - **An app log for when something fails**: 30 days of what the app did and
   what went wrong (connections, pairing, files, Bluetooth, errors), kept in the
   encrypted database and never with message text, typed text or keys. Export
@@ -104,8 +104,8 @@ nothing.
   confirmed device), and a bar with Stop stays there for as long as it lasts. Text, Backspace, Delete, Enter and the PC's clipboard travel;
   shortcuts and the mouse stay home. Both devices keep a typing history of
   every session (what was typed, where, and whether it landed), with text for
-  password fields kept as a number of characters; one switch on the add-on's
-  card turns it off.
+  password fields kept as a number of characters; a switch on the add-on's
+  card turns it off on that device.
 
 | Typing on a phone from a PC | The consent card |
 |---|---|
@@ -160,7 +160,7 @@ The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 442 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles
+flutter test        # 594 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles, typing history, app log, export
 flutter analyze
 ```
 

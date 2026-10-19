@@ -553,11 +553,14 @@ Both sides keep a record of every session in the encrypted database (issue
 what arrived and what its sink typed. The code is
 [`services/typing_journal.dart`](../app/lib/services/typing_journal.dart);
 the tables are `typing_sessions` and `typing_entries` (schema 16). The
-journal records only while the add-on and `settings.typingHistory` are both
-on (`AppServices.typingJournal`). The switch is "Save typing history" on the
-add-on's card, on by default, and `setTypingHistory` is its one writer.
-Turning it off keeps what is saved, and an add-on that is off records
-nothing.
+journal opens a session only while the add-on and `settings.typingHistory`
+are both on (`AppServices.typingJournal`). An open session takes entries
+while `settings.typingHistory` is on (`recording`), so a packet being typed
+when the add-on is turned off still lands in the session that turning it off
+then closes. The switch is "Save typing history" on the add-on's card, on by
+default, and `setTypingHistory` is its one writer. Each device keeps its own
+history under its own switch. Turning it off keeps what is saved, and an
+add-on that is off records nothing.
 
 **A session row per request.** `direction` says who typed: `outgoing` is
 this device typing on the peer, `incoming` is the peer typing here. The row
@@ -593,8 +596,8 @@ packets into one field with one outcome (`TypingStatus`):
 | `typed` | the sink applied the packet | the reply says it was typed |
 | `notTyped` | the sink answered `applied: false`: the field went away, the screen locked or Stop came first, and part of it may have landed | the reply says `applied: false` |
 | `paused` | a card waited, nothing typed | the reply says `paused` |
-| `refused` | | the reply was a refusal (`ok: false`) |
-| `unconfirmed` | | no reply after the three attempts, or another failure, so nobody knows whether it landed |
+| `refused` | | the reply to the first attempt was a refusal (`ok: false`) |
+| `unconfirmed` | | no reply after the three attempts, another failure, a refusal after an attempt that got no reply (that attempt may have been typed), or the packet was in flight when the session ended, so nobody knows whether it landed |
 | `unsent` | | still in the queue when the session ended (`_finish`, `_drain` on a dead session, `dispose`) |
 
 **Hiding.** `hideTyping(before, after)` stores the text of a packet only when
@@ -608,8 +611,11 @@ packet into an ordinary field right after a password field. `before` is the
 target known before the packet: the receiver keeps `lastTarget` on the grant,
 starting with the `status()` taken at acceptance, and the sender takes
 `o.state.target`, which the pings refresh every second. `after` is the sink's
-answer on the receiver and the reply's target on the sender (`before` when no
-reply came). A password field that its app does not mark as one (no
+answer on the receiver and the reply's target on the sender. A sender's
+packet with no reply target (`unconfirmed`, `refused`, `unsent`, in flight
+when the session ends) gets `none` as `after`, a field of unknown kind, so
+its text is hidden: the receiver may have moved to a password field in the
+meantime. A password field that its app does not mark as one (no
 `IsPassword` in UI Automation, no password input type on Android) is `text`
 to the sink, and its text is stored.
 
@@ -617,11 +623,14 @@ to the sink, and its text is stored.
 status and hiding go into one entry in memory, their operations merged by
 `appendTypingOp` (text with text, Backspace with Backspace, Delete with
 Delete). The entry goes to the database after 1 second of quiet, when any of
-those five changes, and when the session ends. Every journal call returns at
-once and the writes run one after another in the background, so a packet
-never waits for the disk; a write that fails goes to the app log. Closing the
-app gives no signal (Windows ends the process from the tray, Android kills
-it), so nothing waits in memory longer than that second.
+those five changes, when the session ends, and with the next packet once it
+is 5 seconds old (`maxEntryAge`), so steady typing is saved without a pause.
+Every journal call returns at once and the writes run one after another in
+the background, so a packet never waits for the disk; a write that fails goes
+to the app log. Closing the app gives no signal (Windows ends the process from
+the tray, Android kills it), so an entry stays in memory a few seconds at
+most, and **Quit Chatt** in the tray menu and every move to the background
+write it out at once (see [The app log](#the-app-log)).
 
 **End reasons** (`TypingEnd`):
 
@@ -650,7 +659,8 @@ it), so nothing waits in memory longer than that second.
   entries. `AppServices.clearHistory` clears the typing tables together with
   the messages, and `clearTypingHistory` clears them alone. Both flush the
   journal and then call `detachAll`: the rows are gone, so a session still
-  running goes on with no record.
+  running goes on with no record. Both also delete an export still waiting
+  in the Android cache (see [Exporting data](#exporting-data)).
 - **Reading it back.** `watchTypingSessionSummaries` gives the list
   (characters, entries, apps) and `watchTypingEntries` the entries of one
   session. `reconstructTyping` rebuilds the text as far as the operations
@@ -1148,8 +1158,9 @@ after it is closed, which leaves either the old database or the new one.
 
 Everything in the database sits under that key: the conversations, the
 typing history and the app log. `migrateToEncrypted` copies the typing tables
-and the log as well. Data leaves the database in the clear only through
-[an export](#exporting-data), when the user asks for one.
+and the log as well. Data leaves the database in the clear only when the user
+takes it out: through [an export](#exporting-data), or by copying to the
+clipboard from a message, the Typing history screen or the App log screen.
 
 ## The app log
 
@@ -1158,18 +1169,23 @@ diagnostic log in the encrypted database (`app_log`, schema 16, issue #50).
 There is one `AppLog` per `AppServices` (`services.log`), because the tests
 run several instances in one process and their entries must not mix.
 Settings, "Data and diagnostics", "App log" shows it, and it leaves the device
-only through [an export](#exporting-data).
+only when the user takes it out, through [an export](#exporting-data) or the
+screen's "Copy the entries shown" button.
 
 - **An entry** is `atMs`, `level` (`info`, `warning`, `error`), `area`
   (`LogArea`: `app`, `net`, `pair`, `file`, `history`, `bt`, `keyboard`,
   `update`, `error`), `message` and `details`, the exception and its stack
   trace (`describeError`). Messages are short, in English and stable,
-  whatever the app's language: they are data for analysis outside the app.
+  whatever the app's language, apart from the ` (repeated N times)` suffix
+  described under Repeats: they are data for analysis outside the app.
 - **What goes in**: what the app did and what failed, by area: start and
   stop, connections and the road they took, pairing, file transfers, shared
   history, Bluetooth, keyboard sessions, update checks, errors. Device names,
   network and radio addresses and file sizes go in, because without them the
-  log cannot say with whom and over which road something failed.
+  log cannot say with whom and over which road something failed. The stop
+  entry (`App stopping`) is written by "Quit Chatt" in the Windows tray menu,
+  which the updater also uses before the installer runs; an Android process
+  ended by the system writes no stop entry.
 - **What never goes in**: message bodies, typed text, pairing codes, keys
   (identity, session, file, database), remote-input tokens, `pad` and window
   titles. `Setting.toString()` and `Peer.toString()` print keys, so neither
@@ -1179,11 +1195,30 @@ only through [an export](#exporting-data).
   the app gives no signal to wait for. A write that fails is dropped: the log
   has nowhere to record its own failure, and the app carries on.
   `AppServices.dispose` closes the log after the typing history and before
-  the database.
+  the database. The tests call it; the app's process ends without it. So
+  "Quit Chatt" in the Windows tray menu logs `App stopping` and flushes the
+  log and the typing history first (`TrayIcon.beforeQuit`, two seconds at
+  most), and every move to the background (`paused`, `hidden`, `detached`,
+  on Android and Windows) flushes both as well.
+- **Repeats.** The same level, area and message within a window of its first
+  written copy is only counted: 10 seconds by default (`appLogFloodWindow`),
+  1 minute for history chunks refused with no grant, 10 minutes for failed
+  Bluetooth and keyboard native calls, the discovery socket error and a
+  Bluetooth listening failure on the 10 second radio retry. When the window
+  ends, and on `flush` (an export, the tray's quit, a move to the background)
+  and `close`, one more entry with the same level and area carries the count
+  as ` (repeated N times)` after the message, timed at the end of the window
+  or at the flush. Details and the stack trace stay with the first copy, and
+  at most 256 windows stay open at once. These counts are the only part of
+  the log that waits in memory past the 1 second batch, so a process the
+  system kills loses them; the first copy is already in the database.
 - **Size.** `trim` runs at start and every six hours with the retention
   timer: entries older than 30 days (`appLogRetention`) go, and of the rest
-  the newest 20,000 stay (`appLogMaxEntries`). "Clear history" leaves the log
-  alone, since it holds no content.
+  the newest 20,000 stay (`appLogMaxEntries`). `AppServices.clearLog` (the
+  App log screen's "Clear the log", after a confirmation) deletes every entry
+  at once, together with what the log still holds in memory (`AppLog.clear`),
+  and leaves one `App log cleared: N entries` entry. "Clear history" leaves
+  the log alone, since it holds no content.
 - **Uncaught errors.** The global handlers (`FlutterError.onError` and
   `PlatformDispatcher.instance.onError`) write what nobody caught as `error`
   entries in the `error` area, with the stack trace in `details`. A failure
@@ -1196,8 +1231,9 @@ only through [an export](#exporting-data).
 one ZIP with the parts the user picks in the "Export data" dialog
 (`ExportParts`): the conversations with devices and settings, the typing
 history, the app log, and received files, whose count and total size the
-dialog shows before anything is written (`estimateExport`). Every file inside
-is UTF-8: JSON for programs, text for people.
+dialog shows before anything is written (`estimateExport`). The JSON and text
+files inside are UTF-8: JSON for programs, text for people. Received files
+under `files/` go in byte for byte.
 
 ```
 README.txt            what is inside, format notes, "this file is not
@@ -1225,21 +1261,36 @@ files/<8-hex>_<name>  received files, only with that part chosen
 chosen. Enums go in by name and dates as ISO 8601, so the files read without
 the app. A received file is referenced from `conversations.json` by
 `archivePath`; the hexadecimal prefix keeps two files of the same name apart,
-and a file that is gone from disk or cannot be read is listed in
-`skippedFiles` with the reason.
+and a received file left out of the archive is listed in `skippedFiles`
+with a reason (`ExportSkipReason`): `missing` (gone from disk), `readError`
+(there, but the read failed), `tooLarge` (past the ZIP limits of 4 GB per
+file and per archive or 65,535 entries) or `outsideReceivedDir` (the path in
+the database points outside the received files folder; the export takes
+files from that folder alone, since the database and its key sit next to it).
+`conversations.json` then has no `archivePath` for that message.
 
 - **No keys.** `settings.json` leaves out `identityKey` and `devices.json`
   leaves out `sessionKey`; the database key never comes near the export. The
   peers' public keys go in, since they are public.
 - **Not encrypted.** The archive is a plain ZIP and `README.txt` says so. It
-  holds what the user picked, the typing history included.
-- **Where it goes** (`exportAndSave`). Windows asks with the system save
-  dialog and writes the archive straight there. Android builds it in the app
-  cache (`cache/eksport/`) and copies it to Downloads through MediaStore on
-  Android 10 and newer; on Android 9 and older, which have no such copy, it
-  hands the archive to the share sheet through the FileProvider root for
-  that directory. The name comes from `exportFileName`:
-  `chatt-export-2026-10-18-1530.zip`.
+  holds what the user picked, the typing history included. The dialog's
+  warning says so too and names the content of the parts chosen: message
+  text, typed text, both, or neither for an export of the app log alone.
+- **Whole or nothing.** `ZipWriter` builds the archive in `<name>.part` next
+  to the target and replaces the target only when the archive is complete, so
+  a failed export leaves an older file in place and no partial copy.
+- **Where it goes** (`exportAndSave`). On a desktop the system save dialog
+  asks, and the archive goes there. When the app appends `.zip` to the name
+  chosen in the dialog, or on Linux, whose dialog never asks, and that file
+  exists, the app asks before replacing it. Android builds the archive in the
+  app cache (`cache/eksport/`) and copies it to Downloads through MediaStore
+  on Android 10 and newer; on Android 9 and older, and whenever that copy
+  fails, it hands the archive to the share sheet through the FileProvider
+  root for that directory. An archive copied to Downloads is deleted from the
+  cache at once. A shared archive stays in `cache/eksport/` until the next
+  export, "Clear history", "Clear typing history", or, once it is an hour
+  old, the next start or the six-hourly retention run (`clearExportCache`).
+  The name comes from `exportFileName`: `chatt-export-2026-10-18-1530.zip`.
 
 ## Security
 
@@ -1528,10 +1579,11 @@ Files go out to other apps through FileProvider as `content://` (our own
 lists, and it lists five roots: received files, a downloaded release, the
 two cache directories holding copies of files the user picked or pasted to
 send, and `cache/eksport/`, where an export waits for the share sheet on
-Android 9 and older (see [Exporting data](#exporting-data)). A file outside
-all of them cannot be handed out at all. That is what made tapping your own
-sent photo fail until 0.8.2: an outgoing message keeps the source path it was
-given, and nothing ever moves that file under `files/`. The channel answers
+Android 9 and older or when the copy to Downloads fails (see
+[Exporting data](#exporting-data)). A file outside all of them cannot be
+handed out at all. That is what made tapping your own sent photo fail until
+0.8.2: an outgoing message keeps the source path it was given, and nothing
+ever moves that file under `files/`. The channel answers
 with a word (`ok`, `missing`, `failed`), so "the file is gone" and "handing it
 out failed" reach the user as different sentences, and the failure is written
 to logcat.

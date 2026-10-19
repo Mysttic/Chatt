@@ -683,27 +683,31 @@ The same place has two things you can do by hand:
 
 In both cases **received files stay on disk**: the app deletes its own
 entries, and the files you open with other programs stay where they are. The
-app log stays too. It holds no content and deletes its entries by itself
-after 30 days.
+app log stays too. It holds no content, deletes its entries by itself after
+30 days, and **Clear the log** on its screen deletes it at once.
 
 ## Data and diagnostics
 
-Settings has a **Data and diagnostics** section, between Privacy and Add-ons,
-with three things in it.
+Settings has a **Data and diagnostics** section, between Privacy and Add-ons.
+It holds **App log** and **Export data**, and **Typing history** above them
+once at least one typing session is saved. While the keyboard add-on is on,
+the **Typing history** button on its card opens the same screen.
 
 **Typing history** lists the sessions of Keyboard from a PC on this device:
 which device typed on which, when, how it ended, and what was typed, piece by
 piece, with the app it went into and whether it landed. Text for a password
 field, or for a field Chatt cannot tell, shows as dots with the number of
 characters. **Clear typing history** deletes all of it. The record runs while
-the keyboard add-on and its **Save typing history** switch are both on; the
+the keyboard add-on and its **Save typing history** switch are both on, and
+each device keeps its own history under its own switch; the
 [Keyboard from a PC](keyboard.md#typing-history) page has the details.
 
 **App log** shows what the app did and what went wrong: connections and the
 road they took, pairing, file transfers, Bluetooth, typing sessions and
 errors, each with its time and level (info, warning, error). It never holds
 message text, typed text, pairing codes or keys. It keeps 30 days and 20,000
-entries at most, and deletes older ones by itself.
+entries at most, and deletes older ones by itself. **Clear the log** deletes
+all of it.
 
 **Export data** writes what Chatt keeps into one ZIP file, as a copy you can
 read or for analysis in other tools. A dialog asks which parts to take:
@@ -714,18 +718,24 @@ read or for analysis in other tools. A dialog asks which parts to take:
 - received files, with their total size shown, since they can be large.
 
 The file is named like `chatt-export-2026-10-18-1530.zip`. On Android 10 and
-newer it lands in Downloads; on older Android the share sheet opens and you
-pick where it goes. On a PC the system save dialog asks where to put it.
+newer it lands in Downloads; on older Android, or when saving to Downloads
+fails, the share sheet opens and you pick where it goes. On a PC the system
+save dialog asks where to put it, and if a file of that name is already there
+and the dialog did not ask about it, Chatt asks before replacing it. A failed
+export leaves no partial file and keeps an older file of the same name.
 Inside are JSON files for programs and text files for reading, and a
 `README.txt` that describes them.
 
 **The export is not encrypted.** Anyone who gets the file reads what you put
 in it, the typing history included. It never holds a private key, a session
 key or the database key, so it cannot stand in for this device or open its
-database. Delete it when you no longer need it.
+database. Delete it when you no longer need it. After sharing, Chatt keeps
+its own copy in the app's cache until the next export, **Clear history**,
+**Clear typing history**, or the next start once it is an hour old.
 
 **For a bug report**, export with only **App log** ticked and attach the
-file. Besides the log it holds this device's name and identifier. The log
+file. The dialog's warning then mentions no message text or typed text.
+Besides the log the file holds this device's name and identifier. The log
 holds device names, addresses and file sizes, and no message text, typed text
 or keys.
 
