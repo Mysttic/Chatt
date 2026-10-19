@@ -63,6 +63,14 @@ class ChattServer {
   final Future<SealedReply> Function(
           RemoteInputPacket packet, String fromHost, String session)? onInput;
 
+  /// Wołane dla POST /history-offer i POST /history-chunk (udostępnianie
+  /// historii). Odpowiedź jak przy [onInputSession]: gotowa i zapieczętowana.
+  final Future<SealedReply> Function(
+          HistoryOfferMessage message, String fromHost, String session)?
+      onHistoryOffer;
+  final Future<SealedReply> Function(
+          HistoryChunk chunk, String fromHost, String session)? onHistoryChunk;
+
   HttpServer? _server;
 
   ChattServer({
@@ -75,6 +83,8 @@ class ChattServer {
     this.onFile,
     this.onInputSession,
     this.onInput,
+    this.onHistoryOffer,
+    this.onHistoryChunk,
   });
 
   /// Zamienia kopertę na jej zawartość. Od protokołu 5 **wszystko** musi
@@ -115,7 +125,9 @@ class ChattServer {
             ..post('/file-offer', _handleFileOffer)
             ..post('/file', _handleFile)
             ..post('/input-session', _handleInputSession)
-            ..post('/input', _handleInput))
+            ..post('/input', _handleInput)
+            ..post('/history-offer', _handleHistoryOffer)
+            ..post('/history-chunk', _handleHistoryChunk))
           .call);
 
   /// Żądanie, które przyszło łączem Bluetooth. Adres radia wchodzi jako
@@ -387,6 +399,50 @@ class ChattServer {
       return _noSession();
     }
     final paczka = RemoteInputPacket.fromJson(json);
+    if (paczka == null) {
+      return _json({'ok': false, 'error': 'bad_request'}, status: 400);
+    }
+    if (paczka.from.guid == identity().guid) {
+      return _json({'ok': false, 'error': 'self'}, status: 400);
+    }
+    final reply = await handler(paczka, _from(request), opened.session!);
+    return _json(reply.body, status: reply.status);
+  }
+
+  /// Zapowiedź historii, prośba o nią, jej koniec albo przerwanie.
+  Future<Response> _handleHistoryOffer(Request request) async {
+    final handler = onHistoryOffer;
+    if (handler == null) {
+      return _json({'ok': false, 'error': 'not_supported'}, status: 404);
+    }
+    final body = await _readBody(request);
+    if (body == null) return _tooLarge();
+    final opened = await _unseal(tryDecodeJsonMap(body));
+    final json = opened.json;
+    if (json == null) return _noSession();
+    final wiadomosc = HistoryOfferMessage.fromJson(json);
+    if (wiadomosc == null) {
+      return _json({'ok': false, 'error': 'bad_request'}, status: 400);
+    }
+    if (wiadomosc.from.guid == identity().guid) {
+      return _json({'ok': false, 'error': 'self'}, status: 400);
+    }
+    final reply = await handler(wiadomosc, _from(request), opened.session!);
+    return _json(reply.body, status: reply.status);
+  }
+
+  /// Paczka wiadomości udostępnianej historii.
+  Future<Response> _handleHistoryChunk(Request request) async {
+    final handler = onHistoryChunk;
+    if (handler == null) {
+      return _json({'ok': false, 'error': 'not_supported'}, status: 404);
+    }
+    final body = await _readBody(request);
+    if (body == null) return _tooLarge();
+    final opened = await _unseal(tryDecodeJsonMap(body));
+    final json = opened.json;
+    if (json == null) return _noSession();
+    final paczka = HistoryChunk.fromJson(json);
     if (paczka == null) {
       return _json({'ok': false, 'error': 'bad_request'}, status: 400);
     }
