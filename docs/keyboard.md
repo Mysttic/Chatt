@@ -30,6 +30,7 @@ is at hand there for as long as it lasts.
 - [Lock screens](#lock-screens)
 - [Stopping](#stopping)
 - [Typing without asking](#typing-without-asking)
+- [Typing history](#typing-history)
 - [Over Bluetooth](#over-bluetooth)
 - [Security and privacy](#security-and-privacy)
 - [What does not work](#what-does-not-work)
@@ -97,6 +98,9 @@ keyboard: it can send a message, submit a form, enter a password.
 
 Turning the add-on off turns receiving off in the same step, so switching the
 add-on on again later does not quietly bring receiving back.
+
+The card holds one more switch on both devices, **Save typing history**, on
+from the start: see [Typing history](#typing-history).
 
 ### The Chatt keyboard on Android, once
 
@@ -206,7 +210,8 @@ move the cursor over there. A paste, a switch of mode and a packet the other
 device did not type (paused, no field) also empty it, so pasted text never
 shows in it. Backspace in an empty echo deletes on the other device all the
 same. Spell checking, suggestions and undo are off in this field, so the
-typing screen keeps no history of what you typed.
+field itself remembers nothing of what you typed. What went out is kept in
+the [typing history](#typing-history) while **Save typing history** is on.
 
 ### Compose
 
@@ -414,6 +419,58 @@ and it goes away with the device when you delete it from the list.
 
 <img src="screenshots/windows/en/10_klawiatura_bez_pytania.png" alt="Typing without asking in the conversation's security sheet" width="760">
 
+## Typing history
+
+With **Save typing history** on, both devices keep a record of every session
+in their encrypted database: the PC what it sent and what the other device
+answered, the device being typed on what came in and what its keyboard typed.
+The switch is on the add-on's card, on from the start, and it counts only
+while the add-on is on: an add-on that is off records nothing. Turning the
+switch off keeps what is already saved.
+
+A session in the history shows:
+
+- which device typed on which, when the session started and ended, how the
+  request was answered (accepted, declined, no answer, someone else typing,
+  typing off there, withdrawn, an older Chatt, unreachable) and why the
+  session ended (Stop on either side, the time ran out, the link dropped, a
+  switch turned off, the device removed from the list, a new session in its
+  place, the app closed);
+- what was typed, piece by piece, with the time and the app it went into:
+  the text, Backspace, Delete and Enter;
+- whether each piece landed: typed, not typed (the field went away, the
+  screen locked, Stop came first), paused by a card, refused, unconfirmed
+  (the PC got no answer, so nobody knows whether it landed) or not sent (it
+  was still waiting on the PC when the session ended).
+
+**Password fields.** Text typed into a password field, or into a field
+Chatt cannot tell, is kept as a number of characters and shows as dots. The
+kind of field is known only once the other device answers, so a piece counts
+as hidden when the field was not an ordinary text field before it or after it:
+the first characters in a password field you have just tapped stay hidden,
+and so do the first ones in an ordinary field right after a password field. A
+password field that its app does not mark as one looks like an ordinary field
+to Chatt, and what you type into it is kept as text.
+
+**The text is rebuilt from the keys.** Backspace takes the last character
+away and Enter starts a new line. Delete changes nothing in it, because Chatt
+does not know where the cursor was over there, and text that was in the field
+before the session does not show. The keys themselves are the exact record,
+and an export carries them.
+
+**Where to find it.** Settings, **Data and diagnostics**, **Typing history**.
+Both devices write a session under the same identifier, so the record on the
+PC and the one on the device being typed on can be laid side by side.
+
+**Deleting it.** **Delete messages older than** and **Clear history** in
+Settings, Privacy, take the typing history along, and **Clear typing history**
+deletes it alone. A session still running when the history is cleared goes on
+without a record. **Export data** can take the typing history along in a file
+(see the [user guide](guide.md#data-and-diagnostics)).
+
+The app log never holds what you type: it notes that a session started, how
+it ended, and how many packets failed.
+
 ## Over Bluetooth
 
 With the Bluetooth add-on on at both ends, a session can also go over the
@@ -443,8 +500,13 @@ leaves in the next one.
   id works once.
 - **Encrypted like messages**: the same session keys, and every packet and
   every answer padded, so one keystroke looks like any other on the network.
-- **Nothing is stored**: the typed text goes into no database, log or app
-  state, on either side.
+- **A typing history on both sides**, with **Save typing history** on (the
+  default): each device keeps in its encrypted database what was typed, into
+  which app, when, and whether it landed. Text for a password field or a
+  field of unknown kind is kept as a number of characters, and the app log
+  holds no typed text. Whoever has one of the devices unlocked in hand can
+  read that history, so turn the switch off when you would rather not keep
+  it (see [Typing history](#typing-history)).
 - **Chatt's question cards stay out of reach.** While a card waits on the
   device being typed on, packets are answered "paused" and nothing is typed.
   On Windows, a long packet that is being typed into Chatt's own window stops
@@ -502,13 +564,17 @@ there; ordinary text of that length takes about 9 to 10 seconds.
 | The text lands in the wrong window on Windows | Typing goes into the window in front. Click the field you want first; the floating bar never takes the focus. |
 | A message got sent by Enter | Enter is the field's Enter. On Android, Shift+Enter gives a new line in a field with several lines, and so does a line break in Compose with **Then Enter** unticked. On Windows every new line arrives as Enter (see [A new line](#a-new-line)), so in an app where Enter sends, keep the text on one line. |
 | Letters missing in a slow Windows app | Report it with the app's name: Chatt types at a pace that even the Windows 11 Notepad keeps up with, and a slower app may need more. |
+| You want to know what reached the other device | Settings, **Data and diagnostics**, **Typing history**: every piece says whether it was typed. |
+| You are reporting a problem | Settings, **Data and diagnostics**, **Export data** with only **App log** ticked gives a file to attach. It holds no typed text. |
 
 ## For developers
 
 - How it works inside, the protocol (`/input-session`, `/input`), the
   `chatt/remoteinput` channel, the Android keyboard and the Windows sink:
   [architecture.md](architecture.md), section on the Keyboard from a PC
-  add-on.
+  add-on. The typing history, with its statuses, the rule that hides
+  password text and the end reasons, is in its
+  [Typing history](architecture.md#typing-history) part.
 - The tests and the scenarios on live hardware (`tool/klawiatura_*`), with
   the runs behind the numbers above: [testing.md](testing.md).
 - The screenshots here come from `tool/windows_shots.dart` (Windows, both
