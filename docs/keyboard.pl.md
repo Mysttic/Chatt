@@ -86,8 +86,8 @@ z pytaniem czekająca tam na odpowiedź).
 ### Na komputerze, który pisze
 
 Ustawienia, **Dodatki**, **Klawiatura z PC**. Wystarczy ten jeden przełącznik.
-Karta podpowiada też, od czego zacząć: „Żeby pisać na innym urządzeniu, otwórz
-z nim rozmowę i wybierz klawiaturę u góry ekranu.”
+Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz przycisk
+klawiatury u góry (na telefonie: menu **⋮**, **Pisz na tamtym urządzeniu**).
 
 ### Na urządzeniu, na którym chcesz pisać
 
@@ -148,9 +148,10 @@ włączona.”
 ## Początek sesji
 
 1. **Na komputerze** otwórz rozmowę z drugim urządzeniem i wybierz przycisk
-   klawiatury u góry. Jest tylko przy włączonym dodatku i działa tylko przy
-   zielonej tarczy; bez niej podpowiedź mówi „Pisanie na tamtym urządzeniu
-   wymaga potwierdzonej tożsamości”.
+   klawiatury u góry (na telefonie: menu **⋮**, **Pisz na tamtym
+   urządzeniu**). Jest tylko przy włączonym dodatku i działa tylko przy
+   zielonej tarczy; bez niej podpowiedź, albo linijka pod pozycją menu, mówi
+   „Pisanie na tamtym urządzeniu wymaga potwierdzonej tożsamości”.
 
    <img src="screenshots/windows/pl/09_klawiatura_przycisk.png" alt="Przycisk klawiatury w pasku rozmowy" width="760">
 
@@ -569,8 +570,8 @@ tekst tej długości zajmuje około 9 do 10 sekund.
 
 | Co widać | Dlaczego i co zrobić |
 |---|---|
-| W rozmowie nie ma przycisku klawiatury | Dodatek na tym komputerze jest wyłączony: Ustawienia, Dodatki, Klawiatura z PC. |
-| Przycisk klawiatury jest szary | Nie ma zielonej tarczy: porównaj kod w panelu bezpieczeństwa rozmowy. |
+| W rozmowie nie ma przycisku klawiatury ani pozycji w menu ⋮ | Dodatek na tym komputerze jest wyłączony: Ustawienia, Dodatki, Klawiatura z PC. |
+| Przycisk klawiatury albo pozycja menu jest szara | Nie ma zielonej tarczy: porównaj kod w panelu bezpieczeństwa rozmowy. |
 | „Na urządzeniu X pisanie jest wyłączone.” | Włącz tam dodatek i **Pozwól pisać na tym urządzeniu**. |
 | „Urządzenie X nie odpowiedziało na prośbę.” | Nikt nie odpowiedział na kartę w dwie minuty. Na Androidzie daj Chatt zgodę na powiadomienia, żeby prośba pokazała się, gdy Chatt nie jest na ekranie. |
 | „Brak pola do pisania” na Androidzie | Stuknij tam pole i sprawdź, czy klawiatura Chatt jest bieżąca (pasek na dole mówi „Pisze: …”). |

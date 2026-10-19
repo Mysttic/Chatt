@@ -8,7 +8,13 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.11.0] - 2026-10-19
+
+Two bigger things and two fixes. A conversation's history can come back from
+the other device after a reinstall or a new phone. The app has three looks to
+pick from, each light and dark. A phone can show itself over Bluetooth so that
+another phone finds it, and on Windows a link with `=` in it opens in the
+browser again.
 
 ### Added
 - **Getting a conversation's history back** (issue #36). A conversation lives
@@ -23,8 +29,9 @@ into `master`.
   and sharing again resumes without duplicates. After a reinstall or on a new
   phone the old conversation stays under the old entry; once the new entry has
   a green shield, the share dialog can hand the older conversation over and
-  merge the two on the sharing side. New routes `/history-offer` and
-  `/history-chunk`, schema 14 (`messages.restoredAt`).
+  merge the two on the sharing side. Both progress bars have **Stop**. New
+  routes `/history-offer` and `/history-chunk`, schema 14
+  (`messages.restoredAt`).
 - **Dates in the conversation.** The first message of each day gets "Today",
   "Yesterday" or the full date above it.
 - **"File not available"** on a file bubble whose content is not on this device.
@@ -98,12 +105,11 @@ into `master`.
   the READMEs and the documentation index list the new features. The bug
   report form suggests attaching an export with the app log alone.
 
-## [0.10.1] - 2026-10-18
-
-Two phones could not find each other over Bluetooth. Now one of them can show
-itself for two minutes, and the search on the other one finds it.
-
 ### Fixed
+- **A link with `=` in it opened the Documents folder on Windows** (issue #31).
+  The address went to `explorer.exe` as an argument, and Explorer splits its
+  command line on commas and equals signs. It now goes to `ShellExecuteW` as
+  one string, through a small native channel that checks the scheme once more.
 - **A phone can show itself to devices nearby.** Android is visible over the
   radio only while its own pairing screen stands open, so a Bluetooth search
   from one phone never found another. In Nearby, with Bluetooth picked,
@@ -979,8 +985,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.10.1...HEAD
-[0.10.1]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.10.1
+[0.11.0]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Mysttic/Chatt/compare/v0.8.0...v0.8.1

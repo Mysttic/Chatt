@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:chatt/core/links.dart';
@@ -8,6 +9,8 @@ import 'package:chatt/core/links.dart';
 /// przepuszczać dokładnie to, co da się bezpiecznie otworzyć, a resztę
 /// zostawiać zwykłym tekstem. Testy trzymają tę granicę w miejscu.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('findLinks', () {
     test('znajduje adres http i https', () {
       final wynik = findLinks('zobacz https://example.com/a i http://b.example');
@@ -196,6 +199,41 @@ void main() {
   });
 
   group('openExternalLink', () {
+    tearDown(() {
+      debugLinkPlatform = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('chatt/links'), null);
+    });
+
+    test('na Windows adres idzie kanałem w całości, ze znakami równości',
+        () async {
+      debugLinkPlatform = 'windows';
+      final wywolania = <MethodCall>[];
+      var odpowiedz = true;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('chatt/links'),
+              (call) async {
+        wywolania.add(call);
+        return odpowiedz;
+      });
+      // Adres w kształcie tego z issue #31: taki otwierał folder Dokumenty.
+      const adres = 'https://example.com/magic-link?client=desktop_app'
+          '#0123456789abcdef0123456789:dGVzdEBleGFtcGxlLmNvbQ==';
+      expect(await openExternalLink(Uri.parse(adres)), LinkOpenResult.ok);
+      expect(wywolania.single.method, 'openUrl');
+      expect((wywolania.single.arguments as Map)['url'], adres);
+
+      odpowiedz = false;
+      expect(await openExternalLink(Uri.parse('https://example.com/')),
+          LinkOpenResult.failed);
+    });
+
+    test('na Windows bez kanału nic się nie uruchamia', () async {
+      debugLinkPlatform = 'windows';
+      expect(await openExternalLink(Uri.parse('https://example.com/?a=b')),
+          LinkOpenResult.unsupported);
+    });
+
     test('cudzy schemat nie trafia do systemu', () async {
       // Ostatnia zapora przed oddaniem adresu systemowi: nawet gdyby taki
       // adres jakoś doszedł tutaj, nie ma prawa nic uruchomić.

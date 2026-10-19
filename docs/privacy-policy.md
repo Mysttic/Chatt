@@ -1,6 +1,6 @@
 # Chatt Privacy Policy
 
-Last updated: 18 October 2026.
+Last updated: 19 October 2026.
 
 ## In short
 
@@ -22,7 +22,7 @@ an export you make yourself.
 | Identity key (private part) | on your device, in an encrypted database; never in an export | only you |
 | Conversation history | on your device, in an encrypted database | only you, and anyone who gets an export you made |
 | Local network IP address | visible to the devices you talk to | devices on the same network |
-| The PC's Bluetooth name and radio address (Bluetooth add-on only) | sent out by the PC's radio while the add-on is on; a phone shows its own only when you make it visible in the system's Bluetooth settings | anyone within radio range |
+| The PC's Bluetooth name and radio address (Bluetooth add-on only) | sent out by the PC's radio while the add-on is on; a phone shows its own for the two minutes after **Show this phone nearby** in Chatt, or when you make it visible in the system's Bluetooth settings | anyone within radio range |
 | Text typed with Keyboard from a PC (add-on only) | travels encrypted to the device being typed on and lands in the field you chose there. With **Save typing history** on (the default), both devices keep it in their typing history, in the encrypted database: what was typed, into which app, when, and whether it landed. Text typed into a password field or a field of unknown kind is kept as a number of characters | the two devices, and anyone who gets an export made on either of them |
 | The name of the app with the focused field and the kind of that field (ordinary or password) on the device being typed on (Keyboard from a PC only) | sent encrypted to the device that types, during a session, for its "Typing into" line; with the typing history on, both devices keep them next to what was typed | the two devices |
 | App log: what the app did and what went wrong (connections, pairing, file transfers, Bluetooth, typing sessions without their text, errors), with device names, addresses and file sizes | on your device, in the encrypted database, for 30 days at most | only you, and anyone who gets an export you made |
@@ -161,8 +161,10 @@ All data is on your device and under your control:
 Deleting is local. The person you talk to keeps their own copy of your
 conversation, and their own typing history of the sessions between your
 devices. With **Share history** they can hand the conversation back to you.
-You always see a card first and decide whether to take it; nothing comes back
-on its own.
+When they offer it, you see a card first and decide whether to take it; when
+you ask for it yourself with **Ask for history**, the answer comes in without
+a second card, and **Stop** on the progress bar ends it. Nothing comes back on
+its own.
 
 There is nothing to delete on the author's side, because the author holds
 nothing.
