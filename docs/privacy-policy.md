@@ -18,7 +18,7 @@ add-on, over the radio, and stays on those two devices.
 | Device identity key (public part) | broadcast on your local network | any device on the same network |
 | Identity key (private part), conversation history | on your device, in an encrypted database | only you |
 | Local network IP address | visible to the devices you talk to | devices on the same network |
-| The PC's Bluetooth name and radio address (Bluetooth add-on only) | sent out by the PC's radio while the add-on is on; a phone shows its own only when you make it visible in the system's Bluetooth settings | anyone within radio range |
+| The PC's Bluetooth name and radio address (Bluetooth add-on only) | sent out by the PC's radio while the add-on is on; a phone shows its own for the two minutes after **Show this phone nearby** in Chatt, or when you make it visible in the system's Bluetooth settings | anyone within radio range |
 | Text typed with Keyboard from a PC (add-on only) | travels encrypted to the device being typed on and lands in the field you chose there; Chatt stores it on neither side | the two devices |
 | The name of the app with the focused field and the kind of that field (ordinary or password) on the device being typed on (Keyboard from a PC only) | sent encrypted to the device that types, during a session, for its "Typing into" line | the two devices |
 
@@ -112,8 +112,10 @@ All data is on your device and under your control:
   is left for you to delete, because those are your documents).
 
 Deleting is local. The person you talk to keeps their own copy of your
-conversation, and with **Share history** they can hand it back to you. You
-always see a card first and decide whether to take it; nothing comes back on
+conversation, and with **Share history** they can hand it back to you. When
+they offer it, you see a card first and decide whether to take it; when you
+ask for it yourself with **Ask for history**, the answer comes in without a
+second card, and **Stop** on the progress bar ends it. Nothing comes back on
 its own.
 
 There is nothing to delete on the author's side, because the author holds

@@ -307,8 +307,8 @@ void main() {
     await sprzatnij(tester, services);
   });
 
-  testWidgets('paski postępu: Przerwij przy własnym, Zamknij po przywróceniu',
-      (tester) async {
+  testWidgets('paski postępu: Przerwij po obu stronach, Zamknij po '
+      'przywróceniu', (tester) async {
     final services = await uruchom(tester);
     await tester.pumpWidget(aplikacja(services,
         ekran: Scaffold(
@@ -337,6 +337,21 @@ void main() {
     await tester.pump();
     expect(find.text(teksty.historySharing('Cezary')), findsNothing);
     services.outgoingHistory.value = null;
+
+    // W trakcie przywracania odbierający też ma Przerwij: bez zgody na
+    // zapisanie czegokolwiek więcej (pasek z ręki, bez zgody w serwisie,
+    // więc samo przyciśnięcie niczego tu nie zmienia).
+    services.incomingHistory.value = const HistoryTransfer(
+      peerName: 'Alicja',
+      conversationId: 7,
+      messagesTotal: 4,
+      messagesDone: 1,
+      filesTotal: 0,
+    );
+    await tester.pump();
+    expect(find.text(teksty.historyRestoring('Alicja')), findsOneWidget);
+    expect(find.text(teksty.historyStop), findsOneWidget);
+    expect(find.text(teksty.close), findsNothing);
 
     services.incomingHistory.value = const HistoryTransfer(
       peerName: 'Alicja',
