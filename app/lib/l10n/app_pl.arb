@@ -227,10 +227,10 @@
   "@retentionDays": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "retentionHelp": "Kasowanie dotyczy wpisów w rozmowach. Odebrane pliki zostają na dysku.",
+  "retentionHelp": "Kasowanie dotyczy wpisów w rozmowach i historii pisania. Odebrane pliki zostają na dysku.",
   "clearHistory": "Wyczyść historię",
   "clearHistoryTitle": "Wyczyścić całą historię?",
-  "clearHistoryBody": "Znikną wszystkie wiadomości i rozmowy. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.",
+  "clearHistoryBody": "Znikną wszystkie wiadomości, rozmowy i historia pisania. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.",
   "historyCleared": "Usunięto wiadomości: {count}",
   "@historyCleared": {
     "placeholders": { "count": { "type": "int" } }
@@ -606,5 +606,165 @@
   "styleCieplo": "Ciepło",
   "themeLabel": "Motyw",
   "addonBluetoothShort": "Rozmowy bez wspólnej sieci Wi-Fi",
-  "addonKeyboardShort": "Pisanie z klawiatury komputera"
+  "addonKeyboardShort": "Pisanie z klawiatury komputera",
+
+  "historyClearedWithTyping": "Usunięto wiadomości: {messages}, sesje pisania: {sessions}",
+  "@historyClearedWithTyping": {
+    "placeholders": { "messages": { "type": "int" }, "sessions": { "type": "int" } }
+  },
+
+  "typingHistorySwitch": "Zapisuj historię pisania",
+  "typingHistoryHelp": "Zapisuje na tym urządzeniu sesje w obu kierunkach: pisanie stąd i pisanie tutaj. Drugie urządzenie prowadzi własną historię według swojego przełącznika. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana.",
+  "typingHistory": "Historia pisania",
+  "typingHistoryEntryHelp": "Sesje zdalnej klawiatury zapisane na tym urządzeniu: {count}. Wyczyścić je można na ekranie historii.",
+  "@typingHistoryEntryHelp": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "typingHistoryOff": "Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.",
+  "typingHistoryEmptyTitle": "Brak historii pisania",
+  "typingHistoryEmptyBody": "Tutaj pojawią się sesje zdalnej klawiatury w obu kierunkach: pisanie stąd na innych urządzeniach i pisanie innych urządzeń tutaj.",
+  "typingHistoryClear": "Wyczyść historię pisania",
+  "typingHistoryClearTitle": "Wyczyścić historię pisania?",
+  "typingHistoryClearBody": "Znikną wszystkie zapisane sesje pisania. Rozmowy i dziennik aplikacji zostają.",
+  "typingHistoryCleared": "Usunięto sesje pisania: {count}",
+  "@typingHistoryCleared": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "typingHistoryOutgoing": "Pisanie stąd na: {name}",
+  "@typingHistoryOutgoing": {
+    "description": "Sesja, w której to urządzenie pisało na urządzeniu {name}. Forma bezosobowa, bez rodzaju.",
+    "placeholders": { "name": {} }
+  },
+  "typingHistoryIncoming": "Pisanie tutaj z: {name}",
+  "@typingHistoryIncoming": {
+    "description": "Sesja, w której urządzenie {name} pisało na tym urządzeniu. Forma bezosobowa, bez rodzaju.",
+    "placeholders": { "name": {} }
+  },
+  "typingHistorySessions": "{count, plural, one{{count} sesja} few{{count} sesje} many{{count} sesji} other{{count} sesji}}",
+  "@typingHistorySessions": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "typingHistoryChars": "{count, plural, one{{count} znak} few{{count} znaki} many{{count} znaków} other{{count} znaku}}",
+  "@typingHistoryChars": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "typingHistoryStarted": "Początek",
+  "typingHistoryEnded": "Koniec",
+  "typingHistoryDuration": "Czas trwania",
+  "typingHistoryCharsLabel": "Znaki",
+  "typingHistoryApps": "Aplikacje",
+  "typingHistoryRequest": "Prośba",
+  "typingHistoryEndReason": "Powód końca",
+  "typingHistorySessionId": "Identyfikator sesji",
+  "typingHistoryNotEnded": "Koniec jeszcze niezapisany",
+  "typingHistoryText": "Odtworzony tekst",
+  "typingHistoryTextNote": "Tekst odtworzony z klawiszy. Ukryte pola widać jako kropki.",
+  "typingHistoryNoText": "Odtworzony tekst jest pusty.",
+  "typingHistoryTimeline": "Przebieg",
+  "typingHistoryNoEntries": "W tej sesji nic nie pisano.",
+  "typingHistoryHidden": "Ukryty tekst",
+  "typingFieldPassword": "pole hasła",
+  "typingFieldUnknown": "pole nieznanego rodzaju",
+  "typingKeyEnter": "Enter",
+  "typingKeyBackspace": "Backspace",
+  "typingKeyDelete": "Delete",
+  "typingResultAccepted": "Zgoda z karty",
+  "typingResultAcceptedAlways": "Zgoda z karty, „Nie pytaj więcej”",
+  "typingResultAutomatic": "Bez karty: zapamiętana zgoda",
+  "typingResultRejected": "Odmowa",
+  "typingResultNoAnswer": "Brak odpowiedzi na karcie",
+  "typingResultBusy": "Zajęte przez inną sesję",
+  "typingResultNotEnabled": "Pisanie wyłączone na urządzeniu odbiorcy",
+  "typingResultCancelled": "Prośba wycofana",
+  "typingResultUnreachable": "Brak połączenia z urządzeniem",
+  "typingResultOlderPeer": "Starsza wersja Chatt po drugiej stronie",
+  "typingEndStoppedHere": "Zakończona na tym urządzeniu",
+  "typingEndStoppedByPeer": "Zakończona przez drugą stronę",
+  "typingEndExpired": "Zgoda wygasła",
+  "typingEndReceiveOff": "Wyłączone pisanie na tym urządzeniu",
+  "typingEndAddonOff": "Wyłączony dodatek klawiatury",
+  "typingEndReplaced": "Zastąpiona nową sesją",
+  "typingEndPeerRemoved": "Urządzenie usunięte z listy",
+  "typingEndNotAllowed": "Zgoda cofnięta w trakcie sesji",
+  "typingEndLinkLost": "Połączenie zerwane",
+  "typingEndAppClosed": "Aplikacja zamknięta",
+  "typingStatusTyped": "Wpisane",
+  "typingStatusNotTyped": "Wpisane częściowo albo wcale",
+  "typingStatusPaused": "Wstrzymane: czekała karta z pytaniem",
+  "typingStatusRefused": "Odrzucone: zgoda już się skończyła",
+  "typingStatusUnconfirmed": "Bez potwierdzenia odbioru",
+  "typingStatusUnsent": "Niewysłane",
+
+  "dataSection": "Dane i diagnostyka",
+  "exportData": "Eksportuj dane",
+  "exportDataHelp": "Jeden plik ZIP z wybranymi danymi: rozmowy, urządzenia, ustawienia, historia pisania, dziennik aplikacji i odebrane pliki. Do archiwum albo do analizy w innym programie.",
+  "exportDataConversations": "Rozmowy, urządzenia i ustawienia",
+  "exportDataCountConversations": "{count, plural, one{{count} rozmowa} few{{count} rozmowy} many{{count} rozmów} other{{count} rozmowy}}",
+  "@exportDataCountConversations": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "exportDataCountDevices": "{count, plural, one{{count} urządzenie} few{{count} urządzenia} many{{count} urządzeń} other{{count} urządzenia}}",
+  "@exportDataCountDevices": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "exportDataFiles": "Odebrane pliki",
+  "exportDataWarning": "{parts, select, both{Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst.} messages{Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości.} typing{Plik eksportu nie jest zaszyfrowany i zawiera wpisywany tekst.} other{Plik eksportu nie jest zaszyfrowany.}} Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.",
+  "@exportDataWarning": {
+    "description": "Ostrzeżenie w oknie eksportu. parts: both (rozmowy i historia pisania), messages (same rozmowy), typing (sama historia pisania), none (żadna z nich).",
+    "placeholders": {
+      "parts": {
+        "type": "String"
+      }
+    }
+  },
+  "exportDataReplaceTitle": "Zastąpić plik?",
+  "exportDataReplaceBody": "Plik {name} już istnieje. Eksport go zastąpi.",
+  "@exportDataReplaceBody": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "exportDataReplace": "Zastąp",
+  "exportDataAction": "Eksportuj",
+  "exportDataBusy": "Eksportuję…",
+  "exportDataEstimateFailed": "Nie udało się policzyć danych do eksportu.",
+  "exportDataSaved": "Eksport zapisany w {where}",
+  "@exportDataSaved": {
+    "placeholders": { "where": {} }
+  },
+  "exportDataDone": "Eksport gotowy.",
+  "exportDataFailed": "Nie udało się wyeksportować danych.",
+  "exportDataUnsupported": "Ten system nie ma gdzie zapisać pliku eksportu.",
+  "exportDataSkipped": "Pominięte pliki: {count}",
+  "@exportDataSkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+
+  "appLog": "Dziennik aplikacji",
+  "appLogHelp": "Zdarzenia sieci, parowania i plików oraz błędy z ostatnich 30 dni, do diagnostyki. Bez treści wiadomości, wpisywanego tekstu i kluczy.",
+  "appLogEntries": "{count, plural, one{{count} wpis} few{{count} wpisy} many{{count} wpisów} other{{count} wpisu}}",
+  "@appLogEntries": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "appLogFilterAll": "Wszystko",
+  "appLogFilterProblems": "Ostrzeżenia i błędy",
+  "appLogEmpty": "Dziennik jest pusty.",
+  "appLogEmptyProblems": "Brak ostrzeżeń i błędów.",
+  "appLogLimit": "Widać najnowsze wpisy: {count}. Pełny dziennik jest w eksporcie.",
+  "@appLogLimit": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "appLogCopy": "Kopiuj widoczne wpisy",
+  "appLogExport": "Eksportuj dziennik",
+  "appLogClear": "Wyczyść dziennik",
+  "appLogClearTitle": "Wyczyścić dziennik aplikacji?",
+  "appLogClearBody": "Znikną wszystkie wpisy dziennika. Rozmowy i historia pisania zostają.",
+  "appLogCleared": "Usunięto wpisy dziennika: {count}",
+  "@appLogCleared": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "appLogDetails": "Szczegóły",
+  "appLogLevelInfo": "Informacja",
+  "appLogLevelWarning": "Ostrzeżenie",
+  "appLogLevelError": "Błąd"
 }

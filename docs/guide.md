@@ -487,8 +487,14 @@ says so. Chatt's question cards: while one waits on either device, nothing is
 typed, so a remote Enter never answers a card. Chatt's own text fields take
 typing like any other app's.
 
-Chatt saves nothing of what you type, on either side. It travels encrypted, the
-same way messages do, and only between the two devices.
+**Typing history.** With **Save typing history** on (a switch on the add-on's
+card, on from the start), both devices keep a record of every session in
+their encrypted database: what was typed, into which app, when, and whether
+it landed. Text typed into a password field, or into a field Chatt cannot
+tell, is kept as a number of characters. Settings, **Data and diagnostics**,
+**Typing history** shows it (see
+[Data and diagnostics](#data-and-diagnostics)). The text itself travels
+encrypted, the same way messages do, and only between the two devices.
 
 ## Encryption and identity confirmation
 
@@ -613,7 +619,8 @@ Conversation history and received files are not affected either way.
 If something goes wrong before the window opens, Chatt says so on a screen of
 its own and writes `chatt-startup-error.txt` next to the database in Documents.
 Conversation history and received files are left alone; the text in that file
-is what to attach to a report.
+is what to attach to a report. Once the window is up, the app log does that
+job: see [Data and diagnostics](#data-and-diagnostics).
 
 The installer is not signed with a certificate, so SmartScreen shows a
 "Windows protected your PC" warning. "More info", then "Run anyway". A
@@ -658,22 +665,79 @@ notifications follow the app language.
 ## Privacy: what lies on disk
 
 Conversation history lies on disk **encrypted**, and the key is held by the
-system keystore (Keystore on Android, DPAPI on Windows). Copying the database
-file alone gets you nothing. Settings says so outright, together with a warning
-for the case where the keystore did not work on a given device.
+system keystore (Keystore on Android, DPAPI on Windows). The same database
+holds the typing history and the app log. Copying the database file alone gets
+you nothing. Settings says so outright, together with a warning for the case
+where the keystore did not work on a given device.
 
 The same place has two things you can do by hand:
 
 - **Delete messages older than**: 7, 30, 90 or 365 days. Off by default. The
-  app sweeps at startup, after the setting changes, and every six hours.
-- **Clear history**: deletes every message and conversation at once. It cannot
-  be undone here, so it asks for confirmation. Devices keep their confirmed
-  identities, so there is no need to pair again. The other side keeps its
-  copy and can hand it back
+  app sweeps at startup, after the setting changes, and every six hours. The
+  typing history of that age goes with the messages.
+- **Clear history**: deletes every message and conversation at once, and the
+  typing history with them. It cannot be undone here, so it asks for
+  confirmation. Devices keep their confirmed identities, so there is no need
+  to pair again. The other side keeps its copy and can hand it back
   ([Getting a conversation's history back](#getting-a-conversations-history-back)).
 
-In both cases **received files stay on disk**. The app deletes its own entries,
-not content that the user opens with other programs.
+In both cases **received files stay on disk**: the app deletes its own
+entries, and the files you open with other programs stay where they are. The
+app log stays too. It holds no content, deletes its entries by itself after
+30 days, and **Clear the log** on its screen deletes it at once.
+
+## Data and diagnostics
+
+Settings has a **Data and diagnostics** section, between Privacy and Add-ons.
+It holds **App log** and **Export data**, and **Typing history** above them
+once at least one typing session is saved. While the keyboard add-on is on,
+the **Typing history** button on its card opens the same screen.
+
+**Typing history** lists the sessions of Keyboard from a PC on this device:
+which device typed on which, when, how it ended, and what was typed, piece by
+piece, with the app it went into and whether it landed. Text for a password
+field, or for a field Chatt cannot tell, shows as dots with the number of
+characters. **Clear typing history** deletes all of it. The record runs while
+the keyboard add-on and its **Save typing history** switch are both on, and
+each device keeps its own history under its own switch; the
+[Keyboard from a PC](keyboard.md#typing-history) page has the details.
+
+**App log** shows what the app did and what went wrong: connections and the
+road they took, pairing, file transfers, Bluetooth, typing sessions and
+errors, each with its time and level (info, warning, error). It never holds
+message text, typed text, pairing codes or keys. It keeps 30 days and 20,000
+entries at most, and deletes older ones by itself. **Clear the log** deletes
+all of it.
+
+**Export data** writes what Chatt keeps into one ZIP file, as a copy you can
+read or for analysis in other tools. A dialog asks which parts to take:
+
+- the conversations, with the devices and the settings;
+- the typing history;
+- the app log;
+- received files, with their total size shown, since they can be large.
+
+The file is named like `chatt-export-2026-10-18-1530.zip`. On Android 10 and
+newer it lands in Downloads; on older Android, or when saving to Downloads
+fails, the share sheet opens and you pick where it goes. On a PC the system
+save dialog asks where to put it, and if a file of that name is already there
+and the dialog did not ask about it, Chatt asks before replacing it. A failed
+export leaves no partial file and keeps an older file of the same name.
+Inside are JSON files for programs and text files for reading, and a
+`README.txt` that describes them.
+
+**The export is not encrypted.** Anyone who gets the file reads what you put
+in it, the typing history included. It never holds a private key, a session
+key or the database key, so it cannot stand in for this device or open its
+database. Delete it when you no longer need it. After sharing, Chatt keeps
+its own copy in the app's cache until the next export, **Clear history**,
+**Clear typing history**, or the next start once it is an hour old.
+
+**For a bug report**, export with only **App log** ticked and attach the
+file. The dialog's warning then mentions no message text or typed text.
+Besides the log the file holds this device's name and identifier. The log
+holds device names, addresses and file sizes, and no message text, typed text
+or keys.
 
 ## Two instances on one PC
 

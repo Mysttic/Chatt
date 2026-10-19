@@ -266,8 +266,14 @@ którymkolwiek z urządzeń, nic się nie wpisuje, więc zdalny Enter nigdy nie
 odpowie na kartę. Pola tekstowe samego Chatt przyjmują pisanie jak pola każdej
 innej aplikacji.
 
-Chatt nie zapisuje niczego z tego, co piszesz, po żadnej stronie. Tekst jedzie
-zaszyfrowany, tak jak wiadomości, i wyłącznie między tymi dwoma urządzeniami.
+**Historia pisania.** Przy włączonym **Zapisuj historię pisania** (przełącznik
+na karcie dodatku, włączony od początku) oba urządzenia zapisują każdą sesję
+w swojej zaszyfrowanej bazie: co wpisano, do której aplikacji, kiedy i czy
+dotarło. Tekst wpisany w pole hasła albo w pole, którego rodzaju Chatt nie
+rozpozna, zostaje zapisany jako liczba znaków. Historię znajdziesz
+w Ustawieniach: **Dane i diagnostyka**, **Historia pisania** (patrz
+[Dane i diagnostyka](#dane-i-diagnostyka)). Sam tekst jedzie zaszyfrowany,
+tak jak wiadomości, i wyłącznie między tymi dwoma urządzeniami.
 
 ## Wiadomości
 
@@ -622,7 +628,8 @@ Historia rozmów i odebrane pliki zostają nietknięte w obu przypadkach.
 Gdy coś zawiedzie przed pokazaniem okna, Chatt mówi to na własnym ekranie
 i zapisuje `chatt-startup-error.txt` obok bazy w Dokumentach. Historia rozmów
 i odebrane pliki zostają nietknięte, a treść tego pliku jest tym, co warto
-dołączyć do zgłoszenia.
+dołączyć do zgłoszenia. Gdy okno już działa, tę rolę pełni dziennik
+aplikacji: patrz [Dane i diagnostyka](#dane-i-diagnostyka).
 
 Instalator nie jest podpisany certyfikatem, więc SmartScreen pokaże
 ostrzeżenie „Windows chronił Twój komputer". „Więcej informacji" → „Uruchom
@@ -669,9 +676,10 @@ Powiadomienia usługi w tle też idą za językiem aplikacji.
 ## Prywatność: co leży na dysku
 
 Historia rozmów leży na dysku **zaszyfrowana**, a klucz do niej trzyma schowek
-systemowy (Keystore na Androidzie, DPAPI na Windowsie). Skopiowanie samego
-pliku bazy nic nie daje. Ustawienia mówią o tym wprost, razem z ostrzeżeniem,
-gdyby na danym urządzeniu schowek nie zadziałał.
+systemowy (Keystore na Androidzie, DPAPI na Windowsie). W tej samej bazie leżą
+historia pisania i dziennik aplikacji. Skopiowanie samego pliku bazy nic nie
+daje. Ustawienia mówią o tym wprost, razem z ostrzeżeniem, gdyby na danym
+urządzeniu schowek nie zadziałał.
 
 <img src="screenshots/android/and20_prywatnosc.png" alt="Prywatność" width="260">
 
@@ -679,17 +687,78 @@ Tam samym są dwie rzeczy do zrobienia ręcznie:
 
 - **Kasuj wiadomości starsze niż**: do wyboru 7, 30, 90 albo 365 dni.
   Domyślnie wyłączone. Aplikacja sprząta przy starcie, po zmianie ustawienia
-  i co sześć godzin.
-- **Wyczyść historię**: kasuje wszystkie wiadomości i rozmowy od razu.
-  Po tej stronie nieodwracalne, więc pyta o potwierdzenie. Urządzenia razem
-  z potwierdzoną tożsamością zostają, więc nie trzeba się parować od nowa.
-  Druga strona ma swoją kopię i może ją oddać
+  i co sześć godzin. Razem z wiadomościami znika historia pisania w tym samym
+  wieku.
+- **Wyczyść historię**: kasuje wszystkie wiadomości i rozmowy od razu, a z nimi
+  historię pisania. Po tej stronie nieodwracalne, więc pyta o potwierdzenie.
+  Urządzenia razem z potwierdzoną tożsamością zostają, więc nie trzeba się
+  parować od nowa. Druga strona ma swoją kopię i może ją oddać
   ([Odzyskiwanie historii rozmowy](#odzyskiwanie-historii-rozmowy)).
 
 <img src="screenshots/android/and21_wyczysc_historie.png" alt="Wyczyść historię" width="260">
 
 W obu przypadkach **odebrane pliki zostają na dysku**. Aplikacja kasuje własne
-wpisy; pliki, które otwierasz innymi programami, zostają.
+wpisy; pliki, które otwierasz innymi programami, zostają. Dziennik aplikacji
+też zostaje: nie ma w nim treści, wpisy starsze niż 30 dni kasuje sam,
+a **Wyczyść dziennik** na jego ekranie kasuje go od razu.
+
+## Dane i diagnostyka
+
+W Ustawieniach, między sekcjami Prywatność i Dodatki, stoi sekcja **Dane
+i diagnostyka** z **Dziennikiem aplikacji** i **Eksportem danych**.
+**Historia pisania** pojawia się nad nimi, gdy zapisze się choć jedna sesja
+pisania. Przy włączonym dodatku klawiatury ten sam ekran otwiera przycisk
+**Historia pisania** na jego karcie.
+
+**Historia pisania** wymienia sesje Klawiatury z PC na tym urządzeniu: które
+urządzenie pisało na którym, kiedy, jak sesja się skończyła i co wpisano,
+kawałek po kawałku, z aplikacją, do której trafiło, i z tym, czy dotarło.
+Tekst do pola hasła albo do pola, którego rodzaju Chatt nie rozpozna,
+pokazuje się jako kropki z liczbą znaków. **Wyczyść historię pisania** kasuje
+całość. Zapis działa, gdy włączone są i dodatek klawiatury, i jego
+przełącznik **Zapisuj historię pisania**, a każde urządzenie prowadzi własną
+historię według swojego przełącznika; szczegóły są na stronie
+[Klawiatura z PC](keyboard.pl.md#historia-pisania).
+
+**Dziennik aplikacji** pokazuje, co aplikacja robiła i co się nie udało:
+połączenia i drogę, którą poszły, parowanie, przesyłanie plików, Bluetooth,
+sesje pisania i błędy, każdy wpis z godziną i wagą (informacja, ostrzeżenie,
+błąd). Nigdy nie ma w nim treści wiadomości, wpisywanego tekstu, kodów
+parowania ani kluczy. Trzyma 30 dni i najwyżej 20 000 wpisów, a starsze
+kasuje sam. **Wyczyść dziennik** kasuje całość.
+
+**Eksportuj dane** zapisuje to, co Chatt przechowuje, w jednym pliku ZIP,
+jako kopię do przeczytania albo do analizy w innych narzędziach. Okno pyta,
+które części zabrać:
+
+- rozmowy razem z urządzeniami i ustawieniami;
+- historię pisania;
+- dziennik aplikacji;
+- odebrane pliki, z podanym łącznym rozmiarem, bo bywają duże.
+
+Plik nazywa się na przykład `chatt-export-2026-10-18-1530.zip`. Na
+Androidzie 10 i nowszym trafia do Pobranych; na starszym Androidzie, albo gdy
+zapis do Pobranych się nie uda, otwiera się okno udostępniania i to w nim
+wybierasz, dokąd pójdzie. Na komputerze systemowe okno zapisu pyta, gdzie go
+położyć, a gdy plik o tej nazwie już tam leży i okno o niego nie zapytało,
+Chatt pyta przed jego zastąpieniem. Nieudany eksport nie zostawia
+niedokończonego pliku, a starszy plik o tej samej nazwie zostaje. W środku są
+pliki JSON dla programów, pliki tekstowe do czytania i `README.txt`, który je
+opisuje.
+
+**Eksport nie jest zaszyfrowany.** Każdy, kto dostanie plik, przeczyta to, co
+do niego trafiło, razem z historią pisania. Nigdy nie ma w nim klucza
+prywatnego, klucza sesji ani klucza bazy, więc nie da się nim podszyć pod to
+urządzenie ani otworzyć jego bazy. Usuń go, gdy przestanie być potrzebny. Po
+udostępnieniu Chatt trzyma własną kopię w pamięci podręcznej aplikacji: kasuje
+ją następny eksport, **Wyczyść historię**, **Wyczyść historię pisania** albo
+następny start, gdy kopia ma ponad godzinę.
+
+**Do zgłoszenia błędu** wyeksportuj dane z zaznaczonym tylko polem **Dziennik
+aplikacji** i dołącz plik. Ostrzeżenie w oknie nie wspomina wtedy o treści
+wiadomości ani o wpisywanym tekście. Oprócz dziennika są w pliku nazwa
+i identyfikator tego urządzenia. Dziennik zawiera nazwy urządzeń, adresy
+i rozmiary plików, bez treści wiadomości, wpisywanego tekstu i kluczy.
 
 ## Dwie instancje na jednym komputerze
 

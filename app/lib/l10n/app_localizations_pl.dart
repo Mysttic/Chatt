@@ -548,7 +548,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get retentionHelp =>
-      'Kasowanie dotyczy wpisów w rozmowach. Odebrane pliki zostają na dysku.';
+      'Kasowanie dotyczy wpisów w rozmowach i historii pisania. Odebrane pliki zostają na dysku.';
 
   @override
   String get clearHistory => 'Wyczyść historię';
@@ -558,7 +558,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get clearHistoryBody =>
-      'Znikną wszystkie wiadomości i rozmowy. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.';
+      'Znikną wszystkie wiadomości, rozmowy i historia pisania. Urządzenia razem z potwierdzoną tożsamością zostają, odebrane pliki też zostają na dysku.';
 
   @override
   String historyCleared(int count) {
@@ -1405,4 +1405,392 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get addonKeyboardShort => 'Pisanie z klawiatury komputera';
+
+  @override
+  String historyClearedWithTyping(int messages, int sessions) {
+    return 'Usunięto wiadomości: $messages, sesje pisania: $sessions';
+  }
+
+  @override
+  String get typingHistorySwitch => 'Zapisuj historię pisania';
+
+  @override
+  String get typingHistoryHelp =>
+      'Zapisuje na tym urządzeniu sesje w obu kierunkach: pisanie stąd i pisanie tutaj. Drugie urządzenie prowadzi własną historię według swojego przełącznika. Tekst z pól haseł i pól nieznanego rodzaju zostaje ukryty: zapisuje się sama liczba znaków. Historia leży zaszyfrowana.';
+
+  @override
+  String get typingHistory => 'Historia pisania';
+
+  @override
+  String typingHistoryEntryHelp(int count) {
+    return 'Sesje zdalnej klawiatury zapisane na tym urządzeniu: $count. Wyczyścić je można na ekranie historii.';
+  }
+
+  @override
+  String get typingHistoryOff =>
+      'Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.';
+
+  @override
+  String get typingHistoryEmptyTitle => 'Brak historii pisania';
+
+  @override
+  String get typingHistoryEmptyBody =>
+      'Tutaj pojawią się sesje zdalnej klawiatury w obu kierunkach: pisanie stąd na innych urządzeniach i pisanie innych urządzeń tutaj.';
+
+  @override
+  String get typingHistoryClear => 'Wyczyść historię pisania';
+
+  @override
+  String get typingHistoryClearTitle => 'Wyczyścić historię pisania?';
+
+  @override
+  String get typingHistoryClearBody =>
+      'Znikną wszystkie zapisane sesje pisania. Rozmowy i dziennik aplikacji zostają.';
+
+  @override
+  String typingHistoryCleared(int count) {
+    return 'Usunięto sesje pisania: $count';
+  }
+
+  @override
+  String typingHistoryOutgoing(Object name) {
+    return 'Pisanie stąd na: $name';
+  }
+
+  @override
+  String typingHistoryIncoming(Object name) {
+    return 'Pisanie tutaj z: $name';
+  }
+
+  @override
+  String typingHistorySessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sesji',
+      many: '$count sesji',
+      few: '$count sesje',
+      one: '$count sesja',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String typingHistoryChars(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count znaku',
+      many: '$count znaków',
+      few: '$count znaki',
+      one: '$count znak',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get typingHistoryStarted => 'Początek';
+
+  @override
+  String get typingHistoryEnded => 'Koniec';
+
+  @override
+  String get typingHistoryDuration => 'Czas trwania';
+
+  @override
+  String get typingHistoryCharsLabel => 'Znaki';
+
+  @override
+  String get typingHistoryApps => 'Aplikacje';
+
+  @override
+  String get typingHistoryRequest => 'Prośba';
+
+  @override
+  String get typingHistoryEndReason => 'Powód końca';
+
+  @override
+  String get typingHistorySessionId => 'Identyfikator sesji';
+
+  @override
+  String get typingHistoryNotEnded => 'Koniec jeszcze niezapisany';
+
+  @override
+  String get typingHistoryText => 'Odtworzony tekst';
+
+  @override
+  String get typingHistoryTextNote =>
+      'Tekst odtworzony z klawiszy. Ukryte pola widać jako kropki.';
+
+  @override
+  String get typingHistoryNoText => 'Odtworzony tekst jest pusty.';
+
+  @override
+  String get typingHistoryTimeline => 'Przebieg';
+
+  @override
+  String get typingHistoryNoEntries => 'W tej sesji nic nie pisano.';
+
+  @override
+  String get typingHistoryHidden => 'Ukryty tekst';
+
+  @override
+  String get typingFieldPassword => 'pole hasła';
+
+  @override
+  String get typingFieldUnknown => 'pole nieznanego rodzaju';
+
+  @override
+  String get typingKeyEnter => 'Enter';
+
+  @override
+  String get typingKeyBackspace => 'Backspace';
+
+  @override
+  String get typingKeyDelete => 'Delete';
+
+  @override
+  String get typingResultAccepted => 'Zgoda z karty';
+
+  @override
+  String get typingResultAcceptedAlways => 'Zgoda z karty, „Nie pytaj więcej”';
+
+  @override
+  String get typingResultAutomatic => 'Bez karty: zapamiętana zgoda';
+
+  @override
+  String get typingResultRejected => 'Odmowa';
+
+  @override
+  String get typingResultNoAnswer => 'Brak odpowiedzi na karcie';
+
+  @override
+  String get typingResultBusy => 'Zajęte przez inną sesję';
+
+  @override
+  String get typingResultNotEnabled =>
+      'Pisanie wyłączone na urządzeniu odbiorcy';
+
+  @override
+  String get typingResultCancelled => 'Prośba wycofana';
+
+  @override
+  String get typingResultUnreachable => 'Brak połączenia z urządzeniem';
+
+  @override
+  String get typingResultOlderPeer => 'Starsza wersja Chatt po drugiej stronie';
+
+  @override
+  String get typingEndStoppedHere => 'Zakończona na tym urządzeniu';
+
+  @override
+  String get typingEndStoppedByPeer => 'Zakończona przez drugą stronę';
+
+  @override
+  String get typingEndExpired => 'Zgoda wygasła';
+
+  @override
+  String get typingEndReceiveOff => 'Wyłączone pisanie na tym urządzeniu';
+
+  @override
+  String get typingEndAddonOff => 'Wyłączony dodatek klawiatury';
+
+  @override
+  String get typingEndReplaced => 'Zastąpiona nową sesją';
+
+  @override
+  String get typingEndPeerRemoved => 'Urządzenie usunięte z listy';
+
+  @override
+  String get typingEndNotAllowed => 'Zgoda cofnięta w trakcie sesji';
+
+  @override
+  String get typingEndLinkLost => 'Połączenie zerwane';
+
+  @override
+  String get typingEndAppClosed => 'Aplikacja zamknięta';
+
+  @override
+  String get typingStatusTyped => 'Wpisane';
+
+  @override
+  String get typingStatusNotTyped => 'Wpisane częściowo albo wcale';
+
+  @override
+  String get typingStatusPaused => 'Wstrzymane: czekała karta z pytaniem';
+
+  @override
+  String get typingStatusRefused => 'Odrzucone: zgoda już się skończyła';
+
+  @override
+  String get typingStatusUnconfirmed => 'Bez potwierdzenia odbioru';
+
+  @override
+  String get typingStatusUnsent => 'Niewysłane';
+
+  @override
+  String get dataSection => 'Dane i diagnostyka';
+
+  @override
+  String get exportData => 'Eksportuj dane';
+
+  @override
+  String get exportDataHelp =>
+      'Jeden plik ZIP z wybranymi danymi: rozmowy, urządzenia, ustawienia, historia pisania, dziennik aplikacji i odebrane pliki. Do archiwum albo do analizy w innym programie.';
+
+  @override
+  String get exportDataConversations => 'Rozmowy, urządzenia i ustawienia';
+
+  @override
+  String exportDataCountConversations(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rozmowy',
+      many: '$count rozmów',
+      few: '$count rozmowy',
+      one: '$count rozmowa',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String exportDataCountDevices(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count urządzenia',
+      many: '$count urządzeń',
+      few: '$count urządzenia',
+      one: '$count urządzenie',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get exportDataFiles => 'Odebrane pliki';
+
+  @override
+  String exportDataWarning(String parts) {
+    String _temp0 = intl.Intl.selectLogic(parts, {
+      'both': 'Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości oraz wpisywany tekst.',
+      'messages':
+          'Plik eksportu nie jest zaszyfrowany i zawiera treść wiadomości.',
+      'typing':
+          'Plik eksportu nie jest zaszyfrowany i zawiera wpisywany tekst.',
+      'other': 'Plik eksportu nie jest zaszyfrowany.',
+    });
+    return '$_temp0 Trzymaj go w bezpiecznym miejscu. Klucze tego urządzenia zostają poza eksportem.';
+  }
+
+  @override
+  String get exportDataReplaceTitle => 'Zastąpić plik?';
+
+  @override
+  String exportDataReplaceBody(Object name) {
+    return 'Plik $name już istnieje. Eksport go zastąpi.';
+  }
+
+  @override
+  String get exportDataReplace => 'Zastąp';
+
+  @override
+  String get exportDataAction => 'Eksportuj';
+
+  @override
+  String get exportDataBusy => 'Eksportuję…';
+
+  @override
+  String get exportDataEstimateFailed =>
+      'Nie udało się policzyć danych do eksportu.';
+
+  @override
+  String exportDataSaved(Object where) {
+    return 'Eksport zapisany w $where';
+  }
+
+  @override
+  String get exportDataDone => 'Eksport gotowy.';
+
+  @override
+  String get exportDataFailed => 'Nie udało się wyeksportować danych.';
+
+  @override
+  String get exportDataUnsupported =>
+      'Ten system nie ma gdzie zapisać pliku eksportu.';
+
+  @override
+  String exportDataSkipped(int count) {
+    return 'Pominięte pliki: $count';
+  }
+
+  @override
+  String get appLog => 'Dziennik aplikacji';
+
+  @override
+  String get appLogHelp =>
+      'Zdarzenia sieci, parowania i plików oraz błędy z ostatnich 30 dni, do diagnostyki. Bez treści wiadomości, wpisywanego tekstu i kluczy.';
+
+  @override
+  String appLogEntries(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wpisu',
+      many: '$count wpisów',
+      few: '$count wpisy',
+      one: '$count wpis',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get appLogFilterAll => 'Wszystko';
+
+  @override
+  String get appLogFilterProblems => 'Ostrzeżenia i błędy';
+
+  @override
+  String get appLogEmpty => 'Dziennik jest pusty.';
+
+  @override
+  String get appLogEmptyProblems => 'Brak ostrzeżeń i błędów.';
+
+  @override
+  String appLogLimit(int count) {
+    return 'Widać najnowsze wpisy: $count. Pełny dziennik jest w eksporcie.';
+  }
+
+  @override
+  String get appLogCopy => 'Kopiuj widoczne wpisy';
+
+  @override
+  String get appLogExport => 'Eksportuj dziennik';
+
+  @override
+  String get appLogClear => 'Wyczyść dziennik';
+
+  @override
+  String get appLogClearTitle => 'Wyczyścić dziennik aplikacji?';
+
+  @override
+  String get appLogClearBody =>
+      'Znikną wszystkie wpisy dziennika. Rozmowy i historia pisania zostają.';
+
+  @override
+  String appLogCleared(int count) {
+    return 'Usunięto wpisy dziennika: $count';
+  }
+
+  @override
+  String get appLogDetails => 'Szczegóły';
+
+  @override
+  String get appLogLevelInfo => 'Informacja';
+
+  @override
+  String get appLogLevelWarning => 'Ostrzeżenie';
+
+  @override
+  String get appLogLevelError => 'Błąd';
 }

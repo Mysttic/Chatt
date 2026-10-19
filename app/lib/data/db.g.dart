@@ -230,6 +230,21 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _typingHistoryMeta = const VerificationMeta(
+    'typingHistory',
+  );
+  @override
+  late final GeneratedColumn<bool> typingHistory = GeneratedColumn<bool>(
+    'typing_history',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("typing_history" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -250,6 +265,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     bluetoothEnabled,
     keyboardEnabled,
     remoteInputReceive,
+    typingHistory,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -384,6 +400,15 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         ),
       );
     }
+    if (data.containsKey('typing_history')) {
+      context.handle(
+        _typingHistoryMeta,
+        typingHistory.isAcceptableOrUnknown(
+          data['typing_history']!,
+          _typingHistoryMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -471,6 +496,10 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.bool,
         data['${effectivePrefix}remote_input_receive'],
       )!,
+      typingHistory: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}typing_history'],
+      )!,
     );
   }
 
@@ -556,6 +585,11 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// wpisywanym. Liczy się tylko przy włączonym dodatku, a jego wyłączenie
   /// gasi także ten przełącznik.
   final bool remoteInputReceive;
+
+  /// Czy dodatek klawiatury zapisuje historię pisania, po obu stronach
+  /// (issue #50). Domyślnie tak, ale liczy się tylko przy włączonym
+  /// dodatku: wyłączony dodatek nie zapisuje niczego.
+  final bool typingHistory;
   const Setting({
     required this.id,
     required this.deviceGuid,
@@ -575,6 +609,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.bluetoothEnabled,
     required this.keyboardEnabled,
     required this.remoteInputReceive,
+    required this.typingHistory,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -607,6 +642,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     map['bluetooth_enabled'] = Variable<bool>(bluetoothEnabled);
     map['keyboard_enabled'] = Variable<bool>(keyboardEnabled);
     map['remote_input_receive'] = Variable<bool>(remoteInputReceive);
+    map['typing_history'] = Variable<bool>(typingHistory);
     return map;
   }
 
@@ -632,6 +668,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       bluetoothEnabled: Value(bluetoothEnabled),
       keyboardEnabled: Value(keyboardEnabled),
       remoteInputReceive: Value(remoteInputReceive),
+      typingHistory: Value(typingHistory),
     );
   }
 
@@ -665,6 +702,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       bluetoothEnabled: serializer.fromJson<bool>(json['bluetoothEnabled']),
       keyboardEnabled: serializer.fromJson<bool>(json['keyboardEnabled']),
       remoteInputReceive: serializer.fromJson<bool>(json['remoteInputReceive']),
+      typingHistory: serializer.fromJson<bool>(json['typingHistory']),
     );
   }
   @override
@@ -695,6 +733,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       'bluetoothEnabled': serializer.toJson<bool>(bluetoothEnabled),
       'keyboardEnabled': serializer.toJson<bool>(keyboardEnabled),
       'remoteInputReceive': serializer.toJson<bool>(remoteInputReceive),
+      'typingHistory': serializer.toJson<bool>(typingHistory),
     };
   }
 
@@ -717,6 +756,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     bool? bluetoothEnabled,
     bool? keyboardEnabled,
     bool? remoteInputReceive,
+    bool? typingHistory,
   }) => Setting(
     id: id ?? this.id,
     deviceGuid: deviceGuid ?? this.deviceGuid,
@@ -738,6 +778,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     bluetoothEnabled: bluetoothEnabled ?? this.bluetoothEnabled,
     keyboardEnabled: keyboardEnabled ?? this.keyboardEnabled,
     remoteInputReceive: remoteInputReceive ?? this.remoteInputReceive,
+    typingHistory: typingHistory ?? this.typingHistory,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
     return Setting(
@@ -783,6 +824,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       remoteInputReceive: data.remoteInputReceive.present
           ? data.remoteInputReceive.value
           : this.remoteInputReceive,
+      typingHistory: data.typingHistory.present
+          ? data.typingHistory.value
+          : this.typingHistory,
     );
   }
 
@@ -806,7 +850,8 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('wifiEnabled: $wifiEnabled, ')
           ..write('bluetoothEnabled: $bluetoothEnabled, ')
           ..write('keyboardEnabled: $keyboardEnabled, ')
-          ..write('remoteInputReceive: $remoteInputReceive')
+          ..write('remoteInputReceive: $remoteInputReceive, ')
+          ..write('typingHistory: $typingHistory')
           ..write(')'))
         .toString();
   }
@@ -831,6 +876,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     bluetoothEnabled,
     keyboardEnabled,
     remoteInputReceive,
+    typingHistory,
   );
   @override
   bool operator ==(Object other) =>
@@ -853,7 +899,8 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.wifiEnabled == this.wifiEnabled &&
           other.bluetoothEnabled == this.bluetoothEnabled &&
           other.keyboardEnabled == this.keyboardEnabled &&
-          other.remoteInputReceive == this.remoteInputReceive);
+          other.remoteInputReceive == this.remoteInputReceive &&
+          other.typingHistory == this.typingHistory);
 }
 
 class SettingsCompanion extends UpdateCompanion<Setting> {
@@ -875,6 +922,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<bool> bluetoothEnabled;
   final Value<bool> keyboardEnabled;
   final Value<bool> remoteInputReceive;
+  final Value<bool> typingHistory;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.deviceGuid = const Value.absent(),
@@ -894,6 +942,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.bluetoothEnabled = const Value.absent(),
     this.keyboardEnabled = const Value.absent(),
     this.remoteInputReceive = const Value.absent(),
+    this.typingHistory = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -914,6 +963,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.bluetoothEnabled = const Value.absent(),
     this.keyboardEnabled = const Value.absent(),
     this.remoteInputReceive = const Value.absent(),
+    this.typingHistory = const Value.absent(),
   }) : deviceGuid = Value(deviceGuid),
        nickname = Value(nickname);
   static Insertable<Setting> custom({
@@ -935,6 +985,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<bool>? bluetoothEnabled,
     Expression<bool>? keyboardEnabled,
     Expression<bool>? remoteInputReceive,
+    Expression<bool>? typingHistory,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -956,6 +1007,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (keyboardEnabled != null) 'keyboard_enabled': keyboardEnabled,
       if (remoteInputReceive != null)
         'remote_input_receive': remoteInputReceive,
+      if (typingHistory != null) 'typing_history': typingHistory,
     });
   }
 
@@ -978,6 +1030,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<bool>? bluetoothEnabled,
     Value<bool>? keyboardEnabled,
     Value<bool>? remoteInputReceive,
+    Value<bool>? typingHistory,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
@@ -998,6 +1051,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       bluetoothEnabled: bluetoothEnabled ?? this.bluetoothEnabled,
       keyboardEnabled: keyboardEnabled ?? this.keyboardEnabled,
       remoteInputReceive: remoteInputReceive ?? this.remoteInputReceive,
+      typingHistory: typingHistory ?? this.typingHistory,
     );
   }
 
@@ -1064,6 +1118,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (remoteInputReceive.present) {
       map['remote_input_receive'] = Variable<bool>(remoteInputReceive.value);
     }
+    if (typingHistory.present) {
+      map['typing_history'] = Variable<bool>(typingHistory.value);
+    }
     return map;
   }
 
@@ -1087,7 +1144,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('wifiEnabled: $wifiEnabled, ')
           ..write('bluetoothEnabled: $bluetoothEnabled, ')
           ..write('keyboardEnabled: $keyboardEnabled, ')
-          ..write('remoteInputReceive: $remoteInputReceive')
+          ..write('remoteInputReceive: $remoteInputReceive, ')
+          ..write('typingHistory: $typingHistory')
           ..write(')'))
         .toString();
   }
@@ -3159,6 +3217,1574 @@ class MessagesCompanion extends UpdateCompanion<Message> {
   }
 }
 
+class $TypingSessionsTable extends TypingSessions
+    with TableInfo<$TypingSessionsTable, TypingSession> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TypingSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _inputIdMeta = const VerificationMeta(
+    'inputId',
+  );
+  @override
+  late final GeneratedColumn<String> inputId = GeneratedColumn<String>(
+    'input_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<MessageDirection, int> direction =
+      GeneratedColumn<int>(
+        'direction',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<MessageDirection>(
+        $TypingSessionsTable.$converterdirection,
+      );
+  static const VerificationMeta _peerGuidMeta = const VerificationMeta(
+    'peerGuid',
+  );
+  @override
+  late final GeneratedColumn<String> peerGuid = GeneratedColumn<String>(
+    'peer_guid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _peerNameMeta = const VerificationMeta(
+    'peerName',
+  );
+  @override
+  late final GeneratedColumn<String> peerName = GeneratedColumn<String>(
+    'peer_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startedAtMeta = const VerificationMeta(
+    'startedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startedAt = GeneratedColumn<DateTime>(
+    'started_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMeta = const VerificationMeta(
+    'endedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endedAt = GeneratedColumn<DateTime>(
+    'ended_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _resultMeta = const VerificationMeta('result');
+  @override
+  late final GeneratedColumn<String> result = GeneratedColumn<String>(
+    'result',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endReasonMeta = const VerificationMeta(
+    'endReason',
+  );
+  @override
+  late final GeneratedColumn<String> endReason = GeneratedColumn<String>(
+    'end_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    inputId,
+    direction,
+    peerGuid,
+    peerName,
+    startedAt,
+    endedAt,
+    result,
+    endReason,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'typing_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TypingSession> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('input_id')) {
+      context.handle(
+        _inputIdMeta,
+        inputId.isAcceptableOrUnknown(data['input_id']!, _inputIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_inputIdMeta);
+    }
+    if (data.containsKey('peer_guid')) {
+      context.handle(
+        _peerGuidMeta,
+        peerGuid.isAcceptableOrUnknown(data['peer_guid']!, _peerGuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_peerGuidMeta);
+    }
+    if (data.containsKey('peer_name')) {
+      context.handle(
+        _peerNameMeta,
+        peerName.isAcceptableOrUnknown(data['peer_name']!, _peerNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_peerNameMeta);
+    }
+    if (data.containsKey('started_at')) {
+      context.handle(
+        _startedAtMeta,
+        startedAt.isAcceptableOrUnknown(data['started_at']!, _startedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startedAtMeta);
+    }
+    if (data.containsKey('ended_at')) {
+      context.handle(
+        _endedAtMeta,
+        endedAt.isAcceptableOrUnknown(data['ended_at']!, _endedAtMeta),
+      );
+    }
+    if (data.containsKey('result')) {
+      context.handle(
+        _resultMeta,
+        result.isAcceptableOrUnknown(data['result']!, _resultMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_resultMeta);
+    }
+    if (data.containsKey('end_reason')) {
+      context.handle(
+        _endReasonMeta,
+        endReason.isAcceptableOrUnknown(data['end_reason']!, _endReasonMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TypingSession map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TypingSession(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      inputId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}input_id'],
+      )!,
+      direction: $TypingSessionsTable.$converterdirection.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}direction'],
+        )!,
+      ),
+      peerGuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}peer_guid'],
+      )!,
+      peerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}peer_name'],
+      )!,
+      startedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}started_at'],
+      )!,
+      endedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}ended_at'],
+      ),
+      result: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}result'],
+      )!,
+      endReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}end_reason'],
+      ),
+    );
+  }
+
+  @override
+  $TypingSessionsTable createAlias(String alias) {
+    return $TypingSessionsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<MessageDirection, int, int> $converterdirection =
+      const EnumIndexConverter<MessageDirection>(MessageDirection.values);
+}
+
+class TypingSession extends DataClass implements Insertable<TypingSession> {
+  final int id;
+
+  /// Identyfikator sesji pisania z protokołu (`input`), ten sam po obu
+  /// stronach: po nim da się zestawić historię nadawcy z historią odbiorcy.
+  final String inputId;
+  final MessageDirection direction;
+  final String peerGuid;
+
+  /// Nazwa rozmówcy z chwili sesji (własna, jeśli była nadana).
+  final String peerName;
+  final DateTime startedAt;
+  final DateTime? endedAt;
+
+  /// Jak skończyła się prośba o sesję (`TypingResult` w
+  /// `services/typing_journal.dart`). Napis, bo trafia do eksportu.
+  final String result;
+
+  /// Dlaczego sesja się skończyła (`TypingEnd`); `null`, dopóki trwa.
+  final String? endReason;
+  const TypingSession({
+    required this.id,
+    required this.inputId,
+    required this.direction,
+    required this.peerGuid,
+    required this.peerName,
+    required this.startedAt,
+    this.endedAt,
+    required this.result,
+    this.endReason,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['input_id'] = Variable<String>(inputId);
+    {
+      map['direction'] = Variable<int>(
+        $TypingSessionsTable.$converterdirection.toSql(direction),
+      );
+    }
+    map['peer_guid'] = Variable<String>(peerGuid);
+    map['peer_name'] = Variable<String>(peerName);
+    map['started_at'] = Variable<DateTime>(startedAt);
+    if (!nullToAbsent || endedAt != null) {
+      map['ended_at'] = Variable<DateTime>(endedAt);
+    }
+    map['result'] = Variable<String>(result);
+    if (!nullToAbsent || endReason != null) {
+      map['end_reason'] = Variable<String>(endReason);
+    }
+    return map;
+  }
+
+  TypingSessionsCompanion toCompanion(bool nullToAbsent) {
+    return TypingSessionsCompanion(
+      id: Value(id),
+      inputId: Value(inputId),
+      direction: Value(direction),
+      peerGuid: Value(peerGuid),
+      peerName: Value(peerName),
+      startedAt: Value(startedAt),
+      endedAt: endedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAt),
+      result: Value(result),
+      endReason: endReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endReason),
+    );
+  }
+
+  factory TypingSession.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TypingSession(
+      id: serializer.fromJson<int>(json['id']),
+      inputId: serializer.fromJson<String>(json['inputId']),
+      direction: $TypingSessionsTable.$converterdirection.fromJson(
+        serializer.fromJson<int>(json['direction']),
+      ),
+      peerGuid: serializer.fromJson<String>(json['peerGuid']),
+      peerName: serializer.fromJson<String>(json['peerName']),
+      startedAt: serializer.fromJson<DateTime>(json['startedAt']),
+      endedAt: serializer.fromJson<DateTime?>(json['endedAt']),
+      result: serializer.fromJson<String>(json['result']),
+      endReason: serializer.fromJson<String?>(json['endReason']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'inputId': serializer.toJson<String>(inputId),
+      'direction': serializer.toJson<int>(
+        $TypingSessionsTable.$converterdirection.toJson(direction),
+      ),
+      'peerGuid': serializer.toJson<String>(peerGuid),
+      'peerName': serializer.toJson<String>(peerName),
+      'startedAt': serializer.toJson<DateTime>(startedAt),
+      'endedAt': serializer.toJson<DateTime?>(endedAt),
+      'result': serializer.toJson<String>(result),
+      'endReason': serializer.toJson<String?>(endReason),
+    };
+  }
+
+  TypingSession copyWith({
+    int? id,
+    String? inputId,
+    MessageDirection? direction,
+    String? peerGuid,
+    String? peerName,
+    DateTime? startedAt,
+    Value<DateTime?> endedAt = const Value.absent(),
+    String? result,
+    Value<String?> endReason = const Value.absent(),
+  }) => TypingSession(
+    id: id ?? this.id,
+    inputId: inputId ?? this.inputId,
+    direction: direction ?? this.direction,
+    peerGuid: peerGuid ?? this.peerGuid,
+    peerName: peerName ?? this.peerName,
+    startedAt: startedAt ?? this.startedAt,
+    endedAt: endedAt.present ? endedAt.value : this.endedAt,
+    result: result ?? this.result,
+    endReason: endReason.present ? endReason.value : this.endReason,
+  );
+  TypingSession copyWithCompanion(TypingSessionsCompanion data) {
+    return TypingSession(
+      id: data.id.present ? data.id.value : this.id,
+      inputId: data.inputId.present ? data.inputId.value : this.inputId,
+      direction: data.direction.present ? data.direction.value : this.direction,
+      peerGuid: data.peerGuid.present ? data.peerGuid.value : this.peerGuid,
+      peerName: data.peerName.present ? data.peerName.value : this.peerName,
+      startedAt: data.startedAt.present ? data.startedAt.value : this.startedAt,
+      endedAt: data.endedAt.present ? data.endedAt.value : this.endedAt,
+      result: data.result.present ? data.result.value : this.result,
+      endReason: data.endReason.present ? data.endReason.value : this.endReason,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TypingSession(')
+          ..write('id: $id, ')
+          ..write('inputId: $inputId, ')
+          ..write('direction: $direction, ')
+          ..write('peerGuid: $peerGuid, ')
+          ..write('peerName: $peerName, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('result: $result, ')
+          ..write('endReason: $endReason')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    inputId,
+    direction,
+    peerGuid,
+    peerName,
+    startedAt,
+    endedAt,
+    result,
+    endReason,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TypingSession &&
+          other.id == this.id &&
+          other.inputId == this.inputId &&
+          other.direction == this.direction &&
+          other.peerGuid == this.peerGuid &&
+          other.peerName == this.peerName &&
+          other.startedAt == this.startedAt &&
+          other.endedAt == this.endedAt &&
+          other.result == this.result &&
+          other.endReason == this.endReason);
+}
+
+class TypingSessionsCompanion extends UpdateCompanion<TypingSession> {
+  final Value<int> id;
+  final Value<String> inputId;
+  final Value<MessageDirection> direction;
+  final Value<String> peerGuid;
+  final Value<String> peerName;
+  final Value<DateTime> startedAt;
+  final Value<DateTime?> endedAt;
+  final Value<String> result;
+  final Value<String?> endReason;
+  const TypingSessionsCompanion({
+    this.id = const Value.absent(),
+    this.inputId = const Value.absent(),
+    this.direction = const Value.absent(),
+    this.peerGuid = const Value.absent(),
+    this.peerName = const Value.absent(),
+    this.startedAt = const Value.absent(),
+    this.endedAt = const Value.absent(),
+    this.result = const Value.absent(),
+    this.endReason = const Value.absent(),
+  });
+  TypingSessionsCompanion.insert({
+    this.id = const Value.absent(),
+    required String inputId,
+    required MessageDirection direction,
+    required String peerGuid,
+    required String peerName,
+    required DateTime startedAt,
+    this.endedAt = const Value.absent(),
+    required String result,
+    this.endReason = const Value.absent(),
+  }) : inputId = Value(inputId),
+       direction = Value(direction),
+       peerGuid = Value(peerGuid),
+       peerName = Value(peerName),
+       startedAt = Value(startedAt),
+       result = Value(result);
+  static Insertable<TypingSession> custom({
+    Expression<int>? id,
+    Expression<String>? inputId,
+    Expression<int>? direction,
+    Expression<String>? peerGuid,
+    Expression<String>? peerName,
+    Expression<DateTime>? startedAt,
+    Expression<DateTime>? endedAt,
+    Expression<String>? result,
+    Expression<String>? endReason,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (inputId != null) 'input_id': inputId,
+      if (direction != null) 'direction': direction,
+      if (peerGuid != null) 'peer_guid': peerGuid,
+      if (peerName != null) 'peer_name': peerName,
+      if (startedAt != null) 'started_at': startedAt,
+      if (endedAt != null) 'ended_at': endedAt,
+      if (result != null) 'result': result,
+      if (endReason != null) 'end_reason': endReason,
+    });
+  }
+
+  TypingSessionsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? inputId,
+    Value<MessageDirection>? direction,
+    Value<String>? peerGuid,
+    Value<String>? peerName,
+    Value<DateTime>? startedAt,
+    Value<DateTime?>? endedAt,
+    Value<String>? result,
+    Value<String?>? endReason,
+  }) {
+    return TypingSessionsCompanion(
+      id: id ?? this.id,
+      inputId: inputId ?? this.inputId,
+      direction: direction ?? this.direction,
+      peerGuid: peerGuid ?? this.peerGuid,
+      peerName: peerName ?? this.peerName,
+      startedAt: startedAt ?? this.startedAt,
+      endedAt: endedAt ?? this.endedAt,
+      result: result ?? this.result,
+      endReason: endReason ?? this.endReason,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (inputId.present) {
+      map['input_id'] = Variable<String>(inputId.value);
+    }
+    if (direction.present) {
+      map['direction'] = Variable<int>(
+        $TypingSessionsTable.$converterdirection.toSql(direction.value),
+      );
+    }
+    if (peerGuid.present) {
+      map['peer_guid'] = Variable<String>(peerGuid.value);
+    }
+    if (peerName.present) {
+      map['peer_name'] = Variable<String>(peerName.value);
+    }
+    if (startedAt.present) {
+      map['started_at'] = Variable<DateTime>(startedAt.value);
+    }
+    if (endedAt.present) {
+      map['ended_at'] = Variable<DateTime>(endedAt.value);
+    }
+    if (result.present) {
+      map['result'] = Variable<String>(result.value);
+    }
+    if (endReason.present) {
+      map['end_reason'] = Variable<String>(endReason.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TypingSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('inputId: $inputId, ')
+          ..write('direction: $direction, ')
+          ..write('peerGuid: $peerGuid, ')
+          ..write('peerName: $peerName, ')
+          ..write('startedAt: $startedAt, ')
+          ..write('endedAt: $endedAt, ')
+          ..write('result: $result, ')
+          ..write('endReason: $endReason')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TypingEntriesTable extends TypingEntries
+    with TableInfo<$TypingEntriesTable, TypingEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TypingEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<int> sessionId = GeneratedColumn<int>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES typing_sessions (id)',
+    ),
+  );
+  static const VerificationMeta _atMeta = const VerificationMeta('at');
+  @override
+  late final GeneratedColumn<DateTime> at = GeneratedColumn<DateTime>(
+    'at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _appMeta = const VerificationMeta('app');
+  @override
+  late final GeneratedColumn<String> app = GeneratedColumn<String>(
+    'app',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _appLabelMeta = const VerificationMeta(
+    'appLabel',
+  );
+  @override
+  late final GeneratedColumn<String> appLabel = GeneratedColumn<String>(
+    'app_label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _fieldMeta = const VerificationMeta('field');
+  @override
+  late final GeneratedColumn<String> field = GeneratedColumn<String>(
+    'field',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _opsMeta = const VerificationMeta('ops');
+  @override
+  late final GeneratedColumn<String> ops = GeneratedColumn<String>(
+    'ops',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _charsMeta = const VerificationMeta('chars');
+  @override
+  late final GeneratedColumn<int> chars = GeneratedColumn<int>(
+    'chars',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _maskedMeta = const VerificationMeta('masked');
+  @override
+  late final GeneratedColumn<bool> masked = GeneratedColumn<bool>(
+    'masked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("masked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sessionId,
+    at,
+    app,
+    appLabel,
+    field,
+    status,
+    ops,
+    chars,
+    masked,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'typing_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TypingEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('at')) {
+      context.handle(_atMeta, at.isAcceptableOrUnknown(data['at']!, _atMeta));
+    } else if (isInserting) {
+      context.missing(_atMeta);
+    }
+    if (data.containsKey('app')) {
+      context.handle(
+        _appMeta,
+        app.isAcceptableOrUnknown(data['app']!, _appMeta),
+      );
+    }
+    if (data.containsKey('app_label')) {
+      context.handle(
+        _appLabelMeta,
+        appLabel.isAcceptableOrUnknown(data['app_label']!, _appLabelMeta),
+      );
+    }
+    if (data.containsKey('field')) {
+      context.handle(
+        _fieldMeta,
+        field.isAcceptableOrUnknown(data['field']!, _fieldMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fieldMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('ops')) {
+      context.handle(
+        _opsMeta,
+        ops.isAcceptableOrUnknown(data['ops']!, _opsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_opsMeta);
+    }
+    if (data.containsKey('chars')) {
+      context.handle(
+        _charsMeta,
+        chars.isAcceptableOrUnknown(data['chars']!, _charsMeta),
+      );
+    }
+    if (data.containsKey('masked')) {
+      context.handle(
+        _maskedMeta,
+        masked.isAcceptableOrUnknown(data['masked']!, _maskedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TypingEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TypingEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}session_id'],
+      )!,
+      at: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}at'],
+      )!,
+      app: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}app'],
+      )!,
+      appLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}app_label'],
+      )!,
+      field: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}field'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      ops: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ops'],
+      )!,
+      chars: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chars'],
+      )!,
+      masked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}masked'],
+      )!,
+    );
+  }
+
+  @override
+  $TypingEntriesTable createAlias(String alias) {
+    return $TypingEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class TypingEntry extends DataClass implements Insertable<TypingEntry> {
+  final int id;
+  final int sessionId;
+  final DateTime at;
+
+  /// Pakiet (Android) albo plik programu (Windows) i nazwa do pokazania.
+  /// Nigdy tytuł okna.
+  final String app;
+  final String appLabel;
+
+  /// Rodzaj pola (`RemoteInputField.name`): `text`, `password`, `none`.
+  final String field;
+
+  /// Co się stało z tymi operacjami (`TypingStatus.name`).
+  final String status;
+
+  /// Operacje jako JSON (patrz `TypingOp` w `services/typing_journal.dart`).
+  final String ops;
+
+  /// Ile znaków (punktów kodowych) wpisano, razem z zamaskowanymi.
+  final int chars;
+
+  /// Czy tekst z tego kawałka został zastąpiony liczbą znaków.
+  final bool masked;
+  const TypingEntry({
+    required this.id,
+    required this.sessionId,
+    required this.at,
+    required this.app,
+    required this.appLabel,
+    required this.field,
+    required this.status,
+    required this.ops,
+    required this.chars,
+    required this.masked,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_id'] = Variable<int>(sessionId);
+    map['at'] = Variable<DateTime>(at);
+    map['app'] = Variable<String>(app);
+    map['app_label'] = Variable<String>(appLabel);
+    map['field'] = Variable<String>(field);
+    map['status'] = Variable<String>(status);
+    map['ops'] = Variable<String>(ops);
+    map['chars'] = Variable<int>(chars);
+    map['masked'] = Variable<bool>(masked);
+    return map;
+  }
+
+  TypingEntriesCompanion toCompanion(bool nullToAbsent) {
+    return TypingEntriesCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      at: Value(at),
+      app: Value(app),
+      appLabel: Value(appLabel),
+      field: Value(field),
+      status: Value(status),
+      ops: Value(ops),
+      chars: Value(chars),
+      masked: Value(masked),
+    );
+  }
+
+  factory TypingEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TypingEntry(
+      id: serializer.fromJson<int>(json['id']),
+      sessionId: serializer.fromJson<int>(json['sessionId']),
+      at: serializer.fromJson<DateTime>(json['at']),
+      app: serializer.fromJson<String>(json['app']),
+      appLabel: serializer.fromJson<String>(json['appLabel']),
+      field: serializer.fromJson<String>(json['field']),
+      status: serializer.fromJson<String>(json['status']),
+      ops: serializer.fromJson<String>(json['ops']),
+      chars: serializer.fromJson<int>(json['chars']),
+      masked: serializer.fromJson<bool>(json['masked']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionId': serializer.toJson<int>(sessionId),
+      'at': serializer.toJson<DateTime>(at),
+      'app': serializer.toJson<String>(app),
+      'appLabel': serializer.toJson<String>(appLabel),
+      'field': serializer.toJson<String>(field),
+      'status': serializer.toJson<String>(status),
+      'ops': serializer.toJson<String>(ops),
+      'chars': serializer.toJson<int>(chars),
+      'masked': serializer.toJson<bool>(masked),
+    };
+  }
+
+  TypingEntry copyWith({
+    int? id,
+    int? sessionId,
+    DateTime? at,
+    String? app,
+    String? appLabel,
+    String? field,
+    String? status,
+    String? ops,
+    int? chars,
+    bool? masked,
+  }) => TypingEntry(
+    id: id ?? this.id,
+    sessionId: sessionId ?? this.sessionId,
+    at: at ?? this.at,
+    app: app ?? this.app,
+    appLabel: appLabel ?? this.appLabel,
+    field: field ?? this.field,
+    status: status ?? this.status,
+    ops: ops ?? this.ops,
+    chars: chars ?? this.chars,
+    masked: masked ?? this.masked,
+  );
+  TypingEntry copyWithCompanion(TypingEntriesCompanion data) {
+    return TypingEntry(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      at: data.at.present ? data.at.value : this.at,
+      app: data.app.present ? data.app.value : this.app,
+      appLabel: data.appLabel.present ? data.appLabel.value : this.appLabel,
+      field: data.field.present ? data.field.value : this.field,
+      status: data.status.present ? data.status.value : this.status,
+      ops: data.ops.present ? data.ops.value : this.ops,
+      chars: data.chars.present ? data.chars.value : this.chars,
+      masked: data.masked.present ? data.masked.value : this.masked,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TypingEntry(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('at: $at, ')
+          ..write('app: $app, ')
+          ..write('appLabel: $appLabel, ')
+          ..write('field: $field, ')
+          ..write('status: $status, ')
+          ..write('ops: $ops, ')
+          ..write('chars: $chars, ')
+          ..write('masked: $masked')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sessionId,
+    at,
+    app,
+    appLabel,
+    field,
+    status,
+    ops,
+    chars,
+    masked,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TypingEntry &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.at == this.at &&
+          other.app == this.app &&
+          other.appLabel == this.appLabel &&
+          other.field == this.field &&
+          other.status == this.status &&
+          other.ops == this.ops &&
+          other.chars == this.chars &&
+          other.masked == this.masked);
+}
+
+class TypingEntriesCompanion extends UpdateCompanion<TypingEntry> {
+  final Value<int> id;
+  final Value<int> sessionId;
+  final Value<DateTime> at;
+  final Value<String> app;
+  final Value<String> appLabel;
+  final Value<String> field;
+  final Value<String> status;
+  final Value<String> ops;
+  final Value<int> chars;
+  final Value<bool> masked;
+  const TypingEntriesCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.at = const Value.absent(),
+    this.app = const Value.absent(),
+    this.appLabel = const Value.absent(),
+    this.field = const Value.absent(),
+    this.status = const Value.absent(),
+    this.ops = const Value.absent(),
+    this.chars = const Value.absent(),
+    this.masked = const Value.absent(),
+  });
+  TypingEntriesCompanion.insert({
+    this.id = const Value.absent(),
+    required int sessionId,
+    required DateTime at,
+    this.app = const Value.absent(),
+    this.appLabel = const Value.absent(),
+    required String field,
+    required String status,
+    required String ops,
+    this.chars = const Value.absent(),
+    this.masked = const Value.absent(),
+  }) : sessionId = Value(sessionId),
+       at = Value(at),
+       field = Value(field),
+       status = Value(status),
+       ops = Value(ops);
+  static Insertable<TypingEntry> custom({
+    Expression<int>? id,
+    Expression<int>? sessionId,
+    Expression<DateTime>? at,
+    Expression<String>? app,
+    Expression<String>? appLabel,
+    Expression<String>? field,
+    Expression<String>? status,
+    Expression<String>? ops,
+    Expression<int>? chars,
+    Expression<bool>? masked,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (at != null) 'at': at,
+      if (app != null) 'app': app,
+      if (appLabel != null) 'app_label': appLabel,
+      if (field != null) 'field': field,
+      if (status != null) 'status': status,
+      if (ops != null) 'ops': ops,
+      if (chars != null) 'chars': chars,
+      if (masked != null) 'masked': masked,
+    });
+  }
+
+  TypingEntriesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? sessionId,
+    Value<DateTime>? at,
+    Value<String>? app,
+    Value<String>? appLabel,
+    Value<String>? field,
+    Value<String>? status,
+    Value<String>? ops,
+    Value<int>? chars,
+    Value<bool>? masked,
+  }) {
+    return TypingEntriesCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      at: at ?? this.at,
+      app: app ?? this.app,
+      appLabel: appLabel ?? this.appLabel,
+      field: field ?? this.field,
+      status: status ?? this.status,
+      ops: ops ?? this.ops,
+      chars: chars ?? this.chars,
+      masked: masked ?? this.masked,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<int>(sessionId.value);
+    }
+    if (at.present) {
+      map['at'] = Variable<DateTime>(at.value);
+    }
+    if (app.present) {
+      map['app'] = Variable<String>(app.value);
+    }
+    if (appLabel.present) {
+      map['app_label'] = Variable<String>(appLabel.value);
+    }
+    if (field.present) {
+      map['field'] = Variable<String>(field.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (ops.present) {
+      map['ops'] = Variable<String>(ops.value);
+    }
+    if (chars.present) {
+      map['chars'] = Variable<int>(chars.value);
+    }
+    if (masked.present) {
+      map['masked'] = Variable<bool>(masked.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TypingEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('at: $at, ')
+          ..write('app: $app, ')
+          ..write('appLabel: $appLabel, ')
+          ..write('field: $field, ')
+          ..write('status: $status, ')
+          ..write('ops: $ops, ')
+          ..write('chars: $chars, ')
+          ..write('masked: $masked')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AppLogEntriesTable extends AppLogEntries
+    with TableInfo<$AppLogEntriesTable, AppLogEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppLogEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _atMsMeta = const VerificationMeta('atMs');
+  @override
+  late final GeneratedColumn<int> atMs = GeneratedColumn<int>(
+    'at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<LogLevel, int> level =
+      GeneratedColumn<int>(
+        'level',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: true,
+      ).withConverter<LogLevel>($AppLogEntriesTable.$converterlevel);
+  static const VerificationMeta _areaMeta = const VerificationMeta('area');
+  @override
+  late final GeneratedColumn<String> area = GeneratedColumn<String>(
+    'area',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _messageMeta = const VerificationMeta(
+    'message',
+  );
+  @override
+  late final GeneratedColumn<String> message = GeneratedColumn<String>(
+    'message',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _detailsMeta = const VerificationMeta(
+    'details',
+  );
+  @override
+  late final GeneratedColumn<String> details = GeneratedColumn<String>(
+    'details',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    atMs,
+    level,
+    area,
+    message,
+    details,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_log';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppLogEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('at_ms')) {
+      context.handle(
+        _atMsMeta,
+        atMs.isAcceptableOrUnknown(data['at_ms']!, _atMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_atMsMeta);
+    }
+    if (data.containsKey('area')) {
+      context.handle(
+        _areaMeta,
+        area.isAcceptableOrUnknown(data['area']!, _areaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_areaMeta);
+    }
+    if (data.containsKey('message')) {
+      context.handle(
+        _messageMeta,
+        message.isAcceptableOrUnknown(data['message']!, _messageMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_messageMeta);
+    }
+    if (data.containsKey('details')) {
+      context.handle(
+        _detailsMeta,
+        details.isAcceptableOrUnknown(data['details']!, _detailsMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppLogEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppLogEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      atMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}at_ms'],
+      )!,
+      level: $AppLogEntriesTable.$converterlevel.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.int,
+          data['${effectivePrefix}level'],
+        )!,
+      ),
+      area: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}area'],
+      )!,
+      message: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message'],
+      )!,
+      details: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}details'],
+      ),
+    );
+  }
+
+  @override
+  $AppLogEntriesTable createAlias(String alias) {
+    return $AppLogEntriesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<LogLevel, int, int> $converterlevel =
+      const EnumIndexConverter<LogLevel>(LogLevel.values);
+}
+
+class AppLogEntry extends DataClass implements Insertable<AppLogEntry> {
+  final int id;
+
+  /// Chwila zdarzenia w milisekundach od epoki: przy diagnostyce liczą się
+  /// ułamki sekundy, a `DateTimeColumn` trzyma pełne sekundy.
+  final int atMs;
+  final LogLevel level;
+
+  /// Obszar: `app`, `net`, `pair`, `file`, `history`, `bt`, `keyboard`,
+  /// `update`, `error`.
+  final String area;
+  final String message;
+
+  /// Szczegóły błędu: wyjątek i ślad stosu.
+  final String? details;
+  const AppLogEntry({
+    required this.id,
+    required this.atMs,
+    required this.level,
+    required this.area,
+    required this.message,
+    this.details,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['at_ms'] = Variable<int>(atMs);
+    {
+      map['level'] = Variable<int>(
+        $AppLogEntriesTable.$converterlevel.toSql(level),
+      );
+    }
+    map['area'] = Variable<String>(area);
+    map['message'] = Variable<String>(message);
+    if (!nullToAbsent || details != null) {
+      map['details'] = Variable<String>(details);
+    }
+    return map;
+  }
+
+  AppLogEntriesCompanion toCompanion(bool nullToAbsent) {
+    return AppLogEntriesCompanion(
+      id: Value(id),
+      atMs: Value(atMs),
+      level: Value(level),
+      area: Value(area),
+      message: Value(message),
+      details: details == null && nullToAbsent
+          ? const Value.absent()
+          : Value(details),
+    );
+  }
+
+  factory AppLogEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppLogEntry(
+      id: serializer.fromJson<int>(json['id']),
+      atMs: serializer.fromJson<int>(json['atMs']),
+      level: $AppLogEntriesTable.$converterlevel.fromJson(
+        serializer.fromJson<int>(json['level']),
+      ),
+      area: serializer.fromJson<String>(json['area']),
+      message: serializer.fromJson<String>(json['message']),
+      details: serializer.fromJson<String?>(json['details']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'atMs': serializer.toJson<int>(atMs),
+      'level': serializer.toJson<int>(
+        $AppLogEntriesTable.$converterlevel.toJson(level),
+      ),
+      'area': serializer.toJson<String>(area),
+      'message': serializer.toJson<String>(message),
+      'details': serializer.toJson<String?>(details),
+    };
+  }
+
+  AppLogEntry copyWith({
+    int? id,
+    int? atMs,
+    LogLevel? level,
+    String? area,
+    String? message,
+    Value<String?> details = const Value.absent(),
+  }) => AppLogEntry(
+    id: id ?? this.id,
+    atMs: atMs ?? this.atMs,
+    level: level ?? this.level,
+    area: area ?? this.area,
+    message: message ?? this.message,
+    details: details.present ? details.value : this.details,
+  );
+  AppLogEntry copyWithCompanion(AppLogEntriesCompanion data) {
+    return AppLogEntry(
+      id: data.id.present ? data.id.value : this.id,
+      atMs: data.atMs.present ? data.atMs.value : this.atMs,
+      level: data.level.present ? data.level.value : this.level,
+      area: data.area.present ? data.area.value : this.area,
+      message: data.message.present ? data.message.value : this.message,
+      details: data.details.present ? data.details.value : this.details,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppLogEntry(')
+          ..write('id: $id, ')
+          ..write('atMs: $atMs, ')
+          ..write('level: $level, ')
+          ..write('area: $area, ')
+          ..write('message: $message, ')
+          ..write('details: $details')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, atMs, level, area, message, details);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppLogEntry &&
+          other.id == this.id &&
+          other.atMs == this.atMs &&
+          other.level == this.level &&
+          other.area == this.area &&
+          other.message == this.message &&
+          other.details == this.details);
+}
+
+class AppLogEntriesCompanion extends UpdateCompanion<AppLogEntry> {
+  final Value<int> id;
+  final Value<int> atMs;
+  final Value<LogLevel> level;
+  final Value<String> area;
+  final Value<String> message;
+  final Value<String?> details;
+  const AppLogEntriesCompanion({
+    this.id = const Value.absent(),
+    this.atMs = const Value.absent(),
+    this.level = const Value.absent(),
+    this.area = const Value.absent(),
+    this.message = const Value.absent(),
+    this.details = const Value.absent(),
+  });
+  AppLogEntriesCompanion.insert({
+    this.id = const Value.absent(),
+    required int atMs,
+    required LogLevel level,
+    required String area,
+    required String message,
+    this.details = const Value.absent(),
+  }) : atMs = Value(atMs),
+       level = Value(level),
+       area = Value(area),
+       message = Value(message);
+  static Insertable<AppLogEntry> custom({
+    Expression<int>? id,
+    Expression<int>? atMs,
+    Expression<int>? level,
+    Expression<String>? area,
+    Expression<String>? message,
+    Expression<String>? details,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (atMs != null) 'at_ms': atMs,
+      if (level != null) 'level': level,
+      if (area != null) 'area': area,
+      if (message != null) 'message': message,
+      if (details != null) 'details': details,
+    });
+  }
+
+  AppLogEntriesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? atMs,
+    Value<LogLevel>? level,
+    Value<String>? area,
+    Value<String>? message,
+    Value<String?>? details,
+  }) {
+    return AppLogEntriesCompanion(
+      id: id ?? this.id,
+      atMs: atMs ?? this.atMs,
+      level: level ?? this.level,
+      area: area ?? this.area,
+      message: message ?? this.message,
+      details: details ?? this.details,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (atMs.present) {
+      map['at_ms'] = Variable<int>(atMs.value);
+    }
+    if (level.present) {
+      map['level'] = Variable<int>(
+        $AppLogEntriesTable.$converterlevel.toSql(level.value),
+      );
+    }
+    if (area.present) {
+      map['area'] = Variable<String>(area.value);
+    }
+    if (message.present) {
+      map['message'] = Variable<String>(message.value);
+    }
+    if (details.present) {
+      map['details'] = Variable<String>(details.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppLogEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('atMs: $atMs, ')
+          ..write('level: $level, ')
+          ..write('area: $area, ')
+          ..write('message: $message, ')
+          ..write('details: $details')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$ChattDb extends GeneratedDatabase {
   _$ChattDb(QueryExecutor e) : super(e);
   $ChattDbManager get managers => $ChattDbManager(this);
@@ -3166,6 +4792,13 @@ abstract class _$ChattDb extends GeneratedDatabase {
   late final $PeersTable peers = $PeersTable(this);
   late final $ConversationsTable conversations = $ConversationsTable(this);
   late final $MessagesTable messages = $MessagesTable(this);
+  late final $TypingSessionsTable typingSessions = $TypingSessionsTable(this);
+  late final $TypingEntriesTable typingEntries = $TypingEntriesTable(this);
+  late final $AppLogEntriesTable appLogEntries = $AppLogEntriesTable(this);
+  late final Index typingEntriesSession = Index(
+    'typing_entries_session',
+    'CREATE INDEX IF NOT EXISTS typing_entries_session ON typing_entries (session_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3175,6 +4808,10 @@ abstract class _$ChattDb extends GeneratedDatabase {
     peers,
     conversations,
     messages,
+    typingSessions,
+    typingEntries,
+    appLogEntries,
+    typingEntriesSession,
   ];
 }
 
@@ -3197,6 +4834,7 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<bool> bluetoothEnabled,
   Value<bool> keyboardEnabled,
   Value<bool> remoteInputReceive,
+  Value<bool> typingHistory,
 });
 typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<int> id,
@@ -3217,6 +4855,7 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<bool> bluetoothEnabled,
   Value<bool> keyboardEnabled,
   Value<bool> remoteInputReceive,
+  Value<bool> typingHistory,
 });
 
 class $$SettingsTableFilterComposer
@@ -3320,6 +4959,11 @@ class $$SettingsTableFilterComposer
     column: $table.remoteInputReceive,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<bool> get typingHistory => $composableBuilder(
+    column: $table.typingHistory,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$SettingsTableOrderingComposer
@@ -3420,6 +5064,11 @@ class $$SettingsTableOrderingComposer
     column: $table.remoteInputReceive,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get typingHistory => $composableBuilder(
+    column: $table.typingHistory,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableAnnotationComposer
@@ -3508,6 +5157,11 @@ class $$SettingsTableAnnotationComposer
     column: $table.remoteInputReceive,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get typingHistory => $composableBuilder(
+    column: $table.typingHistory,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableManager
@@ -3556,6 +5210,7 @@ class $$SettingsTableTableManager
                 Value<bool> bluetoothEnabled = const Value.absent(),
                 Value<bool> keyboardEnabled = const Value.absent(),
                 Value<bool> remoteInputReceive = const Value.absent(),
+                Value<bool> typingHistory = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 deviceGuid: deviceGuid,
@@ -3575,6 +5230,7 @@ class $$SettingsTableTableManager
                 bluetoothEnabled: bluetoothEnabled,
                 keyboardEnabled: keyboardEnabled,
                 remoteInputReceive: remoteInputReceive,
+                typingHistory: typingHistory,
               ),
           createCompanionCallback:
               ({
@@ -3596,6 +5252,7 @@ class $$SettingsTableTableManager
                 Value<bool> bluetoothEnabled = const Value.absent(),
                 Value<bool> keyboardEnabled = const Value.absent(),
                 Value<bool> remoteInputReceive = const Value.absent(),
+                Value<bool> typingHistory = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 deviceGuid: deviceGuid,
@@ -3615,6 +5272,7 @@ class $$SettingsTableTableManager
                 bluetoothEnabled: bluetoothEnabled,
                 keyboardEnabled: keyboardEnabled,
                 remoteInputReceive: remoteInputReceive,
+                typingHistory: typingHistory,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -5015,6 +6673,1006 @@ typedef $$MessagesTableProcessedTableManager =
       Message,
       PrefetchHooks Function({bool conversationId})
     >;
+typedef $$TypingSessionsTableCreateCompanionBuilder =
+    TypingSessionsCompanion Function({
+      Value<int> id,
+      required String inputId,
+      required MessageDirection direction,
+      required String peerGuid,
+      required String peerName,
+      required DateTime startedAt,
+      Value<DateTime?> endedAt,
+      required String result,
+      Value<String?> endReason,
+    });
+typedef $$TypingSessionsTableUpdateCompanionBuilder =
+    TypingSessionsCompanion Function({
+      Value<int> id,
+      Value<String> inputId,
+      Value<MessageDirection> direction,
+      Value<String> peerGuid,
+      Value<String> peerName,
+      Value<DateTime> startedAt,
+      Value<DateTime?> endedAt,
+      Value<String> result,
+      Value<String?> endReason,
+    });
+
+final class $$TypingSessionsTableReferences
+    extends BaseReferences<_$ChattDb, $TypingSessionsTable, TypingSession> {
+  $$TypingSessionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$TypingEntriesTable, List<TypingEntry>>
+  _typingEntriesRefsTable(_$ChattDb db) => MultiTypedResultKey.fromTable(
+    db.typingEntries,
+    aliasName: 'typing_sessions__id__typing_entries__session_id',
+  );
+
+  $$TypingEntriesTableProcessedTableManager get typingEntriesRefs {
+    final manager = $$TypingEntriesTableTableManager(
+      $_db,
+      $_db.typingEntries,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_typingEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$TypingSessionsTableFilterComposer
+    extends Composer<_$ChattDb, $TypingSessionsTable> {
+  $$TypingSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get inputId => $composableBuilder(
+    column: $table.inputId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<MessageDirection, MessageDirection, int>
+  get direction => $composableBuilder(
+    column: $table.direction,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get peerGuid => $composableBuilder(
+    column: $table.peerGuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get peerName => $composableBuilder(
+    column: $table.peerName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get result => $composableBuilder(
+    column: $table.result,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get endReason => $composableBuilder(
+    column: $table.endReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> typingEntriesRefs(
+    Expression<bool> Function($$TypingEntriesTableFilterComposer f) f,
+  ) {
+    final $$TypingEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.typingEntries,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TypingEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.typingEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$TypingSessionsTableOrderingComposer
+    extends Composer<_$ChattDb, $TypingSessionsTable> {
+  $$TypingSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get inputId => $composableBuilder(
+    column: $table.inputId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get direction => $composableBuilder(
+    column: $table.direction,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get peerGuid => $composableBuilder(
+    column: $table.peerGuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get peerName => $composableBuilder(
+    column: $table.peerName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startedAt => $composableBuilder(
+    column: $table.startedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endedAt => $composableBuilder(
+    column: $table.endedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get result => $composableBuilder(
+    column: $table.result,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get endReason => $composableBuilder(
+    column: $table.endReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TypingSessionsTableAnnotationComposer
+    extends Composer<_$ChattDb, $TypingSessionsTable> {
+  $$TypingSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get inputId =>
+      $composableBuilder(column: $table.inputId, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<MessageDirection, int> get direction =>
+      $composableBuilder(column: $table.direction, builder: (column) => column);
+
+  GeneratedColumn<String> get peerGuid =>
+      $composableBuilder(column: $table.peerGuid, builder: (column) => column);
+
+  GeneratedColumn<String> get peerName =>
+      $composableBuilder(column: $table.peerName, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get startedAt =>
+      $composableBuilder(column: $table.startedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endedAt =>
+      $composableBuilder(column: $table.endedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get result =>
+      $composableBuilder(column: $table.result, builder: (column) => column);
+
+  GeneratedColumn<String> get endReason =>
+      $composableBuilder(column: $table.endReason, builder: (column) => column);
+
+  Expression<T> typingEntriesRefs<T extends Object>(
+    Expression<T> Function($$TypingEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$TypingEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.typingEntries,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TypingEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.typingEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$TypingSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$ChattDb,
+          $TypingSessionsTable,
+          TypingSession,
+          $$TypingSessionsTableFilterComposer,
+          $$TypingSessionsTableOrderingComposer,
+          $$TypingSessionsTableAnnotationComposer,
+          $$TypingSessionsTableCreateCompanionBuilder,
+          $$TypingSessionsTableUpdateCompanionBuilder,
+          (TypingSession, $$TypingSessionsTableReferences),
+          TypingSession,
+          PrefetchHooks Function({bool typingEntriesRefs})
+        > {
+  $$TypingSessionsTableTableManager(_$ChattDb db, $TypingSessionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TypingSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TypingSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TypingSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> inputId = const Value.absent(),
+                Value<MessageDirection> direction = const Value.absent(),
+                Value<String> peerGuid = const Value.absent(),
+                Value<String> peerName = const Value.absent(),
+                Value<DateTime> startedAt = const Value.absent(),
+                Value<DateTime?> endedAt = const Value.absent(),
+                Value<String> result = const Value.absent(),
+                Value<String?> endReason = const Value.absent(),
+              }) => TypingSessionsCompanion(
+                id: id,
+                inputId: inputId,
+                direction: direction,
+                peerGuid: peerGuid,
+                peerName: peerName,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                result: result,
+                endReason: endReason,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String inputId,
+                required MessageDirection direction,
+                required String peerGuid,
+                required String peerName,
+                required DateTime startedAt,
+                Value<DateTime?> endedAt = const Value.absent(),
+                required String result,
+                Value<String?> endReason = const Value.absent(),
+              }) => TypingSessionsCompanion.insert(
+                id: id,
+                inputId: inputId,
+                direction: direction,
+                peerGuid: peerGuid,
+                peerName: peerName,
+                startedAt: startedAt,
+                endedAt: endedAt,
+                result: result,
+                endReason: endReason,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TypingSessionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({typingEntriesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (typingEntriesRefs) db.typingEntries,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (typingEntriesRefs)
+                    await $_getPrefetchedData<
+                      TypingSession,
+                      $TypingSessionsTable,
+                      TypingEntry
+                    >(
+                      currentTable: table,
+                      referencedTable: $$TypingSessionsTableReferences
+                          ._typingEntriesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$TypingSessionsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).typingEntriesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.sessionId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TypingSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ChattDb,
+      $TypingSessionsTable,
+      TypingSession,
+      $$TypingSessionsTableFilterComposer,
+      $$TypingSessionsTableOrderingComposer,
+      $$TypingSessionsTableAnnotationComposer,
+      $$TypingSessionsTableCreateCompanionBuilder,
+      $$TypingSessionsTableUpdateCompanionBuilder,
+      (TypingSession, $$TypingSessionsTableReferences),
+      TypingSession,
+      PrefetchHooks Function({bool typingEntriesRefs})
+    >;
+typedef $$TypingEntriesTableCreateCompanionBuilder =
+    TypingEntriesCompanion Function({
+      Value<int> id,
+      required int sessionId,
+      required DateTime at,
+      Value<String> app,
+      Value<String> appLabel,
+      required String field,
+      required String status,
+      required String ops,
+      Value<int> chars,
+      Value<bool> masked,
+    });
+typedef $$TypingEntriesTableUpdateCompanionBuilder =
+    TypingEntriesCompanion Function({
+      Value<int> id,
+      Value<int> sessionId,
+      Value<DateTime> at,
+      Value<String> app,
+      Value<String> appLabel,
+      Value<String> field,
+      Value<String> status,
+      Value<String> ops,
+      Value<int> chars,
+      Value<bool> masked,
+    });
+
+final class $$TypingEntriesTableReferences
+    extends BaseReferences<_$ChattDb, $TypingEntriesTable, TypingEntry> {
+  $$TypingEntriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TypingSessionsTable _sessionIdTable(_$ChattDb db) => db.typingSessions
+      .createAlias('typing_entries__session_id__typing_sessions__id');
+
+  $$TypingSessionsTableProcessedTableManager get sessionId {
+    final $_column = $_itemColumn<int>('session_id')!;
+
+    final manager = $$TypingSessionsTableTableManager(
+      $_db,
+      $_db.typingSessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TypingEntriesTableFilterComposer
+    extends Composer<_$ChattDb, $TypingEntriesTable> {
+  $$TypingEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get app => $composableBuilder(
+    column: $table.app,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get appLabel => $composableBuilder(
+    column: $table.appLabel,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get field => $composableBuilder(
+    column: $table.field,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ops => $composableBuilder(
+    column: $table.ops,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chars => $composableBuilder(
+    column: $table.chars,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get masked => $composableBuilder(
+    column: $table.masked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TypingSessionsTableFilterComposer get sessionId {
+    final $$TypingSessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.typingSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TypingSessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.typingSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TypingEntriesTableOrderingComposer
+    extends Composer<_$ChattDb, $TypingEntriesTable> {
+  $$TypingEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get at => $composableBuilder(
+    column: $table.at,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get app => $composableBuilder(
+    column: $table.app,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get appLabel => $composableBuilder(
+    column: $table.appLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get field => $composableBuilder(
+    column: $table.field,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ops => $composableBuilder(
+    column: $table.ops,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get chars => $composableBuilder(
+    column: $table.chars,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get masked => $composableBuilder(
+    column: $table.masked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TypingSessionsTableOrderingComposer get sessionId {
+    final $$TypingSessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.typingSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TypingSessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.typingSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TypingEntriesTableAnnotationComposer
+    extends Composer<_$ChattDb, $TypingEntriesTable> {
+  $$TypingEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get at =>
+      $composableBuilder(column: $table.at, builder: (column) => column);
+
+  GeneratedColumn<String> get app =>
+      $composableBuilder(column: $table.app, builder: (column) => column);
+
+  GeneratedColumn<String> get appLabel =>
+      $composableBuilder(column: $table.appLabel, builder: (column) => column);
+
+  GeneratedColumn<String> get field =>
+      $composableBuilder(column: $table.field, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get ops =>
+      $composableBuilder(column: $table.ops, builder: (column) => column);
+
+  GeneratedColumn<int> get chars =>
+      $composableBuilder(column: $table.chars, builder: (column) => column);
+
+  GeneratedColumn<bool> get masked =>
+      $composableBuilder(column: $table.masked, builder: (column) => column);
+
+  $$TypingSessionsTableAnnotationComposer get sessionId {
+    final $$TypingSessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.typingSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TypingSessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.typingSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TypingEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$ChattDb,
+          $TypingEntriesTable,
+          TypingEntry,
+          $$TypingEntriesTableFilterComposer,
+          $$TypingEntriesTableOrderingComposer,
+          $$TypingEntriesTableAnnotationComposer,
+          $$TypingEntriesTableCreateCompanionBuilder,
+          $$TypingEntriesTableUpdateCompanionBuilder,
+          (TypingEntry, $$TypingEntriesTableReferences),
+          TypingEntry,
+          PrefetchHooks Function({bool sessionId})
+        > {
+  $$TypingEntriesTableTableManager(_$ChattDb db, $TypingEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TypingEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TypingEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TypingEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> sessionId = const Value.absent(),
+                Value<DateTime> at = const Value.absent(),
+                Value<String> app = const Value.absent(),
+                Value<String> appLabel = const Value.absent(),
+                Value<String> field = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> ops = const Value.absent(),
+                Value<int> chars = const Value.absent(),
+                Value<bool> masked = const Value.absent(),
+              }) => TypingEntriesCompanion(
+                id: id,
+                sessionId: sessionId,
+                at: at,
+                app: app,
+                appLabel: appLabel,
+                field: field,
+                status: status,
+                ops: ops,
+                chars: chars,
+                masked: masked,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int sessionId,
+                required DateTime at,
+                Value<String> app = const Value.absent(),
+                Value<String> appLabel = const Value.absent(),
+                required String field,
+                required String status,
+                required String ops,
+                Value<int> chars = const Value.absent(),
+                Value<bool> masked = const Value.absent(),
+              }) => TypingEntriesCompanion.insert(
+                id: id,
+                sessionId: sessionId,
+                at: at,
+                app: app,
+                appLabel: appLabel,
+                field: field,
+                status: status,
+                ops: ops,
+                chars: chars,
+                masked: masked,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$TypingEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({sessionId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (sessionId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.sessionId,
+                        referencedTable: $$TypingEntriesTableReferences
+                            ._sessionIdTable(db),
+                        referencedColumn: $$TypingEntriesTableReferences
+                            ._sessionIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TypingEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ChattDb,
+      $TypingEntriesTable,
+      TypingEntry,
+      $$TypingEntriesTableFilterComposer,
+      $$TypingEntriesTableOrderingComposer,
+      $$TypingEntriesTableAnnotationComposer,
+      $$TypingEntriesTableCreateCompanionBuilder,
+      $$TypingEntriesTableUpdateCompanionBuilder,
+      (TypingEntry, $$TypingEntriesTableReferences),
+      TypingEntry,
+      PrefetchHooks Function({bool sessionId})
+    >;
+typedef $$AppLogEntriesTableCreateCompanionBuilder =
+    AppLogEntriesCompanion Function({
+      Value<int> id,
+      required int atMs,
+      required LogLevel level,
+      required String area,
+      required String message,
+      Value<String?> details,
+    });
+typedef $$AppLogEntriesTableUpdateCompanionBuilder =
+    AppLogEntriesCompanion Function({
+      Value<int> id,
+      Value<int> atMs,
+      Value<LogLevel> level,
+      Value<String> area,
+      Value<String> message,
+      Value<String?> details,
+    });
+
+class $$AppLogEntriesTableFilterComposer
+    extends Composer<_$ChattDb, $AppLogEntriesTable> {
+  $$AppLogEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get atMs => $composableBuilder(
+    column: $table.atMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<LogLevel, LogLevel, int> get level =>
+      $composableBuilder(
+        column: $table.level,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
+
+  ColumnFilters<String> get area => $composableBuilder(
+    column: $table.area,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppLogEntriesTableOrderingComposer
+    extends Composer<_$ChattDb, $AppLogEntriesTable> {
+  $$AppLogEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get atMs => $composableBuilder(
+    column: $table.atMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get level => $composableBuilder(
+    column: $table.level,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get area => $composableBuilder(
+    column: $table.area,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppLogEntriesTableAnnotationComposer
+    extends Composer<_$ChattDb, $AppLogEntriesTable> {
+  $$AppLogEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get atMs =>
+      $composableBuilder(column: $table.atMs, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<LogLevel, int> get level =>
+      $composableBuilder(column: $table.level, builder: (column) => column);
+
+  GeneratedColumn<String> get area =>
+      $composableBuilder(column: $table.area, builder: (column) => column);
+
+  GeneratedColumn<String> get message =>
+      $composableBuilder(column: $table.message, builder: (column) => column);
+
+  GeneratedColumn<String> get details =>
+      $composableBuilder(column: $table.details, builder: (column) => column);
+}
+
+class $$AppLogEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$ChattDb,
+          $AppLogEntriesTable,
+          AppLogEntry,
+          $$AppLogEntriesTableFilterComposer,
+          $$AppLogEntriesTableOrderingComposer,
+          $$AppLogEntriesTableAnnotationComposer,
+          $$AppLogEntriesTableCreateCompanionBuilder,
+          $$AppLogEntriesTableUpdateCompanionBuilder,
+          (
+            AppLogEntry,
+            BaseReferences<_$ChattDb, $AppLogEntriesTable, AppLogEntry>,
+          ),
+          AppLogEntry,
+          PrefetchHooks Function()
+        > {
+  $$AppLogEntriesTableTableManager(_$ChattDb db, $AppLogEntriesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppLogEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppLogEntriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppLogEntriesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> atMs = const Value.absent(),
+                Value<LogLevel> level = const Value.absent(),
+                Value<String> area = const Value.absent(),
+                Value<String> message = const Value.absent(),
+                Value<String?> details = const Value.absent(),
+              }) => AppLogEntriesCompanion(
+                id: id,
+                atMs: atMs,
+                level: level,
+                area: area,
+                message: message,
+                details: details,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int atMs,
+                required LogLevel level,
+                required String area,
+                required String message,
+                Value<String?> details = const Value.absent(),
+              }) => AppLogEntriesCompanion.insert(
+                id: id,
+                atMs: atMs,
+                level: level,
+                area: area,
+                message: message,
+                details: details,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppLogEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ChattDb,
+      $AppLogEntriesTable,
+      AppLogEntry,
+      $$AppLogEntriesTableFilterComposer,
+      $$AppLogEntriesTableOrderingComposer,
+      $$AppLogEntriesTableAnnotationComposer,
+      $$AppLogEntriesTableCreateCompanionBuilder,
+      $$AppLogEntriesTableUpdateCompanionBuilder,
+      (
+        AppLogEntry,
+        BaseReferences<_$ChattDb, $AppLogEntriesTable, AppLogEntry>,
+      ),
+      AppLogEntry,
+      PrefetchHooks Function()
+    >;
 
 class $ChattDbManager {
   final _$ChattDb _db;
@@ -5027,4 +7685,10 @@ class $ChattDbManager {
       $$ConversationsTableTableManager(_db, _db.conversations);
   $$MessagesTableTableManager get messages =>
       $$MessagesTableTableManager(_db, _db.messages);
+  $$TypingSessionsTableTableManager get typingSessions =>
+      $$TypingSessionsTableTableManager(_db, _db.typingSessions);
+  $$TypingEntriesTableTableManager get typingEntries =>
+      $$TypingEntriesTableTableManager(_db, _db.typingEntries);
+  $$AppLogEntriesTableTableManager get appLogEntries =>
+      $$AppLogEntriesTableTableManager(_db, _db.appLogEntries);
 }

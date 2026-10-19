@@ -71,6 +71,12 @@ class ChattServer {
   final Future<SealedReply> Function(
           HistoryChunk chunk, String fromHost, String session)? onHistoryChunk;
 
+  /// Wyjątek obsługującego, który osłona zamieniła na 500. Serwer działa
+  /// dalej; [AppServices] zapisuje ślad w dzienniku aplikacji. [path] to
+  /// ścieżka zapytania, np. `/message`.
+  final void Function(String path, Object error, StackTrace stack)?
+      onHandlerError;
+
   HttpServer? _server;
 
   ChattServer({
@@ -85,6 +91,7 @@ class ChattServer {
     this.onInput,
     this.onHistoryOffer,
     this.onHistoryChunk,
+    this.onHandlerError,
   });
 
   /// Zamienia kopertę na jej zawartość. Od protokołu 5 **wszystko** musi
@@ -208,11 +215,17 @@ class ChattServer {
   Response _tooLarge() =>
       _json({'ok': false, 'error': 'too_large'}, status: 413);
 
-  /// Nic z sieci nie może położyć serwera: błąd handlera to 500 i jedziemy dalej.
+  /// Nic z sieci nie może położyć serwera: błąd handlera to 500 i jedziemy
+  /// dalej. Sam błąd idzie do [onHandlerError], żeby było po nim widać ślad.
   Middleware get _guardErrors => (inner) => (request) async {
         try {
           return await inner(request);
-        } catch (_) {
+        } catch (blad, slad) {
+          try {
+            onHandlerError?.call('/${request.url.path}', blad, slad);
+          } catch (_) {
+            // Zgłoszenie jest dodatkiem: odpowiedź 500 idzie tak czy owak.
+          }
           return Response.internalServerError(body: '{"ok":false}');
         }
       };

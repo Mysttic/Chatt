@@ -51,7 +51,18 @@ turned on:
 - **shared history** (`app/lib/services/history.dart`, the history shapes in
   `app/lib/network/protocol.dart` and `ChattDb.importHistory`): a peer with a
   session sends whole conversations that end up in the database, and file
-  rows that later take bytes without a per-file question.
+  rows that later take bytes without a per-file question,
+- **the typing history** (`app/lib/services/typing_journal.dart` and the
+  typing tables in `app/lib/data/db.dart`): what a verified sender types is
+  written to the database on both sides, and the rule that keeps text bound
+  for a password field or a field of unknown kind out of it (`hideTyping`)
+  belongs here,
+- **the app log** (`app/lib/services/app_log.dart` and every call that writes
+  to it): no message text, typed text, pairing code, key, remote-input token
+  or window title may reach it,
+- **the export** (`app/lib/services/data_export.dart`): it writes the
+  database out as a plaintext archive, so a key that slips into it, or a file
+  name from a sender that becomes a path inside the archive, is in scope.
 
 The threat model is written down in [architecture.md](architecture.md),
 together with what it deliberately does not cover.
@@ -102,9 +113,34 @@ These are design decisions:
   user.** On Windows DPAPI unwraps it for any such process; on Android the app
   sandbox is what protects it. Protection covers a copied disk or a copied
   file; code already running as you can read the key.
+- **An export is plaintext.** **Export data** writes a ZIP with no
+  encryption: conversations, devices and settings, the typing history, the
+  app log and, when asked, received files. It never holds the identity key, a
+  session key or the database key, and the `README.txt` inside says the file
+  is not encrypted. Wherever it lands (Downloads on Android, the place picked
+  in the save dialog on Windows, an app it was shared with), it is as readable
+  as any other file there. After the share sheet, a copy also stays in the
+  app's cache (`cache/eksport/`) until the next export, "Clear history",
+  "Clear typing history", or the next start once it is an hour old.
+- **The typing history holds what was typed.** With the keyboard add-on on
+  and **Save typing history** on (its default), both devices keep the text of
+  every session in their encrypted database: what was typed, into which app,
+  when, and whether it landed. Text bound for a password field
+  or a field of unknown kind is kept as a number of characters. A password
+  field that its app does not mark as one is an ordinary text field to the
+  sink, and its text is kept. Each device follows its own switch, so turning
+  it off on one device leaves the other's record running. The app log holds
+  no typed text.
+- **There is no app lock.** Whoever holds an unlocked device with Chatt reads
+  its conversations, its typing history and its app log, and can export them.
+  The database encryption protects a copied disk or a copied file; a stolen
+  unlocked device shows everything Chatt keeps.
 - **Nothing leaves the local network on its own.** There is no server, no
   telemetry and no crash reporting, so there is no reporting channel to abuse
-  either. Two exceptions, both off by default:
+  either. The app log is kept only in the encrypted database (30 days and
+  20,000 entries at most). It leaves the database only when the user exports
+  it or copies entries from its screen, and both leave the entries in place.
+  Two exceptions, both off by default:
   - with update checks turned on, or when the button in Settings is pressed,
     the app asks `api.github.com` about the newest release. GitHub sees what
     any HTTPS server sees, an IP address and the time. Nothing about the
@@ -129,4 +165,6 @@ These are design decisions:
   typing and 8 hours in all. The receive switch starts off, like the add-on
   itself, so none of this is possible until the owner of the receiving device
   turns both on. An unverified sender is refused without a card and cannot
-  tell whether the add-on is on.
+  tell whether the add-on is on. With the typing history on, the stolen
+  device also shows what was typed from it earlier and into which apps, and
+  the receiving device keeps a record of what the thief typed.

@@ -14,10 +14,19 @@
 
      Podkatalogi, nie całe `cache/`: wychodzi dokładnie to, co użytkownik
      świadomie wskazał do wysłania, a nie wszystko, co aplikacja akurat
-     trzyma w cache'u. -->
+     trzyma w cache'u.
+
+     Trzeci korzeń w cache, `cache/eksport/`, to archiwum ZIP z eksportu
+     danych (services/data_export.dart). Wychodzi stąd tylko wtedy, gdy
+     zapis do Pobranych jest niedostępny (Android starszy niż 10 albo odmowa
+     dostawcy treści) i archiwum idzie do okna „Udostępnij". Ten katalog
+     trzyma wyłącznie archiwum ostatniego eksportu. Czyści go każdy kolejny
+     eksport, „Wyczyść historię", „Wyczyść historię pisania" i start
+     aplikacji, gdy archiwum ma ponad godzinę (core/export_cache.dart). -->
 <paths>
     <files-path name="odebrane" path="Chatt/received/" />
     <files-path name="aktualizacje" path="Chatt/updates/" />
     <cache-path name="wybrane" path="wybrane/" />
     <cache-path name="wklejone" path="wklejone/" />
+    <cache-path name="eksport" path="eksport/" />
 </paths>
