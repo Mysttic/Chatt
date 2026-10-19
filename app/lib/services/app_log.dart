@@ -192,7 +192,12 @@ class AppLog {
       details: Value(details),
     ));
     if (echo) _naKonsole(level, area, message, details);
-    _timer ??= Timer(flushDelay, () => unawaited(_zapiszPaczke()));
+    // Zegar i kolejka zapisów żyją w strefie głównej, jak w historii
+    // pisania: wpis potrafi przyjść ze strefy, której nikt dalej nie obsłuży
+    // (stuknięcie w teście widżetu idzie w fałszywym czasie), a raz przyjęty
+    // ma dojść do bazy sam, w prawdziwym czasie.
+    _timer ??= Zone.root
+        .createTimer(flushDelay, () => unawaited(_zapiszPaczke()));
   }
 
   Future<void> _zapiszPaczke() {
@@ -201,12 +206,12 @@ class AppLog {
     if (_pending.isNotEmpty) {
       final paczka = List.of(_pending);
       _pending.clear();
-      _writes = _writes
-          .then((_) => _db.insertLogEntries(paczka))
-          .catchError((Object _) {
-        // Baza zamknięta albo pełny dysk: dziennik nie ma gdzie zapisać
-        // własnej porażki, a aplikacja ma działać dalej.
-      });
+      _writes = Zone.root.run(() => _writes
+              .then((_) => _db.insertLogEntries(paczka))
+              .catchError((Object _) {
+            // Baza zamknięta albo pełny dysk: dziennik nie ma gdzie zapisać
+            // własnej porażki, a aplikacja ma działać dalej.
+          }));
     }
     return _writes;
   }
@@ -264,7 +269,8 @@ class AppLog {
     _floodTimer?.cancel();
     _floodDue = koniec;
     final za = koniec.difference(_now());
-    _floodTimer = Timer(za.isNegative ? Duration.zero : za, _poTerminie);
+    _floodTimer =
+        Zone.root.createTimer(za.isNegative ? Duration.zero : za, _poTerminie);
   }
 
   void _poTerminie() {
