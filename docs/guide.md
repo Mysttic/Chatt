@@ -126,7 +126,7 @@ the time, with the restore date in its tooltip: the other side's copy is their
 word, and nothing signs a message.
 
 Files ride after the messages. Both sides see a progress bar above the input
-field, and the sharing side has **Stop**. A file whose bytes the other side no
+field, each with **Stop**. A file whose bytes the other side no
 longer has arrives as "File not available"; a received file that is still on
 your disk is linked without travelling again. Sharing a second time resumes:
 nothing is duplicated and the missing files arrive.

@@ -1042,6 +1042,12 @@ class _History {
     }
   }
 
+  /// Przerwanie przywracania po stronie odbierającej: zgoda gaśnie, pasek
+  /// znika, a następna porcja od udostępniającego dostaje `no_grant`.
+  void stopIncoming() {
+    if (_grant != null) _endGrant();
+  }
+
   /// Pasek „Przywrócono" po zakończeniu zamyka użytkownik.
   void dismissIncoming() {
     if (incoming.value?.finished ?? false) _set(incoming, null);

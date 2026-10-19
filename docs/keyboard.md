@@ -81,9 +81,9 @@ waiting there for an answer).
 
 ### On the PC that types
 
-Settings, **Add-ons**, **Keyboard from a PC**. That one switch is all. The
-card also says where to start: "To type on another device, open the
-conversation with it and pick the keyboard at the top."
+Settings, **Add-ons**, **Keyboard from a PC**. That one switch is all. To
+type on another device, open the conversation with it and pick the keyboard
+button at the top (on a phone: the **⋮** menu, **Type on that device**).
 
 ### On the device you want to type on
 
@@ -139,9 +139,10 @@ back when it ends. While the Chatt keyboard is the current one, the card says
 ## Starting a session
 
 1. **On the PC**, open the conversation with the other device and pick the
-   keyboard button at the top. It is there only with the add-on on, and it
-   works only with a green shield; without one its tooltip says "Typing on
-   that device needs a confirmed identity".
+   keyboard button at the top (on a phone: the **⋮** menu, **Type on that
+   device**). It is there only with the add-on on, and it works only with a
+   green shield; without one its tooltip, or the line under the menu entry,
+   says "Typing on that device needs a confirmed identity".
 
    <img src="screenshots/windows/en/09_klawiatura_przycisk.png" alt="The keyboard button in the conversation's bar" width="760">
 
@@ -492,8 +493,8 @@ there; ordinary text of that length takes about 9 to 10 seconds.
 
 | What you see | Why, and what to do |
 |---|---|
-| No keyboard button in the conversation | The add-on is off on this PC: Settings, Add-ons, Keyboard from a PC. |
-| The keyboard button is grey | No green shield: compare the code in the conversation's security sheet. |
+| No keyboard button in the conversation, and no entry in its ⋮ menu | The add-on is off on this PC: Settings, Add-ons, Keyboard from a PC. |
+| The keyboard button, or the menu entry, is grey | No green shield: compare the code in the conversation's security sheet. |
 | "Typing is off on X" | Turn on the add-on and **Allow typing on this device** over there. |
 | "X did not answer the request" | Nobody answered the card within two minutes. On Android, let Chatt post notifications so the request shows while Chatt is not on screen. |
 | "No field to type into" on Android | Tap a field over there, and check that the Chatt keyboard is the current one (the bar at the bottom says "Typing: …"). |
