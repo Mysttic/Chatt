@@ -343,6 +343,11 @@ class _Outgoing {
   /// Ile paczek z pisaniem dostało ostateczny wynik, do dziennika.
   int packets = 0;
 
+  /// Operacje paczki w locie, do chwili jej ostatecznego wyniku. Koniec
+  /// sesji w tym czasie (zamknięcie aplikacji, wyjątek po drodze) zapisuje
+  /// je w historii pisania jako niepotwierdzone.
+  List<RemoteInputOp>? flying;
+
   _Outgoing(this.peer, this.input, this.state);
 
   int get queuedUnits =>
@@ -598,7 +603,10 @@ class _RemoteInput {
     _InputReply wynik;
     try {
       wynik = await _decide(prosba, fromHost, peer, ask, klucz);
-    } catch (_) {
+    } catch (blad) {
+      // Sam typ błędu: opis wyjątku z ujścia albo bazy nie ma tu czego szukać.
+      _s.log.warning(
+          LogArea.keyboard, 'Typing request failed: ${blad.runtimeType}');
       wynik = odmowa(inputNoAnswer);
     } finally {
       if (identical(_asks[klucz], ask)) _asks.remove(klucz);
@@ -1327,6 +1335,7 @@ class _RemoteInput {
     RemoteInputReply? odpowiedz;
     var rtt = Duration.zero;
     var status = -1;
+    o.flying = ops;
     for (var proba = 0; proba < _inputPacketAttempts; proba++) {
       final zegar = Stopwatch()..start();
       final wynik = await _s._exchangeSealed(
@@ -1351,6 +1360,9 @@ class _RemoteInput {
     }
 
     // Wynik paczki trafia do historii pisania raz, po ostatniej próbie.
+    // Sesja zakończona w trakcie lotu (zamknięcie aplikacji) zapisała już
+    // tę paczkę jako niepotwierdzoną i dalszych wpisów nie przyjmuje.
+    o.flying = null;
     if (odpowiedz == null) {
       if (pisze) {
         o.packets++;
@@ -1440,6 +1452,14 @@ class _RemoteInput {
     o.dead = true;
     o.ping?.cancel();
     final koniec = o.endReason ??= end;
+    final wLocie = o.flying;
+    o.flying = null;
+    if (wLocie != null && wLocie.any((op) => op.kind.types)) {
+      o.packets++;
+      final cel = o.state.target;
+      _s.typingJournal.record(o.journal, wLocie,
+          status: TypingStatus.unconfirmed, before: cel, after: cel);
+    }
     _dropQueue(o);
     _s.typingJournal.end(o.journal, koniec);
     if (pierwszy && o.accepted) {

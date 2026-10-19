@@ -305,14 +305,19 @@ class TypingSessionLog {
   final String peerName;
   final DateTime startedAt;
 
-  /// Numer wiersza w bazie, gdy już jest. `null` po nieudanym zapisie.
+  /// Pokolenie historii z chwili [TypingJournal.begin] (patrz
+  /// [TypingJournal.detachAll]).
+  final int _epoch;
+
+  /// Numer wiersza w bazie, gdy już jest. `null` po nieudanym zapisie
+  /// i po wyczyszczeniu historii przed zapisem.
   late final Future<int?> _row;
   _OpenEntry? _entry;
   Timer? _idle;
   bool _ended = false;
 
   TypingSessionLog._(this.direction, this.inputId, this.peerGuid,
-      this.peerName, this.startedAt);
+      this.peerName, this.startedAt, this._epoch);
 
   bool get ended => _ended;
 }
@@ -381,6 +386,12 @@ class TypingJournal {
   Future<void> _writes = Future.value();
   bool _closed = false;
 
+  /// Pokolenie historii: rośnie przy każdym [detachAll]. Zapis sesji ze
+  /// starszego pokolenia, który jeszcze czekał w kolejce, przepada: po
+  /// wyczyszczeniu historii jej wiersza już nie ma, a wiersz założony po
+  /// czyszczeniu wskrzesiłby skasowaną sesję.
+  int _epoch = 0;
+
   /// Czy historia teraz zapisuje (dodatek i przełącznik włączone).
   bool get enabled => !_closed && _enabled();
 
@@ -396,21 +407,24 @@ class TypingJournal {
   }) {
     if (!enabled) return null;
     final teraz = _now();
-    final sesja =
-        TypingSessionLog._(direction, inputId, peerGuid, peerName, teraz);
-    sesja._row = _enqueue(() => _db.insertTypingSession(
-          TypingSessionsCompanion.insert(
-            inputId: inputId,
-            direction: direction,
-            peerGuid: peerGuid,
-            peerName: peerName,
-            startedAt: teraz,
-            result: result,
-            endedAt: TypingResult.started(result)
-                ? const Value.absent()
-                : Value(teraz),
-          ),
-        ));
+    final sesja = TypingSessionLog._(
+        direction, inputId, peerGuid, peerName, teraz, _epoch);
+    sesja._row = _enqueue<int?>(() async {
+      if (sesja._epoch != _epoch) return null;
+      return _db.insertTypingSession(
+        TypingSessionsCompanion.insert(
+          inputId: inputId,
+          direction: direction,
+          peerGuid: peerGuid,
+          peerName: peerName,
+          startedAt: teraz,
+          result: result,
+          endedAt: TypingResult.started(result)
+              ? const Value.absent()
+              : Value(teraz),
+        ),
+      );
+    });
     if (TypingResult.started(result)) {
       _open.add(sesja);
     } else {
@@ -469,7 +483,9 @@ class TypingJournal {
       appendTypingOp(sesja._entry!.ops, op);
     }
     sesja._idle?.cancel();
-    sesja._idle = Timer(flushDelay, () => _flushEntry(sesja));
+    // Zegar ciszy też w strefie głównej, jak kolejka zapisów.
+    sesja._idle =
+        Zone.root.createTimer(flushDelay, () => _flushEntry(sesja));
   }
 
   /// Kończy sesję z powodem z [TypingEnd]. Drugie wywołanie nic nie robi.
@@ -481,7 +497,8 @@ class TypingJournal {
     final teraz = _now();
     unawaited(_enqueue(() async {
       final id = await sesja._row;
-      if (id != null) await _db.endTypingSession(id, teraz, reason);
+      if (id == null || sesja._epoch != _epoch) return;
+      await _db.endTypingSession(id, teraz, reason);
     }));
   }
 
@@ -493,21 +510,26 @@ class TypingJournal {
     if (kawalek == null || kawalek.ops.isEmpty) return;
     unawaited(_enqueue(() async {
       final id = await sesja._row;
-      if (id != null) await _db.insertTypingEntries([kawalek.toCompanion(id)]);
+      if (id == null || sesja._epoch != _epoch) return;
+      await _db.insertTypingEntries([kawalek.toCompanion(id)]);
     }));
   }
 
-  Future<T?> _enqueue<T>(Future<T> Function() krok) {
-    final wynik = _writes.then((_) => krok()).then<T?>(
-      (wartosc) => wartosc,
-      onError: (Object blad, StackTrace slad) {
-        _onError?.call(blad, slad);
-        return null;
-      },
-    );
-    _writes = wynik.then((_) {});
-    return wynik;
-  }
+  /// Dokłada krok do kolejki zapisów. Kolejka żyje w strefie głównej:
+  /// wywołanie potrafi przyjść ze strefy, której nikt dalej nie obsłuży
+  /// (stuknięcie w Stop w teście widżetu idzie w fałszywym czasie), a zapis
+  /// raz wpuszczony do kolejki ma dojść do bazy sam, w prawdziwym czasie.
+  Future<T?> _enqueue<T>(Future<T> Function() krok) => Zone.root.run(() {
+        final wynik = _writes.then((_) => krok()).then<T?>(
+          (wartosc) => wartosc,
+          onError: (Object blad, StackTrace slad) {
+            _onError?.call(blad, slad);
+            return null;
+          },
+        );
+        _writes = wynik.then((_) {});
+        return wynik;
+      });
 
   /// Zapisuje wszystko, co czeka w pamięci, i czeka na koniec zapisu.
   Future<void> flush() async {
@@ -518,8 +540,10 @@ class TypingJournal {
   }
 
   /// Odcina trwające sesje od bazy: po wyczyszczeniu historii ich wierszy
-  /// już nie ma, więc dalsze pisanie w nich nie zostawia śladu.
+  /// już nie ma, więc dalsze pisanie w nich nie zostawia śladu. Zapisy
+  /// wcześniejszych sesji, które jeszcze czekają w kolejce, też przepadają.
   void detachAll() {
+    _epoch++;
     for (final sesja in _open) {
       sesja._idle?.cancel();
       sesja._entry = null;
