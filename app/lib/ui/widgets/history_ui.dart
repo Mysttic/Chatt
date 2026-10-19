@@ -498,12 +498,18 @@ class HistoryProgressBar extends StatelessWidget {
                       title: postep.finished
                           ? context.l10n.historyRestored(postep.peerName)
                           : context.l10n.historyRestoring(postep.peerName),
+                      // Przerwać może także odbierający: przy własnej
+                      // prośbie karty nie było, więc to jedyne miejsce,
+                      // gdzie da się powiedzieć „dość".
                       action: postep.finished
                           ? TextButton(
                               onPressed: services.dismissIncomingHistory,
                               child: Text(context.l10n.close),
                             )
-                          : null,
+                          : TextButton(
+                              onPressed: services.stopIncomingHistory,
+                              child: Text(context.l10n.historyStop),
+                            ),
                     ),
         ),
       ],
