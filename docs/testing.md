@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **594 `flutter test` tests** check everything that can be
+The split is simple: **702 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
