@@ -695,34 +695,35 @@ void main() {
     }
 
     // Flaga z systemu włącza ten sam ruch: w każdej klatce wejścia i wyjścia
-    // karta stoi na miejscu i tylko się przenika. Czas skraca jeszcze sam
-    // Flutter: przy tej fladze kontroler animacji biegnie w 5% swojego
-    // czasu, więc przenikanie trwa kilka milisekund. Stąd próbka po 1 ms.
-    // Bez ruchu „ogranicz animacje” karta byłaby wtedy w drodze: przesunięta
-    // albo pomniejszona.
-    const chwila = Duration(milliseconds: 1);
+    // karta stoi na miejscu i tylko się przenika, przez pełne 100 ms. Zwykły
+    // kontroler Flutter skróciłby przy tej fladze do 5% czasu; karty mają
+    // kontrolery z zachowanym czasem. Bez ruchu „ogranicz animacje” karta
+    // byłaby w połowie drogi przesunięta albo pomniejszona.
+    final pol = ChattMotion.reducedDuration ~/ 2;
+    const krok = Duration(milliseconds: 1);
     Future<void> zSystemu(AppStyle styl, String opis) async {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(nakladka(services, styl));
       services.pendingHistory.value = [prosba('h1', 'Alicja')];
       await tester.pump();
-      await tester.pump(chwila);
+      await tester.pump(pol);
       final wDrodze = tester.getRect(karta);
-      expect(widac(tester, tytul), inExclusiveRange(0, 1),
-          reason: '$opis: przenika się');
-      await tester.pump(ChattMotion.reducedDuration);
+      expect(widac(tester, tytul), closeTo(0.5, 0.01),
+          reason: '$opis: w połowie przenikania');
+      await tester.pump(pol + krok);
       expect(widac(tester, tytul), 1, reason: '$opis: weszła');
       expect(tester.getRect(karta), wDrodze,
           reason: '$opis: wejście bez przesunięcia i skali');
 
       services.pendingHistory.value = const [];
       await tester.pump();
-      await tester.pump(chwila);
-      expect(widac(tester, tytul), inExclusiveRange(0, 1),
-          reason: '$opis: przenika się');
+      await tester.pump(pol);
+      expect(widac(tester, tytul), closeTo(0.5, 0.01),
+          reason: '$opis: w połowie wyjścia');
       expect(tester.getRect(karta), wDrodze,
           reason: '$opis: wyjście bez przesunięcia i skali');
-      await tester.pump(ChattMotion.reducedDuration);
+      await tester.pump(pol + krok);
+      await tester.pump();
       expect(karta, findsNothing, reason: '$opis: odeszła');
     }
 

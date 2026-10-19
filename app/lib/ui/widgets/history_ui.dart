@@ -218,11 +218,14 @@ class _ShareHistoryDialogState extends State<_ShareHistoryDialog> {
 
   Future<void> _wybierzDate() async {
     final teraz = DateTime.now();
-    final data = await showDatePicker(
+    // Kalendarz jak w showDatePicker, ale w ruchu i zasłonie stylu.
+    final data = await showChattDialog<DateTime>(
       context: context,
-      initialDate: _since ?? teraz.subtract(const Duration(days: 30)),
-      firstDate: DateTime(2000),
-      lastDate: teraz,
+      builder: (_) => DatePickerDialog(
+        initialDate: _since ?? teraz.subtract(const Duration(days: 30)),
+        firstDate: DateTime(2000),
+        lastDate: teraz,
+      ),
     );
     if (data == null || !mounted) return;
     setState(() => _since = data);

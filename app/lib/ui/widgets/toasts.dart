@@ -100,32 +100,84 @@ void showToast(
 /// Nakładka z kolejką komunikatów. Wpinana raz, w `MaterialApp.builder`, obok
 /// `PromptOverlay`, dzięki czemu działa na każdym ekranie i nie wymaga
 /// `Scaffold`a.
-class ToastHost extends StatelessWidget {
+class ToastHost extends StatefulWidget {
   final Widget child;
 
   const ToastHost({super.key, required this.child});
 
   @override
+  State<ToastHost> createState() => _ToastHostState();
+}
+
+class _ToastHostState extends State<ToastHost> {
+  /// Karty na ekranie: kolejka i karty, które wypadły z niej bez swojego
+  /// wyjścia (nadmiar ponad [ToastController.maxVisible]) i jeszcze
+  /// schodzą w ruchu stylu.
+  late List<ToastMessage> _karty = [...chattToasts.value];
+  final _wypadly = <int>{};
+
+  @override
+  void initState() {
+    super.initState();
+    chattToasts.addListener(_kolejka);
+  }
+
+  @override
+  void dispose() {
+    chattToasts.removeListener(_kolejka);
+    super.dispose();
+  }
+
+  void _kolejka() {
+    final wKolejce = {for (final m in chattToasts.value) m.id};
+    final naEkranie = {for (final m in _karty) m.id};
+    setState(() {
+      for (final id in naEkranie) {
+        if (!wKolejce.contains(id)) _wypadly.add(id);
+      }
+      _karty = [
+        ..._karty,
+        for (final m in chattToasts.value)
+          if (!naEkranie.contains(m.id)) m,
+      ];
+    });
+  }
+
+  /// Karta skończyła wyjście: znika z ekranu i z kolejki.
+  void _zeszla(int id) {
+    setState(() {
+      _karty = [
+        for (final m in _karty)
+          if (m.id != id) m,
+      ];
+      _wypadly.remove(id);
+    });
+    chattToasts.dismiss(id);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        child,
+        widget.child,
         Positioned(
           top: 0,
           right: 0,
           child: SafeArea(
-            child: ValueListenableBuilder<List<ToastMessage>>(
-              valueListenable: chattToasts,
-              builder: (context, messages, _) => Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final message in messages)
-                      _ToastCard(key: ValueKey(message.id), message: message),
-                  ],
-                ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final message in _karty)
+                    _ToastCard(
+                      key: ValueKey(message.id),
+                      message: message,
+                      leaving: _wypadly.contains(message.id),
+                      onGone: () => _zeszla(message.id),
+                    ),
+                ],
               ),
             ),
           ),
@@ -138,7 +190,18 @@ class ToastHost extends StatelessWidget {
 class _ToastCard extends StatefulWidget {
   final ToastMessage message;
 
-  const _ToastCard({super.key, required this.message});
+  /// Karta wypadła z kolejki: schodzi od razu.
+  final bool leaving;
+
+  /// Wyjście skończone.
+  final VoidCallback onGone;
+
+  const _ToastCard({
+    super.key,
+    required this.message,
+    required this.leaving,
+    required this.onGone,
+  });
 
   @override
   State<_ToastCard> createState() => _ToastCardState();
@@ -158,6 +221,12 @@ class _ToastCardState extends State<_ToastCard>
   bool _znika = false;
 
   @override
+  void didUpdateWidget(_ToastCard old) {
+    super.didUpdateWidget(old);
+    if (widget.leaving && !old.leaving) _zniknij();
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final m = ChattMotion.of(context);
@@ -175,14 +244,15 @@ class _ToastCardState extends State<_ToastCard>
     _life.forward().whenComplete(_zniknij);
   }
 
-  /// Każde zamknięcie (koniec czasu, kliknięcie, przycisk) idzie przez
-  /// wyjście stylu; z kolejki karta wypada dopiero po nim.
+  /// Każde zamknięcie (koniec czasu, kliknięcie, przycisk, nadmiar
+  /// w kolejce) idzie przez wyjście stylu; z ekranu i z kolejki karta
+  /// znika dopiero po nim.
   void _zniknij() {
     if (!mounted || _znika) return;
     _znika = true;
     _life.stop();
     _ruch.reverse().whenComplete(() {
-      if (mounted) chattToasts.dismiss(widget.message.id);
+      if (mounted) widget.onGone();
     });
   }
 

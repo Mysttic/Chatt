@@ -134,6 +134,38 @@ void main() {
       expect(chattToasts.value, isEmpty);
     });
 
+    testWidgets('czwarta karta wypycha najstarszą, która schodzi wyjściem '
+        'stylu, kolejka od razu ma trzy', (tester) async {
+      final m = chattMotion(AppStyle.cisza);
+      await _aplikacja(tester, styl: AppStyle.cisza);
+      for (final tekst in ['jeden', 'dwa', 'trzy']) {
+        showToast(tekst, duration: const Duration(minutes: 1));
+      }
+      await tester.pump();
+      await tester.pump(m.toastIn + _krok);
+      final miejsce = _gora(tester, 'jeden');
+
+      showToast('cztery', duration: const Duration(minutes: 1));
+      await tester.pump();
+      expect(chattToasts.value.map((t) => t.text), ['dwa', 'trzy', 'cztery']);
+      expect(find.text('jeden'), findsOneWidget,
+          reason: 'wypchnięta karta schodzi jeszcze na ekranie');
+
+      await tester.pump(m.toastOut ~/ 2);
+      final widac = _przezroczystosc(tester, 'jeden');
+      expect(widac, greaterThan(0));
+      expect(widac, lessThan(1));
+      expect(_gora(tester, 'jeden'), greaterThan(miejsce),
+          reason: 'w Ciszy zjeżdża przy wyjściu');
+      expect(_przezroczystosc(tester, 'dwa'), 1);
+
+      await tester.pump(m.toastOut ~/ 2 + _krok);
+      await tester.pump();
+      expect(find.text('jeden'), findsNothing);
+      expect(find.text('dwa'), findsOneWidget);
+      expect(chattToasts.value, hasLength(3));
+    });
+
     testWidgets('zmiana stylu w trakcie nie przestawia czasu karty',
         (tester) async {
       await _aplikacja(tester, styl: AppStyle.cisza);
@@ -247,42 +279,54 @@ void main() {
         expect(chattToasts.value, isEmpty);
       });
 
-      testWidgets('$nazwa: przy „ogranicz animacje” przenikanie 100 ms bez '
-          'przesunięcia, czas na ekranie bez zmian', (tester) async {
-        await _aplikacja(tester, styl: styl, ogranicz: true);
+      for (final zSystemu in [false, true]) {
+        testWidgets('$nazwa: przy „ogranicz animacje” '
+            '${zSystemu ? 'z systemu' : 'w MediaQuery'} przenikanie 100 ms bez '
+            'przesunięcia, czas na ekranie bez zmian', (tester) async {
+          // Flaga systemu skraca zwykłe kontrolery do 5% czasu: komunikat
+          // zniknąłby po ułamku sekundy. Karta ma kontrolery z zachowanym
+          // czasem, więc stoi i przenika tak samo.
+          if (zSystemu) {
+            tester.platformDispatcher.accessibilityFeaturesTestValue =
+                const FakeAccessibilityFeatures(disableAnimations: true);
+            addTearDown(
+                tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+          }
+          await _aplikacja(tester, styl: styl, ogranicz: !zSystemu);
 
-        showToast('zapisano');
-        await tester.pump();
-        final miejsce = _gora(tester, 'zapisano');
-        expect(_przezroczystosc(tester, 'zapisano'), 0);
-        expect(_najechanie(tester, 'zapisano'),
-            const Duration(milliseconds: 100));
+          showToast('zapisano');
+          await tester.pump();
+          final miejsce = _gora(tester, 'zapisano');
+          expect(_przezroczystosc(tester, 'zapisano'), 0);
+          expect(_najechanie(tester, 'zapisano'),
+              const Duration(milliseconds: 100));
 
-        await tester.pump(const Duration(milliseconds: 50));
-        expect(_przezroczystosc(tester, 'zapisano'),
-            moreOrLessEquals(0.5, epsilon: 1e-6));
-        expect(_gora(tester, 'zapisano'), miejsce);
+          await tester.pump(const Duration(milliseconds: 50));
+          expect(_przezroczystosc(tester, 'zapisano'),
+              moreOrLessEquals(0.5, epsilon: 1e-6));
+          expect(_gora(tester, 'zapisano'), miejsce);
 
-        await tester.pump(const Duration(milliseconds: 50));
-        expect(_przezroczystosc(tester, 'zapisano'), 1);
-        expect(_gora(tester, 'zapisano'), miejsce);
+          await tester.pump(const Duration(milliseconds: 50));
+          expect(_przezroczystosc(tester, 'zapisano'), 1);
+          expect(_gora(tester, 'zapisano'), miejsce);
 
-        await tester.pump(
-            ruch.czas - const Duration(milliseconds: 100) - _krok);
-        expect(_przezroczystosc(tester, 'zapisano'), 1);
-        expect(chattToasts.value, hasLength(1));
+          await tester.pump(
+              ruch.czas - const Duration(milliseconds: 100) - _krok);
+          expect(_przezroczystosc(tester, 'zapisano'), 1);
+          expect(chattToasts.value, hasLength(1));
 
-        await tester.pump(_krok * 2);
-        await tester.pump(const Duration(milliseconds: 50));
-        expect(_przezroczystosc(tester, 'zapisano'),
-            moreOrLessEquals(0.5, epsilon: 1e-6));
-        expect(_gora(tester, 'zapisano'), miejsce);
+          await tester.pump(_krok * 2);
+          await tester.pump(const Duration(milliseconds: 50));
+          expect(_przezroczystosc(tester, 'zapisano'),
+              moreOrLessEquals(0.5, epsilon: 1e-6));
+          expect(_gora(tester, 'zapisano'), miejsce);
 
-        await tester.pump(const Duration(milliseconds: 50) + _krok);
-        await tester.pump();
-        expect(find.text('zapisano'), findsNothing);
-        expect(chattToasts.value, isEmpty);
-      });
+          await tester.pump(const Duration(milliseconds: 50) + _krok);
+          await tester.pump();
+          expect(find.text('zapisano'), findsNothing);
+          expect(chattToasts.value, isEmpty);
+        });
+      }
     }
   });
 }
@@ -350,7 +394,10 @@ Future<void> _aplikacja(WidgetTester tester,
   return tester.pumpWidget(MaterialApp(
     theme: chattTheme(styl, Brightness.light),
     builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(disableAnimations: ogranicz),
+      // Bez [ogranicz] zostaje to, co mówi system.
+      data: ogranicz
+          ? MediaQuery.of(context).copyWith(disableAnimations: true)
+          : MediaQuery.of(context),
       child: ToastHost(child: child!),
     ),
     home: const SizedBox.shrink(),

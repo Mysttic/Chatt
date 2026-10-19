@@ -389,6 +389,7 @@ class _Odcisk extends StatelessWidget {
             Clipboard.setData(ClipboardData(text: odcisk));
             showToast(context.l10n.copied);
           },
+          hoverDuration: ChattMotion.of(context).hover,
           borderRadius: BorderRadius.circular(k.radiusField),
           child: Container(
             width: double.infinity,

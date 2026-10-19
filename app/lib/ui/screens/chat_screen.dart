@@ -74,14 +74,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   /// Porównanie z poprzednią listą. Nie wjeżdża przywrócona historia
   /// (potrafi przyjść setkami naraz) ani nic w trakcie szukania. Zmiana
-  /// statusu nie zmienia id, więc niczego nie wnosi.
+  /// statusu nie zmienia id, więc niczego nie wnosi. Nowa wiadomość ma id
+  /// większe od każdego pokazanego: wiersze przeniesione przy scalaniu
+  /// starszej rozmowy mają swoje dawne, mniejsze id i stoją od razu.
   void _zauwazNowe(List<Message> all, String query) {
     final pokazane = _pokazane;
     _pokazane = {for (final m in all) m.id};
     if (pokazane == null || query.isNotEmpty) return;
+    final najnowsza = pokazane.fold(-1, (a, b) => a > b ? a : b);
     final nowe = {
       for (final m in all)
-        if (m.restoredAt == null && !pokazane.contains(m.id)) m.id,
+        if (m.restoredAt == null && m.id > najnowsza) m.id,
     };
     if (nowe.isEmpty) return;
     _wjezdzaja = nowe;
@@ -1116,6 +1119,7 @@ class _MessageBubble extends StatelessWidget {
         przywracanie.conversationId == message.conversationId;
     return InkWell(
       onTap: () => _tapFile(context),
+      hoverDuration: ChattMotion.of(context).hover,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,

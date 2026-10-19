@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -809,6 +810,134 @@ void main() {
       expect(tytul, findsNothing);
 
       await sprzatnij(tester, [services]);
+    });
+  });
+
+  group('flaga systemu „usuń animacje”', () {
+    // Flaga z systemu skraca zwykłe kontrolery do 5% czasu. Trasy, karty
+    // zgody i wejścia dymków mają kontrolery z zachowanym czasem, więc
+    // przenikanie stylu trwa naprawdę 100 ms.
+    void flaga(WidgetTester tester) {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+          tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    }
+
+    /// Postęp trasy, w której stoi [cel].
+    double postep(WidgetTester tester, Finder cel) =>
+        ModalRoute.of(tester.element(cel))!.animation!.value;
+
+    /// Przezroczystość najbliższego przejścia nad [cel].
+    double widac(WidgetTester tester, Finder cel) => tester
+        .widget<Opacity>(
+            find.ancestor(of: cel, matching: find.byType(Opacity)).first)
+        .opacity;
+
+    /// Trasa wchodzi w 100 ms i schodzi w 100 ms.
+    Future<void> trasaW100(
+        WidgetTester tester, String tekst, Future<void> Function() otworz) async {
+      final cel = find.text(tekst);
+      unawaited(otworz());
+      await tester.pump();
+      await tester.pump(ms(50));
+      expect(postep(tester, cel), closeTo(0.5, 0.02), reason: '$tekst: wejście');
+      await tester.pump(ms(51));
+      expect(postep(tester, cel), 1, reason: tekst);
+      Navigator.of(tester.element(cel)).pop();
+      await tester.pump();
+      await tester.pump(ms(50));
+      expect(postep(tester, cel), closeTo(0.5, 0.02), reason: '$tekst: wyjście');
+      await tester.pump(ms(51));
+      await tester.pump();
+      expect(cel, findsNothing, reason: tekst);
+    }
+
+    testWidgets('okno, arkusz i nowy ekran przenikają w 100 ms',
+        (tester) async {
+      flaga(tester);
+      late BuildContext ekran;
+      await tester.pumpWidget(MaterialApp(
+        // Jak w ChattApp: motyw z ruchem ograniczonym, bo czas przejścia
+        // ekranu bierze się z motywu.
+        theme: chattTheme(AppStyle.cisza, Brightness.light, reduceMotion: true),
+        home: Builder(builder: (context) {
+          ekran = context;
+          return const Scaffold(body: SizedBox.expand());
+        }),
+      ));
+
+      await trasaW100(
+          tester,
+          'okno',
+          () => showChattDialog<void>(
+              context: ekran,
+              builder: (_) => const AlertDialog(title: Text('okno'))));
+      await trasaW100(
+          tester,
+          'arkusz',
+          () => showChattSheet<void>(
+              context: ekran,
+              builder: (_) =>
+                  const SizedBox(height: 200, child: Text('arkusz'))));
+      await trasaW100(
+          tester,
+          'ekran',
+          () => Navigator.of(ekran).push(ChattPageRoute<void>(
+              builder: (_) => const Scaffold(body: Text('ekran')))));
+    });
+
+    testWidgets('karta zgody i nowy dymek przenikają w 100 ms bez ruchu',
+        (tester) async {
+      flaga(tester);
+      Widget? karta;
+      var dymek = false;
+      late StateSetter ustaw;
+      await tester.pumpWidget(MaterialApp(
+        // Ciepło: sprężynka i przesunięcie z góry znikają przy fladze.
+        theme: chattTheme(AppStyle.cieplo, Brightness.light),
+        home: Scaffold(
+          body: StatefulBuilder(builder: (context, setState) {
+            ustaw = setState;
+            final m = ChattMotion.of(context);
+            return Column(children: [
+              CardSwitcher(child: karta),
+              if (dymek)
+                EnterOnce(
+                  animate: true,
+                  duration: m.bubble,
+                  curve: m.bubbleCurve,
+                  shift: m.bubbleShift,
+                  child: const Text('dymek'),
+                ),
+            ]);
+          }),
+        ),
+      ));
+
+      ustaw(() => karta = const Text('karta', key: ValueKey(1)));
+      await tester.pump();
+      final miejsce = tester.getRect(find.text('karta'));
+      await tester.pump(ms(50));
+      expect(widac(tester, find.text('karta')), closeTo(0.5, 0.02));
+      expect(tester.getRect(find.text('karta')), miejsce);
+      await tester.pump(ms(51));
+      expect(widac(tester, find.text('karta')), 1);
+
+      ustaw(() => karta = null);
+      await tester.pump();
+      await tester.pump(ms(50));
+      expect(widac(tester, find.text('karta')), closeTo(0.5, 0.02));
+      await tester.pump(ms(51));
+      await tester.pump();
+      expect(find.text('karta'), findsNothing);
+
+      ustaw(() => dymek = true);
+      await tester.pump();
+      await tester.pump(ms(50));
+      expect(widac(tester, find.text('dymek')), closeTo(0.5, 0.02));
+      await tester.pump(ms(51));
+      expect(widac(tester, find.text('dymek')), 1);
     });
   });
 }

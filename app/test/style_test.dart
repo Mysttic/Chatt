@@ -716,8 +716,8 @@ void main() {
       expect(po.radiusCard, (jasny.radiusCard + precyzja.radiusCard) / 2);
     });
 
-    // Czeka na lerpWall w ui/styles.dart: gradienty o dwóch i trzech
-    // kolorach przeskakują dziś w połowie drogi.
+    // Tła o różnej liczbie kolorów przenikają przez lerpWall bez skoku
+    // w połowie drogi.
     test('przenikanie teł o różnej liczbie kolorów idzie płynnie: Zmierzch '
         'w Ocean w Cieple, Cisza w Precyzję z wybranym tłem', () {
       void plynnie(Wall a, Wall b, Wall pol, String powod) {
