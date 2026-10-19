@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 
 import '../network/protocol.dart';
@@ -94,6 +95,22 @@ class RemoteInputChannel implements RemoteInputSink {
   /// paczki.
   static const Duration _callTimeout = Duration(seconds: 5);
 
+  /// Nieudane wywołanie strony natywnej: nazwa metody i kod błędu
+  /// (`timeout` przy przekroczonym czasie). Opisu błędu nie ma celowo: przy
+  /// wpisywaniu strona natywna widzi cudze okna i pola, a dziennik ma o nich
+  /// milczeć. Kanał jest jeden na proces, więc i ten hak: ustawia go
+  /// `AppServices` przy starcie i to on pilnuje, żeby powtarzający się błąd
+  /// nie zalał dziennika.
+  static void Function(String method, String code)? onCallError;
+
+  static void _zglos(String method, String code) {
+    try {
+      onCallError?.call(method, code);
+    } catch (_) {
+      // Zgłoszenie jest dodatkiem: wywołanie i tak kończy się „nie wyszło”.
+    }
+  }
+
   static Future<Map<String, Object?>?> _call(
     String method, [
     Map<String, Object?>? args,
@@ -105,11 +122,14 @@ class RemoteInputChannel implements RemoteInputSink {
           .invokeMapMethod<String, Object?>(method, args)
           .timeout(timeout);
     } on PlatformException catch (error) {
-      debugPrint('chatt/remoteinput $method: ${error.code}');
+      _zglos(method, error.code);
+      return null;
+    } on TimeoutException {
+      // Strona natywna utknęła (okno, które nie odpowiada).
+      _zglos(method, 'timeout');
       return null;
     } catch (_) {
-      // MissingPluginException, przekroczony czas, brak wiązania w teście
-      // bez Fluttera.
+      // MissingPluginException, brak wiązania w teście bez Fluttera.
       return null;
     }
   }
