@@ -134,6 +134,13 @@ class BtLink {
 
   bool get isClosed => _closed;
 
+  /// Dlaczego łącze zamknęło się po tej stronie, `null`, dopóki stoi.
+  /// Transport dokłada to do powodu ze strony natywnej, kiedy zgłasza
+  /// zerwane łącze do dziennika aplikacji: strona natywna widzi wtedy tylko
+  /// tyle, że gniazdo z pętli zwrotnej się zamknęło.
+  String? get closeReason => _closeReason;
+  String? _closeReason;
+
   /// Wysyła żądanie i czeka na odpowiedź. Rzuca [StateError], gdy łącze padło.
   Future<BtResponse> send(
     String method,
@@ -171,6 +178,7 @@ class BtLink {
   Future<void> close({String powod = 'zamkniete z zewnatrz'}) async {
     if (_closed) return;
     _closed = true;
+    _closeReason = powod;
     if (btVerbose) debugPrint('[link $_kto] zamykam: $powod');
     // Czytnik idzie pierwszy: ramka wpuszczona już po zamknięciu trafiłaby
     // na wymianę, którą właśnie domykamy błędem, i domknęła ją drugi raz.

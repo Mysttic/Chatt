@@ -22,9 +22,23 @@ class PeerClient {
 
   PeerClient([http.Client? client]) : _ip = HttpTransport(client);
 
+  void Function(PeerRoute route, String path, Object error)? _onStreamError;
+
+  /// Błąd w trakcie strumieniowania pliku, którąkolwiek drogą: ślad
+  /// z powodem dla dziennika aplikacji. Sam wynik wysyłki się nie zmienia.
+  set onStreamError(
+      void Function(PeerRoute route, String path, Object error)? hook) {
+    _onStreamError = hook;
+    _ip.onStreamError = hook;
+    _bluetooth?.onStreamError = hook;
+  }
+
   /// Podpina transport Bluetooth. null odpina: tak wygląda wyłączenie go
   /// w ustawieniach.
-  void useBluetooth(BluetoothTransport? transport) => _bluetooth = transport;
+  void useBluetooth(BluetoothTransport? transport) {
+    _bluetooth = transport;
+    transport?.onStreamError = _onStreamError;
+  }
 
   /// Włącza i wyłącza drogę przez sieć lokalną. Wyłączona znaczy, że żadna
   /// trasa IP nie zostanie nawet spróbowana.
