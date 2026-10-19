@@ -2988,6 +2988,7 @@ class AppServices {
 
   /// Zamyka pasek zakończonego przywracania.
   void dismissIncomingHistory() => _history.dismissIncoming();
+  void stopIncomingHistory() => _history.stopIncoming();
 
   // --- Zdalna klawiatura ----------------------------------------------------
 

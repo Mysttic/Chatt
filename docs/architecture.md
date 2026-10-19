@@ -899,8 +899,9 @@ result on the progress bar; `op: cancel` ends it and keeps whatever arrived,
 and the sharing side sends it also when a chunk is refused or anything throws.
 A grant lives thirty idle minutes (a file still streaming keeps it alive) and
 twelve hours at most, and a clock ends an expired one even when nothing else
-arrives. One card per sender and eight at most wait at a time; anything above
-that is `busy`.
+arrives. **Stop** on the receiving side's bar ends the grant the same way: the
+next chunk gets `no_grant` and the sharing side cancels. One card per sender
+and eight at most wait at a time; anything above that is `busy`.
 
 **An older conversation for a new entry.** The identity comes from the key, so
 after a reinstall, on a new phone or after "Start over" the same person comes
@@ -1446,11 +1447,16 @@ overlap on the same characters.
   a warning for each of: an `@` before the host name (`https://bank@evil.example`),
   non-ASCII letters in the host name, no encryption, and an address on the
   local network. Only "Open" hands it to the system browser.
-- `openExternalLink` checks the scheme once more immediately before starting a
-  process, and passes the address as a **list argument, never through a
-  shell**. On Android it goes through the `chatt/files` channel, where
-  `ChattChannels.openUrl` checks the scheme a third time and adds
-  `CATEGORY_BROWSABLE`.
+- `openExternalLink` checks the scheme once more immediately before handing
+  the address over, and never goes through a shell. On Android it goes through
+  the `chatt/files` channel, where `ChattChannels.openUrl` checks the scheme a
+  third time and adds `CATEGORY_BROWSABLE`. On Windows it goes through the
+  `chatt/links` channel (`windows/runner/chatt_links.cpp`), which checks the
+  scheme a third time, refuses control characters and calls `ShellExecuteW`
+  with the address as **one string**. It used to be an argument of
+  `explorer.exe`, which splits its command line on commas and equals signs:
+  a link with `?client=...` opened the Documents folder (issue #31). macOS and
+  Linux still pass it as a list argument to `open` and `xdg-open`.
 - Links also appear as entries in the bubble's long-press menu. That is the
   reliable path on the desktop, where `SelectionArea` owns the tap.
 

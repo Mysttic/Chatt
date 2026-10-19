@@ -10,6 +10,7 @@ add_executable(${BINARY_NAME} WIN32
   "chatt_autostart.cpp"
   "chatt_bluetooth.cpp"
   "chatt_clipboard.cpp"
+  "chatt_links.cpp"
   "chatt_remote_input.cpp"
   "chatt_secrets.cpp"
   "flutter_window.cpp"

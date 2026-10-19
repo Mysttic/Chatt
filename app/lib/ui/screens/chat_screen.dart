@@ -381,7 +381,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
             },
             itemBuilder: (menu) => [
-              if (!szeroko) ...[
+              // Przy otwartym szukaniu w nagłówku stoi X; pozycja w menu
+              // zamykałaby je pod nazwą „Szukaj".
+              if (!szeroko && !_searching)
                 PopupMenuItem(
                   value: _MenuRozmowy.szukaj,
                   child: ListTile(
@@ -390,6 +392,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     title: Text(menu.l10n.searchTooltip),
                   ),
                 ),
+              if (!szeroko) ...[
                 // Bez zielonej tarczy pozycja zostaje, wyszarzona i z
                 // powodem: tak samo jak przycisk na szerokim oknie.
                 if (services.keyboardAddon.value)
