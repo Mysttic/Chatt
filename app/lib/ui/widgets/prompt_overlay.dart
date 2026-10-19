@@ -6,6 +6,7 @@ import '../../services/app_services.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import 'common.dart';
+import 'history_ui.dart';
 import 'toasts.dart';
 
 /// Prośby wymagające decyzji „tu i teraz": zgoda na odbiór pliku, kod
@@ -91,6 +92,18 @@ class PromptOverlay extends ConsumerWidget {
                         ],
                       );
                     },
+                  ),
+                  ValueListenableBuilder<List<PendingHistory>>(
+                    valueListenable: services.pendingHistory,
+                    builder: (context, prosby, _) => prosby.isEmpty
+                        ? const SizedBox.shrink()
+                        // Klucz po prośbie: nowa karta nie dziedziczy fokusu
+                        // po poprzedniej.
+                        : HistoryCard(
+                            key: ValueKey(prosby.first.id),
+                            ask: prosby.first,
+                            services: services,
+                          ),
                   ),
                   ValueListenableBuilder<List<PendingRemoteInput>>(
                     valueListenable: services.pendingRemoteInput,

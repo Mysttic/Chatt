@@ -111,6 +111,11 @@ All data is on your device and under your control:
 - uninstalling the app removes its data (on Windows the database in Documents
   is left for you to delete, because those are your documents).
 
+Deleting is local. The person you talk to keeps their own copy of your
+conversation, and with **Share history** they can hand it back to you. You
+always see a card first and decide whether to take it; nothing comes back on
+its own.
+
 There is nothing to delete on the author's side, because the author holds
 nothing.
 
