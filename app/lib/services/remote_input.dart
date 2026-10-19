@@ -3,9 +3,12 @@ part of 'app_services.dart';
 // Dodatek „Klawiatura z PC": nadawca pisze, odbiorca wpisuje to do pola
 // z fokusem. Ta część serwisu siedzi w osobnym pliku, ale w tej samej
 // bibliotece co `AppServices`: korzysta z sesji, kopert i tras, których nie ma
-// po co wystawiać na zewnątrz. Wpisywany tekst nie trafia tu nigdzie poza
-// kolejkę nadawcy i ujście odbiorcy: ani do bazy, ani do logów, ani do
-// żadnego `ValueNotifier`a.
+// po co wystawiać na zewnątrz. Wpisywany tekst idzie do kolejki nadawcy, do
+// ujścia odbiorcy i, przy włączonym zapisie, do historii pisania po obu
+// stronach (`TypingJournal`, zaszyfrowana baza). Tekst z pola hasła i z pola
+// nieznanego rodzaju zostaje w historii samą liczbą znaków. Dziennik
+// aplikacji i `ValueNotifier`y dostają z pisania wyłącznie zdarzenia, liczby
+// i cel (rodzaj pola, aplikację).
 
 /// Prośba o pisanie na tym urządzeniu, czekająca na decyzję użytkownika.
 class PendingRemoteInput {
@@ -231,6 +234,27 @@ class _InputGrant {
   /// inną drogą (pierwsza padła w trakcie karty) dostaje ją jeszcze raz.
   Map<String, Object?>? acceptReply;
 
+  /// Sesja w historii pisania. `null`, gdy historia nie zapisuje.
+  TypingSessionLog? journal;
+
+  /// Cel znany przed następną paczką: z chwili zgody, potem z każdej
+  /// odpowiedzi ujścia. Razem z celem po paczce mówi historii pisania, czy
+  /// tekst ukryć.
+  RemoteInputTarget lastTarget = RemoteInputTarget.none;
+
+  /// Paczka tej zgody właśnie rozmawia z ujściem. Koniec zgody w tym czasie
+  /// trafia do historii pisania dopiero po niej, razem z jej operacjami.
+  bool applying = false;
+
+  /// Powód końca zgody (`TypingEnd`), gdy już się skończyła.
+  String? endReason;
+
+  /// Liczniki do dziennika aplikacji: paczki z pisaniem, w tym niewpisane
+  /// i wstrzymane kartą.
+  int packets = 0;
+  int notTyped = 0;
+  int paused = 0;
+
   _InputGrant({
     required this.peerGuid,
     required this.peerName,
@@ -259,6 +283,13 @@ class _InputAsk {
   /// Przyszła nowsza prośba od tego samego nadawcy, nadawca ją wycofał albo
   /// odbiór zgaszono: cokolwiek odpowie polityka, zgody z tego nie będzie.
   bool superseded = false;
+
+  /// Nadawca sam zrezygnował z tej prośby: wycofał ją albo wysłał nowszą.
+  /// W historii pisania odbiorcy to [TypingResult.cancelled].
+  bool cancelled = false;
+
+  /// Z tej prośby powstała zgoda, więc historia pisania ma już jej sesję.
+  bool granted = false;
 
   /// Odpowiedź na tę prośbę. Czeka na nią także kopia tej samej prośby,
   /// która przyszła drugą drogą.
@@ -297,6 +328,20 @@ class _Outgoing {
   DateTime lastSent = DateTime.now();
   Timer? ping;
   OutgoingRemoteInput state;
+
+  /// Sesja w historii pisania. `null`, gdy historia nie zapisuje.
+  TypingSessionLog? journal;
+
+  /// Odbiorca się zgodził: sesja ruszyła, a jej koniec trafia do dziennika.
+  bool accepted = false;
+
+  /// Powód końca do historii pisania (`TypingEnd`). Ustawia go pierwszy, kto
+  /// sesję kończy: Stop, nowa sesja, wyłączony dodatek, odmowa odbiorcy,
+  /// zerwane łącze.
+  String? endReason;
+
+  /// Ile paczek z pisaniem dostało ostateczny wynik, do dziennika.
+  int packets = 0;
 
   _Outgoing(this.peer, this.input, this.state);
 
@@ -424,7 +469,7 @@ class _RemoteInput {
           return true;
         }
         _dropAsks();
-        _endGrant();
+        _endGrant(TypingEnd.receiveOff);
         await _s.db.saveRemoteInputReceive(false);
         return false;
       });
@@ -446,8 +491,8 @@ class _RemoteInput {
 
   void _shutDown() {
     _dropAsks();
-    _endGrant();
-    unawaited(stop());
+    _endGrant(TypingEnd.addonOff);
+    unawaited(stop(reason: TypingEnd.addonOff));
   }
 
   // --- Odbiorca: prośba o sesję ---------------------------------------------
@@ -497,10 +542,16 @@ class _RemoteInput {
       // drogą), odbije się bez karty. Zgoda wydana tej prośbie, której
       // nadawca nie zdążył poznać, gaśnie razem z nią.
       if (zweryfikowany) _markUsed(guid, input);
+      final czeka = _asks[klucz];
+      czeka?.cancelled = true;
       _withdraw(klucz);
       final grant = _grant;
-      if (grant != null && grant.peerGuid == guid && grant.input == input) {
-        _endGrant();
+      final zgody =
+          grant != null && grant.peerGuid == guid && grant.input == input;
+      if (zgody) _endGrant(TypingEnd.stoppedByPeer);
+      if (peer != null && peer.verified && (czeka != null || zgody)) {
+        _s.log.info(LogArea.keyboard,
+            'Typing request withdrawn by ${peer.displayName}');
       }
       return (
         status: 200,
@@ -511,8 +562,13 @@ class _RemoteInput {
     }
 
     // Niezweryfikowany słyszy zawsze to samo, cokolwiek leży w ustawieniach:
-    // stan dodatku poznaje tylko ten, komu wolno tu pisać.
-    if (peer == null || !peer.verified) return odmowa(inputRejected);
+    // stan dodatku poznaje tylko ten, komu wolno tu pisać. Historia pisania
+    // go nie zna: jej wiersze dostają wyłącznie zweryfikowani.
+    if (peer == null || !peer.verified) {
+      _s.log.warning(
+          LogArea.keyboard, 'Typing request from an unverified device refused');
+      return odmowa(inputRejected);
+    }
 
     if (!_markUsed(guid, input)) {
       // Ta sama prośba drugi raz: kopia, która poszła inną drogą, bo
@@ -537,6 +593,8 @@ class _RemoteInput {
 
     final ask = _InputAsk(guid, ++_askSeq);
     _asks[klucz] = ask;
+    _s.log.info(
+        LogArea.keyboard, 'Typing request received from ${peer.displayName}');
     _InputReply wynik;
     try {
       wynik = await _decide(prosba, fromHost, peer, ask, klucz);
@@ -545,10 +603,37 @@ class _RemoteInput {
     } finally {
       if (identical(_asks[klucz], ask)) _asks.remove(klucz);
     }
-    if (wynik.status != 200) _lastRefusal[guid] = (input: input, reply: wynik);
+    if (wynik.status != 200) {
+      _lastRefusal[guid] = (input: input, reply: wynik);
+      // Prośba, z której zdążyła powstać zgoda, ma już w historii swoją
+      // sesję z powodem końca. Zamykana aplikacja niczego nie odmawia.
+      if (!ask.granted && !_closed) {
+        final wynikProsby = ask.cancelled
+            ? TypingResult.cancelled
+            : _incomingRefusal(wynik.payload['reason']);
+        _s.typingJournal.refused(
+          direction: MessageDirection.incoming,
+          inputId: input,
+          peerGuid: guid,
+          peerName: peer.displayName,
+          result: wynikProsby,
+        );
+        _s.log.info(LogArea.keyboard,
+            'Typing request from ${peer.displayName} refused: $wynikProsby');
+      }
+    }
     if (!ask.result.isCompleted) ask.result.complete(wynik);
     return wynik;
   }
+
+  /// Powód odmowy z odpowiedzi jako wynik prośby w historii pisania.
+  static String _incomingRefusal(Object? powod) => switch (powod) {
+        inputNotEnabled => TypingResult.notEnabled,
+        inputNoAnswer => TypingResult.noAnswer,
+        inputBusy => TypingResult.busy,
+        inputCancelled => TypingResult.cancelled,
+        _ => TypingResult.rejected,
+      };
 
   Future<_InputReply> _decide(InputSessionRequest prosba, String fromHost,
       Peer peer, _InputAsk ask, String klucz) async {
@@ -569,20 +654,26 @@ class _RemoteInput {
     }
     // Zgodę ma już nowsza prośba tego nadawcy: ta jest nieaktualna.
     if (grant != null && grant.peerGuid == guid && grant.order > ask.order) {
+      ask.cancelled = true;
       return odmowa(inputNoAnswer);
     }
     // Ten sam nadawca prosi jeszcze raz: jego poprzednia zgoda i poprzednia
     // prośba przestają obowiązywać, a karta pyta od nowa. Rozstrzyga
     // kolejność przyjścia, więc z dwóch próśb zostaje nowsza, w jakiej
-    // kolejności by nie skończyły czytać bazy.
-    if (grant != null) _endGrant();
+    // kolejności by nie skończyły czytać bazy. Zgoda, która dotrwała tu
+    // przy innym nadawcy, już wygasła.
+    if (grant != null) {
+      _endGrant(grant.expired ? TypingEnd.expired : TypingEnd.replaced);
+    }
     for (final entry in _asks.entries.toList()) {
       final inna = entry.value;
       if (entry.key == klucz || inna.peerGuid != guid) continue;
       if (inna.order < ask.order) {
+        inna.cancelled = true;
         _withdraw(entry.key);
       } else {
         ask.superseded = true;
+        ask.cancelled = true;
       }
     }
     final czekajacych = _asks.entries
@@ -629,9 +720,12 @@ class _RemoteInput {
       return odmowa(inputBusy);
     }
     if (inny != null && inny.peerGuid == guid && inny.order > ask.order) {
+      ask.cancelled = true;
       return odmowa(inputNoAnswer);
     }
-    if (inny != null) _endGrant();
+    if (inny != null) {
+      _endGrant(inny.expired ? TypingEnd.expired : TypingEnd.replaced);
+    }
 
     final nowy = _InputGrant(
       peerGuid: guid,
@@ -640,6 +734,23 @@ class _RemoteInput {
       token: newSessionId(),
       order: ask.order,
     );
+    // Sesja w historii pisania rusza razem ze zgodą. Historia zapisuje
+    // w tle, więc to wywołanie niczego tu nie wstrzymuje.
+    final wynikProsby = peer.remoteInput
+        ? TypingResult.automatic
+        : (decyzja == RemoteInputDecision.acceptAlways
+            ? TypingResult.acceptedAlways
+            : TypingResult.accepted);
+    nowy.journal = _s.typingJournal.begin(
+      direction: MessageDirection.incoming,
+      inputId: prosba.input,
+      peerGuid: guid,
+      peerName: nowy.peerName,
+      result: wynikProsby,
+    );
+    ask.granted = true;
+    _s.log.info(LogArea.keyboard,
+        'Incoming typing session started: ${nowy.peerName} ($wynikProsby)');
     _grant = nowy;
     _startGrantClock();
     _heldOwn = null;
@@ -648,6 +759,7 @@ class _RemoteInput {
     final cel = await _sink.status();
     // Zgoda cofnięta w trakcie rozmowy z ujściem (Stop, wyłączony dodatek).
     if (!identical(_grant, nowy)) return odmowa(inputNotEnabled);
+    nowy.lastTarget = cel;
     _set(
       incoming,
       IncomingRemoteInput(
@@ -760,7 +872,7 @@ class _RemoteInput {
     final guid = paczka.from.guid;
     if (!identical(_grant, grant)) return _packetRefusal(paczka, inputNoGrant);
     if (grant.expired) {
-      _endGrant();
+      _endGrant(TypingEnd.expired);
       return _packetRefusal(paczka, inputNoGrant);
     }
 
@@ -768,12 +880,15 @@ class _RemoteInput {
     // gdziekolwiek kończą zgodę na następnej paczce.
     final peer = await _s.db.peerByGuid(guid);
     if (peer == null || !peer.verified || !await _receiveOn()) {
-      if (identical(_grant, grant)) _endGrant();
+      if (identical(_grant, grant)) _endGrant(TypingEnd.notAllowed);
       return _packetRefusal(paczka, inputNoGrant);
     }
     if (!identical(_grant, grant)) return _packetRefusal(paczka, inputNoGrant);
 
     if (paczka.seq < grant.lastSeq) {
+      _s.log.warning(LogArea.keyboard,
+          'Typing packet refused: $inputStaleSeq (seq ${paczka.seq}, '
+          'last ${grant.lastSeq})');
       return _packetRefusal(paczka, inputStaleSeq);
     }
     if (paczka.seq == grant.lastSeq) {
@@ -795,14 +910,35 @@ class _RemoteInput {
     // u odbiorcy. Ping też to zgłasza, żeby nadawca widział przerwę przez cały
     // czas, gdy karta wisi.
     final String? powod = _s._anyPromptPending ? inputPaused : null;
+    final przed = grant.lastTarget;
     RemoteInputTarget cel;
     if (piszace.isNotEmpty) grant.lastUsed = DateTime.now();
-    if (piszace.isEmpty || powod != null) {
-      cel = await _sink.status();
-    } else {
-      final wynik = await _sink.apply(piszace);
-      wpisane = wynik.applied;
-      cel = wynik.target;
+    // Koniec zgody w trakcie rozmowy z ujściem czeka z wpisem do historii
+    // pisania na tę paczkę: to, co ona wpisze, należy jeszcze do tej sesji.
+    grant.applying = true;
+    try {
+      if (piszace.isEmpty || powod != null) {
+        cel = await _sink.status();
+      } else {
+        final wynik = await _sink.apply(piszace);
+        wpisane = wynik.applied;
+        cel = wynik.target;
+      }
+      grant.lastTarget = cel;
+      if (piszace.isNotEmpty) {
+        final skutek = powod != null
+            ? TypingStatus.paused
+            : (wpisane ? TypingStatus.typed : TypingStatus.notTyped);
+        grant.packets++;
+        if (skutek == TypingStatus.notTyped) grant.notTyped++;
+        if (skutek == TypingStatus.paused) grant.paused++;
+        _s.typingJournal.record(grant.journal, piszace,
+            status: skutek, before: przed, after: cel);
+      }
+    } finally {
+      grant.applying = false;
+      final koniec = grant.endReason;
+      if (koniec != null) _s.typingJournal.end(grant.journal, koniec);
     }
 
     final odpowiedz = RemoteInputReply(
@@ -816,7 +952,7 @@ class _RemoteInput {
     grant.lastReply = odpowiedz;
     if (identical(_grant, grant)) {
       if (stop) {
-        _endGrant();
+        _endGrant(TypingEnd.stoppedByPeer);
       } else {
         final teraz = incoming.value;
         if (teraz != null) _set(incoming, teraz.withTarget(cel));
@@ -833,24 +969,45 @@ class _RemoteInput {
         _grantClock?.cancel();
         _grantClock = null;
       } else if (grant.expired) {
-        _endGrant();
+        _endGrant(TypingEnd.expired);
       }
     });
   }
 
-  void _endGrant() {
+  /// Kończy bieżącą zgodę. [reason] to powód w historii pisania
+  /// (`TypingEnd`).
+  void _endGrant(String reason) {
     _grantClock?.cancel();
     _grantClock = null;
-    if (_grant == null) return;
+    final grant = _grant;
+    if (grant == null) return;
     _grant = null;
     _heldOwn = null;
     _set(incoming, null);
+    _grantEnded(grant, reason);
     unawaited(_sink.setSession(active: false));
+  }
+
+  /// Koniec zgody w historii pisania i w dzienniku. Paczka, która właśnie
+  /// rozmawia z ujściem, zapisuje jeszcze swoje operacje, a koniec sesji
+  /// w historii przychodzi po niej (patrz [_handlePacket]). Przy zamykaniu
+  /// aplikacji koniec idzie od razu.
+  void _grantEnded(_InputGrant grant, String reason) {
+    final koniec = grant.endReason ??= reason;
+    if (!grant.applying || _closed) {
+      _s.typingJournal.end(grant.journal, koniec);
+    }
+    _s.log.info(
+      LogArea.keyboard,
+      'Incoming typing session ended: $koniec (${grant.peerName}, '
+      '${grant.packets} packets, ${grant.notTyped} not typed, '
+      '${grant.paused} paused)',
+    );
   }
 
   /// Stop po stronie odbiorcy. Nadawca dowie się przy następnej paczce albo
   /// pingu.
-  void stopIncoming() => _endGrant();
+  void stopIncoming() => _endGrant(TypingEnd.stoppedHere);
 
   // --- Nadawca ----------------------------------------------------------------
 
@@ -885,7 +1042,12 @@ class _RemoteInput {
     final stara = _out;
     _out = o;
     _set(outgoing, o.state);
-    if (stara != null) unawaited(_stopSession(stara));
+    if (stara != null) {
+      stara.endReason ??= TypingEnd.replaced;
+      unawaited(_stopSession(stara));
+    }
+    _s.log.info(
+        LogArea.keyboard, 'Typing request sent to ${rozmowca.displayName}');
 
     final prosba = InputSessionRequest(
       from: _me,
@@ -917,31 +1079,46 @@ class _RemoteInput {
         o.route = wynik.route;
         unawaited(_sendStop(o));
       }
-      return RemoteInputStart.cancelled;
+      return _refusedOutgoing(o, RemoteInputStart.cancelled);
     }
     if (odpowiedz == null || !odpowiedz.accepted) {
       _out = null;
       _set(outgoing, null);
       if (odpowiedz == null) {
-        if (wynik.status == 404) return RemoteInputStart.olderPeer;
+        if (wynik.status == 404) {
+          return _refusedOutgoing(o, RemoteInputStart.olderPeer);
+        }
         // Brak odpowiedzi nie znaczy, że karta nie wisi: łącze mogło paść
         // w jej trakcie. Wycofanie zamyka ją, a zgodę, gdyby zdążyła paść,
         // gasi.
         unawaited(_withdrawRequest(o));
-        return RemoteInputStart.unreachable;
+        return _refusedOutgoing(o, RemoteInputStart.unreachable);
       }
-      return switch (odpowiedz.reason) {
-        inputNotEnabled => RemoteInputStart.notEnabled,
-        inputNoAnswer => RemoteInputStart.noAnswer,
-        inputBusy => RemoteInputStart.busy,
-        inputCancelled => RemoteInputStart.cancelled,
-        _ => RemoteInputStart.rejected,
-      };
+      return _refusedOutgoing(
+        o,
+        switch (odpowiedz.reason) {
+          inputNotEnabled => RemoteInputStart.notEnabled,
+          inputNoAnswer => RemoteInputStart.noAnswer,
+          inputBusy => RemoteInputStart.busy,
+          inputCancelled => RemoteInputStart.cancelled,
+          _ => RemoteInputStart.rejected,
+        },
+      );
     }
 
     o.token = odpowiedz.token;
     o.route = wynik.route;
     o.lastSent = DateTime.now();
+    o.accepted = true;
+    o.journal = _s.typingJournal.begin(
+      direction: MessageDirection.outgoing,
+      inputId: o.input,
+      peerGuid: rozmowca.guid,
+      peerName: rozmowca.displayName,
+      result: TypingResult.accepted,
+    );
+    _s.log.info(LogArea.keyboard,
+        'Outgoing typing session started: ${rozmowca.displayName}');
     _publish(
       o,
       o.state.copyWith(
@@ -953,6 +1130,41 @@ class _RemoteInput {
     o.ping = Timer.periodic(debugRemoteInputPingInterval, (_) => _pingIfIdle(o));
     return RemoteInputStart.accepted;
   }
+
+  /// Prośba bez sesji po stronie nadawcy: wiersz w historii pisania i wpis
+  /// w dzienniku. Zamykana aplikacja nie zostawia wiersza.
+  RemoteInputStart _refusedOutgoing(_Outgoing o, RemoteInputStart odmowa) {
+    final wynik = _outgoingRefusal(odmowa);
+    if (wynik != null && !_closed) {
+      _s.typingJournal.refused(
+        direction: MessageDirection.outgoing,
+        inputId: o.input,
+        peerGuid: o.peer.guid,
+        peerName: o.peer.displayName,
+        result: wynik,
+      );
+      _s.log.info(LogArea.keyboard,
+          'Typing request to ${o.peer.displayName} refused: $wynik');
+    }
+    return odmowa;
+  }
+
+  /// Wynik prośby w historii pisania nadawcy. Wyłączony dodatek i rozmówca
+  /// bez potwierdzonej tożsamości kończą się przed wysyłką, więc wiersza
+  /// nie mają.
+  static String? _outgoingRefusal(RemoteInputStart odmowa) => switch (odmowa) {
+        RemoteInputStart.rejected => TypingResult.rejected,
+        RemoteInputStart.notEnabled => TypingResult.notEnabled,
+        RemoteInputStart.noAnswer => TypingResult.noAnswer,
+        RemoteInputStart.busy => TypingResult.busy,
+        RemoteInputStart.olderPeer => TypingResult.olderPeer,
+        RemoteInputStart.unreachable => TypingResult.unreachable,
+        RemoteInputStart.cancelled => TypingResult.cancelled,
+        RemoteInputStart.accepted ||
+        RemoteInputStart.addonOff ||
+        RemoteInputStart.notVerified =>
+          null,
+      };
 
   /// Dopisuje operacje do kolejki. `false`, gdy nie ma aktywnej sesji albo
   /// wklejenie przekracza [maxQueuedInputUnits]; wtedy nic nie idzie.
@@ -1072,8 +1284,11 @@ class _RemoteInput {
   /// kończy sesję jak zerwane łącze: inaczej `stop` czekałby na nią wiecznie.
   void _kick(_Outgoing o) {
     if (o.pumping != null) return;
-    o.pumping = _drain(o).catchError((Object _) {
-      _finish(o, null);
+    o.pumping = _drain(o).catchError((Object blad) {
+      // Sam typ błędu: jego opis mógłby nieść treść paczki.
+      _s.log.warning(
+          LogArea.keyboard, 'Typing queue stopped: ${blad.runtimeType}');
+      _finish(o, null, end: TypingEnd.linkLost);
     }).whenComplete(() {
       o.pumping = null;
       // Coś doszło między ostatnią paczką a końcem opróżniania.
@@ -1087,7 +1302,7 @@ class _RemoteInput {
       if (paczka.isEmpty) break;
       await _sendPacket(o, paczka);
     }
-    if (o.dead) o.queue.clear();
+    if (o.dead) _dropQueue(o);
   }
 
   Future<void> _sendPacket(_Outgoing o, List<RemoteInputOp> ops) async {
@@ -1102,10 +1317,16 @@ class _RemoteInput {
     ).toJson());
     final stop = ops.last.kind == RemoteInputOpKind.stop;
     final pisze = ops.any((op) => op.kind.types);
+    // Cel sprzed paczki: razem z celem z odpowiedzi mówi historii pisania,
+    // czy tekst ukryć.
+    final przed = o.state.target;
 
     // Długie wklejenie odbiorca wpisuje znak po znaku, więc paczka z nim
     // dostaje tyle czasu więcej, ile potrwa wpisanie.
     final limit = remoteInputPacketTimeout + remoteInputTypingTime(ops);
+    RemoteInputReply? odpowiedz;
+    var rtt = Duration.zero;
+    var status = -1;
     for (var proba = 0; proba < _inputPacketAttempts; proba++) {
       final zegar = Stopwatch()..start();
       final wynik = await _s._exchangeSealed(
@@ -1116,42 +1337,118 @@ class _RemoteInput {
         route: o.route,
       );
       zegar.stop();
-      final odpowiedz =
+      status = wynik.status;
+      odpowiedz =
           RemoteInputReply.fromJson(wynik.reply, input: o.input, seq: seq);
       if (odpowiedz != null) {
-        if (!odpowiedz.ok || stop) {
-          o.ended = true;
-          _finish(o, odpowiedz.ok ? null : (odpowiedz.reason ?? inputNoGrant));
-          return;
-        }
-        _publish(
-          o,
-          o.state.copyWith(
-            state: odpowiedz.reason == inputPaused
-                ? OutgoingRemoteInputState.paused
-                : OutgoingRemoteInputState.active,
-            target: odpowiedz.target,
-            // Ping niczego nie wpisuje, więc nie mówi nic o ostatnim tekście.
-            applied: pisze ? odpowiedz.applied : null,
-            typedReplies: pisze ? o.state.typedReplies + 1 : null,
-            rtt: zegar.elapsed,
-          ),
-        );
-        return;
+        rtt = zegar.elapsed;
+        break;
       }
       // Brak odpowiedzi w limicie: ta sama paczka jeszcze raz, z tym samym
       // `seq`. Każda inna porażka (sesja nie wstała po ponownym uścisku,
       // starszy odbiorca, zły kształt) się nie poprawi.
       if (wynik.status != -1) break;
     }
-    _finish(o, null);
+
+    // Wynik paczki trafia do historii pisania raz, po ostatniej próbie.
+    if (odpowiedz == null) {
+      if (pisze) {
+        o.packets++;
+        _s.typingJournal.record(o.journal, ops,
+            status: TypingStatus.unconfirmed, before: przed, after: przed);
+      }
+      _s.log.warning(LogArea.keyboard,
+          'Typing packet unconfirmed: ${_opsCounts(ops)}, status $status');
+      _finish(o, null, end: TypingEnd.linkLost);
+      return;
+    }
+    if (!odpowiedz.ok) {
+      final powod = odpowiedz.reason ?? inputNoGrant;
+      if (pisze) {
+        o.packets++;
+        _s.typingJournal.record(o.journal, ops,
+            status: TypingStatus.refused, before: przed, after: przed);
+      }
+      _s.log.info(LogArea.keyboard, 'Typing packet refused by peer: $powod');
+      o.ended = true;
+      _finish(o, powod, end: TypingEnd.stoppedByPeer);
+      return;
+    }
+    if (pisze) {
+      o.packets++;
+      _s.typingJournal.record(
+        o.journal,
+        ops,
+        status: odpowiedz.reason == inputPaused
+            ? TypingStatus.paused
+            : (odpowiedz.applied ? TypingStatus.typed : TypingStatus.notTyped),
+        before: przed,
+        after: odpowiedz.target,
+      );
+    }
+    if (stop) {
+      o.ended = true;
+      _finish(o, null, end: TypingEnd.stoppedHere);
+      return;
+    }
+    _publish(
+      o,
+      o.state.copyWith(
+        state: odpowiedz.reason == inputPaused
+            ? OutgoingRemoteInputState.paused
+            : OutgoingRemoteInputState.active,
+        target: odpowiedz.target,
+        // Ping niczego nie wpisuje, więc nie mówi nic o ostatnim tekście.
+        applied: pisze ? odpowiedz.applied : null,
+        typedReplies: pisze ? o.state.typedReplies + 1 : null,
+        rtt: rtt,
+      ),
+    );
   }
 
-  /// Koniec sesji nadawcy. [reason] jak w [OutgoingRemoteInput.reason].
-  void _finish(_Outgoing o, String? reason) {
+  /// Liczby do dziennika: ile operacji piszących i ile znaków. Bez tekstu.
+  static String _opsCounts(Iterable<RemoteInputOp> ops) {
+    var operacje = 0;
+    var znaki = 0;
+    for (final op in ops) {
+      if (!op.kind.types) continue;
+      operacje++;
+      znaki += op.text.runes.length;
+    }
+    return '$operacje ops, $znaki chars';
+  }
+
+  /// Operacje, które zostały w kolejce, gdy sesja się skończyła. Nie wyszły,
+  /// więc historia pisania zapisuje je jako niewysłane.
+  void _dropQueue(_Outgoing o) {
+    if (o.queue.isEmpty) return;
+    final zostalo = List.of(o.queue);
+    o.queue.clear();
+    if (!zostalo.any((op) => op.kind.types)) return;
+    final cel = o.state.target;
+    _s.typingJournal.record(o.journal, zostalo,
+        status: TypingStatus.unsent, before: cel, after: cel);
+    _s.log.warning(
+        LogArea.keyboard, 'Typing ops not sent: ${_opsCounts(zostalo)}');
+  }
+
+  /// Koniec sesji nadawcy. [reason] jak w [OutgoingRemoteInput.reason],
+  /// [end] to powód w historii pisania (`TypingEnd`), o ile nikt nie podał
+  /// go wcześniej.
+  void _finish(_Outgoing o, String? reason, {required String end}) {
+    final pierwszy = !o.dead;
     o.dead = true;
     o.ping?.cancel();
-    o.queue.clear();
+    final koniec = o.endReason ??= end;
+    _dropQueue(o);
+    _s.typingJournal.end(o.journal, koniec);
+    if (pierwszy && o.accepted) {
+      _s.log.info(
+        LogArea.keyboard,
+        'Outgoing typing session ended: $koniec (${o.peer.displayName}, '
+        '${o.packets} packets)',
+      );
+    }
     if (!o.done.isCompleted) o.done.complete();
     if (identical(_out, o)) {
       _publish(
@@ -1176,12 +1473,14 @@ class _RemoteInput {
 
   /// Kończy własną sesję pisania. To, co czeka w kolejce, idzie jeszcze
   /// przed `stop`. Prośba bez odpowiedzi zostaje wycofana, żeby karta
-  /// u odbiorcy zniknęła.
-  Future<void> stop() async {
+  /// u odbiorcy zniknęła. [reason] to powód w historii pisania
+  /// (`TypingEnd`): domyślnie Stop użytkownika.
+  Future<void> stop({String reason = TypingEnd.stoppedHere}) async {
     final o = _out;
     if (o == null) return;
     _out = null;
     _set(outgoing, null);
+    o.endReason ??= reason;
     await _stopSession(o);
   }
 
@@ -1249,11 +1548,13 @@ class _RemoteInput {
   /// razem z nim.
   void forgetPeer(String guid) {
     _lastRefusal.remove(guid);
-    if (_grant?.peerGuid == guid) _endGrant();
+    if (_grant?.peerGuid == guid) _endGrant(TypingEnd.peerRemoved);
     for (final entry in _asks.entries.toList()) {
       if (entry.value.peerGuid == guid) _withdraw(entry.key);
     }
-    if (_out?.peer.guid == guid) unawaited(stop());
+    if (_out?.peer.guid == guid) {
+      unawaited(stop(reason: TypingEnd.peerRemoved));
+    }
   }
 
   Future<void> dispose() async {
@@ -1265,15 +1566,15 @@ class _RemoteInput {
     _grantClock = null;
     final grant = _grant;
     _grant = null;
-    if (grant != null) await _sink.setSession(active: false);
+    if (grant != null) {
+      _grantEnded(grant, TypingEnd.appClosed);
+      await _sink.setSession(active: false);
+    }
     final o = _out;
     _out = null;
-    if (o != null) {
-      o.ping?.cancel();
-      o.dead = true;
-      o.queue.clear();
-      if (!o.done.isCompleted) o.done.complete();
-    }
+    // Bez `_out` koniec nie dotyka już powiadamiacza, a kolejka trafia do
+    // historii pisania jako niewysłana.
+    if (o != null) _finish(o, null, end: TypingEnd.appClosed);
     _s.pendingOffers.removeListener(_syncHold);
     _s.pendingPairings.removeListener(_syncHold);
     keyboardAddon.dispose();

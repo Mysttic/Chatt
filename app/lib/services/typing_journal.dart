@@ -256,7 +256,7 @@ String reconstructTyping(Iterable<TypingOp> ops, {String hiddenChar = '•'}) {
     switch (op.kind) {
       case RemoteInputOpKind.insert:
         if (op.hidden) {
-          if (op.count > 0) {
+          if (op.count > 0 && hiddenChar.isNotEmpty) {
             znaki.addAll(List.filled(op.count, hiddenChar.runes.first));
           }
         } else {
@@ -528,14 +528,16 @@ class TypingJournal {
     _open.clear();
   }
 
-  /// Zapisuje resztę i przestaje przyjmować nowe sesje i kawałki.
+  /// Przestaje przyjmować nowe sesje i kawałki, kończy trwające sesje
+  /// powodem [TypingEnd.appClosed] i czeka, aż wszystko trafi do bazy.
   /// Zakończenia sesji ([end]) przechodzą jeszcze przed zamknięciem.
   Future<void> close() async {
-    await flush();
     _closed = true;
-    for (final sesja in _open) {
-      sesja._idle?.cancel();
+    // Sesji otwartej w chwili zamknięcia nikt już nie zakończy: w historii
+    // wisiałaby jako trwająca także po następnym starcie.
+    for (final sesja in _open.toList()) {
+      end(sesja, TypingEnd.appClosed);
     }
-    await _writes;
+    await flush();
   }
 }

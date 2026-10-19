@@ -91,8 +91,10 @@ final Set<LogicalKeyboardKey> _bezSkutku = {
 ///
 /// Własna trasa z własnym polem: w polu rozmowy Enter wysyła wiadomość.
 /// Sesja trwa, dopóki ten ekran jest otwarty; wyjście z niego ją kończy.
-/// Wpisywany tekst żyje tylko w kontrolerach pól tego ekranu i w kolejce
-/// serwisu, nigdzie więcej.
+/// Wpisywany tekst żyje w kontrolerach pól tego ekranu, w kolejce serwisu
+/// i, przy włączonym zapisie, w zaszyfrowanej historii pisania (patrz
+/// `services/typing_journal.dart`), gdzie tekst z pola hasła zostaje samą
+/// liczbą znaków.
 class RemoteKeyboardScreen extends ConsumerStatefulWidget {
   final Peer peer;
 
