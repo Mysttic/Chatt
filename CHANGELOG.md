@@ -10,6 +10,11 @@ into `master`.
 
 ## [Unreleased]
 
+### Fixed
+- **A link with `=` in it opened the Documents folder on Windows** (issue #31).
+  The address went to `explorer.exe` as an argument, and Explorer splits its
+  command line on commas and equals signs. It now goes to `ShellExecuteW` as
+  one string, through a small native channel that checks the scheme once more.
 ### Added
 - **Getting a conversation's history back** (issue #36). A conversation lives
   on both devices, so when one loses it (a reinstall, a new phone, "Clear

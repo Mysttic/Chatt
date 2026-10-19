@@ -1,5 +1,6 @@
 # Tests
 
+The split is simple: **391 `flutter test` tests** check everything that can be
 The split is simple: **425 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
@@ -333,7 +334,7 @@ side hands it back:
 - the progress bars: the sharing side gets Stop, another conversation sees
   nothing, and a finished restore shows the skipped count and closes
 
-### Links in messages (`test/links_test.dart`, 23 tests)
+### Links in messages (`test/links_test.dart`, 25 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
   `file:`, `mailto:`, `intent:` and `content:` stay plain text
 - the full stop ending a sentence is not part of the address, a bracket that
@@ -350,6 +351,9 @@ side hands it back:
   where an off-by-one in the ranges would show
 - `openExternalLink` refuses a scheme other than `http`/`https` before it
   starts any process
+- on Windows the address goes to the `chatt/links` channel whole, equals signs
+  and fragment included (the shape from issue #31), the channel's "no" comes
+  back as a failure, and without the channel nothing is started at all
 
 ### Link previews (`test/link_preview_test.dart`, 37 tests)
 - the card is built from `og:`, then `twitter:`, then `<title>` and
