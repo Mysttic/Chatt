@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **439 `flutter test` tests** check everything that can be
+The split is simple: **442 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -257,7 +257,7 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migrations (`test/migration_test.dart`, 6 tests)
+### Migrations (`test/migration_test.dart`, 7 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
@@ -274,6 +274,8 @@ when it speaks and when it stays quiet:
 - the step from 13 to 14 keeps the messages and marks none of them as restored
 - the step from 14 to 15 brings the Cisza style in and keeps the theme, the
   background and the nickname; a saved style comes back after reopening
+- a 0.10.0 database (schema 13, with neither `restored_at` nor `style`) goes
+  to 15 in one opening and keeps the peer, the message and the settings
 
 ### Styles (`test/style_test.dart`, 12 tests)
 - each of the six variants (three styles, light and dark) carries its own
@@ -353,10 +355,10 @@ side hands it back:
 - the share dialog offers an older conversation as the source only for a peer
   with a green shield (without it, a note says why), and the merge option
   appears once an older conversation is picked
-- the progress bars: the sharing side gets Stop, another conversation sees
-  nothing, and a finished restore shows the skipped count and closes
+- the progress bars: both sides get Stop while it runs, another conversation
+  sees nothing, and a finished restore shows the skipped count and closes
 
-### Links in messages (`test/links_test.dart`, 23 tests)
+### Links in messages (`test/links_test.dart`, 25 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
   `file:`, `mailto:`, `intent:` and `content:` stay plain text
 - the full stop ending a sentence is not part of the address, a bracket that
@@ -373,6 +375,9 @@ side hands it back:
   where an off-by-one in the ranges would show
 - `openExternalLink` refuses a scheme other than `http`/`https` before it
   starts any process
+- on Windows the address goes to the `chatt/links` channel whole, equals signs
+  and fragment included (the shape from issue #31), the channel's "no" comes
+  back as a failure, and without the channel nothing is started at all
 
 ### Link previews (`test/link_preview_test.dart`, 37 tests)
 - the card is built from `og:`, then `twitter:`, then `<title>` and

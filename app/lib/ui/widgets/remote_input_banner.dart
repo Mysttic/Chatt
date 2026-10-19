@@ -70,8 +70,8 @@ class _Pasek extends StatelessWidget {
     final cel = pisze.target;
     final aplikacja = cel.appLabel.isNotEmpty ? cel.appLabel : cel.app;
     // Aplikacja z nazwy tylko wtedy, gdy do niej naprawdę się pisze, jak na
-    // pasku natywnym. Bez strzałki z tamtego paska: dołączony Roboto jej
-    // nie ma.
+    // pasku natywnym. Bez strzałki z tamtego paska: fonty stylów jej nie
+    // mają.
     final napis = (cel.active && aplikacja.isNotEmpty)
         ? context.l10n.remoteInputBannerTarget(pisze.peerName, aplikacja)
         : context.l10n.remoteInputActive(pisze.peerName);

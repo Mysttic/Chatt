@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show MethodChannel;
 
 /// Odnośniki w treści wiadomości: znajdowanie ich w napisie, ocena, czy da się
@@ -296,6 +297,11 @@ enum LinkOpenResult {
   failed,
 }
 
+/// System, dla którego otwieramy odnośnik. Podmiana dla testów: CI stoi na
+/// Linuksie, a droga przez kanał natywny ma się dać sprawdzić także tam.
+@visibleForTesting
+String? debugLinkPlatform;
+
 /// Otwiera adres w przeglądarce systemowej.
 ///
 /// Schemat jest sprawdzany jeszcze raz, tuż przed uruchomieniem: to ostatnie
@@ -307,20 +313,26 @@ Future<LinkOpenResult> openExternalLink(Uri uri) async {
     return LinkOpenResult.failed;
   }
   final adres = uri.toString();
-  if (Platform.isAndroid) {
+  final system = debugLinkPlatform ?? Platform.operatingSystem;
+  // Android i Windows oddają adres systemowi własnym kodem, jako jeden napis.
+  // Na Windowsie szedł kiedyś jako argument `explorer.exe`, a explorer dzieli
+  // swój wiersz poleceń na przecinkach i znakach równości: odnośnik
+  // z `?client=...` otwierał folder Dokumenty zamiast przeglądarki (#31).
+  final kanal = switch (system) {
+    'android' => const MethodChannel('chatt/files'),
+    'windows' => const MethodChannel('chatt/links'),
+    _ => null,
+  };
+  if (kanal != null) {
     try {
-      final ok = await const MethodChannel('chatt/files')
-          .invokeMethod<bool>('openUrl', {'url': adres});
+      final ok = await kanal.invokeMethod<bool>('openUrl', {'url': adres});
       return ok == true ? LinkOpenResult.ok : LinkOpenResult.failed;
     } catch (_) {
-      // Brak kanału (test widżetowy) albo wyjątek po stronie Androida.
+      // Brak kanału (test widżetowy) albo wyjątek po stronie natywnej.
       return LinkOpenResult.unsupported;
     }
   }
-  final (program, argumenty) = switch (Platform.operatingSystem) {
-    // `explorer.exe` z adresem oddaje go domyślnej przeglądarce. Ta sama
-    // droga co przy otwieraniu plików, więc bez nowej zależności.
-    'windows' => ('explorer.exe', [adres]),
+  final (program, argumenty) = switch (system) {
     'macos' => ('open', [adres]),
     'linux' => ('xdg-open', [adres]),
     _ => (null, const <String>[]),
