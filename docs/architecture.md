@@ -899,8 +899,9 @@ result on the progress bar; `op: cancel` ends it and keeps whatever arrived,
 and the sharing side sends it also when a chunk is refused or anything throws.
 A grant lives thirty idle minutes (a file still streaming keeps it alive) and
 twelve hours at most, and a clock ends an expired one even when nothing else
-arrives. One card per sender and eight at most wait at a time; anything above
-that is `busy`.
+arrives. **Stop** on the receiving side's bar ends the grant the same way: the
+next chunk gets `no_grant` and the sharing side cancels. One card per sender
+and eight at most wait at a time; anything above that is `busy`.
 
 **An older conversation for a new entry.** The identity comes from the key, so
 after a reinstall, on a new phone or after "Start over" the same person comes
