@@ -1362,10 +1362,10 @@ information and the same controls in every style, so no code outside
   switches, chips, the app bar).
 - **`ChattTokens`** (a `ThemeExtension`) carries what `ColorScheme` has no
   slot for: bubble colours and shape, avatar palette and shape, row height and
-  padding, whether rows are cards, the date separator, the route badge, radii,
-  shadows, the security signals and the text styles `mono`, `code`, `overline`,
-  `caption`. Widgets read them with `ChattTokens.of(context)`, which falls back
-  to Cisza when a test builds a bare `MaterialApp`.
+  padding, the date separator, the route badge, radii, shadows, the security
+  signals, the text styles `mono`, `code`, `overline`, `caption` and the
+  motion (`motion`). Widgets read them with `ChattTokens.of(context)`, which
+  falls back to Cisza when a test builds a bare `MaterialApp`.
 - **Security signals.** `k.security` is the unconfirmed identity warning: the
   danger colours in Cisza, the warning (amber) colours in Precyzja and Ciepło.
   `k.dangerNote` (no encryption, codes that do not match) is red everywhere,
@@ -1375,8 +1375,44 @@ information and the same controls in every style, so no code outside
   Nunito for text, DM Mono, IBM Plex Mono and Spline Sans Mono for technical
   values. Three of them are variable fonts; Flutter maps `FontWeight` to their
   `wght` axis.
-- **Switching** goes through `MaterialApp`'s theme animation. `ChattTokens.lerp`
-  swaps the whole set at the midpoint, so no frame mixes two styles' shapes.
+- **Switching** goes through `MaterialApp`'s theme animation, in the target
+  style's time (300 ms in Cisza, 120 ms in Precyzja, 200 ms in Ciepło).
+  `ChattTokens.lerp` blends colours, shadows, sizes and text styles and flips
+  the style's switches (avatar shape, capitals in headers, motion) at the
+  midpoint. The wall under the app goes through `lerpWall` in the same time.
+- **The conversation list** draws every conversation as its own card in every
+  style: the style's surface, `radiusRow` and `shadow1` (an outline in
+  Precyzja, which has no shadows), 8 dp apart on the screen background. The
+  list's bottom padding covers the system navigation bar and the Nearby
+  button, so the last card scrolls out from under it.
+- **Motion** (issue #54). `ChattMotion` holds each style's times, curves and
+  offsets, taken from the style pages in Claude Design: screens on a shared X
+  axis (`ChattPageTransitionsBuilder` in `pageTransitionsTheme`), the
+  conversation switch on a wide window, consent cards and dialogs, the
+  security panel, the scrim, new bubbles, progress bars between samples,
+  toasts, controls and hover. `widgets/motion.dart` has the pieces the screens
+  use: `MotionTransition`, `CardSwitcher`, `showChattDialog`, `showChattSheet`,
+  `SmoothProgress` and `EnterOnce`. `ChattMotion.of(context)` returns the
+  `reduced` motion when the system asks for less of it
+  (`MediaQuery.disableAnimations`): every transition becomes a 100 ms fade and
+  progress bars follow the samples. `ChattApp` reads that flag above
+  `MaterialApp`, so page transitions get the reduced times too. With the
+  system flag on, Flutter also cuts every default `AnimationController` to 5%
+  of its time, so every controller the app owns comes from `motionController`
+  (`AnimationBehavior.preserve`) and screens are pushed as `ChattPageRoute`;
+  the toast's countdown is one of them, which once made a toast last a fifth
+  of a second. Flutter's own animations (the theme change, switches, implicit
+  animations) keep Flutter's cut. On a phone the security panel is a bottom
+  sheet; on the desktop it opens as a window in the middle, at most 460 dp
+  wide, as in the template.
+- **The conversation switch** on a wide window fades the new pane in over an
+  image of the old one, taken from the pane's repaint boundary at the moment
+  of the switch. The old `ChatScreen` leaves in that frame, so its global
+  Ctrl+V handler and drop target never see the new conversation's input.
+- **`chattTheme` keeps the themes it has built**, per style, brightness,
+  background, reduced motion and platform. Saving an unrelated setting
+  rebuilds `MaterialApp` with the very same `ThemeData`, so the theme
+  animation does not restart between two equal themes.
 - **Density.** On a phone the conversation header holds the shield and the
   menu, both 48 dp targets; search and the keyboard button move into the menu.
   Above `dwupanelOd` they stay in the header.
