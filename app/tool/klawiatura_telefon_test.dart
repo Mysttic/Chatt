@@ -35,7 +35,9 @@ import 'package:path/path.dart' as p;
 
 import 'package:chatt/data/db.dart';
 import 'package:chatt/network/protocol.dart';
+import 'package:chatt/services/app_log.dart' show LogArea;
 import 'package:chatt/services/app_services.dart';
+import 'package:chatt/services/typing_journal.dart';
 
 import 'uiautomator.dart';
 
@@ -233,6 +235,26 @@ void main() {
         await adb(['shell', 'ime', 'disable', imeId]);
       }
       await adb(['shell', 'ime', 'set', klawiaturaPrzed]);
+    });
+    // Historia pisania nadawcy (issue #50): baza hosta żyje w pamięci, więc
+    // to jedyna okazja, żeby ją zobaczyć. Tekst w tym scenariuszu jest
+    // wyłącznie testowy.
+    await krok('historia pisania nadawcy', () async {
+      await host.typingJournal.flush();
+      await host.log.flush();
+      for (final s in await host.db.allTypingSessions()) {
+        print('historia nadawcy: sesja ${s.direction.name} ${s.peerName} '
+            'wynik=${s.result} koniec=${s.endReason}');
+      }
+      for (final k in await host.db.allTypingEntries()) {
+        print('historia nadawcy:   ${k.status} pole=${k.field} '
+            'ukryte=${k.masked} znaki=${k.chars} '
+            '${k.appLabel.isEmpty ? k.app : k.appLabel}: '
+            '${describeTypingOps(TypingOp.decode(k.ops))}');
+      }
+      for (final w in await host.db.allLogEntries()) {
+        if (w.area == LogArea.keyboard) print('dziennik nadawcy: ${w.message}');
+      }
     });
     await krok('zamknięcie hosta', host.dispose);
     await krok('tunel do telefonu', () => adb(['forward', '--remove', 'tcp:$tunelPort']));
