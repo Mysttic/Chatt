@@ -22,8 +22,11 @@ import '../backgrounds.dart';
 import '../l10n_context.dart';
 import '../styles.dart';
 import '../widgets/common.dart';
+import '../widgets/export_dialog.dart';
 import '../widgets/toasts.dart';
 import '../widgets/update_card.dart';
+import 'app_log_screen.dart';
+import 'typing_history_screen.dart';
 
 /// Ustawienia instancji (odpowiednik EditConfiguration.PNG) + informacje
 /// potrzebne do ręcznego parowania (adresy IP i faktyczny port nasłuchu).
@@ -130,7 +133,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (!udalo) showToast(context.l10n.startWithWindowsFailed);
   }
 
-  /// Wyczyszczenie historii jest nieodwracalne, więc pytamy wprost.
+  /// Wyczyszczenie historii jest nieodwracalne, więc pytamy wprost. Razem
+  /// z rozmowami znika historia pisania (patrz [AppServices.clearHistory]).
   Future<void> _clearHistory() async {
     final zgoda = await showDialog<bool>(
       context: context,
@@ -152,10 +156,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (zgoda != true || !mounted) return;
 
     final teksty = context.l10n;
-    final usuniete = await ref.read(appServicesProvider).db.clearHistory();
-    showToast(usuniete == 0
-        ? teksty.nothingToCleanUp
-        : teksty.historyCleared(usuniete));
+    final services = ref.read(appServicesProvider);
+    // Liczba sesji przed czyszczeniem: komunikat ma mówić o wszystkim, co
+    // zniknęło, także gdy wiadomości nie było żadnych.
+    final sesje = await services.db.watchTypingSessionCount().first;
+    final usuniete = await services.clearHistory();
+    showToast(switch ((usuniete, sesje)) {
+      (0, 0) => teksty.nothingToCleanUp,
+      (_, 0) => teksty.historyCleared(usuniete),
+      _ => teksty.historyClearedWithTyping(usuniete, sesje),
+    });
   }
 
   @override
@@ -479,6 +489,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             label: Text(context.l10n.clearHistory),
             style: OutlinedButton.styleFrom(foregroundColor: scheme.error),
           ),
+          // Eksport i dziennik: wszystko, co aplikacja wie, da się stąd
+          // wynieść do analizy poza nią.
+          _Sekcja(context.l10n.dataSection),
+          OutlinedButton.icon(
+            onPressed: () => showExportDialog(context, services: services),
+            icon: const Icon(Icons.archive_outlined),
+            label: Text(context.l10n.exportData),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.exportDataHelp,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AppLogScreen()),
+            ),
+            icon: const Icon(Icons.receipt_long_outlined),
+            label: Text(context.l10n.appLog),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            context.l10n.appLogHelp,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
           _Sekcja(context.l10n.addons),
           const BluetoothAddonCard(),
           const SizedBox(height: 8),
@@ -767,12 +803,14 @@ class BluetoothAddonCardState extends ConsumerState<BluetoothAddonCard> {
 }
 
 /// Dodatek „Klawiatura z PC": przełącznik całej funkcji i, po jego włączeniu,
-/// przełącznik odbioru.
+/// przełącznik odbioru oraz historia pisania.
 ///
 /// Wyłączony dodatek to sam przełącznik. Włączony pozwala pisać stąd na
 /// innych urządzeniach, a przełącznik „Pozwól pisać na tym urządzeniu" jest
 /// osobną zgodą i startuje wyłączony: włączenie dodatku na komputerze,
-/// z którego się pisze, nie wpuszcza nikogo na ten komputer.
+/// z którego się pisze, nie wpuszcza nikogo na ten komputer. Przełącznik
+/// „Zapisuj historię pisania" startuje włączony i działa tylko razem
+/// z dodatkiem; przycisk obok otwiera zapisane sesje.
 class KeyboardAddonCard extends ConsumerStatefulWidget {
   const KeyboardAddonCard({super.key});
 
@@ -867,9 +905,11 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: ValueListenableBuilder<bool>(
-          valueListenable: services.keyboardAddon,
-          builder: (context, wlaczony, _) {
+        child: ListenableBuilder(
+          listenable: Listenable.merge(
+              [services.keyboardAddon, services.typingHistory]),
+          builder: (context, _) {
+            final wlaczony = services.keyboardAddon.value;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -922,6 +962,28 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
                   // w ustawieniach systemu i wybraną na czas sesji.
                   if (odbior && przyjmuje && _ime != null) ..._klawiatura(
                       context, scheme, _ime!),
+                  // Historia pisania: obie strony sesji, w zaszyfrowanej
+                  // bazie. Wyłączenie przełącznika nie kasuje tego, co już
+                  // zapisane; do tego jest przycisk na ekranie historii.
+                  const Divider(height: 24),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: services.typingHistory.value,
+                    onChanged: (value) => services.setTypingHistory(value),
+                    secondary: const Icon(Icons.history),
+                    title: Text(context.l10n.typingHistorySwitch),
+                    subtitle: Text(context.l10n.typingHistoryHelp),
+                    isThreeLine: true,
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const TypingHistoryScreen()),
+                    ),
+                    icon: const Icon(Icons.manage_history_outlined),
+                    label: Text(context.l10n.typingHistory),
+                  ),
                 ],
               ],
             );
