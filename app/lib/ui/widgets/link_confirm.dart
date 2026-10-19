@@ -4,6 +4,7 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../../core/links.dart';
 import '../l10n_context.dart';
 import '../styles.dart';
+import 'motion.dart';
 import 'toasts.dart';
 
 /// Pytanie zadawane przed opuszczeniem aplikacji: „czy na pewno chcesz przejść
@@ -18,7 +19,7 @@ import 'toasts.dart';
 /// Nic się nie otwiera, dopóki użytkownik nie naciśnie „Otwórz".
 Future<void> confirmAndOpenLink(BuildContext context, Uri uri) async {
   final teksty = context.l10n;
-  final zgoda = await showDialog<bool>(
+  final zgoda = await showChattDialog<bool>(
     context: context,
     builder: (dialog) => _LinkConfirmDialog(uri: uri),
   );

@@ -5,6 +5,26 @@ import '../styles.dart';
 // Wspólne klocki ruchu stylów (issue #54). Czasy, krzywe i przesunięcia
 // biorą z [ChattMotion] bieżącego stylu; przy „ogranicz animacje”
 // w systemie każde przejście staje się przenikaniem 100 ms.
+//
+// Kontrolery tworzymy z [AnimationBehavior.preserve]: przy systemowej
+// fladze czas daje już ChattMotion.of, a domyślnie Flutter skróciłby go
+// jeszcze do 5%.
+
+/// Kontroler animacji, któremu Flutter nie skraca czasu przy systemowym
+/// „usuń animacje”.
+AnimationController motionController({
+  required TickerProvider vsync,
+  Duration? duration,
+  Duration? reverseDuration,
+  double value = 0,
+}) =>
+    AnimationController(
+      vsync: vsync,
+      duration: duration,
+      reverseDuration: reverseDuration,
+      value: value,
+      animationBehavior: AnimationBehavior.preserve,
+    );
 
 /// Telefon (dotyk) albo okno na komputerze. Z platformy motywu, więc testy
 /// mogą ją podmienić.
@@ -61,6 +81,12 @@ class _MotionTransitionState extends State<MotionTransition> {
   (Animation<double>, Curve, Curve, Curve)? _klucz;
 
   @override
+  void initState() {
+    super.initState();
+    widget.animation.addStatusListener(_kierunek);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _krzywe();
@@ -69,7 +95,17 @@ class _MotionTransitionState extends State<MotionTransition> {
   @override
   void didUpdateWidget(MotionTransition old) {
     super.didUpdateWidget(old);
+    if (old.animation != widget.animation) {
+      old.animation.removeStatusListener(_kierunek);
+      widget.animation.addStatusListener(_kierunek);
+    }
     _krzywe();
+  }
+
+  /// Wyjście zaczęte między klatkami: dotyk i fokus odcinamy przy
+  /// najbliższej budowie, bez czekania na pierwszy krok animacji.
+  void _kierunek(AnimationStatus _) {
+    if (mounted) setState(() {});
   }
 
   void _krzywe() {
@@ -91,6 +127,7 @@ class _MotionTransitionState extends State<MotionTransition> {
 
   @override
   void dispose() {
+    widget.animation.removeStatusListener(_kierunek);
     _ruch?.dispose();
     _przenikanie?.dispose();
     super.dispose();
@@ -129,35 +166,103 @@ class _MotionTransitionState extends State<MotionTransition> {
 /// Karta zgody pojawia się i znika w ruchu stylu: na telefonie po swojemu
 /// (Cisza z dołu), w oknie ze skalą, w Cieple z góry ze sprężynką. Kolejna
 /// karta w miejsce poprzedniej przechodzi tak samo, więc dzieci muszą mieć
-/// klucze. null: brak karty.
-class CardSwitcher extends StatelessWidget {
+/// klucze. null: brak karty. Pierwsza karta przy budowie stoi od razu.
+class CardSwitcher extends StatefulWidget {
   final Widget? child;
 
   const CardSwitcher({super.key, this.child});
 
   @override
+  State<CardSwitcher> createState() => _CardSwitcherState();
+}
+
+/// Karta w przełączniku i jej ruch.
+class _Karta {
+  Widget child;
+  final AnimationController ruch;
+
+  _Karta(this.child, this.ruch);
+}
+
+class _CardSwitcherState extends State<CardSwitcher>
+    with TickerProviderStateMixin {
+  _Karta? _biezaca;
+  final _odchodzace = <_Karta>[];
+
+  @override
+  void initState() {
+    super.initState();
+    final child = widget.child;
+    if (child != null) {
+      _biezaca = _Karta(child, motionController(vsync: this, value: 1));
+    }
+  }
+
+  @override
+  void didUpdateWidget(CardSwitcher old) {
+    super.didUpdateWidget(old);
+    final nowa = widget.child;
+    final biezaca = _biezaca;
+    if (biezaca != null && nowa != null && Widget.canUpdate(biezaca.child, nowa)) {
+      biezaca.child = nowa;
+      return;
+    }
+    final m = ChattMotion.of(context);
+    if (biezaca != null) _odprawa(biezaca, m);
+    _biezaca = nowa == null
+        ? null
+        : _Karta(nowa, motionController(vsync: this, duration: m.cardIn)..forward());
+  }
+
+  /// Karta schodzi w czasie wyjścia stylu i znika z drzewa po zejściu.
+  void _odprawa(_Karta karta, ChattMotion m) {
+    if (karta.ruch.isDismissed) {
+      karta.ruch.dispose();
+      return;
+    }
+    _odchodzace.add(karta);
+    karta.ruch
+      ..reverseDuration = m.cardOut
+      ..addStatusListener((status) {
+        if (status != AnimationStatus.dismissed || !mounted) return;
+        setState(() => _odchodzace.remove(karta));
+        karta.ruch.dispose();
+      })
+      ..reverse();
+  }
+
+  @override
+  void dispose() {
+    _biezaca?.ruch.dispose();
+    for (final karta in _odchodzace) {
+      karta.ruch.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final biezaca = _biezaca;
+    if (biezaca == null && _odchodzace.isEmpty) return const SizedBox.shrink();
     final m = ChattMotion.of(context);
     final telefon = czyTelefon(context);
-    return AnimatedSwitcher(
-      duration: m.cardIn,
-      reverseDuration: m.cardOut,
-      // Krzywe nakłada MotionTransition: sprężynka nie może trafić
-      // w przezroczystość.
-      switchInCurve: Curves.linear,
-      switchOutCurve: Curves.linear,
-      layoutBuilder: (current, previous) => Stack(
-        alignment: Alignment.topCenter,
-        children: [...previous, ?current],
-      ),
-      transitionBuilder: (child, animation) => MotionTransition(
-        animation: animation,
-        curve: m.cardCurve,
-        scale: telefon ? m.cardScalePhone : m.cardScaleWindow,
-        shift: telefon ? m.cardShiftPhone : m.cardShiftWindow,
-        child: child,
-      ),
-      child: child ?? const SizedBox.shrink(key: ValueKey('bez karty')),
+    Widget przejscie(_Karta karta) => KeyedSubtree(
+          key: ObjectKey(karta),
+          child: MotionTransition(
+            animation: karta.ruch,
+            curve: m.cardCurve,
+            scale: telefon ? m.cardScalePhone : m.cardScaleWindow,
+            shift: telefon ? m.cardShiftPhone : m.cardShiftWindow,
+            child: karta.child,
+          ),
+        );
+    // Odchodzące pod spodem, bieżąca na wierzchu; wszystkie od góry.
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        for (final karta in _odchodzace) przejscie(karta),
+        if (biezaca != null) przejscie(biezaca),
+      ],
     );
   }
 }
@@ -197,6 +302,13 @@ class ChattDialogRoute<T> extends DialogRoute<T> {
   Curve get barrierCurve => motion.scrimWithin(transitionDuration);
 
   @override
+  AnimationController createAnimationController() => motionController(
+        vsync: navigator!,
+        duration: transitionDuration,
+        reverseDuration: reverseTransitionDuration,
+      );
+
+  @override
   Widget buildTransitions(
     BuildContext context,
     Animation<double> animation,
@@ -218,6 +330,24 @@ class ChattDialogRoute<T> extends DialogRoute<T> {
                 ? motion.cardShiftPhone
                 : motion.cardShiftWindow,
         child: child,
+      );
+}
+
+/// Nowy ekran w ruchu stylu: [MaterialPageRoute] z przejściem z motywu
+/// ([ChattPageTransitionsBuilder]) i czasem, którego Flutter nie skraca
+/// przy systemowym „usuń animacje” (wtedy przenikanie 100 ms).
+class ChattPageRoute<T> extends MaterialPageRoute<T> {
+  ChattPageRoute({
+    required super.builder,
+    super.settings,
+    super.fullscreenDialog,
+  });
+
+  @override
+  AnimationController createAnimationController() => motionController(
+        vsync: navigator!,
+        duration: transitionDuration,
+        reverseDuration: reverseTransitionDuration,
       );
 }
 
@@ -254,6 +384,7 @@ class _ChattSheetRoute<T> extends ModalBottomSheetRoute<T> {
     required super.builder,
     required super.isScrollControlled,
     required this.motion,
+    required super.transitionAnimationController,
     super.capturedThemes,
     super.barrierLabel,
     super.barrierOnTapHint,
@@ -273,6 +404,13 @@ class _ChattSheetRoute<T> extends ModalBottomSheetRoute<T> {
 
   @override
   Curve get barrierCurve => motion.scrimWithin(motion.panelIn);
+
+  @override
+  void dispose() {
+    super.dispose();
+    // Kontroler daje showChattSheet, więc trasa sama go nie zwalnia.
+    transitionAnimationController?.dispose();
+  }
 
   @override
   Widget buildTransitions(
@@ -301,10 +439,16 @@ Future<T?> showChattSheet<T>({
 }) {
   final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
   final teksty = MaterialLocalizations.of(context);
+  final ruch = ChattMotion.of(context);
   return navigator.push(_ChattSheetRoute<T>(
     builder: builder,
     isScrollControlled: isScrollControlled,
-    motion: ChattMotion.of(context),
+    motion: ruch,
+    transitionAnimationController: motionController(
+      vsync: navigator,
+      duration: ruch.panelIn,
+      reverseDuration: ruch.panelOut,
+    ),
     capturedThemes:
         InheritedTheme.capture(from: context, to: navigator.context),
     barrierLabel: teksty.scrimLabel,
@@ -319,7 +463,7 @@ Future<T?> showChattSheet<T>({
 /// Pasek postępu, który między próbkami przechodzi w ruchu stylu: płynnie
 /// (Cisza), liniowo (Ciepło) albo wprost za próbkami (Precyzja). Bez
 /// [value] kręci się jak zwykły pasek bez końca.
-class SmoothProgress extends StatelessWidget {
+class SmoothProgress extends StatefulWidget {
   final double? value;
   final double? minHeight;
   final Color? color;
@@ -340,26 +484,72 @@ class SmoothProgress extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final m = ChattMotion.of(context);
-    Widget pasek(double? wartosc) => LinearProgressIndicator(
-          value: wartosc,
-          minHeight: minHeight,
-          color: color,
-          backgroundColor: backgroundColor,
-          borderRadius: borderRadius,
-          semanticsLabel: semanticsLabel,
-          semanticsValue: semanticsValue,
-        );
-    final cel = value;
-    if (cel == null || m.progress == Duration.zero) return pasek(cel);
-    return TweenAnimationBuilder<double>(
-      tween: Tween(end: cel.clamp(0.0, 1.0)),
-      duration: m.progress,
-      curve: m.progressCurve,
-      builder: (context, wartosc, _) => pasek(wartosc),
-    );
+  State<SmoothProgress> createState() => _SmoothProgressState();
+}
+
+class _SmoothProgressState extends State<SmoothProgress>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ruch = motionController(vsync: this);
+
+  /// Odcinek ruchu: skąd, dokąd i po jakiej krzywej. Bez [_od] pasek stoi
+  /// na [_do].
+  double? _od;
+  late double? _do = _przytnij(widget.value);
+  Curve _krzywa = Curves.linear;
+
+  static double? _przytnij(double? v) => v?.clamp(0.0, 1.0);
+
+  double? get _widac {
+    final od = _od;
+    final cel = _do;
+    if (od == null || cel == null || _ruch.isCompleted) return cel;
+    return od + (cel - od) * _krzywa.transform(_ruch.value);
   }
+
+  @override
+  void didUpdateWidget(SmoothProgress old) {
+    super.didUpdateWidget(old);
+    final cel = _przytnij(widget.value);
+    if (cel == _do) return;
+    final m = ChattMotion.of(context);
+    final teraz = _widac;
+    if (cel == null || teraz == null || m.progress == Duration.zero) {
+      _ruch.stop();
+      _od = null;
+      _do = cel;
+      return;
+    }
+    // Próbka w trakcie ruchu: dalej liniowo od miejsca, w którym pasek
+    // jest. Krzywa stylu rusza z zerową prędkością, więc przy próbce co
+    // klatkę pasek stałby w miejscu; tak zostaje w tyle najwyżej o czas
+    // stylu. Krzywa stylu prowadzi pasek po przerwie w próbkach.
+    _krzywa = _ruch.isAnimating ? Curves.linear : m.progressCurve;
+    _od = teraz;
+    _do = cel;
+    _ruch
+      ..duration = m.progress
+      ..forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _ruch.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _ruch,
+        builder: (context, _) => LinearProgressIndicator(
+          value: _widac,
+          minHeight: widget.minHeight,
+          color: widget.color,
+          backgroundColor: widget.backgroundColor,
+          borderRadius: widget.borderRadius,
+          semanticsLabel: widget.semanticsLabel,
+          semanticsValue: widget.semanticsValue,
+        ),
+      );
 }
 
 /// Wejście raz, przy pojawieniu się: nowy dymek wjeżdża w górę o [shift]
@@ -396,7 +586,7 @@ class _EnterOnceState extends State<EnterOnce>
   void initState() {
     super.initState();
     if (_animuj) {
-      _wejscie = AnimationController(vsync: this, duration: widget.duration)
+      _wejscie = motionController(vsync: this, duration: widget.duration)
         ..forward();
     }
   }

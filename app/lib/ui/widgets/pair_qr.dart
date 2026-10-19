@@ -8,13 +8,14 @@ import '../../core/pair_link.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../styles.dart';
+import 'motion.dart';
 
 /// Kod QR tego urządzenia do zeskanowania przez drugie.
 ///
 /// W kodzie nie ma nic tajnego: klucz publiczny i adres. Cała wartość jest
 /// w tym, **jak** trafia do drugiej strony: kto go zeskanował, ten patrzył na
 /// ten ekran, więc wie, że klucz pochodzi stąd, a nie od kogoś po drodze.
-Future<void> showPairQr(BuildContext context) => showDialog<void>(
+Future<void> showPairQr(BuildContext context) => showChattDialog<void>(
       context: context,
       builder: (dialog) => const _PairQrDialog(),
     );

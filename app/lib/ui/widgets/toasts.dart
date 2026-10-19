@@ -8,10 +8,15 @@
 ///
 /// Pasek pod tekstem odlicza czas do zniknięcia, więc widać, ile go zostało,
 /// zamiast zgadywać, czy karta zaraz zniknie sama.
+///
+/// Karta wchodzi i schodzi w ruchu stylu ([ChattMotion]): wjeżdża w górę na
+/// swoje miejsce i się pojawia, przy wyjściu znika (w Ciszy i Precyzji
+/// zjeżdża przy tym w dół).
 library;
 
 import 'package:flutter/material.dart';
 import '../styles.dart';
+import 'motion.dart';
 
 /// Jeden komunikat w kolejce.
 class ToastMessage {
@@ -23,14 +28,16 @@ class ToastMessage {
   final String? actionLabel;
   final VoidCallback? onAction;
 
-  final Duration duration;
+  /// Czas na ekranie; null: czas stylu ([ChattMotion.toastHold]), ustalany
+  /// przez kartę, bo kolejka nie zna motywu.
+  final Duration? duration;
 
   const ToastMessage({
     required this.id,
     required this.text,
     this.actionLabel,
     this.onAction,
-    this.duration = const Duration(seconds: 4),
+    this.duration,
   });
 }
 
@@ -50,7 +57,7 @@ class ToastController extends ValueNotifier<List<ToastMessage>> {
     String text, {
     String? actionLabel,
     VoidCallback? onAction,
-    Duration duration = const Duration(seconds: 4),
+    Duration? duration,
   }) {
     final message = ToastMessage(
       id: _nextId++,
@@ -79,12 +86,13 @@ class ToastController extends ValueNotifier<List<ToastMessage>> {
 final ToastController chattToasts = ToastController();
 
 /// Skrót do [ToastController.show]. Świadomie bez `BuildContext`: komunikat
-/// nie należy do żadnego ekranu i przeżywa jego zamknięcie.
+/// nie należy do żadnego ekranu i przeżywa jego zamknięcie. Bez [duration]
+/// karta stoi tyle, ile każe styl.
 void showToast(
   String text, {
   String? actionLabel,
   VoidCallback? onAction,
-  Duration duration = const Duration(seconds: 4),
+  Duration? duration,
 }) =>
     chattToasts.show(text,
         actionLabel: actionLabel, onAction: onAction, duration: duration);
@@ -137,28 +145,67 @@ class _ToastCard extends StatefulWidget {
 }
 
 class _ToastCardState extends State<_ToastCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _life = AnimationController(
-    vsync: this,
-    duration: widget.message.duration,
-  );
+    with TickerProviderStateMixin {
+  /// Wejście (w przód) i wyjście (w tył) karty, czasy ze stylu.
+  late final AnimationController _ruch = motionController(vsync: this);
+
+  /// Odliczanie czasu na ekranie, z niego pasek pod tekstem. Też
+  /// z zachowanym czasem: przy systemowym „usuń animacje” zwykły kontroler
+  /// skróciłby komunikat do ułamka sekundy.
+  late final AnimationController _life = motionController(vsync: this);
+
+  bool _ruszyla = false;
+  bool _znika = false;
 
   @override
-  void initState() {
-    super.initState();
-    _life.forward().whenComplete(() {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final m = ChattMotion.of(context);
+    _ruch
+      ..duration = m.toastIn
+      ..reverseDuration = m.toastOut;
+    if (_ruszyla) return;
+    _ruszyla = true;
+    // Czas na ekranie ustalony raz: zmiana stylu w trakcie nie zaczyna
+    // odliczania od nowa. Liczy się od pokazania karty, wejście biegnie
+    // w jego trakcie, a po nim rusza wyjście: „znika po 3,2 s” z projektu
+    // stylu to chwila startu wyjścia.
+    _life.duration = widget.message.duration ?? m.toastHold;
+    _ruch.forward();
+    _life.forward().whenComplete(_zniknij);
+  }
+
+  /// Każde zamknięcie (koniec czasu, kliknięcie, przycisk) idzie przez
+  /// wyjście stylu; z kolejki karta wypada dopiero po nim.
+  void _zniknij() {
+    if (!mounted || _znika) return;
+    _znika = true;
+    _life.stop();
+    _ruch.reverse().whenComplete(() {
       if (mounted) chattToasts.dismiss(widget.message.id);
     });
   }
 
   @override
   void dispose() {
+    _ruch.dispose();
     _life.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final m = ChattMotion.of(context);
+    return MotionTransition(
+      animation: _ruch,
+      shift: m.toastShift,
+      // Ciepło znika samym przenikaniem.
+      exitShift: m.toastExitShift ? m.toastShift : 0,
+      child: _karta(context, m),
+    );
+  }
+
+  Widget _karta(BuildContext context, ChattMotion m) {
     final scheme = Theme.of(context).colorScheme;
     final message = widget.message;
 
@@ -170,9 +217,11 @@ class _ToastCardState extends State<_ToastCard>
             BorderRadius.circular(ChattTokens.of(context).radiusField),
         elevation: 6,
         child: InkWell(
-          // Kliknięcie zamyka od razu: komunikat ma nie stać na drodze ani
-          // sekundy dłużej, niż użytkownik chce.
-          onTap: () => chattToasts.dismiss(message.id),
+          // Kliknięcie zamyka: komunikat ma nie stać na drodze ani sekundy
+          // dłużej, niż użytkownik chce.
+          onTap: _zniknij,
+          // Najechanie i fokus w czasie stylu.
+          hoverDuration: m.hover,
           borderRadius:
               BorderRadius.circular(ChattTokens.of(context).radiusField),
           child: ConstrainedBox(
@@ -202,7 +251,9 @@ class _ToastCardState extends State<_ToastCard>
                         const SizedBox(width: 8),
                         TextButton(
                           onPressed: () {
-                            chattToasts.dismiss(message.id);
+                            // Karta w wyjściu nie przyjmuje już akcji.
+                            if (_znika) return;
+                            _zniknij();
                             message.onAction?.call();
                           },
                           style: TextButton.styleFrom(

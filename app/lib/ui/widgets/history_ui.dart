@@ -6,6 +6,7 @@ import '../../services/app_services.dart';
 import '../l10n_context.dart';
 import '../styles.dart';
 import 'common.dart';
+import 'motion.dart';
 import 'toasts.dart';
 
 // Udostępnianie historii rozmowy (issue #36): okno wyboru, karty zgody
@@ -73,14 +74,15 @@ class HistorySummaryView {
 
 /// Okno „Udostępnij historię": zakres (całość albo od daty), pliki albo bez,
 /// i liczby, zanim cokolwiek pójdzie. Udostępnianie biegnie po zamknięciu
-/// okna, a jego postęp pokazuje [HistoryProgressBar].
+/// okna, a jego postęp pokazuje [HistoryProgressBar]. Okno wjeżdża jak karta
+/// zgody, na zasłonie stylu.
 Future<void> showShareHistoryDialog(
   BuildContext context, {
   required AppServices services,
   required Peer peer,
   required int conversationId,
 }) async {
-  final wybor = await showDialog<_Wybor>(
+  final wybor = await showChattDialog<_Wybor>(
     context: context,
     builder: (_) => _ShareHistoryDialog(
       services: services,
@@ -517,7 +519,7 @@ class HistoryProgressBar extends StatelessWidget {
   }
 }
 
-class _Pasek extends StatelessWidget {
+class _Pasek extends StatefulWidget {
   final HistoryTransfer transfer;
   final String title;
   final Widget? action;
@@ -525,15 +527,45 @@ class _Pasek extends StatelessWidget {
   const _Pasek({required this.transfer, required this.title, this.action});
 
   @override
+  State<_Pasek> createState() => _PasekState();
+}
+
+class _PasekState extends State<_Pasek> {
+  /// Które to przesłanie w tym miejscu. Postęp jednego przesłania stoi albo
+  /// rośnie, przy stałych liczbach, więc spadek albo inne liczby znaczą
+  /// następne przesłanie (nowe przywracanie w miejsce skończonego). Jego
+  /// pasek startuje od własnej pierwszej próbki.
+  int _przeslanie = 0;
+
+  static double _wartosc(HistoryTransfer t) {
+    final razem = t.messagesTotal + t.filesTotal;
+    final zrobione = t.messagesDone + t.filesDone;
+    return t.finished || razem == 0
+        ? 1.0
+        : (zrobione / razem).clamp(0.0, 1.0).toDouble();
+  }
+
+  @override
+  void didUpdateWidget(_Pasek old) {
+    super.didUpdateWidget(old);
+    final bylo = old.transfer;
+    final jest = widget.transfer;
+    if (jest.messagesTotal != bylo.messagesTotal ||
+        jest.filesTotal != bylo.filesTotal ||
+        _wartosc(jest) < _wartosc(bylo)) {
+      _przeslanie++;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final transfer = widget.transfer;
+    final title = widget.title;
+    final action = widget.action;
     final scheme = Theme.of(context).colorScheme;
     final l10n = context.l10n;
     final styl = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
-    final razem = transfer.messagesTotal + transfer.filesTotal;
-    final zrobione = transfer.messagesDone + transfer.filesDone;
-    final wartosc = transfer.finished || razem == 0
-        ? 1.0
-        : (zrobione / razem).clamp(0.0, 1.0).toDouble();
+    final wartosc = _wartosc(transfer);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
       child: Column(
@@ -568,9 +600,14 @@ class _Pasek extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
+          // Między próbkami pasek przechodzi w ruchu stylu.
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(value: wartosc, minHeight: 5),
+            child: SmoothProgress(
+              key: ValueKey(_przeslanie),
+              value: wartosc,
+              minHeight: 5,
+            ),
           ),
         ],
       ),

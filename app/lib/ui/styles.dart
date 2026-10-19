@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
@@ -807,29 +808,57 @@ class ChattTokens extends ThemeExtension<ChattTokens> {
 }
 
 /// Tło w połowie drogi między dwoma. Gradienty o tej samej liczbie kolorów
-/// przechodzą kolor po kolorze, jeden kolor przechodzi w gradient jako
-/// gradient z powielonego koloru.
+/// przechodzą kolor po kolorze. Przy różnej liczbie oba gradienty
+/// próbkujemy we wszystkich progach obu, więc każdy na starcie i na końcu
+/// wygląda dokładnie jak on sam; jeden kolor to gradient z tego koloru.
 Wall lerpWall(Wall a, Wall b, double t) {
   if (t <= 0) return a;
   if (t >= 1) return b;
-  final n = math.max(a.colors.length, b.colors.length);
-  List<Color>? rozciagnij(Wall w) => w.colors.length == n
-      ? w.colors
-      : w.colors.length == 1
-          ? List.filled(n, w.colors.single)
-          : null;
-  List<double>? progi(Wall w) =>
-      w.stops ?? (n <= 1 ? null : [for (var i = 0; i < n; i++) i / (n - 1)]);
-  final ka = rozciagnij(a);
-  final kb = rozciagnij(b);
-  if (ka == null || kb == null) return t < 0.5 ? a : b;
-  final pa = progi(a);
-  final pb = progi(b);
+  List<double> progi(Wall w) =>
+      w.stops ??
+      [
+        for (var i = 0; i < w.colors.length; i++)
+          w.colors.length == 1 ? 0.0 : i / (w.colors.length - 1),
+      ];
+  if (a.colors.length == b.colors.length) {
+    final pa = progi(a);
+    final pb = progi(b);
+    return (
+      colors: [
+        for (var i = 0; i < a.colors.length; i++)
+          Color.lerp(a.colors[i], b.colors[i], t)!,
+      ],
+      stops: a.stops == null && b.stops == null
+          ? null
+          : [for (var i = 0; i < pa.length; i++) pa[i] + (pb[i] - pa[i]) * t],
+    );
+  }
+  // Kolor gradientu w miejscu x (od 0 do 1), liniowo między progami.
+  Color probka(Wall w, double x) {
+    final k = w.colors;
+    if (k.length == 1) return k.single;
+    final p = progi(w);
+    if (x <= p.first) return k.first;
+    for (var i = 1; i < p.length; i++) {
+      if (x <= p[i]) {
+        final odcinek = p[i] - p[i - 1];
+        return Color.lerp(
+            k[i - 1], k[i], odcinek <= 0 ? 1 : (x - p[i - 1]) / odcinek)!;
+      }
+    }
+    return k.last;
+  }
+
+  final wspolne = <double>{
+    for (final w in [a, b])
+      if (w.colors.length > 1) ...progi(w),
+  }.toList()
+    ..sort();
   return (
-    colors: [for (var i = 0; i < n; i++) Color.lerp(ka[i], kb[i], t)!],
-    stops: (a.stops == null && b.stops == null) || pa == null || pb == null
-        ? null
-        : [for (var i = 0; i < n; i++) pa[i] + (pb[i] - pa[i]) * t],
+    colors: [
+      for (final x in wspolne) Color.lerp(probka(a, x), probka(b, x), t)!,
+    ],
+    stops: wspolne,
   );
 }
 
@@ -1404,11 +1433,24 @@ String _fontOf(AppStyle style) => switch (style) {
       AppStyle.cieplo => _nunito,
     };
 
+/// Gotowe motywy. Ten sam wariant to ten sam obiekt, więc przebudowa
+/// aplikacji po zapisie innego ustawienia nie zaczyna przejścia motywu
+/// między dwoma równymi motywami.
+final _motywy =
+    <(AppStyle, Brightness, bool, bool, TargetPlatform), ThemeData>{};
+
 /// Motyw Fluttera dla stylu i jasności. [gradient]: pod aplikacją leży tło
 /// z gradientem, więc ekrany i paski są przezroczyste. [reduceMotion]:
 /// „ogranicz animacje” w systemie.
 ThemeData chattTheme(AppStyle style, Brightness brightness,
-    {bool gradient = false, bool reduceMotion = false}) {
+        {bool gradient = false, bool reduceMotion = false}) =>
+    // Motyw zapisuje platformę z chwili budowy, więc ona też jest w kluczu.
+    _motywy.putIfAbsent(
+        (style, brightness, gradient, reduceMotion, defaultTargetPlatform),
+        () => _motyw(style, brightness, gradient, reduceMotion));
+
+ThemeData _motyw(AppStyle style, Brightness brightness, bool gradient,
+    bool reduceMotion) {
   final dark = brightness == Brightness.dark;
   final k = chattTokens(style, brightness, reduceMotion: reduceMotion);
   final c = _core(style, dark);

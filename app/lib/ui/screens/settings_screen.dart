@@ -22,6 +22,7 @@ import '../backgrounds.dart';
 import '../l10n_context.dart';
 import '../styles.dart';
 import '../widgets/common.dart';
+import '../widgets/motion.dart';
 import '../widgets/toasts.dart';
 import '../widgets/update_card.dart';
 
@@ -132,7 +133,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
   /// Wyczyszczenie historii jest nieodwracalne, więc pytamy wprost.
   Future<void> _clearHistory() async {
-    final zgoda = await showDialog<bool>(
+    final zgoda = await showChattDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.l10n.clearHistoryTitle),
@@ -1187,7 +1188,8 @@ class _UpdatesSectionState extends ConsumerState<_UpdatesSection> {
 }
 
 /// Podgląd jednego tła w bieżącym stylu: prostokąt z gradientem i podpis
-/// pod spodem. „Bez tła" pokazuje kolor tła stylu.
+/// pod spodem. „Bez tła" pokazuje kolor tła stylu. Zaznaczenie (obrys,
+/// znacznik i podpis) przechodzi w czasie przełączników stylu.
 class _BackgroundChip extends StatelessWidget {
   final ChattBackground background;
   final bool selected;
@@ -1201,39 +1203,64 @@ class _BackgroundChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final wypelnienie = wallDecoration(background.wallIn(context),
-        borderRadius: BorderRadius.circular(12));
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final ruch = ChattMotion.of(context);
+    final promien = BorderRadius.circular(12);
+    final podpis = theme.textTheme.bodyMedium ?? const TextStyle();
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: promien,
+      hoverDuration: ruch.hover,
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 88,
-            height: 60,
-            decoration: wypelnienie.copyWith(
-              border: Border.all(
-                color: selected ? scheme.primary : scheme.outlineVariant,
-                width: selected ? 3 : 1,
+      // Animuje się sam postęp zaznaczenia (0 do 1). Kolory i font są
+      // czytane z motywu w każdej klatce: przy zmianie stylu i jasności
+      // przechodzą razem z nim.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: selected ? 1.0 : 0.0),
+        duration: ruch.control,
+        curve: ruch.enter,
+        builder: (context, postep, _) {
+          final z = postep.clamp(0.0, 1.0);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DecoratedBox(
+                decoration: wallDecoration(background.wallIn(context),
+                    borderRadius: promien),
+                child: SizedBox(
+                  width: 88,
+                  height: 60,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: promien,
+                      border: Border.all(
+                        color: Color.lerp(
+                            scheme.outlineVariant, scheme.primary, z)!,
+                        width: 1 + 2 * z,
+                      ),
+                    ),
+                    child: Opacity(
+                      opacity: z,
+                      child: Icon(Icons.check, color: scheme.primary),
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: selected
-                ? Icon(Icons.check, color: scheme.primary)
-                : null,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            background.label(context.l10n),
-            style: TextStyle(
-              fontSize: 12,
-              color: selected ? scheme.primary : scheme.onSurfaceVariant,
-              fontWeight: selected ? FontWeight.w600 : null,
-            ),
-          ),
-        ],
+              const SizedBox(height: 4),
+              Text(
+                background.label(context.l10n),
+                style: podpis.copyWith(
+                  fontSize: 12,
+                  color:
+                      Color.lerp(scheme.onSurfaceVariant, scheme.primary, z),
+                  fontWeight:
+                      FontWeight.lerp(podpis.fontWeight, FontWeight.w600, z),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
