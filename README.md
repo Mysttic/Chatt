@@ -160,7 +160,7 @@ The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 594 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles, typing history, app log, export
+flutter test        # 703 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export
 flutter analyze
 ```
 
