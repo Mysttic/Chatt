@@ -10,6 +10,7 @@ import '../styles.dart';
 import '../widgets/common.dart';
 import '../widgets/export_dialog.dart';
 import '../widgets/toasts.dart';
+import '../widgets/motion.dart';
 
 // Dziennik aplikacji (issue #50): wpisy od najnowszego, filtr ostrzeżeń
 // i błędów, szczegóły po stuknięciu, kopiowanie, czyszczenie i eksport.
@@ -82,7 +83,7 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
   }
 
   Future<void> _wyczysc() async {
-    final zgoda = await showDialog<bool>(
+    final zgoda = await showChattDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.l10n.appLogClearTitle),

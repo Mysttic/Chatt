@@ -9,6 +9,7 @@ import '../../services/data_export.dart';
 import '../l10n_context.dart';
 import 'common.dart';
 import 'toasts.dart';
+import 'motion.dart';
 
 // Okno „Eksportuj dane" (issue #50): wybór części archiwum z liczbami,
 // ostrzeżenie o braku szyfrowania i sam eksport z komunikatem o wyniku.
@@ -35,7 +36,7 @@ Future<void> showExportDialog(
   ExportEstimator estimate = estimateExport,
   ExportRunner exportData = exportAndSave,
 }) =>
-    showDialog<void>(
+    showChattDialog<void>(
       context: context,
       builder: (_) => ExportDialog(
         services: services,
@@ -156,7 +157,7 @@ class _ExportDialogState extends State<ExportDialog> {
   Future<bool> _zapytajONadpisanie(String sciezka) async {
     if (!mounted) return false;
     final l10n = context.l10n;
-    final zgoda = await showDialog<bool>(
+    final zgoda = await showChattDialog<bool>(
       context: context,
       builder: (kontekst) => AlertDialog(
         title: Text(l10n.exportDataReplaceTitle),

@@ -636,18 +636,24 @@ English). Every choice lives in the database, so it survives a restart.
 There are three styles, and they differ in looks alone: the same screens, the
 same information, the same buttons.
 
-- **Calm** (the default): soft surfaces, round avatars, rounded bubbles, the
-  Figtree font.
-- **Precise**: a dense list in an outlined panel, square avatars, sharper
+- **Calm** (the default): soft surfaces, round avatars, rounded bubbles,
+  unhurried motion, the Figtree font.
+- **Precise**: a dense list with outlined cards, square avatars, sharper
   corners, dates with a line across the width, section headers in capitals,
-  the IBM Plex Sans font.
-- **Warm**: every conversation on its own card with a shadow, large rounded
-  corners, the Nunito font.
+  short and direct motion, the IBM Plex Sans font.
+- **Warm**: large rounded corners, cards with a soft shadow, consent cards
+  that land with a little bounce, the Nunito font.
 
 Each style has a light and a dark variant and its own fixed-width font for
 technical values: addresses, the identifier, the key fingerprint, the pairing
 code and file sizes. The unconfirmed identity warning is red in Calm and amber
-in Precise and Warm; no encryption is red in every style.
+in Precise and Warm; no encryption is red in every style. On the conversation
+list every conversation is its own card, and the last one scrolls out from
+under the **Nearby** button.
+
+Each style also moves in its own way: screens slide in, consent cards and new
+messages appear, progress bars glide between readings. When Android is set
+to **Remove animations**, the app only fades, in a tenth of a second.
 
 Short messages ("Copied", "Deleted the conversation") appear in the top right
 corner with a bar counting down to when they go away. A tap closes one straight

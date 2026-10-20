@@ -10,6 +10,7 @@ import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../styles.dart';
 import '../widgets/common.dart';
+import '../widgets/motion.dart';
 import 'chat_screen.dart';
 import '../widgets/toasts.dart';
 
@@ -128,7 +129,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     final conversationId = await services.openConversationWith(peer);
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(
+      ChattPageRoute(
         builder: (_) => ChatScreen(conversationId: conversationId, peer: peer),
       ),
     );
@@ -138,7 +139,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   /// i nic nie napisały, znikają same po tygodniu, ale rozmowy trzeba
   /// kasować świadomie, bo idą z nimi wiadomości.
   Future<void> _forget(Peer peer) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showChattDialog<bool>(
       context: context,
       builder: (dialog) => AlertDialog(
         title: Text(context.l10n.deleteDeviceTitle(peer.displayName)),
@@ -168,7 +169,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   Future<void> _addManually() async {
     if (_droga == PeerProtocol.bluetooth) return _addByBluetooth();
 
-    final result = await showDialog<(String, int)>(
+    final result = await showChattDialog<(String, int)>(
       context: context,
       builder: (context) => const _ManualAddDialog(),
     );
@@ -191,7 +192,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   /// Adres radia wpisany z ręki: droga na wypadek, gdy szukanie nie wchodzi
   /// w grę. Na Androidzie z wyłączoną lokalizacją to jedyna droga.
   Future<void> _addByBluetooth() async {
-    final address = await showDialog<String>(
+    final address = await showChattDialog<String>(
       context: context,
       builder: (context) => const _ManualAddBluetoothDialog(),
     );

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
@@ -33,8 +34,404 @@ typedef NoteColors = ({
   double borderWidth,
 });
 
+/// Ruch stylu (issue #54): czasy, krzywe i przesunięcia przejść z projektów
+/// stylów w Claude Design. Przesunięcia w dp. Krzywe wyjść opisują postęp
+/// znikania, tak jak w CSS; animacja w tył bierze je odwrócone
+/// ([exitReverse]).
+@immutable
+class ChattMotion {
+  /// Krzywa wejść i krzywa wyjść.
+  final Curve enter;
+  final Curve exit;
+
+  /// Nowy ekran: wspólna oś X, wjazd z prawej o [screenShift]
+  /// i przenikanie; powrót w [screenOut].
+  final Duration screenIn;
+  final Duration screenOut;
+  final double screenShift;
+
+  /// Zmiana rozmowy na szerokim oknie: przenikanie panelu.
+  final Duration paneSwitch;
+
+  /// Karta zgody i okno: wejście, wyjście i krzywa ruchu wejścia
+  /// (w Cieple sprężynka, która lekko przestrzeliwuje).
+  final Duration cardIn;
+  final Duration cardOut;
+  final Curve cardCurve;
+
+  /// Skala i przesunięcie karty na starcie, osobno na telefonie i w oknie.
+  /// Przesunięcie dodatnie: karta przychodzi z dołu, ujemne: z góry.
+  final double cardScalePhone;
+  final double cardShiftPhone;
+  final double cardScaleWindow;
+  final double cardShiftWindow;
+
+  /// Panel bezpieczeństwa: na telefonie arkusz od dołu, w oknie okno na
+  /// środku ze skalą [panelScale] na starcie.
+  final Duration panelIn;
+  final Duration panelOut;
+  final double panelScale;
+
+  /// Zasłona pod oknem i arkuszem: czas narastania i krzywa.
+  final Duration scrim;
+  final Curve scrimCurve;
+
+  /// Nowy dymek: wjazd w górę o [bubbleShift] i przenikanie.
+  final Duration bubble;
+  final double bubbleShift;
+  final Curve bubbleCurve;
+
+  /// Pasek postępu między próbkami. Zero: pasek idzie wprost za próbkami.
+  final Duration progress;
+  final Curve progressCurve;
+
+  /// Komunikat w rogu: wejście w górę o [toastShift], wyjście, czas na
+  /// ekranie. Bez [toastExitShift] komunikat znika samym przenikaniem.
+  final Duration toastIn;
+  final Duration toastOut;
+  final double toastShift;
+  final bool toastExitShift;
+  final Duration toastHold;
+
+  /// Przełączniki i wybór tła: kolor i pozycja.
+  final Duration control;
+
+  /// Zmiana stylu, motywu i tła: przenikanie.
+  final Duration themeChange;
+
+  /// Najechanie i fokus na Windows: kolor tła i pierścień.
+  final Duration hover;
+
+  const ChattMotion({
+    required this.enter,
+    required this.exit,
+    required this.screenIn,
+    required this.screenOut,
+    required this.screenShift,
+    required this.paneSwitch,
+    required this.cardIn,
+    required this.cardOut,
+    required this.cardCurve,
+    required this.cardScalePhone,
+    required this.cardShiftPhone,
+    required this.cardScaleWindow,
+    required this.cardShiftWindow,
+    required this.panelIn,
+    required this.panelOut,
+    required this.panelScale,
+    required this.scrim,
+    required this.scrimCurve,
+    required this.bubble,
+    required this.bubbleShift,
+    required this.bubbleCurve,
+    required this.progress,
+    required this.progressCurve,
+    required this.toastIn,
+    required this.toastOut,
+    required this.toastShift,
+    required this.toastExitShift,
+    required this.toastHold,
+    required this.control,
+    required this.themeChange,
+    required this.hover,
+  });
+
+  /// Czas każdego przejścia przy „ogranicz animacje” w systemie.
+  static const reducedDuration = Duration(milliseconds: 100);
+
+  /// Ruch przy „ogranicz animacje”: każde przejście to przenikanie 100 ms
+  /// bez przesunięć i skali, pasek postępu idzie wprost za próbkami.
+  /// Komunikat stoi na ekranie tyle samo co zwykle.
+  ChattMotion get reduced => ChattMotion(
+        enter: Curves.linear,
+        exit: Curves.linear,
+        screenIn: reducedDuration,
+        screenOut: reducedDuration,
+        screenShift: 0,
+        paneSwitch: reducedDuration,
+        cardIn: reducedDuration,
+        cardOut: reducedDuration,
+        cardCurve: Curves.linear,
+        cardScalePhone: 1,
+        cardShiftPhone: 0,
+        cardScaleWindow: 1,
+        cardShiftWindow: 0,
+        panelIn: reducedDuration,
+        panelOut: reducedDuration,
+        panelScale: 1,
+        scrim: reducedDuration,
+        scrimCurve: Curves.linear,
+        bubble: reducedDuration,
+        bubbleShift: 0,
+        bubbleCurve: Curves.linear,
+        progress: Duration.zero,
+        progressCurve: Curves.linear,
+        toastIn: reducedDuration,
+        toastOut: reducedDuration,
+        toastShift: 0,
+        toastExitShift: false,
+        toastHold: toastHold,
+        control: reducedDuration,
+        themeChange: reducedDuration,
+        hover: reducedDuration,
+      );
+
+  /// Czy to ruch przy „ogranicz animacje”.
+  bool get isReduced => screenIn == reducedDuration && screenShift == 0;
+
+  /// Krzywa wyjścia dla animacji w tył (od 1 do 0).
+  Curve get exitReverse => exit.flipped;
+
+  /// Krzywa zasłony jako część przejścia o czasie [total]: zasłona dochodzi
+  /// do pełnej w [scrim], nawet gdy okno wjeżdża dłużej.
+  Curve scrimWithin(Duration total) {
+    if (total <= Duration.zero || scrim >= total) return scrimCurve;
+    return Interval(0, scrim.inMicroseconds / total.inMicroseconds,
+        curve: scrimCurve);
+  }
+
+  /// Ruch bieżącego stylu z uwzględnieniem „ogranicz animacje” w systemie.
+  static ChattMotion of(BuildContext context) {
+    final m = ChattTokens.of(context).motion;
+    return (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+        ? m.reduced
+        : m;
+  }
+}
+
+/// Wejście Ciszy, wejście i wyjście Precyzji.
+const _krzywaCiszy = Cubic(0.2, 0, 0, 1);
+const _wyjsciePrecyzji = Cubic(0.3, 0, 1, 1);
+const _krzywaCiepla = Cubic(0.2, 0.8, 0.2, 1);
+
+/// Sprężynka Ciepła przy kartach zgody: lekko przestrzeliwuje.
+const _sprezynkaCiepla = Cubic(0.2, 0.9, 0.3, 1.15);
+
+const _ruchCiszy = ChattMotion(
+  enter: _krzywaCiszy,
+  exit: _krzywaCiszy,
+  screenIn: Duration(milliseconds: 300),
+  screenOut: Duration(milliseconds: 250),
+  screenShift: 30,
+  paneSwitch: Duration(milliseconds: 200),
+  cardIn: Duration(milliseconds: 280),
+  cardOut: Duration(milliseconds: 180),
+  cardCurve: _krzywaCiszy,
+  cardScalePhone: 1,
+  cardShiftPhone: 24,
+  cardScaleWindow: 0.96,
+  cardShiftWindow: 0,
+  panelIn: Duration(milliseconds: 280),
+  panelOut: Duration(milliseconds: 180),
+  panelScale: 0.96,
+  scrim: Duration(milliseconds: 200),
+  scrimCurve: _krzywaCiszy,
+  bubble: Duration(milliseconds: 220),
+  bubbleShift: 8,
+  bubbleCurve: _krzywaCiszy,
+  progress: Duration(milliseconds: 400),
+  progressCurve: _krzywaCiszy,
+  toastIn: Duration(milliseconds: 240),
+  toastOut: Duration(milliseconds: 160),
+  toastShift: 16,
+  toastExitShift: true,
+  toastHold: Duration(milliseconds: 3200),
+  control: Duration(milliseconds: 200),
+  themeChange: Duration(milliseconds: 300),
+  hover: Duration(milliseconds: 120),
+);
+
+const _ruchPrecyzji = ChattMotion(
+  enter: _krzywaCiszy,
+  exit: _wyjsciePrecyzji,
+  screenIn: Duration(milliseconds: 220),
+  screenOut: Duration(milliseconds: 220),
+  screenShift: 24,
+  paneSwitch: Duration(milliseconds: 120),
+  cardIn: Duration(milliseconds: 180),
+  cardOut: Duration(milliseconds: 180),
+  cardCurve: _krzywaCiszy,
+  cardScalePhone: 0.98,
+  cardShiftPhone: 0,
+  cardScaleWindow: 0.98,
+  cardShiftWindow: 0,
+  panelIn: Duration(milliseconds: 180),
+  panelOut: Duration(milliseconds: 180),
+  panelScale: 0.98,
+  scrim: Duration(milliseconds: 140),
+  scrimCurve: Curves.linear,
+  bubble: Duration(milliseconds: 140),
+  bubbleShift: 6,
+  bubbleCurve: _krzywaCiszy,
+  progress: Duration.zero,
+  progressCurve: Curves.linear,
+  toastIn: Duration(milliseconds: 180),
+  toastOut: Duration(milliseconds: 140),
+  toastShift: 8,
+  toastExitShift: true,
+  toastHold: Duration(milliseconds: 4200),
+  control: Duration(milliseconds: 120),
+  themeChange: Duration(milliseconds: 120),
+  hover: Duration(milliseconds: 120),
+);
+
+const _ruchCiepla = ChattMotion(
+  enter: _krzywaCiepla,
+  exit: _krzywaCiepla,
+  screenIn: Duration(milliseconds: 280),
+  screenOut: Duration(milliseconds: 280),
+  screenShift: 18,
+  paneSwitch: Duration(milliseconds: 200),
+  cardIn: Duration(milliseconds: 260),
+  cardOut: Duration(milliseconds: 180),
+  cardCurve: _sprezynkaCiepla,
+  cardScalePhone: 0.97,
+  cardShiftPhone: -10,
+  cardScaleWindow: 0.97,
+  cardShiftWindow: -10,
+  panelIn: Duration(milliseconds: 300),
+  panelOut: Duration(milliseconds: 180),
+  panelScale: 0.97,
+  scrim: Duration(milliseconds: 180),
+  scrimCurve: _krzywaCiepla,
+  bubble: Duration(milliseconds: 200),
+  bubbleShift: 8,
+  bubbleCurve: Curves.easeOut,
+  progress: Duration(milliseconds: 250),
+  progressCurve: Curves.linear,
+  toastIn: Duration(milliseconds: 220),
+  toastOut: Duration(milliseconds: 160),
+  toastShift: 8,
+  toastExitShift: false,
+  toastHold: Duration(milliseconds: 3200),
+  control: Duration(milliseconds: 200),
+  themeChange: Duration(milliseconds: 200),
+  hover: Duration(milliseconds: 120),
+);
+
+/// Ruch stylu bez „ogranicz animacje”.
+ChattMotion chattMotion(AppStyle style) => switch (style) {
+      AppStyle.cisza => _ruchCiszy,
+      AppStyle.precyzja => _ruchPrecyzji,
+      AppStyle.cieplo => _ruchCiepla,
+    };
+
+/// Przejście między ekranami w stylu: wspólna oś X. Nowy ekran wjeżdża
+/// z prawej o [ChattMotion.screenShift] i pojawia się, poprzedni odjeżdża
+/// w lewo i znika; powrót odwrotnie.
+class ChattPageTransitionsBuilder extends PageTransitionsBuilder {
+  final ChattMotion motion;
+
+  const ChattPageTransitionsBuilder(this.motion);
+
+  @override
+  Duration get transitionDuration => motion.screenIn;
+
+  @override
+  Duration get reverseTransitionDuration => motion.screenOut;
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) =>
+      _WspolnaOs(
+        motion: motion,
+        animation: animation,
+        secondaryAnimation: secondaryAnimation,
+        child: child,
+      );
+}
+
+class _WspolnaOs extends StatefulWidget {
+  final ChattMotion motion;
+  final Animation<double> animation;
+  final Animation<double> secondaryAnimation;
+  final Widget child;
+
+  const _WspolnaOs({
+    required this.motion,
+    required this.animation,
+    required this.secondaryAnimation,
+    required this.child,
+  });
+
+  @override
+  State<_WspolnaOs> createState() => _WspolnaOsState();
+}
+
+class _WspolnaOsState extends State<_WspolnaOs> {
+  late CurvedAnimation _wjazd;
+  late CurvedAnimation _odjazd;
+
+  // Przenikanie przez tło: stary ekran znika w pierwszych 30% przejścia,
+  // nowy pojawia się w pozostałych, więc w żadnej chwili oba nie leżą na
+  // sobie w połowie przezroczystości.
+  static const _pojawianie = Interval(0.3, 1);
+  static const _znikanie = Interval(0, 0.3);
+
+  @override
+  void initState() {
+    super.initState();
+    _krzywe();
+  }
+
+  @override
+  void didUpdateWidget(_WspolnaOs old) {
+    super.didUpdateWidget(old);
+    if (old.animation != widget.animation ||
+        old.secondaryAnimation != widget.secondaryAnimation ||
+        old.motion != widget.motion) {
+      _wjazd.dispose();
+      _odjazd.dispose();
+      _krzywe();
+    }
+  }
+
+  void _krzywe() {
+    final m = widget.motion;
+    _wjazd = CurvedAnimation(
+        parent: widget.animation, curve: m.enter, reverseCurve: m.exitReverse);
+    _odjazd = CurvedAnimation(
+        parent: widget.secondaryAnimation,
+        curve: m.enter,
+        reverseCurve: m.exitReverse);
+  }
+
+  @override
+  void dispose() {
+    _wjazd.dispose();
+    _odjazd.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final przesuniecie = widget.motion.screenShift;
+    final kierunek =
+        Directionality.of(context) == TextDirection.rtl ? -1.0 : 1.0;
+    return AnimatedBuilder(
+      animation: Listenable.merge([widget.animation, widget.secondaryAnimation]),
+      child: widget.child,
+      builder: (context, child) {
+        final dx = kierunek *
+            (przesuniecie * (1 - _wjazd.value) - przesuniecie * _odjazd.value);
+        final widac = _pojawianie.transform(widget.animation.value) *
+            (1 - _znikanie.transform(widget.secondaryAnimation.value));
+        return Opacity(
+          opacity: widac.clamp(0.0, 1.0),
+          child: Transform.translate(offset: Offset(dx, 0), child: child),
+        );
+      },
+    );
+  }
+}
+
 /// Tokeny stylu spoza [ColorScheme]: sygnały bezpieczeństwa, dymki, awatary,
-/// promienie, gęstość i teksty o stałej szerokości.
+/// promienie, gęstość, teksty o stałej szerokości i ruch.
 @immutable
 class ChattTokens extends ThemeExtension<ChattTokens> {
   final AppStyle style;
@@ -126,10 +523,6 @@ class ChattTokens extends ThemeExtension<ChattTokens> {
   final double rowHeight;
   final EdgeInsets rowPadding;
   final double rowGap;
-  final double listGap;
-
-  /// Wiersze jako osobne karty z cieniem (Ciepło).
-  final bool rowCards;
   final Color unreadTime;
 
   /// Znacznik drogi na liście.
@@ -154,6 +547,9 @@ class ChattTokens extends ThemeExtension<ChattTokens> {
   final TextStyle caption;
 
   final List<Wall> walls;
+
+  /// Ruch stylu. Przy „ogranicz animacje” czytaj przez [ChattMotion.of].
+  final ChattMotion motion;
 
   const ChattTokens({
     required this.style,
@@ -220,8 +616,6 @@ class ChattTokens extends ThemeExtension<ChattTokens> {
     required this.rowHeight,
     required this.rowPadding,
     required this.rowGap,
-    required this.listGap,
-    required this.rowCards,
     required this.unreadTime,
     required this.routeBackground,
     required this.routeBorder,
@@ -238,6 +632,7 @@ class ChattTokens extends ThemeExtension<ChattTokens> {
     required this.separator,
     required this.caption,
     required this.walls,
+    required this.motion,
   });
 
   /// Tokeny bieżącego motywu. Poza aplikacją (testy widżetów z gołym
@@ -295,10 +690,176 @@ class ChattTokens extends ThemeExtension<ChattTokens> {
   @override
   ChattTokens copyWith() => this;
 
-  /// Style przełącza się w całości, bez animacji między nimi.
+  /// Przenikanie przy zmianie motywu, stylu i tła: kolory, cienie, wymiary
+  /// i teksty przechodzą płynnie, przełączniki stylu w połowie drogi.
   @override
-  ChattTokens lerp(ThemeExtension<ChattTokens>? other, double t) =>
-      other is ChattTokens && t >= 0.5 ? other : this;
+  ChattTokens lerp(ThemeExtension<ChattTokens>? other, double t) {
+    if (other is! ChattTokens) return this;
+    if (identical(other, this) || t <= 0) return this;
+    if (t >= 1) return other;
+    final b = other;
+    final pierwszy = t < 0.5;
+    T skok<T>(T a, T z) => pierwszy ? a : z;
+    Color k(Color a, Color z) => Color.lerp(a, z, t)!;
+    Color? kn(Color? a, Color? z) => Color.lerp(a, z, t);
+    double d(double a, double z) => a + (z - a) * t;
+    List<BoxShadow> c(List<BoxShadow> a, List<BoxShadow> z) =>
+        BoxShadow.lerpList(a, z, t) ?? const [];
+    TextStyle s(TextStyle a, TextStyle z) => TextStyle.lerp(a, z, t)!;
+    return ChattTokens(
+      style: skok(style, b.style),
+      background: k(background, b.background),
+      surface1: k(surface1, b.surface1),
+      surface2: k(surface2, b.surface2),
+      surface3: k(surface3, b.surface3),
+      outline: k(outline, b.outline),
+      outlineStrong: k(outlineStrong, b.outlineStrong),
+      textMuted: k(textMuted, b.textMuted),
+      accentText: k(accentText, b.accentText),
+      bubbleMine: k(bubbleMine, b.bubbleMine),
+      onBubbleMine: k(onBubbleMine, b.onBubbleMine),
+      bubbleMineMeta: k(bubbleMineMeta, b.bubbleMineMeta),
+      bubbleTheirs: k(bubbleTheirs, b.bubbleTheirs),
+      onBubbleTheirs: k(onBubbleTheirs, b.onBubbleTheirs),
+      bubbleTheirsMeta: k(bubbleTheirsMeta, b.bubbleTheirsMeta),
+      bubbleTheirsBorder: kn(bubbleTheirsBorder, b.bubbleTheirsBorder),
+      bubbleRadius: d(bubbleRadius, b.bubbleRadius),
+      bubbleTail: d(bubbleTail, b.bubbleTail),
+      bubblePadding: EdgeInsets.lerp(bubblePadding, b.bubblePadding, t)!,
+      bubbleMaxFraction: d(bubbleMaxFraction, b.bubbleMaxFraction),
+      gapBetweenSenders: d(gapBetweenSenders, b.gapBetweenSenders),
+      bubbleShadow: c(bubbleShadow, b.bubbleShadow),
+      shadow1: c(shadow1, b.shadow1),
+      shadow2: c(shadow2, b.shadow2),
+      shadow3: c(shadow3, b.shadow3),
+      presence: k(presence, b.presence),
+      presenceOff: kn(presenceOff, b.presenceOff),
+      presenceDot: d(presenceDot, b.presenceDot),
+      presenceDotBorder: d(presenceDotBorder, b.presenceDotBorder),
+      verified: k(verified, b.verified),
+      verifiedContainer: k(verifiedContainer, b.verifiedContainer),
+      onVerifiedContainer: k(onVerifiedContainer, b.onVerifiedContainer),
+      verifiedBorder: kn(verifiedBorder, b.verifiedBorder),
+      warning: k(warning, b.warning),
+      warningContainer: k(warningContainer, b.warningContainer),
+      onWarningContainer: k(onWarningContainer, b.onWarningContainer),
+      warningBorder: kn(warningBorder, b.warningBorder),
+      danger: k(danger, b.danger),
+      dangerContainer: k(dangerContainer, b.dangerContainer),
+      onDangerContainer: k(onDangerContainer, b.onDangerContainer),
+      dangerBorder: k(dangerBorder, b.dangerBorder),
+      dangerBorderWidth: d(dangerBorderWidth, b.dangerBorderWidth),
+      securityAsDanger: skok(securityAsDanger, b.securityAsDanger),
+      toast: k(toast, b.toast),
+      onToast: k(onToast, b.onToast),
+      searchHit: k(searchHit, b.searchHit),
+      onSearchHit: k(onSearchHit, b.onSearchHit),
+      searchHitCurrent: k(searchHitCurrent, b.searchHitCurrent),
+      radiusCard: d(radiusCard, b.radiusCard),
+      radiusSheet: d(radiusSheet, b.radiusSheet),
+      radiusField: d(radiusField, b.radiusField),
+      radiusButton: d(radiusButton, b.radiusButton),
+      radiusBadge: d(radiusBadge, b.radiusBadge),
+      radiusWarning: d(radiusWarning, b.radiusWarning),
+      radiusRow: d(radiusRow, b.radiusRow),
+      avatarCircle: skok(avatarCircle, b.avatarCircle),
+      avatarCorner: d(avatarCorner, b.avatarCorner),
+      avatarSize: d(avatarSize, b.avatarSize),
+      avatarHeaderSize: d(avatarHeaderSize, b.avatarHeaderSize),
+      avatarWeight: FontWeight.lerp(avatarWeight, b.avatarWeight, t)!,
+      avatars: avatars.length == b.avatars.length
+          ? [
+              for (var i = 0; i < avatars.length; i++)
+                (
+                  background:
+                      k(avatars[i].background, b.avatars[i].background),
+                  foreground:
+                      k(avatars[i].foreground, b.avatars[i].foreground),
+                ),
+            ]
+          : skok(avatars, b.avatars),
+      rowHeight: d(rowHeight, b.rowHeight),
+      rowPadding: EdgeInsets.lerp(rowPadding, b.rowPadding, t)!,
+      rowGap: d(rowGap, b.rowGap),
+      unreadTime: k(unreadTime, b.unreadTime),
+      routeBackground: kn(routeBackground, b.routeBackground),
+      routeBorder: kn(routeBorder, b.routeBorder),
+      routeRadius: d(routeRadius, b.routeRadius),
+      routeBox: d(routeBox, b.routeBox),
+      routeIcon: d(routeIcon, b.routeIcon),
+      separatorLine: skok(separatorLine, b.separatorLine),
+      separatorBackground: k(separatorBackground, b.separatorBackground),
+      separatorShadow: c(separatorShadow, b.separatorShadow),
+      mono: s(mono, b.mono),
+      code: s(code, b.code),
+      overline: s(overline, b.overline),
+      overlineUppercase: skok(overlineUppercase, b.overlineUppercase),
+      separator: s(separator, b.separator),
+      caption: s(caption, b.caption),
+      walls: walls.length == b.walls.length
+          ? [
+              for (var i = 0; i < walls.length; i++)
+                lerpWall(walls[i], b.walls[i], t),
+            ]
+          : skok(walls, b.walls),
+      motion: skok(motion, b.motion),
+    );
+  }
+}
+
+/// Tło w połowie drogi między dwoma. Gradienty o tej samej liczbie kolorów
+/// przechodzą kolor po kolorze. Przy różnej liczbie oba gradienty
+/// próbkujemy we wszystkich progach obu, więc każdy na starcie i na końcu
+/// wygląda dokładnie jak on sam; jeden kolor to gradient z tego koloru.
+Wall lerpWall(Wall a, Wall b, double t) {
+  if (t <= 0) return a;
+  if (t >= 1) return b;
+  List<double> progi(Wall w) =>
+      w.stops ??
+      [
+        for (var i = 0; i < w.colors.length; i++)
+          w.colors.length == 1 ? 0.0 : i / (w.colors.length - 1),
+      ];
+  if (a.colors.length == b.colors.length) {
+    final pa = progi(a);
+    final pb = progi(b);
+    return (
+      colors: [
+        for (var i = 0; i < a.colors.length; i++)
+          Color.lerp(a.colors[i], b.colors[i], t)!,
+      ],
+      stops: a.stops == null && b.stops == null
+          ? null
+          : [for (var i = 0; i < pa.length; i++) pa[i] + (pb[i] - pa[i]) * t],
+    );
+  }
+  // Kolor gradientu w miejscu x (od 0 do 1), liniowo między progami.
+  Color probka(Wall w, double x) {
+    final k = w.colors;
+    if (k.length == 1) return k.single;
+    final p = progi(w);
+    if (x <= p.first) return k.first;
+    for (var i = 1; i < p.length; i++) {
+      if (x <= p[i]) {
+        final odcinek = p[i] - p[i - 1];
+        return Color.lerp(
+            k[i - 1], k[i], odcinek <= 0 ? 1 : (x - p[i - 1]) / odcinek)!;
+      }
+    }
+    return k.last;
+  }
+
+  final wspolne = <double>{
+    for (final w in [a, b])
+      if (w.colors.length > 1) ...progi(w),
+  }.toList()
+    ..sort();
+  return (
+    colors: [
+      for (final x in wspolne) Color.lerp(probka(a, x), probka(b, x), t)!,
+    ],
+    stops: wspolne,
+  );
 }
 
 Color _c(int argb) => Color(argb);
@@ -362,9 +923,13 @@ TextStyle _tr(String family, double size, FontWeight weight, double ratio,
 
 const _tabular = [FontFeature.tabularFigures()];
 
-/// Tokeny jednego z sześciu wariantów.
-ChattTokens chattTokens(AppStyle style, Brightness brightness) {
+/// Tokeny jednego z sześciu wariantów. [reduceMotion]: „ogranicz animacje”
+/// w systemie, każde przejście staje się przenikaniem 100 ms.
+ChattTokens chattTokens(AppStyle style, Brightness brightness,
+    {bool reduceMotion = false}) {
   final dark = brightness == Brightness.dark;
+  final ruch =
+      reduceMotion ? chattMotion(style).reduced : chattMotion(style);
   switch (style) {
     case AppStyle.cisza:
       return ChattTokens(
@@ -457,8 +1022,6 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
         rowHeight: 76,
         rowPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         rowGap: 14,
-        listGap: 2,
-        rowCards: false,
         unreadTime: _c(dark ? 0xFF7CCDD5 : 0xFF0F6A73),
         routeBackground: _c(dark ? 0xFF2D3434 : 0xFFEDF1F0),
         routeBorder: null,
@@ -495,6 +1058,7 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
                 _wall([0xFFDFECE1, 0xFFEEF2E5]),
                 _wall([0xFFF3EBDD, 0xFFF8F2E9]),
               ],
+        motion: ruch,
       );
     case AppStyle.precyzja:
       return ChattTokens(
@@ -569,8 +1133,6 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
         rowHeight: 68,
         rowPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         rowGap: 12,
-        listGap: 0,
-        rowCards: false,
         unreadTime: _c(dark ? 0xFFA9A7FF : 0xFF3532C8),
         routeBackground: null,
         routeBorder: _c(dark ? 0xFF3B4250 : 0xFFB9BFCB),
@@ -606,6 +1168,7 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
                 _wall([0xFFE4EFE6, 0xFFF0F3EE, 0xFFEDF1E0], [0, 0.55, 1]),
                 _wall([0xFFF4ECDD, 0xFFF6F2EA, 0xFFF6E7D9], [0, 0.55, 1]),
               ],
+        motion: ruch,
       );
     case AppStyle.cieplo:
       return ChattTokens(
@@ -698,8 +1261,6 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
         rowHeight: 80,
         rowPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         rowGap: 14,
-        listGap: 8,
-        rowCards: true,
         unreadTime: _c(dark ? 0xFFB8B0A8 : 0xFF6B5949),
         routeBackground: null,
         routeBorder: null,
@@ -733,6 +1294,7 @@ ChattTokens chattTokens(AppStyle style, Brightness brightness) {
                 _wall([0xFFEBEDDA, 0xFFD9E2C8]),
                 _wall([0xFFF6EDDC, 0xFFEBDAC0]),
               ],
+        motion: ruch,
       );
   }
 }
@@ -871,12 +1433,26 @@ String _fontOf(AppStyle style) => switch (style) {
       AppStyle.cieplo => _nunito,
     };
 
+/// Gotowe motywy. Ten sam wariant to ten sam obiekt, więc przebudowa
+/// aplikacji po zapisie innego ustawienia nie zaczyna przejścia motywu
+/// między dwoma równymi motywami.
+final _motywy =
+    <(AppStyle, Brightness, bool, bool, TargetPlatform), ThemeData>{};
+
 /// Motyw Fluttera dla stylu i jasności. [gradient]: pod aplikacją leży tło
-/// z gradientem, więc ekrany i paski są przezroczyste.
+/// z gradientem, więc ekrany i paski są przezroczyste. [reduceMotion]:
+/// „ogranicz animacje” w systemie.
 ThemeData chattTheme(AppStyle style, Brightness brightness,
-    {bool gradient = false}) {
+        {bool gradient = false, bool reduceMotion = false}) =>
+    // Motyw zapisuje platformę z chwili budowy, więc ona też jest w kluczu.
+    _motywy.putIfAbsent(
+        (style, brightness, gradient, reduceMotion, defaultTargetPlatform),
+        () => _motyw(style, brightness, gradient, reduceMotion));
+
+ThemeData _motyw(AppStyle style, Brightness brightness, bool gradient,
+    bool reduceMotion) {
   final dark = brightness == Brightness.dark;
-  final k = chattTokens(style, brightness);
+  final k = chattTokens(style, brightness, reduceMotion: reduceMotion);
   final c = _core(style, dark);
   final scheme = ColorScheme(
     brightness: brightness,
@@ -927,6 +1503,9 @@ ThemeData chattTheme(AppStyle style, Brightness brightness,
   final przyciskPadding = EdgeInsets.symmetric(
       horizontal: style == AppStyle.precyzja ? 18 : 22);
   final wyglad = (minimumSize: const Size(64, 48), shape: shape(k.radiusButton));
+  // Najechanie i fokus zmieniają tylko kolor tła i pierścień, w czasie stylu.
+  final najechanie = k.motion.hover;
+  final przejscie = ChattPageTransitionsBuilder(k.motion);
 
   return ThemeData(
     useMaterial3: true,
@@ -940,6 +1519,10 @@ ThemeData chattTheme(AppStyle style, Brightness brightness,
     dividerColor: k.outline,
     visualDensity: VisualDensity.adaptivePlatformDensity,
     extensions: [k],
+    // Ekrany wjeżdżają po wspólnej osi X na każdej platformie.
+    pageTransitionsTheme: PageTransitionsTheme(builders: {
+      for (final platforma in TargetPlatform.values) platforma: przejscie,
+    }),
     appBarTheme: AppBarTheme(
       backgroundColor: gradient ? Colors.transparent : k.background,
       foregroundColor: c.text,
@@ -962,12 +1545,14 @@ ThemeData chattTheme(AppStyle style, Brightness brightness,
     dialogTheme: DialogThemeData(
       backgroundColor: k.surface1,
       surfaceTintColor: Colors.transparent,
+      barrierColor: c.scrim,
       shape: shape(k.radiusSheet, side: style == AppStyle.precyzja ? k.outlineStrong : null),
       titleTextStyle: text.titleLarge,
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: k.surface1,
       surfaceTintColor: Colors.transparent,
+      modalBarrierColor: c.scrim,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(k.radiusSheet)),
       ),
@@ -984,6 +1569,7 @@ ThemeData chattTheme(AppStyle style, Brightness brightness,
         shape: wyglad.shape,
         padding: przyciskPadding,
         textStyle: text.labelLarge,
+        animationDuration: najechanie,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -992,6 +1578,7 @@ ThemeData chattTheme(AppStyle style, Brightness brightness,
         shape: wyglad.shape,
         padding: przyciskPadding,
         textStyle: text.labelLarge,
+        animationDuration: najechanie,
         side: BorderSide(color: k.outlineStrong),
       ),
     ),
@@ -1000,11 +1587,13 @@ ThemeData chattTheme(AppStyle style, Brightness brightness,
         minimumSize: wyglad.minimumSize,
         shape: wyglad.shape,
         textStyle: text.labelLarge,
+        animationDuration: najechanie,
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         minimumSize: const Size(48, 48),
+        animationDuration: najechanie,
         shape: style == AppStyle.precyzja ? shape(6) : const CircleBorder(),
       ),
     ),
@@ -1036,6 +1625,7 @@ ThemeData chattTheme(AppStyle style, Brightness brightness,
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(
         minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+        animationDuration: najechanie,
         shape: WidgetStatePropertyAll(shape(style == AppStyle.cieplo
             ? 24
             : style == AppStyle.precyzja

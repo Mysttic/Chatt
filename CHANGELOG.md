@@ -72,6 +72,41 @@ into `master`.
   a Typing history section, both guides a Data and diagnostics section, and
   the READMEs and the documentation index list the new features. The bug
   report form suggests attaching an export with the app log alone.
+- **Every conversation is its own card, in every style** (issue #54). Calm
+  and Precise laid the list in one panel on the screen background, which gave
+  a double background and a panel running on under the system navigation bar.
+  Each conversation is now a separate card with the style's surface, corners
+  and shadow (an outline in Precise), 8 dp apart, and the last one scrolls out
+  from under the Nearby button.
+- **Each style moves in its own way** (issue #54). Screens slide in along a
+  shared axis, consent cards and dialogs come in with the style's scale and
+  offset (Warm with a small bounce), a new message rises into place, progress
+  bars glide between readings, short messages in the corner slide in and fade
+  out, and the scrim behind dialogs and sheets fades in the style's time.
+  Changing the style, the theme or the background is a crossfade. With
+  Android's **Remove animations** every transition is a 100 ms fade.
+- On Windows the security panel opens as a window in the middle, at most
+  460 px wide; on a phone it stays a sheet from the bottom.
+- Short messages in the corner stay 3.2 s in Calm and Warm, 4.2 s in Precise.
+- The banner (`docs/promo.png`) in Calm's colours and font. The app icon stays
+  the same.
+- The Windows screenshots in the documentation show the new list, the
+  security panel as a window and the density of the app on a PC.
+- The Android screenshots in the documentation and in the Polish guide show
+  Calm, light and dark, in Polish and in English.
+
+### Fixed
+- **Short messages vanished at once with Remove animations on.** Android's
+  setting makes Flutter shorten animations to a twentieth, and the message's
+  countdown was one of them, so "Copied" stood for a fifth of a second. The
+  countdown and every transition the app runs itself now keep their time.
+- **A screen reader read the whole conversation as one text field.** The
+  message field now has a node of its own, the size of the field.
+- On a phone the theme picker in Settings wrapped "Systemowy" in the middle of
+  the word; on a narrow screen it shows the names alone, as the style picker
+  does.
+- The save button on a file bubble and the search field at the top of a
+  conversation and of the list are 48 dp tall on a phone.
 
 ## [0.11.0] - 2026-10-19
 

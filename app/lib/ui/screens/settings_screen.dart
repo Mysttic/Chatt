@@ -23,6 +23,7 @@ import '../l10n_context.dart';
 import '../styles.dart';
 import '../widgets/common.dart';
 import '../widgets/export_dialog.dart';
+import '../widgets/motion.dart';
 import '../widgets/toasts.dart';
 import '../widgets/update_card.dart';
 import 'app_log_screen.dart';
@@ -141,7 +142,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   /// Wyczyszczenie historii jest nieodwracalne, więc pytamy wprost. Razem
   /// z rozmowami znika historia pisania (patrz [AppServices.clearHistory]).
   Future<void> _clearHistory() async {
-    final zgoda = await showDialog<bool>(
+    final zgoda = await showChattDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.l10n.clearHistoryTitle),
@@ -252,30 +253,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           Text(context.l10n.themeLabel,
               style: Theme.of(context).textTheme.labelLarge),
           const SizedBox(height: 8),
-          SegmentedButton<AppTheme>(
-            segments: [
-              ButtonSegment(
-                value: AppTheme.system,
-                icon: const Icon(Icons.brightness_auto_outlined),
-                label: Text(context.l10n.themeSystem),
-              ),
-              ButtonSegment(
-                value: AppTheme.light,
-                icon: const Icon(Icons.light_mode_outlined),
-                label: Text(context.l10n.themeLight),
-              ),
-              ButtonSegment(
-                value: AppTheme.dark,
-                icon: const Icon(Icons.dark_mode_outlined),
-                label: Text(context.l10n.themeDark),
-              ),
-            ],
-            selected: {
-              ref.watch(settingsProvider).value?.theme ?? AppTheme.system,
-            },
-            onSelectionChanged: (wybor) =>
-                services.db.saveTheme(wybor.first),
-          ),
+          // Na wąskim ekranie same napisy, jak przy stylu: z ikoną
+          // „Systemowy” łamał się w środku słowa. Szerokie okno mieści ikony.
+          LayoutBuilder(builder: (context, miejsce) {
+            final waskie = miejsce.maxWidth < 480;
+            Widget? ikona(IconData dane) => waskie ? null : Icon(dane);
+            return SegmentedButton<AppTheme>(
+              showSelectedIcon: !waskie,
+              style: waskie
+                  ? const ButtonStyle(
+                      padding: WidgetStatePropertyAll(
+                          EdgeInsets.symmetric(horizontal: 8)),
+                    )
+                  : null,
+              segments: [
+                ButtonSegment(
+                  value: AppTheme.system,
+                  icon: ikona(Icons.brightness_auto_outlined),
+                  label: Text(context.l10n.themeSystem),
+                ),
+                ButtonSegment(
+                  value: AppTheme.light,
+                  icon: ikona(Icons.light_mode_outlined),
+                  label: Text(context.l10n.themeLight),
+                ),
+                ButtonSegment(
+                  value: AppTheme.dark,
+                  icon: ikona(Icons.dark_mode_outlined),
+                  label: Text(context.l10n.themeDark),
+                ),
+              ],
+              selected: {
+                ref.watch(settingsProvider).value?.theme ?? AppTheme.system,
+              },
+              onSelectionChanged: (wybor) =>
+                  services.db.saveTheme(wybor.first),
+            );
+          }),
           const SizedBox(height: 16),
           Text(context.l10n.background,
               style: Theme.of(context).textTheme.labelLarge),
@@ -510,7 +524,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 children: [
                   OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
+                      ChattPageRoute(
                           builder: (_) => const TypingHistoryScreen()),
                     ),
                     icon: const Icon(Icons.manage_history_outlined),
@@ -529,7 +543,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
           OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AppLogScreen()),
+              ChattPageRoute(builder: (_) => const AppLogScreen()),
             ),
             icon: const Icon(Icons.receipt_long_outlined),
             label: Text(context.l10n.appLog),
@@ -1013,7 +1027,7 @@ class _KeyboardAddonCardState extends ConsumerState<KeyboardAddonCard> {
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
+                      ChattPageRoute(
                           builder: (_) => const TypingHistoryScreen()),
                     ),
                     icon: const Icon(Icons.manage_history_outlined),
@@ -1284,7 +1298,8 @@ class _UpdatesSectionState extends ConsumerState<_UpdatesSection> {
 }
 
 /// Podgląd jednego tła w bieżącym stylu: prostokąt z gradientem i podpis
-/// pod spodem. „Bez tła" pokazuje kolor tła stylu.
+/// pod spodem. „Bez tła" pokazuje kolor tła stylu. Zaznaczenie (obrys,
+/// znacznik i podpis) przechodzi w czasie przełączników stylu.
 class _BackgroundChip extends StatelessWidget {
   final ChattBackground background;
   final bool selected;
@@ -1298,39 +1313,64 @@ class _BackgroundChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final wypelnienie = wallDecoration(background.wallIn(context),
-        borderRadius: BorderRadius.circular(12));
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final ruch = ChattMotion.of(context);
+    final promien = BorderRadius.circular(12);
+    final podpis = theme.textTheme.bodyMedium ?? const TextStyle();
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: promien,
+      hoverDuration: ruch.hover,
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 88,
-            height: 60,
-            decoration: wypelnienie.copyWith(
-              border: Border.all(
-                color: selected ? scheme.primary : scheme.outlineVariant,
-                width: selected ? 3 : 1,
+      // Animuje się sam postęp zaznaczenia (0 do 1). Kolory i font są
+      // czytane z motywu w każdej klatce: przy zmianie stylu i jasności
+      // przechodzą razem z nim.
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(end: selected ? 1.0 : 0.0),
+        duration: ruch.control,
+        curve: ruch.enter,
+        builder: (context, postep, _) {
+          final z = postep.clamp(0.0, 1.0);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DecoratedBox(
+                decoration: wallDecoration(background.wallIn(context),
+                    borderRadius: promien),
+                child: SizedBox(
+                  width: 88,
+                  height: 60,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: promien,
+                      border: Border.all(
+                        color: Color.lerp(
+                            scheme.outlineVariant, scheme.primary, z)!,
+                        width: 1 + 2 * z,
+                      ),
+                    ),
+                    child: Opacity(
+                      opacity: z,
+                      child: Icon(Icons.check, color: scheme.primary),
+                    ),
+                  ),
+                ),
               ),
-            ),
-            child: selected
-                ? Icon(Icons.check, color: scheme.primary)
-                : null,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            background.label(context.l10n),
-            style: TextStyle(
-              fontSize: 12,
-              color: selected ? scheme.primary : scheme.onSurfaceVariant,
-              fontWeight: selected ? FontWeight.w600 : null,
-            ),
-          ),
-        ],
+              const SizedBox(height: 4),
+              Text(
+                background.label(context.l10n),
+                style: podpis.copyWith(
+                  fontSize: 12,
+                  color:
+                      Color.lerp(scheme.onSurfaceVariant, scheme.primary, z),
+                  fontWeight:
+                      FontWeight.lerp(podpis.fontWeight, FontWeight.w600, z),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

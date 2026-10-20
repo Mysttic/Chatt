@@ -8,6 +8,7 @@ import '../../data/db.dart';
 import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../styles.dart';
+import 'motion.dart';
 import 'pair_qr.dart';
 import 'toasts.dart';
 
@@ -17,18 +18,38 @@ import 'toasts.dart';
 /// Odciski są tu po to, żeby dało się je porównać **kiedykolwiek**, a nie
 /// tylko w oknie parowania. Jeśli kiedyś zaczniesz podejrzewać, że rozmawiasz
 /// z kimś innym, odczytujesz odcisk na głos i sprawdzasz na drugim ekranie.
+///
+/// Na telefonie arkusz od dołu z uchwytem, na komputerze okno na środku,
+/// najwyżej 460 dp szerokie; treść ta sama.
 Future<void> showSecuritySheet(
   BuildContext context, {
   required Peer peer,
   required VoidCallback onPair,
   required VoidCallback onScan,
 }) {
-  return showModalBottomSheet<void>(
+  if (czyTelefon(context)) {
+    return showChattSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheet) =>
+          _SecuritySheet(peer: peer, onPair: onPair, onScan: onScan),
+    );
+  }
+  return showChattDialog<void>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (sheet) =>
-        _SecuritySheet(peer: peer, onPair: onPair, onScan: onScan),
+    panel: true,
+    builder: (okno) => Dialog(
+      clipBehavior: Clip.antiAlias,
+      // Obrys Precyzji przychodzi z motywu okien.
+      shape: DialogTheme.of(okno).shape ??
+          RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(ChattTokens.of(okno).radiusSheet)),
+      constraints: const BoxConstraints(minWidth: 280, maxWidth: 460),
+      child: _SecuritySheet(
+          peer: peer, onPair: onPair, onScan: onScan, okno: true),
+    ),
   );
 }
 
@@ -37,8 +58,14 @@ class _SecuritySheet extends ConsumerWidget {
   final VoidCallback onPair;
   final VoidCallback onScan;
 
+  /// Okno na komputerze: bez uchwytu nad treścią, więc z odstępem u góry.
+  final bool okno;
+
   const _SecuritySheet(
-      {required this.peer, required this.onPair, required this.onScan});
+      {required this.peer,
+      required this.onPair,
+      required this.onScan,
+      this.okno = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -81,7 +108,7 @@ class _SecuritySheet extends ConsumerWidget {
     // mieszczą się na niskim oknie ani przy powiększonej czcionce.
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        padding: EdgeInsets.fromLTRB(20, okno ? 24 : 0, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -202,7 +229,7 @@ class _Nazwa extends ConsumerWidget {
   Future<void> _zmien(BuildContext context, WidgetRef ref) async {
     final teksty = context.l10n;
     final pole = TextEditingController(text: peer.alias ?? '');
-    final nowa = await showDialog<String>(
+    final nowa = await showChattDialog<String>(
       context: context,
       builder: (dialog) => AlertDialog(
         title: Text(teksty.renamePeerTitle),
@@ -362,6 +389,7 @@ class _Odcisk extends StatelessWidget {
             Clipboard.setData(ClipboardData(text: odcisk));
             showToast(context.l10n.copied);
           },
+          hoverDuration: ChattMotion.of(context).hover,
           borderRadius: BorderRadius.circular(k.radiusField),
           child: Container(
             width: double.infinity,

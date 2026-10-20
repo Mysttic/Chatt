@@ -7,7 +7,20 @@
 //
 // Uruchomienie (aplikacja musi być zainstalowana na emulatorze):
 //   set ADB=...\platform-tools\adb.exe
+//   set CHATT_DEVICE=emulator-5554
 //   flutter test tool/product_shots.dart
+//
+// CHATT_SHOTS_LANG=en daje wersję angielską, CHATT_SHOTS_STYLE=precyzja albo
+// cieplo inny styl (domyślnie Cisza), a CHATT_SHOTS_DIR kieruje zrzuty gdzie
+// indziej, np. żeby obejrzeć wszystkie trzy style obok siebie. Polska Cisza
+// w domyślnym katalogu robi też trzy zrzuty do przewodnika
+// (docs/screenshots/android: kod parowania, Prywatność, „Wyczyść historię”).
+//
+// CHATT_SHOTS_TARGETS=1 wypisuje przy każdym zrzucie klikalne elementy
+// mniejsze niż 48 dp.
+//
+// Narzędzie działa wyłącznie na emulatorze: na koniec kasuje dane aplikacji,
+// a na telefonie byłyby to prawdziwe rozmowy.
 //
 // ignore_for_file: avoid_print
 @Timeout(Duration(minutes: 10))
@@ -59,11 +72,18 @@ const Map<String, String> _pl = {
   'usun': 'Usuń wiadomość',
   'szukaj': 'Szukaj w rozmowie',
   'zamknij': 'Zamknij',
+  'menu': 'Więcej',
   'wstecz': 'Wstecz',
   'wPoblizu': 'W pobliżu',
   'ustawienia': 'Ustawienia',
   'ciemny': 'Ciemny',
   'wyslij': 'Wyślij',
+  'precyzja': 'Precyzja',
+  'cieplo': 'Ciepło',
+  'nieZgadza': 'Nie zgadza się',
+  'prywatnosc': 'Prywatność',
+  'wyczysc': 'Wyczyść historię',
+  'anuluj': 'Anuluj',
 };
 
 const Map<String, String> _en = {
@@ -81,25 +101,118 @@ const Map<String, String> _en = {
   'usun': 'Delete message',
   'szukaj': 'Search this conversation',
   'zamknij': 'Close',
+  'menu': 'More',
   'wstecz': 'Back',
   'wPoblizu': 'Nearby',
   'ustawienia': 'Settings',
   'ciemny': 'Dark',
   'wyslij': 'Send',
+  'precyzja': 'Precise',
+  'cieplo': 'Warm',
+  'nieZgadza': 'They differ',
+  'prywatnosc': 'Privacy',
+  'wyczysc': 'Clear history',
+  'anuluj': 'Cancel',
 };
 
 final String jezyk = Platform.environment['CHATT_SHOTS_LANG'] ?? 'pl';
 final Map<String, String> t = jezyk == 'en' ? _en : _pl;
 
-Future<void> zrzut(String nazwa) async {
+/// Styl zrzutów: cisza (styl świeżej instalacji), precyzja albo cieplo.
+final String styl = Platform.environment['CHATT_SHOTS_STYLE'] ?? 'cisza';
+
+/// Katalog wskazany wprost; bez niego zrzuty dokumentacji.
+final String? katalogZrzutow = Platform.environment['CHATT_SHOTS_DIR'];
+
+/// Zrzuty do polskiego przewodnika powstają tylko przy jego wyglądzie.
+final bool zrzutyPrzewodnika =
+    jezyk == 'pl' && styl == 'cisza' && katalogZrzutow == null;
+
+late Directory przewodnik;
+
+/// Pasek stanu w trybie demo: ta sama godzina, pełna bateria, samo Wi-Fi,
+/// bez ikon powiadomień. [wlacz] false przywraca zwykły pasek.
+Future<void> pasekDemo(bool wlacz) async {
+  const akcja = 'com.android.systemui.demo';
+  if (!wlacz) {
+    await adb(['shell', 'am', 'broadcast', '-a', akcja, '-e', 'command', 'exit']);
+    return;
+  }
+  await adb(['shell', 'settings', 'put', 'global', 'sysui_demo_allowed', '1']);
+  for (final polecenie in [
+    ['-e', 'command', 'enter'],
+    ['-e', 'command', 'clock', '-e', 'hhmm', '1200'],
+    ['-e', 'command', 'battery', '-e', 'level', '100', '-e', 'plugged', 'false'],
+    ['-e', 'command', 'network', '-e', 'wifi', 'show', '-e', 'level', '4'],
+    ['-e', 'command', 'network', '-e', 'mobile', 'hide'],
+    ['-e', 'command', 'notifications', '-e', 'visible', 'false'],
+  ]) {
+    await adb(['shell', 'am', 'broadcast', '-a', akcja, ...polecenie]);
+  }
+}
+
+/// Przewija ekran, aż węzeł z [etykieta] stanie u góry, między [od] a [az]
+/// pikseli od górnej krawędzi.
+Future<void> przewinDo(String etykieta, {int od = 300, int az = 800}) async {
+  for (var i = 0; i < 20; i++) {
+    final r = await ramka(etykieta, timeout: const Duration(seconds: 1));
+    if (r != null && r.$2 >= od && r.$2 <= az) return;
+    // Za nisko albo jeszcze go nie ma: w górę. Za wysoko: trochę w dół.
+    final wGore = r == null || r.$2 > az;
+    await adb([
+      'shell', 'input', 'swipe', '640', wGore ? '2000' : '1200', '640',
+      wGore ? '1300' : '1500', '500',
+    ]);
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+  }
+  throw StateError('Nie przewinąłem do: $etykieta');
+}
+
+/// Wraca na górę przewijanego ekranu.
+Future<void> przewinNaGore() async {
+  for (var i = 0; i < 6; i++) {
+    await adb(['shell', 'input', 'swipe', '640', '700', '640', '2600', '200']);
+  }
+  await Future<void>.delayed(const Duration(seconds: 1));
+}
+
+/// CHATT_SHOTS_TARGETS=1: przy każdym zrzucie wypisuje klikalne elementy
+/// aplikacji mniejsze niż 48 dp (cel dotyku).
+final bool sprawdzajCele = Platform.environment['CHATT_SHOTS_TARGETS'] == '1';
+
+Future<void> maleCele(String nazwa) async {
+  final gestosc = int.tryParse(RegExp(r'(\d+)\s*$')
+              .firstMatch('${(await adb(['shell', 'wm', 'density'])).stdout}')
+              ?.group(1) ??
+          '') ??
+      160;
+  final minimum = 48 * gestosc / 160;
+  for (final node in (await drzewo()).split('<node ')) {
+    if (!node.contains('package="$appPackage"') ||
+        !node.contains('clickable="true"')) {
+      continue;
+    }
+    final b =
+        RegExp(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"').firstMatch(node);
+    if (b == null) continue;
+    final w = int.parse(b.group(3)!) - int.parse(b.group(1)!);
+    final h = int.parse(b.group(4)!) - int.parse(b.group(2)!);
+    if (w >= minimum && h >= minimum) continue;
+    final opis = RegExp('content-desc="([^"]*)"').firstMatch(node)?.group(1);
+    print('CEL < 48 dp na $nazwa: "$opis" ${w}x$h px (${b.group(0)})');
+  }
+}
+
+Future<void> zrzut(String nazwa, {Directory? katalog}) async {
   // Chwila na dokończenie animacji, inaczej łapiemy przejście w połowie.
   await Future<void>.delayed(const Duration(milliseconds: 700));
+  if (sprawdzajCele) await maleCele(nazwa);
   final wynik = await Process.run(
     _adb,
     ['-s', _device, 'exec-out', 'screencap', '-p'],
     stdoutEncoding: null,
   );
-  final plik = File(p.join(shots.path, '$nazwa.png'))
+  final plik = File(p.join((katalog ?? shots).path, '$nazwa.png'))
     ..writeAsBytesSync(wynik.stdout as List<int>);
   print('zapisano ${plik.path}');
 }
@@ -108,7 +221,14 @@ Future<String> drzewo() async {
   const dump = '/sdcard/chatt_shots.xml';
   final dumped = await adb(['shell', 'uiautomator', 'dump', dump]);
   if (!'${dumped.stdout}'.contains(dump)) return '';
-  return (await adb(['shell', 'cat', dump])).stdout as String;
+  // Bajty wprost przez `exec-out`: `shell cat` na Windows psuł polskie znaki
+  // i etykiety z ogonkami nie dawały się znaleźć.
+  final wynik = await Process.run(
+    _adb,
+    ['-s', _device, 'exec-out', 'cat', dump],
+    stdoutEncoding: null,
+  );
+  return utf8.decode(wynik.stdout as List<int>, allowMalformed: true);
 }
 
 /// Środek widgetu, którego opis zawiera [etykieta]. Flutter wystawia teksty
@@ -281,21 +401,25 @@ Future<(int, int)?> znajdzNajwyzszy(String etykieta,
   return null;
 }
 
-/// Chowa klawiaturę stuknięciem w pustą część listy wiadomości.
+/// Chowa klawiaturę ekranową, jeśli jest na ekranie.
 ///
-/// Nie przez `KEYCODE_BACK`: emulator ma włączoną klawiaturę sprzętową, więc
-/// `input text` często nie otwiera klawiatury ekranowej wcale, a wtedy BACK
-/// trafia w ekran rozmowy i cofa nas na listę rozmów. Stuknięcie w puste
-/// miejsce zdejmuje fokus z pola i nigdzie nie nawiguje.
+/// Klawiszem BACK, ale tylko przy widocznej klawiaturze: emulator ma
+/// włączoną klawiaturę sprzętową, więc `input text` często nie otwiera
+/// ekranowej wcale, a wtedy BACK cofnąłby ekran rozmowy. Stuknięcie w puste
+/// miejsce listy też odpada: przy otwartej klawiaturze lista podjeżdża i pod
+/// palcem bywa miniatura obrazka.
 Future<void> schowajKlawiature() async {
-  await adb(['shell', 'input', 'tap', '640', '900']);
+  final stan = await adb(['shell', 'dumpsys', 'input_method']);
+  if ('${stan.stdout}'.contains('mInputShown=true')) {
+    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+  }
   await Future<void>.delayed(const Duration(milliseconds: 800));
 }
 
 /// Wraca do rozmowy z [rozmowca], jeśli coś nas z niej wyrzuciło. Ekran
-/// rozmowy poznajemy po lupie w pasku, na liście rozmów lupa ma inny opis.
+/// rozmowy poznajemy po przycisku wysyłania; na liście rozmów go nie ma.
 Future<void> upewnijSieWRozmowie(String rozmowca) async {
-  final wRozmowie = await znajdz(t['szukaj']!,
+  final wRozmowie = await znajdz(t['wyslij']!,
       timeout: const Duration(seconds: 2), dokladnie: true);
   if (wRozmowie != null) return;
   await stuknij(rozmowca);
@@ -368,12 +492,27 @@ void main() {
   late AppServices biuro;
 
   setUpAll(() async {
+    // Na koniec `pm clear` kasuje dane aplikacji: tylko emulator, nigdy
+    // telefon podpięty obok.
+    final emulator =
+        '${(await adb(['shell', 'getprop', 'ro.kernel.qemu'])).stdout}'.trim();
+    if (emulator != '1') {
+      throw StateError('$_device nie jest emulatorem; zrzuty tylko na '
+          'emulatorze (CHATT_DEVICE=emulator-...)');
+    }
+    if (!const ['cisza', 'precyzja', 'cieplo'].contains(styl)) {
+      throw StateError('CHATT_SHOTS_STYLE: cisza, precyzja albo cieplo');
+    }
+
     work = Directory.systemTemp.createTempSync('chatt_shots');
-    shots = Directory(p.joinAll([
-      Directory.current.path, '..', 'docs', 'screenshots', 'produkt',
-      if (jezyk == 'en') 'en',
-    ]))
+    shots = Directory(katalogZrzutow ??
+        p.joinAll([
+          Directory.current.path, '..', 'docs', 'screenshots', 'produkt',
+          if (jezyk == 'en') 'en',
+        ]))
       ..createSync(recursive: true);
+    przewodnik = Directory(p.joinAll(
+        [Directory.current.path, '..', 'docs', 'screenshots', 'android']));
 
     await adb(['forward', 'tcp:$deviceProxyPort', 'tcp:$defaultTcpPort']);
     await adb(['reverse', 'tcp:47790', 'tcp:47790']);
@@ -400,14 +539,20 @@ void main() {
       '1',
     ]);
     await Future<void>.delayed(const Duration(seconds: 10));
+    await pasekDemo(true);
 
-    // Świeża instalacja idzie za językiem systemu (na emulatorze angielskim).
-    // Polskie zrzuty wymagają przestawienia w ustawieniach; angielskie nie.
+    // Świeża instalacja startuje po angielsku. Polskie zrzuty wymagają
+    // przestawienia w ustawieniach; angielskie nie.
     if (jezyk == 'pl') {
       await stuknij('Settings');
-      // Drugie „System" na ekranie to lista języków; pierwsze należy do motywu.
-      await stuknij('System', wystapienie: 1);
-      await stuknij('Polish');
+      // Pole języka pokazuje bieżący wybór, a lista ma nazwy po angielsku.
+      await stuknij('English', dokladnie: true);
+      await stuknij('Polish', dokladnie: true);
+      await stuknij(t['wstecz']!);
+    }
+    if (styl != 'cisza') {
+      await stuknij(t['ustawienia']!);
+      await stuknij(t[styl]!, dokladnie: true);
       await stuknij(t['wstecz']!);
     }
 
@@ -421,12 +566,27 @@ void main() {
     await adb(['forward', '--remove', 'tcp:$deviceProxyPort']);
     await adb(['reverse', '--remove', 'tcp:47790']);
     await adb(['reverse', '--remove', 'tcp:47792']);
+    await pasekDemo(false);
     // Nie zostawiamy demonstracyjnych rozmów na urządzeniu.
     await adb(['shell', 'pm', 'clear', appPackage]);
     work.deleteSync(recursive: true);
   });
 
   test('zrzuty ekranu do dokumentacji', () async {
+    try {
+      await przejscie(anna, biuro, work);
+    } catch (_) {
+      // Ekran z chwili błędu, żeby było widać, na czym narzędzie stanęło.
+      await zrzut('blad_product_shots', katalog: Directory.systemTemp);
+      rethrow;
+    }
+  });
+}
+
+/// Cały przebieg zrzutów, od demonstracyjnych rozmów po tryb ciemny.
+Future<void> przejscie(
+    AppServices anna, AppServices biuro, Directory work) async {
+  {
     // --- Materiał na demo: dwie rozmowy, wiadomości w obie strony ----------
     final telefonUAnny =
         await anna.addPeerByAddress('127.0.0.1', deviceProxyPort);
@@ -485,6 +645,10 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 1));
 
     // --- Szukanie w rozmowie -----------------------------------------------
+    // Na telefonie szukanie siedzi w menu rozmowy.
+    await stuknij(t['menu']!, dokladnie: true);
+    // Przy przejściu z kontrolą celów dotyku także samo menu.
+    if (sprawdzajCele) await zrzut('android_menu_rozmowy');
     await stuknij(t['szukaj']!);
     await wpisz(t['zapytanie']!);
     await schowajKlawiature();
@@ -497,14 +661,35 @@ void main() {
     await stuknij(t['wPoblizu']!);
     await zrzut('android_urzadzenia_w_poblizu');
 
-    // --- Ustawienia --------------------------------------------------------
+    // --- Kod do porównania przy parowaniu (przewodnik) ---------------------
     await stuknij(t['wstecz']!);
+    if (zrzutyPrzewodnika) {
+      final parowanie = biuro.startPairing(telefonWBiurze);
+      if (await znajdz(t['nieZgadza']!) == null) {
+        throw StateError('Nie ma karty parowania');
+      }
+      await zrzut('and16_kod_do_porownania', katalog: przewodnik);
+      await stuknij(t['nieZgadza']!);
+      await parowanie;
+    }
+
+    // --- Ustawienia --------------------------------------------------------
     await stuknij(t['ustawienia']!);
     await zrzut('android_ustawienia');
+
+    // --- Prywatność i czyszczenie historii (przewodnik) ---------------------
+    if (zrzutyPrzewodnika) {
+      await przewinDo(t['prywatnosc']!);
+      await zrzut('and20_prywatnosc', katalog: przewodnik);
+      await stuknij(t['wyczysc']!, dokladnie: true);
+      await zrzut('and21_wyczysc_historie', katalog: przewodnik);
+      await stuknij(t['anuluj']!, dokladnie: true);
+      await przewinNaGore();
+    }
 
     // --- To samo w trybie ciemnym -----------------------------------------
     await stuknij(t['ciemny']!);
     await stuknij(t['wstecz']!);
     await zrzut('android_lista_rozmow_ciemny');
-  });
+  }
 }

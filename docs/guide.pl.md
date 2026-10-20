@@ -647,18 +647,24 @@ Style są trzy i różnią się wyłącznie wyglądem: te same ekrany, te same
 informacje, te same przyciski.
 
 - **Cisza** (domyślny): miękkie powierzchnie, okrągłe awatary, zaokrąglone
-  dymki, font Figtree.
-- **Precyzja**: gęsta lista w panelu z obrysem, kwadratowe awatary, ostrzejsze
-  rogi, daty z linią przez całą szerokość, nagłówki sekcji wersalikami, font
-  IBM Plex Sans.
-- **Ciepło**: każda rozmowa na osobnej karcie z cieniem, duże zaokrąglenia,
-  font Nunito.
+  dymki, spokojny ruch, font Figtree.
+- **Precyzja**: gęsta lista z kartami w obrysie, kwadratowe awatary,
+  ostrzejsze rogi, daty z linią przez całą szerokość, nagłówki sekcji
+  wersalikami, krótki i bezpośredni ruch, font IBM Plex Sans.
+- **Ciepło**: duże zaokrąglenia, karty z miękkim cieniem, karty zgody
+  lądujące z lekkim odbiciem, font Nunito.
 
 Każdy styl ma wariant jasny i ciemny oraz własny font o stałej szerokości do
 wartości technicznych: adresów, identyfikatora, odcisku klucza, kodu
 parowania i rozmiarów plików. Ostrzeżenie o niepotwierdzonej tożsamości jest
 czerwone w Ciszy i bursztynowe w Precyzji i Cieple; brak szyfrowania jest
-czerwony w każdym stylu.
+czerwony w każdym stylu. Na liście rozmów każda rozmowa jest osobną kartą,
+a ostatnią da się przewinąć spod przycisku **W pobliżu**.
+
+Każdy styl ma też własny ruch: ekrany wjeżdżają, karty zgody i nowe
+wiadomości się pojawiają, paski postępu płyną między odczytami. Gdy Android
+ma włączone **Usuń animacje**, aplikacja tylko przenika, w dziesiątą część
+sekundy.
 
 Krótkie komunikaty („Skopiowano", „Usunięto rozmowę") pokazują się w prawym
 górnym rogu, z paskiem odliczającym czas do zniknięcia. Kliknięcie zamyka je od

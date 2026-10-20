@@ -13,6 +13,7 @@ import '../l10n_context.dart';
 import '../styles.dart';
 import '../widgets/common.dart';
 import '../widgets/toasts.dart';
+import '../widgets/motion.dart';
 
 // Historia pisania zdalną klawiaturą (issue #50): lista sesji od najnowszej
 // i podgląd jednej sesji z odtworzonym tekstem i przebiegiem. Wiersze
@@ -113,7 +114,7 @@ class _TypingHistoryScreenState extends ConsumerState<TypingHistoryScreen> {
 
   /// Wyczyszczenie jest nieodwracalne, więc pytamy wprost.
   Future<void> _wyczysc() async {
-    final zgoda = await showDialog<bool>(
+    final zgoda = await showChattDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.l10n.typingHistoryClearTitle),
@@ -269,7 +270,7 @@ class _WierszSesji extends StatelessWidget {
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
+          ChattPageRoute(
             builder: (_) => TypingSessionScreen(sessionId: sesja.id),
           ),
         ),

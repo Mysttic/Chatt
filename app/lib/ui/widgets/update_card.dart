@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/updates.dart';
 import '../l10n_context.dart';
+import 'motion.dart';
 
 /// Nowe wydanie w ustawieniach: numer, opis od autora i to, co da się z nim
 /// zrobić.
@@ -65,7 +66,7 @@ class UpdateCard extends StatelessWidget {
         ],
         const SizedBox(height: 12),
         if (progress != null) ...[
-          LinearProgressIndicator(value: progress! / 100),
+          SmoothProgress(value: progress! / 100),
           const SizedBox(height: 6),
           Text(context.l10n.updateDownloading(progress!)),
         ] else if (daSie)

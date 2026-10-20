@@ -8,12 +8,14 @@ import '../l10n_context.dart';
 import '../styles.dart';
 import 'common.dart';
 import 'history_ui.dart';
+import 'motion.dart';
 import 'toasts.dart';
 
 /// Prośby wymagające decyzji „tu i teraz": zgoda na odbiór pliku, kod
 /// parowania i prośba o pisanie na tym urządzeniu. Wiszą nad całą aplikacją, bo mogą przyjść, gdy jesteśmy na
 /// dowolnym ekranie, a prośba o plik pojawia się ZANIM nadawca prześle
-/// choćby bajt.
+/// choćby bajt. Karty wjeżdżają, odjeżdżają i zmieniają się w ruchu stylu
+/// ([CardSwitcher]).
 class PromptOverlay extends ConsumerWidget {
   final Widget child;
 
@@ -51,17 +53,24 @@ class PromptOverlay extends ConsumerWidget {
                 children: [
                   ValueListenableBuilder<List<PendingPairing>>(
                     valueListenable: services.pendingPairings,
-                    builder: (context, pairings, _) => pairings.isEmpty
-                        ? const SizedBox.shrink()
-                        : _PairingCard(
-                            pairing: pairings.first,
-                            services: services,
-                          ),
+                    builder: (context, pairings, _) => CardSwitcher(
+                      child: pairings.isEmpty
+                          ? null
+                          // Klucz po prośbie: nowy kod od tego samego
+                          // urządzenia to nowa karta, bez wyniku poprzedniej.
+                          : _PairingCard(
+                              key: ValueKey((
+                                pairings.first.peerGuid,
+                                pairings.first.code,
+                              )),
+                              pairing: pairings.first,
+                              services: services,
+                            ),
+                    ),
                   ),
                   ValueListenableBuilder<List<PendingFileOffer>>(
                     valueListenable: services.pendingOffers,
                     builder: (context, offers, _) {
-                      if (offers.isEmpty) return const SizedBox.shrink();
                       // Pytamy o jedną prośbę naraz: kolejka kart potrafiłaby
                       // wyjść poza ekran (a wtedy nie da się już nic kliknąć).
                       // Czekające liczymy w plikach, nie w prośbach: jedna
@@ -77,10 +86,17 @@ class PromptOverlay extends ConsumerWidget {
                           // ognisko z przycisku poprzedniej. Enter wciśnięty
                           // do przyjęcia jednego pliku przyjmowałby wtedy
                           // paczkę, która właśnie weszła na jego miejsce.
-                          _OfferCard(
-                            key: ValueKey(offers.first.messageGuid),
-                            offer: offers.first,
-                            services: services,
+                          // Po kluczu CardSwitcher poznaje nową prośbę: stara
+                          // karta odjeżdża głucha na dotyk i Enter, nowa
+                          // przyjeżdża i bierze fokus po swojemu.
+                          CardSwitcher(
+                            child: offers.isEmpty
+                                ? null
+                                : _OfferCard(
+                                    key: ValueKey(offers.first.messageGuid),
+                                    offer: offers.first,
+                                    services: services,
+                                  ),
                           ),
                           if (czeka > 0)
                             Padding(
@@ -96,27 +112,32 @@ class PromptOverlay extends ConsumerWidget {
                   ),
                   ValueListenableBuilder<List<PendingHistory>>(
                     valueListenable: services.pendingHistory,
-                    builder: (context, prosby, _) => prosby.isEmpty
-                        ? const SizedBox.shrink()
-                        // Klucz po prośbie: nowa karta nie dziedziczy fokusu
-                        // po poprzedniej.
-                        : HistoryCard(
-                            key: ValueKey(prosby.first.id),
-                            ask: prosby.first,
-                            services: services,
-                          ),
+                    builder: (context, prosby, _) => CardSwitcher(
+                      child: prosby.isEmpty
+                          ? null
+                          // Klucz po prośbie: nowa karta nie dziedziczy
+                          // fokusu po poprzedniej.
+                          : HistoryCard(
+                              key: ValueKey(prosby.first.id),
+                              ask: prosby.first,
+                              services: services,
+                            ),
+                    ),
                   ),
                   ValueListenableBuilder<List<PendingRemoteInput>>(
                     valueListenable: services.pendingRemoteInput,
-                    builder: (context, prosby, _) => prosby.isEmpty
-                        ? const SizedBox.shrink()
-                        // Klucz po prośbie, z tego samego powodu co przy
-                        // pliku: nowa prośba nie dziedziczy fokusu po starej.
-                        : _RemoteInputCard(
-                            key: ValueKey(prosby.first.id),
-                            request: prosby.first,
-                            services: services,
-                          ),
+                    builder: (context, prosby, _) => CardSwitcher(
+                      child: prosby.isEmpty
+                          ? null
+                          // Klucz po prośbie, z tego samego powodu co przy
+                          // pliku: nowa prośba nie dziedziczy fokusu po
+                          // starej.
+                          : _RemoteInputCard(
+                              key: ValueKey(prosby.first.id),
+                              request: prosby.first,
+                              services: services,
+                            ),
+                    ),
                   ),
                 ],
               ),
@@ -136,7 +157,8 @@ class _PairingCard extends StatefulWidget {
   final PendingPairing pairing;
   final AppServices services;
 
-  const _PairingCard({required this.pairing, required this.services});
+  const _PairingCard(
+      {super.key, required this.pairing, required this.services});
 
   @override
   State<_PairingCard> createState() => _PairingCardState();
@@ -154,13 +176,20 @@ class _PairingCardState extends State<_PairingCard> {
     final outcome =
         await widget.services.confirmPairing(widget.pairing.peerGuid);
     if (!mounted) return;
+    if (outcome == PairOutcome.accepted) {
+      showToast(context.l10n.pairedWith(widget.pairing.peerName));
+    }
+    // Prośba zeszła z listy (sparowane, odmowa, wygasło): karta już odjeżdża
+    // i zostaje taka, jaka była. Błąd dopisany w drodze rozpychałby karty
+    // niżej, a przycisk wracałby z „Czekam…" do zwykłego napisu.
+    final czeka = widget.services.pendingPairings.value.any((p) =>
+        p.peerGuid == widget.pairing.peerGuid &&
+        p.code == widget.pairing.code);
+    if (!czeka) return;
     setState(() {
       _checking = false;
       _outcome = outcome;
     });
-    if (outcome == PairOutcome.accepted) {
-      showToast(context.l10n.pairedWith(widget.pairing.peerName));
-    }
   }
 
   @override

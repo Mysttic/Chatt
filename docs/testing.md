@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **594 `flutter test` tests** check everything that can be
+The split is simple: **703 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -280,7 +280,7 @@ when it speaks and when it stays quiet:
 - the step from 15 to 16 adds `typing_sessions`, `typing_entries`, `app_log`
   and their index, keeps every row, and turns on Save typing history
 
-### Styles (`test/style_test.dart`, 12 tests)
+### Styles (`test/style_test.dart`, 29 tests)
 - each of the six variants (three styles, light and dark) carries its own
   tokens, its text font and its fixed-width font
 - in each variant body text, secondary text, both bubbles, the primary button,
@@ -300,6 +300,67 @@ when it speaks and when it stays quiet:
 - the style picker in Settings writes to the database, and the "This device"
   panel shows the fingerprint and the identifier in the fixed-width font and
   copies the identifier with a "Copied" message
+- the conversation list draws every conversation as its own card in every
+  style (the style's surface, corner, shadow, an outline in Precyzja, 8 dp
+  apart, no shared panel), and after scrolling to the end the last card stands
+  above the Nearby button, which stands above the system bar
+- each style's motion matches the table in issue #54 row by row: times,
+  curves as control points, offsets, scales and the toast's hold; the scrim
+  colour sits under dialogs and sheets (36% and 55% in Cisza)
+- "reduce animations" turns every transition into a 100 ms fade with no
+  offset or scale and leaves the toast's hold alone, in the tokens, in the
+  page transitions and in the buttons, and `ChattMotion.of` follows the
+  system flag
+- every platform gets the style's shared X axis; a pushed screen starts
+  offset by the style's shift and transparent, ends in place, and goes back
+  in the style's return time
+- the tokens blend halfway between Cisza light and dark with no jump, switch
+  the style's flags at the midpoint, and walls with different colour counts
+  blend smoothly
+- the live app crossfades the theme in the style's time and a new background
+  from the old one without rebuilding the tree or dimming, also in 100 ms
+  under the system flag
+- the background chip in Settings moves its border and check in the style's
+  control time and follows the theme every frame during a style change; the
+  clear-history question opens like a consent card over the style's scrim
+
+### Motion in the conversation (`test/chat_motion_test.dart`, 27 tests)
+- in every style a message that arrives while the conversation is open rises
+  into place in the bubble time; messages already there stand still, and a
+  status change does not replay the entry
+- restored history, messages found while searching and a reopened
+  conversation stand in place at once; a bubble that has entered comes back
+  without an entry after scrolling; a second message during the first one's
+  entry gets its own entry and the first keeps going in its own row
+- the incoming file bar moves between samples in the style's motion, never
+  lags more than the style's time behind a sample per frame, and keeps its
+  own value when another transfer ends next to it
+- "reduce animations" makes the bubble a 100 ms fade and the bar follow the
+  samples
+- the security panel is a sheet from the bottom on a phone and a centred
+  window at most 460 dp wide on Windows, in the panel times over the style's
+  scrim, and a 100 ms fade with reduced motion
+- the message field has a semantics node of its own, the size of the field:
+  a screen reader once announced the whole conversation as one text field,
+  with the list and the buttons inside it
+
+### Dialogs and the conversation switch (`test/dialog_motion_test.dart`, 30 tests)
+- in every style a dialog opens in the consent card's time and closes in its
+  own, scaled as the style says on a phone and on Windows, while the scrim
+  reaches its colour in the scrim's time; Ciepło's spring overshoots a little
+  and settles at 1, the others do not overshoot
+- the panel variant takes the panel's times and scale with no shift or spring;
+  reduced motion makes both a 100 ms fade
+- the link question, deleting a conversation, the three Nearby dialogs and
+  the QR code open in the style's motion
+- on a wide window a conversation switch crossfades the pane in 200 ms
+  (Cisza, Ciepło) or 120 ms (Precyzja) over an image of the old pane, whose
+  screen leaves at once, so Ctrl+V and dropped files reach only the new
+  conversation; a switch during a crossfade fades the interrupted image from
+  where it was, and the system flag gives 100 ms
+- under the system's "remove animations", which cuts default controllers to
+  5%, dialogs, sheets, pushed screens, consent cards and new bubbles still
+  take their 100 ms
 
 ### Sharing history (`test/history_test.dart`, 29 tests)
 Two or three real instances over real sockets, paired, with a conversation both
@@ -345,7 +406,7 @@ side hands it back:
   not add up is dropped, an end without a token is dropped, and a reply that
   carries `from`, answers another history or another chunk does not count
 
-### History on screen (`test/history_ui_test.dart`, 6 tests)
+### History on screen (`test/history_ui_test.dart`, 14 tests)
 - restored bubbles carry the history icon and plain ones do not; the first
   bubble of each day gets "Today", "Yesterday" or the full date above it; a
   file row without content says "File not available" and offers no save
@@ -360,6 +421,16 @@ side hands it back:
   appears once an older conversation is picked
 - the progress bars: both sides get Stop while it runs, another conversation
   sees nothing, and a finished restore shows the skipped count and closes
+- consent cards on a phone and on Windows come and go in each style's motion,
+  and a card on its way out takes no tap and no Enter; a second request in
+  place of the first takes the focus as it arrives; with reduced motion,
+  from MediaQuery or from the system, a card only fades for 100 ms
+- every slot of the overlay (pairing, file, history, keyboard) changes cards
+  in the style's motion, and the pairing card leaves looking as it was while
+  the "paired" message still arrives
+- the share dialog opens like a consent card over the style's scrim, and the
+  history bar moves between samples in the style's motion (directly with the
+  samples in Precyzja and with reduced motion)
 
 ### Links in messages (`test/links_test.dart`, 25 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
@@ -416,11 +487,13 @@ side hands it back:
 - a non-200, a malformed body and a thrown exception all end as `failed`, and
   the call never throws
 
-### The release card (`test/update_card_test.dart`, 5 tests)
+### The release card (`test/update_card_test.dart`, 9 tests)
 - an installable release shows the button and calls back when tapped
 - the portable copy and a release with no file for this platform get the page
   address instead
-- while downloading, the progress bar replaces the button
+- while downloading, the progress bar replaces the button, and it moves
+  between samples in each style's motion (directly with the samples under
+  reduced motion)
 - an error sits under the button without taking it away
 
 ### Presence on the list (`test/presence_test.dart`, 1 test)
@@ -432,10 +505,20 @@ side hands it back:
 - the constant in `lib/core/version.dart` agrees with `pubspec.yaml` and
   `VERSION.md`, which catches a file left behind when the number was raised
 
-### Messages in the corner (`test/toasts_test.dart`, 4 tests)
+### Messages in the corner (`test/toasts_test.dart`, 26 tests)
 - the queue keeps its order, a message goes away by its id, and the oldest
-  makes room once there are more than three
-- a card counts itself down and disappears, and a tap closes it at once
+  makes room once there are more than three; without an explicit time the
+  style decides
+- a card counts itself down and leaves through the style's exit, an explicit
+  time wins, a tap and the action button close it through the exit, and a
+  card on its way out takes no second action
+- a fourth card pushes the oldest out through the style's exit
+- a style change while a card is up does not reset its time
+- in every style the card stays its hold (3.2 s, 4.2 s in Precise), rises
+  into place by the style's shift, leaves with or without sliding back and
+  takes the style's hover time
+- "reduce animations", from MediaQuery or from the system, makes it a 100 ms
+  fade with no shift and keeps the hold
 
 The file is separate on purpose: one `testWidgets` anywhere in a file installs
 `TestWidgetsFlutterBinding`, which replaces `HttpClient` with a fake answering
@@ -601,7 +684,7 @@ thing keeping the channel silent:
 - an add-on saved in the database comes up with the app without a single call,
   and a verified peer then gets a grant
 
-### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 13 tests)
+### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 14 tests)
 - the add-on's card is a single switch while the add-on is off; the receive
   switch appears with the add-on and goes away with it
 - turning receiving on with the real switches shows the safety note; turning
@@ -612,6 +695,8 @@ thing keeping the channel silent:
   disappears with the add-on
 - a file card puts the focus on Accept, and on Reject while someone types on
   this device
+- a batch arriving in place of an accepted file takes the second Enter on its
+  Reject, and the file card on its way out no longer listens
 - the overlay shows no keyboard card with the add-on off, even when a verified
   peer asks; the conversation list and the conversation screen show no
   keyboard icon
@@ -1231,7 +1316,15 @@ one cannot be checked on an emulator.
 ### `tool/product_shots.dart`
 Sets up a demonstration conversation and takes screenshots into
 `docs/screenshots/produkt/`. Afterwards it wipes the app data so no demo is
-left on the device.
+left on the device, which is why it refuses any device that is not an
+emulator (`ro.kernel.qemu`). `CHATT_SHOTS_LANG=en` gives the English set,
+`CHATT_SHOTS_STYLE=precyzja` (or `cieplo`) another style and `CHATT_SHOTS_DIR`
+another folder. The Polish run in Cisza also refreshes the three pictures in
+the Polish guide (`docs/screenshots/android/and16`, `and20`, `and21`: the
+pairing code, Privacy, Clear history). The status bar runs in demo mode.
+`CHATT_SHOTS_TARGETS=1` prints, for every screen, the app's tappable elements
+smaller than 48 dp and also captures the conversation menu: the walk through
+the three styles, both themes and a font scale of 1.3 runs this way.
 
 ### `tool/windows_shots.dart`
 Screenshots of the Windows window **without clicking around the desktop**: the
@@ -1241,12 +1334,14 @@ the engine (`RepaintBoundary.toImage`). There are no private conversations in
 the screenshots, and the result is the same on every machine.
 `CHATT_SHOTS_LANG=en` gives the English version, `CHATT_SHOTS_STYLE=precyzja`
 (or `cieplo`) another style, and `CHATT_SHOTS_DIR` sends the pictures
-somewhere other than `docs/screenshots/windows/`. One trap: the harness replaces
+somewhere other than `docs/screenshots/windows/`. The tests run on the
+Windows platform (`TargetPlatformVariant`), so density and the security panel
+as a window match the app on a PC. One trap: the harness replaces
 `HttpClient` with a fake answering 400, so the script restores the real one
 (`HttpOverrides.global = null`). Three more tests, run alone with
 `--plain-name klawiatury`, take the keyboard add-on for `docs/keyboard.md`:
 the sender's screen typing to a phone (06); the keyboard button in the
-conversation (09), "Typing without asking" in the security sheet (10) and
+conversation (09), "Typing without asking" in the security panel (10) and
 the sender's screen in every state, driven by a link the test controls
 (waiting 11, a password field 12, Compose 13, paused 14, an administrator's
 window 15, the link dropped 16); and the consent card on this PC (07) with
@@ -1312,7 +1407,12 @@ Deliberate holes in coverage, to be checked by hand at release time:
 - **Manufacturer app killing** on Android outside stock systems.
 - **Doze mode**: the foreground service overrides the network block, but there
   is no automated test for it.
-- **The UI on Windows**: there are no widget tests; it is checked by clicking.
+- **The UI on Windows**: widget tests render it on the Windows platform
+  (density, the security panel as a window), but the real window, its mouse
+  and its keyboard are checked by clicking.
+- **How the motion feels on a device**: the tests pin each style's times,
+  curves and offsets, and whether it looks right on a phone and a PC is
+  checked by eye.
 - **Very large files and weak links**: the tests run over loopback, so they do
   not catch the timeouts typical of distant Wi-Fi.
 - **Pasting a file on Android**: a stock emulator image has no app that puts a
