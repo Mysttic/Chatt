@@ -8,7 +8,15 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.12.0] - 2026-10-20
+
+Three new things around the app's data and the rest of the new look. With
+Keyboard from a PC both devices now keep a typing history in their encrypted
+database (on by default, with its own switch), each device keeps an app log
+for diagnostics, and Settings can export the app's data to one ZIP file. In
+every style each conversation is its own card, and each style moves in its
+own way. Short messages keep their time with Remove animations on, and a
+screen reader reads the message field as a field of its own.
 
 ### Added
 - **Typing history for Keyboard from a PC** (issue #50). Both devices keep a
@@ -1040,7 +1048,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
-[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.11.0...HEAD
+[0.12.0]: https://github.com/Mysttic/Chatt/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0
