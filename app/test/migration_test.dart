@@ -277,12 +277,14 @@ void main() {
 
     final wersja =
         await druga.customSelect('PRAGMA user_version;').getSingle();
-    expect(wersja.read<int>('user_version'), 15);
+    expect(wersja.read<int>('user_version'), druga.schemaVersion);
   });
 
   /// Kształt bazy z 0.10.0: schemat 13, bez `messages.restored_at` i bez
-  /// `settings.style`. Jedno otwarcie przechodzi oba kroki naraz.
-  test('przejście z 0.10.0 (schemat 13) na 15 za jednym otwarciem', () async {
+  /// `settings.style`. Jedno otwarcie przechodzi wszystkie kroki naraz, aż
+  /// do bieżącego schematu.
+  test('przejście z 0.10.0 (schemat 13) na bieżący schemat za jednym '
+      'otwarciem', () async {
     final katalog = Directory.systemTemp.createTempSync('chatt-migracja-13-15');
     addTearDown(() => katalog.deleteSync(recursive: true));
     final plik = File(p.join(katalog.path, 'chatt.db'));
@@ -330,9 +332,134 @@ void main() {
     expect(ustawienia!.style, AppStyle.cisza);
     expect(ustawienia.theme, AppTheme.dark);
     expect(ustawienia.background, 2);
+    expect(ustawienia.typingHistory, isTrue);
+    expect(await druga.allTypingSessions(), isEmpty);
+    expect(await druga.allLogEntries(), isEmpty);
     final wersja =
         await druga.customSelect('PRAGMA user_version;').getSingle();
-    expect(wersja.read<int>('user_version'), 15);
+    expect(wersja.read<int>('user_version'), druga.schemaVersion);
+  });
+
+  /// Schemat 16 dokłada historię pisania zdalną klawiaturą i dziennik
+  /// aplikacji (issue #50): trzy nowe tabele i przełącznik. Baza z 0.11.0
+  /// otwiera się z całą zawartością, a zapis historii pisania stoi włączony,
+  /// jak u każdego nowego użytkownika.
+  test('przejście na schemat 16 dokłada historię pisania i dziennik, '
+      'reszty nie rusza', () async {
+    final katalog = Directory.systemTemp.createTempSync('chatt-migracja-16');
+    addTearDown(() => katalog.deleteSync(recursive: true));
+    final plik = File(p.join(katalog.path, 'chatt.db'));
+
+    final pierwsza = ChattDb(NativeDatabase(plik));
+    final peer = await pierwsza.upsertPeer(
+      guid: 'guid-1',
+      name: 'Alicja',
+      welcomeMessage: 'cześć',
+      host: '192.168.0.2',
+      port: 47780,
+    );
+    await pierwsza.setPeerVerified(peer.id, true);
+    await pierwsza.setPeerRemoteInput(peer.id, true);
+    final rozmowa = await pierwsza.ensureConversation(peer.id);
+    await pierwsza.insertIncoming(
+      conversationId: rozmowa,
+      messageGuid: 'wiadomosc-1',
+      body: 'wiadomość z 0.11.0',
+      sentAt: DateTime(2026, 10, 18, 12),
+    );
+    await pierwsza.ensureSettings(
+      identityFactory: () async => ('klucz', 'guid-ja'),
+      defaultNickname: 'Ja',
+      defaultPort: 47777,
+    );
+    await pierwsza.saveStyle(AppStyle.cieplo);
+    await pierwsza.saveKeyboardAddon(true);
+    // Przełącznik zgaszony przed cofnięciem: po migracji wraca domyślny,
+    // bo kolumny w bazie z 0.11.0 nie było.
+    await pierwsza.saveTypingHistory(false);
+    await pierwsza.close();
+
+    // Baza jak z 0.11.0: bez trzech nowych tabel i bez przełącznika,
+    // licznik wersji na 15.
+    final surowa = raw.sqlite3.open(plik.path);
+    surowa.execute('DROP TABLE typing_entries;');
+    surowa.execute('DROP TABLE typing_sessions;');
+    surowa.execute('DROP TABLE app_log;');
+    surowa.execute('ALTER TABLE settings DROP COLUMN typing_history;');
+    surowa.execute('PRAGMA user_version = 15;');
+    surowa.close();
+
+    final druga = ChattDb(NativeDatabase(plik));
+    addTearDown(druga.close);
+
+    final po = await druga.allPeers();
+    expect(po, hasLength(1), reason: 'rozmówca nie może zniknąć');
+    expect(po.single.name, 'Alicja');
+    expect(po.single.verified, isTrue);
+    expect(po.single.remoteInput, isTrue,
+        reason: 'pisanie bez pytania zostaje, jak było');
+    final wiadomosci = await druga.watchMessages(rozmowa).first;
+    expect(wiadomosci.single.body, 'wiadomość z 0.11.0');
+
+    final ustawienia = await druga.getSettings();
+    expect(ustawienia!.nickname, 'Ja');
+    expect(ustawienia.style, AppStyle.cieplo);
+    expect(ustawienia.keyboardEnabled, isTrue);
+    expect(ustawienia.typingHistory, isTrue,
+        reason: 'zapis historii pisania jest domyślnie włączony');
+
+    // Nowe tabele są, puste, i przyjmują wiersze.
+    final tabele = await druga
+        .customSelect("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .get();
+    expect(
+      [for (final t in tabele) t.read<String>('name')],
+      containsAll(['typing_sessions', 'typing_entries', 'app_log']),
+    );
+    final indeks = await druga
+        .customSelect("SELECT name FROM sqlite_master WHERE type = 'index' "
+            "AND name = 'typing_entries_session'")
+        .get();
+    expect(indeks, hasLength(1));
+    expect(await druga.allTypingSessions(), isEmpty);
+    expect(await druga.allTypingEntries(), isEmpty);
+    expect(await druga.allLogEntries(), isEmpty);
+
+    final sesja = await druga.insertTypingSession(
+      TypingSessionsCompanion.insert(
+        inputId: 'sesja-1',
+        direction: MessageDirection.incoming,
+        peerGuid: 'guid-1',
+        peerName: 'Alicja',
+        startedAt: DateTime(2026, 10, 19, 12),
+        result: 'accepted',
+      ),
+    );
+    await druga.insertTypingEntries([
+      TypingEntriesCompanion.insert(
+        sessionId: sesja,
+        at: DateTime(2026, 10, 19, 12),
+        field: 'text',
+        status: 'typed',
+        ops: '[{"t":"insert","s":"a"}]',
+      ),
+    ]);
+    await druga.insertLogEntries([
+      AppLogEntriesCompanion.insert(
+        atMs: DateTime(2026, 10, 19, 12).millisecondsSinceEpoch,
+        level: LogLevel.info,
+        area: 'app',
+        message: 'Started',
+      ),
+    ]);
+    expect(await druga.allTypingSessions(), hasLength(1));
+    expect(await druga.allTypingEntries(), hasLength(1));
+    expect(await druga.allLogEntries(), hasLength(1));
+
+    final wersja =
+        await druga.customSelect('PRAGMA user_version;').getSingle();
+    expect(wersja.read<int>('user_version'), druga.schemaVersion);
+    expect(druga.schemaVersion, 16);
   });
 
   /// Rozmówca poznany wyłącznie przez radio nie ma adresu w sieci, a rozmówca

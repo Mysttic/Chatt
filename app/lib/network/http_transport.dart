@@ -14,6 +14,13 @@ import 'transport.dart';
 class HttpTransport implements PeerTransport {
   final http.Client _http;
 
+  /// Błąd w trakcie strumieniowania pliku (zerwane połączenie, przekroczony
+  /// czas, plik, którego nie da się czytać). Wynik i tak wraca jako
+  /// nieosiągalny; to jest ślad z powodem dla dziennika aplikacji. Zwykłe
+  /// zapytania nie zgłaszają niczego: nieosiągalny rozmówca przy sprawdzaniu
+  /// obecności to codzienność.
+  void Function(PeerRoute route, String path, Object error)? onStreamError;
+
   HttpTransport([http.Client? client]) : _http = client ?? http.Client();
 
   @override
@@ -115,7 +122,12 @@ class HttpTransport implements PeerTransport {
       final response = await _http.send(request).timeout(timeout);
       final body = await response.stream.toBytes().timeout(timeout);
       return TransportReply(response.statusCode, body);
-    } catch (_) {
+    } catch (blad) {
+      try {
+        onStreamError?.call(route, path, blad);
+      } catch (_) {
+        // Zgłoszenie jest dodatkiem: wynik to i tak „nieosiągalny”.
+      }
       return const TransportReply.unreachable();
     } finally {
       // Zerwane połączenie: przestajemy czytać plik (zwalniamy uchwyt)

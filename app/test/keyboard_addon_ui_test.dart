@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show BoxHitTestResult;
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,8 @@ import 'package:chatt/services/providers.dart';
 import 'package:chatt/ui/screens/chat_screen.dart';
 import 'package:chatt/ui/screens/conversations_screen.dart';
 import 'package:chatt/ui/screens/settings_screen.dart';
+import 'package:chatt/ui/styles.dart';
+import 'package:chatt/ui/widgets/motion.dart';
 import 'package:chatt/ui/widgets/prompt_overlay.dart';
 import 'package:chatt/ui/widgets/remote_input_banner.dart';
 import 'package:chatt/ui/widgets/security_sheet.dart';
@@ -34,6 +37,11 @@ void main() {
 
   const kanal = MethodChannel('chatt/remoteinput');
   final teksty = lookupAppLocalizations(const Locale('en'));
+
+  /// Ruch kart zgody: goły MaterialApp bierze tokeny Ciszy. Animacja kończy
+  /// się w pierwszej klatce po swoim czasie, stąd jeszcze [klatka].
+  final ruch = chattMotion(AppStyle.cisza);
+  const klatka = Duration(milliseconds: 16);
 
   /// Wszystkie ikony, którymi klawiatura mogłaby się pokazać.
   const ikonyKlawiatury = [
@@ -426,7 +434,8 @@ void main() {
     expect(wynik, RemoteInputStart.rejected);
     expect(bartek.pendingRemoteInput.value, isEmpty);
     expect(bartek.incomingRemoteInput.value, isNull);
-    await tester.pump();
+    // Karta odjeżdża w czasie stylu.
+    await tester.pump(ruch.cardOut + klatka);
     expect(find.text('Alicja wants to type on this device'), findsNothing);
 
     await sprzatnij(tester, [alicja, bartek]);
@@ -464,6 +473,9 @@ void main() {
           .hasPrimaryFocus;
       services.pendingOffers.value = const [];
       await tester.pump();
+      // Karta odjeżdża w czasie stylu, dopiero potem przychodzi następna.
+      await tester.pump(ruch.cardOut + klatka);
+      expect(find.byKey(ValueKey(guid)), findsNothing);
       return ma;
     }
 
@@ -479,6 +491,99 @@ void main() {
     expect(await fokusNa('Reject', 'plik-2'), isTrue);
     services.incomingRemoteInput.value = null;
     await tester.pump();
+
+    await sprzatnij(tester, [services]);
+  });
+
+  testWidgets('paczka w miejsce przyjętego pliku: drugi Enter trafia w jej '
+      'Odrzuć, odjeżdżająca karta pliku już nie słucha', (tester) async {
+    final services = await uruchom(tester, 'Bartek');
+    await tester.pumpWidget(nakladka(services));
+    await tester.pump();
+
+    const plik = PendingFileOffer(
+      messageGuid: 'plik-1',
+      peerName: 'Alicja',
+      fileName: 'umowa.pdf',
+      fileSize: 1024,
+      resumeFrom: 0,
+      conversationId: 1,
+    );
+    const paczka = PendingFileOffer(
+      messageGuid: 'paczka-1',
+      peerName: 'Alicja',
+      fileName: 'a.jpg',
+      fileSize: 1024,
+      resumeFrom: 0,
+      conversationId: 1,
+      batch: FileBatch(count: 3, bytes: 3072, names: ['a.jpg', 'b.jpg', 'c.jpg']),
+    );
+
+    /// Węzeł fokusu przycisku [napis] na karcie prośby [guid].
+    FocusNode fokus(String guid, String napis) => tester
+        .widget<ButtonStyleButton>(find.ancestor(
+          of: find.descendant(
+              of: find.byKey(ValueKey(guid)), matching: find.text(napis)),
+          matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+        ))
+        .focusNode!;
+
+    var odpowiedzi = 0;
+    void licz() => odpowiedzi++;
+    services.pendingOffers.value = const [plik, paczka];
+    await tester.pump();
+    await tester.pump(ruch.cardIn + klatka);
+    services.pendingOffers.addListener(licz);
+    expect(find.text(teksty.moreFilesWaiting(3)), findsOneWidget);
+    final przyjmijPlik = fokus('plik-1', teksty.accept);
+    expect(przyjmijPlik.hasPrimaryFocus, isTrue,
+        reason: 'pojedynczy plik: fokus na Przyjmij');
+
+    // Enter przyjmuje plik, w jego miejsce wjeżdża paczka.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(odpowiedzi, 1);
+    expect(services.pendingOffers.value.single.messageGuid, 'paczka-1');
+    await tester.pump();
+    // Fokus przychodzi klatkę po pokazaniu karty.
+    await tester.pump();
+    expect(find.byKey(const ValueKey('plik-1')), findsOneWidget,
+        reason: 'plik jeszcze odjeżdża');
+    expect(przyjmijPlik.hasFocus, isFalse);
+    expect(przyjmijPlik.canRequestFocus, isFalse);
+    expect(fokus('paczka-1', teksty.reject).hasPrimaryFocus, isTrue,
+        reason: 'paczka: fokus na Odrzuć');
+    expect(find.text(teksty.moreFilesWaiting(3)), findsNothing);
+
+    // Stuknięcie w odjeżdżający plik nie robi nic. Nad jego Przyjmij leży
+    // już paczka i to ona łapie zwykłe stuknięcie, więc pytamy samą warstwę
+    // ruchu karty: czy jej poddrzewo przyjęłoby trafienie w ten punkt.
+    bool trafia(String guid, String napis) {
+      final karta = find.byKey(ValueKey(guid));
+      final warstwa = tester.renderObject<RenderBox>(find
+          .ancestor(of: karta, matching: find.byType(MotionTransition))
+          .first);
+      final punkt = tester.getCenter(
+          find.descendant(of: karta, matching: find.text(napis)));
+      return warstwa.hitTest(BoxHitTestResult(),
+          position: warstwa.globalToLocal(punkt));
+    }
+
+    expect(trafia('plik-1', teksty.accept), isFalse,
+        reason: 'odjeżdżający plik nie przyjmuje stuknięć');
+    expect(trafia('paczka-1', teksty.reject), isTrue,
+        reason: 'wjeżdżająca paczka przyjmuje');
+    expect(odpowiedzi, 1);
+
+    // Drugi Enter (wciśnięty odruchowo) odmawia paczce.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(odpowiedzi, 2);
+    expect(services.pendingOffers.value, isEmpty);
+    services.pendingOffers.removeListener(licz);
+
+    await tester.pump();
+    await tester.pump(ruch.cardOut + klatka);
+    expect(find.byKey(const ValueKey('plik-1')), findsNothing);
+    expect(find.byKey(const ValueKey('paczka-1')), findsNothing);
 
     await sprzatnij(tester, [services]);
   });
@@ -653,6 +758,9 @@ void main() {
     var alicjaUBartka = await tester
         .runAsync(() => bartek.db.peerByGuid(alicja.identity.guid));
     expect(alicjaUBartka!.remoteInput, isFalse);
+    // Karta odjeżdża w czasie stylu, zanim przyjdzie druga prośba.
+    await tester.pump(ruch.cardOut + klatka);
+    expect(pamietaj, findsNothing);
 
     // Druga sesja, tym razem z „Nie pytaj więcej".
     await tester.runAsync(() async {

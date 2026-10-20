@@ -93,6 +93,7 @@ class _LinkPreviewCardState extends State<LinkPreviewCard> {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => confirmAndOpenLink(context, podglad.url),
+          hoverDuration: ChattMotion.of(context).hover,
           child: Semantics(
             link: true,
             label: context.l10n.linkPreviewOf(podglad.label),

@@ -305,7 +305,7 @@ void Pump(const std::shared_ptr<Link>& link, SOCKET from, SOCKET to,
       written += wrote;
     }
   }
-  DropLink(link, std::string(label) + " lacze zamkniete obok");
+  DropLink(link, std::string(label) + " closed locally");
 }
 
 // Gotowe lacze: zakladamy pod nie gniazdo nasluchu na petli zwrotnej
@@ -364,12 +364,12 @@ bool Announce(SOCKET rfcomm, const std::string& peer, bool incoming, int id) {
     timeval limit = {};
     limit.tv_sec = 15;
     if (select(0, &readable, nullptr, nullptr, &limit) != 1) {
-      DropLink(link, "Dart nie podlaczyl sie do portu lokalnego");
+      DropLink(link, "Dart did not connect to the local port");
       return;
     }
     SOCKET local = accept(link->listener, nullptr, nullptr);
     if (local == INVALID_SOCKET) {
-      DropLink(link, "accept lokalny wsa=" + std::to_string(WSAGetLastError()));
+      DropLink(link, "local accept wsa=" + std::to_string(WSAGetLastError()));
       return;
     }
     BOOL nodelay = TRUE;
@@ -504,7 +504,7 @@ EncodableValue LinkStop() {
     }
   }
   for (const auto& link : alive) {
-    DropLink(link, "transport wylaczony");
+    DropLink(link, "transport stopped");
   }
   return EncodableValue(true);
 }
@@ -595,7 +595,7 @@ EncodableValue LinkClose(const EncodableMap* args) {
     }
   }
   if (link) {
-    DropLink(link, "zamkniete przez Darta");
+    DropLink(link, "closed by Dart");
   }
   return EncodableValue(true);
 }

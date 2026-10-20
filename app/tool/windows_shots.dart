@@ -330,6 +330,10 @@ Future<Peer> sparuj(AppServices pierwsza, AppServices druga) async {
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
+  // Platforma Windows: gęstość, okno panelu bezpieczeństwa i reszta jak
+  // w prawdziwej aplikacji na komputerze.
+  final naWindows = TargetPlatformVariant.only(TargetPlatform.windows);
+
   testWidgets('zrzuty okna Windows', (tester) async {
     // Harness widgetów podmienia HttpClient na atrapę odpowiadającą 400
     // (żeby testy nie chodziły do sieci). Tu sieć jest celowa: rozmówcy piszą
@@ -451,7 +455,7 @@ void main() {
       await ja.dispose();
     });
     await tester.pump(const Duration(seconds: 20));
-  });
+  }, variant: naWindows);
 
   // Dodatek „Klawiatura z PC". Cała sieć (parowanie, prośba, zgoda) idzie
   // przed `pumpWidget`, w prawdziwym czasie: prośba wysłana spod udawanego
@@ -544,7 +548,7 @@ void main() {
       await ja.dispose();
     });
     await tester.pump(const Duration(seconds: 20));
-  });
+  }, variant: naWindows);
 
   testWidgets('zrzuty klawiatury z PC: przycisk, panel i stany nadawcy',
       (tester) async {
@@ -574,7 +578,8 @@ void main() {
     await tester.tap(find.byTooltip(t['tarcza']!).last);
     await odczekaj(tester);
     await zrzut(tester, klucz, '10_klawiatura_bez_pytania');
-    Navigator.of(tester.element(find.byType(BottomSheet))).pop();
+    // Na Windows panel jest oknem na środku: zamykamy jego trasę.
+    Navigator.of(tester.element(find.byType(SwitchListTile).first)).pop();
     await odczekaj(tester);
 
     // Ekran nadawcy, prośba jeszcze bez odpowiedzi.
@@ -662,7 +667,7 @@ void main() {
       await ja.dispose();
     });
     await tester.pump(const Duration(seconds: 20));
-  });
+  }, variant: naWindows);
 
   testWidgets('zrzuty klawiatury z PC: odbiorca', (tester) async {
     final work = await przygotuj(tester);
@@ -745,5 +750,5 @@ void main() {
       await ja.dispose();
     });
     await tester.pump(const Duration(seconds: 20));
-  });
+  }, variant: naWindows);
 }

@@ -1,4 +1,7 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show OffsetLayer, RenderRepaintBoundary;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/search.dart';
@@ -8,6 +11,7 @@ import '../../services/providers.dart';
 import '../l10n_context.dart';
 import '../styles.dart';
 import '../widgets/common.dart';
+import '../widgets/motion.dart';
 import '../widgets/protocol_badge.dart';
 import 'chat_screen.dart';
 import 'nearby_screen.dart';
@@ -19,7 +23,7 @@ import '../widgets/toasts.dart';
 /// kontakcie. Pytamy, bo idą z tym wiadomości.
 Future<void> _confirmDelete(
     BuildContext context, WidgetRef ref, Peer peer) async {
-  final confirmed = await showDialog<bool>(
+  final confirmed = await showChattDialog<bool>(
     context: context,
     builder: (dialog) => AlertDialog(
       title: Text(context.l10n.deleteConversationTitle(peer.displayName)),
@@ -44,6 +48,53 @@ Future<void> _confirmDelete(
   showToast(teksty.conversationDeleted(nazwa));
 }
 
+/// Odstęp między kartami rozmów, ten sam w każdym stylu.
+const _odstepKart = 8.0;
+
+/// Wysokość rozszerzonego przycisku „W pobliżu” (Material 3).
+const _wysokoscPrzycisku = 56.0;
+
+/// Granica przerysowania prawego panelu. Przy zmianie rozmowy daje obraz
+/// ostatniej klatki panelu i znika ten obraz. Ekran poprzedniej rozmowy
+/// odchodzi od razu, więc Ctrl+V i upuszczone pliki trafiają tylko do nowej
+/// rozmowy.
+class _Granica extends SingleChildRenderObjectWidget {
+  const _Granica({super.key, super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderGranica();
+}
+
+class _RenderGranica extends RenderRepaintBoundary {
+  /// Ostatnia narysowana klatka w gęstości [gestosc]; null, dopóki panel nic
+  /// nie narysował. Wprost z warstwy: to jest dokładnie to, co widać, także
+  /// gdy panel czeka już na przerysowanie.
+  ui.Image? obraz(double gestosc) {
+    final warstwa = layer;
+    if (warstwa is! OffsetLayer || !hasSize) return null;
+    return warstwa.toImageSync(Offset.zero & size, pixelRatio: gestosc);
+  }
+}
+
+/// Obraz panelu, który ustąpił miejsca nowej rozmowie, i jego zejście:
+/// od krycia, które panel miał w chwili zmiany, do zera.
+class _ZnikajacyPanel {
+  final ui.Image obraz;
+  final double gestosc;
+  final AnimationController ruch;
+  final Animation<double> krycie;
+
+  _ZnikajacyPanel(this.obraz, this.gestosc, this.ruch,
+      {required double od, required Curve krzywa})
+      : krycie = ruch.drive(
+            Tween<double>(begin: 0, end: od).chain(CurveTween(curve: krzywa)));
+
+  void dispose() {
+    ruch.dispose();
+    obraz.dispose();
+  }
+}
+
 /// Ekran główny: lista konwersacji (odpowiednik ListOfConversation.PNG).
 class ConversationsScreen extends ConsumerStatefulWidget {
   const ConversationsScreen({super.key});
@@ -53,7 +104,8 @@ class ConversationsScreen extends ConsumerStatefulWidget {
       _ConversationsScreenState();
 }
 
-class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
+class _ConversationsScreenState extends ConsumerState<ConversationsScreen>
+    with TickerProviderStateMixin {
   final _search = TextEditingController();
   bool _searching = false;
 
@@ -62,10 +114,69 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
   int? _wybranaRozmowa;
   Peer? _wybranyRozmowca;
 
+  /// Prawy panel przy zmianie rozmowy: wejście bieżącego i obrazy
+  /// poprzednich, które jeszcze znikają.
+  final _granica = GlobalKey();
+  late final AnimationController _wejscie;
+  Animation<double> _krycie = kAlwaysCompleteAnimation;
+  final _znikajace = <_ZnikajacyPanel>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _wejscie = AnimationController(
+      vsync: this,
+      value: 1,
+      // Czas przy „ogranicz animacje” daje już ChattMotion.of. Domyślnie
+      // Flutter skróciłby go jeszcze do 5%.
+      animationBehavior: AnimationBehavior.preserve,
+    );
+  }
+
   @override
   void dispose() {
     _search.dispose();
+    _wejscie.dispose();
+    for (final panel in _znikajace) {
+      panel.dispose();
+    }
     super.dispose();
+  }
+
+  /// Zmiana rozmowy na szerokim oknie: nowy panel wchodzi na obraz
+  /// poprzedniego w czasie i krzywych stylu z chwili zmiany.
+  void _przenikaj() {
+    final m = ChattMotion.of(context);
+    final gestosc = MediaQuery.devicePixelRatioOf(context);
+    final krycie = _krycie.value;
+    final granica = _granica.currentContext?.findRenderObject();
+    final obraz = krycie > 0 && granica is _RenderGranica
+        ? granica.obraz(gestosc)
+        : null;
+    if (obraz != null) {
+      final panel = _ZnikajacyPanel(
+        obraz,
+        gestosc,
+        AnimationController(
+          vsync: this,
+          duration: m.paneSwitch,
+          value: 1,
+          animationBehavior: AnimationBehavior.preserve,
+        ),
+        od: krycie,
+        krzywa: m.exitReverse,
+      );
+      panel.ruch.addStatusListener((status) {
+        if (status != AnimationStatus.dismissed) return;
+        setState(() => _znikajace.remove(panel));
+        panel.dispose();
+      });
+      _znikajace.add(panel);
+      panel.ruch.reverse();
+    }
+    _wejscie.duration = m.paneSwitch;
+    _krycie = _wejscie.drive(CurveTween(curve: m.enter));
+    _wejscie.forward(from: 0);
   }
 
   void _toggleSearch() {
@@ -77,6 +188,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
 
   void _otworz(int conversationId, Peer peer) {
     if (czyDwupanel(context)) {
+      if (conversationId != _wybranaRozmowa) _przenikaj();
       setState(() {
         _wybranaRozmowa = conversationId;
         _wybranyRozmowca = peer;
@@ -84,7 +196,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute(
+      ChattPageRoute(
         builder: (_) =>
             ChatScreen(conversationId: conversationId, peer: peer),
       ),
@@ -106,15 +218,44 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
           SizedBox(width: 360, child: lista),
           const VerticalDivider(width: 1, thickness: 1),
           Expanded(
-            child: rozmowa == null || rozmowca == null
-                ? const _NoSelection()
-                : ChatScreen(
-                    // Klucz po rozmowie: przełączenie ma zbudować ekran od
-                    // nowa, a nie doklejać wiadomości do poprzedniego stanu.
-                    key: ValueKey(rozmowa),
-                    conversationId: rozmowa,
-                    peer: rozmowca,
+            // Zmiana rozmowy przenika cały panel w czasie stylu. Panele leżą
+            // na sobie i wypełniają miejsce, obrazy poprzednich pod spodem
+            // nie przyjmują dotyku.
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                for (final panel in _znikajace)
+                  IgnorePointer(
+                    key: ObjectKey(panel),
+                    child: FadeTransition(
+                      opacity: panel.krycie,
+                      child: RawImage(
+                        image: panel.obraz,
+                        scale: panel.gestosc,
+                        fit: BoxFit.none,
+                        alignment: Alignment.topLeft,
+                      ),
+                    ),
                   ),
+                FadeTransition(
+                  key: const ValueKey('panel rozmowy'),
+                  opacity: _krycie,
+                  child: _Granica(
+                    key: _granica,
+                    child: rozmowa == null || rozmowca == null
+                        ? const _NoSelection()
+                        : ChatScreen(
+                            // Klucz po rozmowie: przełączenie ma zbudować
+                            // ekran od nowa, a nie doklejać wiadomości do
+                            // poprzedniego stanu.
+                            key: ValueKey(rozmowa),
+                            conversationId: rozmowa,
+                            peer: rozmowca,
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -134,8 +275,15 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                 controller: _search,
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration.collapsed(
+                decoration: InputDecoration(
                   hintText: context.l10n.searchConversationsHint,
+                  // Bez ramki i tła, ale na wysokość celu dotyku (48 dp).
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               )
             // Nazwa tego urządzenia: tak widzą je inni, a przy kilku
@@ -159,7 +307,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
             tooltip: context.l10n.settingsTitle,
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ChattPageRoute(builder: (_) => const SettingsScreen()),
             ),
           ),
         ],
@@ -168,7 +316,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
         icon: const Icon(Icons.person_search),
         label: Text(context.l10n.nearbyButton),
         onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const NearbyScreen()),
+          ChattPageRoute(builder: (_) => const NearbyScreen()),
         ),
       ),
       body: summaries.when(
@@ -258,10 +406,12 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
               onTap: () => _otworz(item.conversationId, item.peer),
               onLongPress: () => _confirmDelete(context, ref, item.peer),
             );
-            if (!k.rowCards) return tile;
-            // Ciepło: każdy wiersz to osobna karta z cieniem; wybrany ma
-            // ramkę w kolorze akcentu.
+            // Każdy wiersz to osobna karta na tle ekranu. Tło daje Material:
+            // dekoracja zasłoniłaby efekt dotyku i zaznaczenie wiersza.
+            // Wybrany ma ramkę w kolorze akcentu, Precyzja odcina karty
+            // obrysem, bo cienia nie ma.
             final ksztalt = BorderRadius.circular(k.radiusRow);
+            final obrys = k.style == AppStyle.precyzja;
             return DecoratedBox(
               decoration:
                   BoxDecoration(borderRadius: ksztalt, boxShadow: k.shadow1),
@@ -270,53 +420,32 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
                 clipBehavior: Clip.antiAlias,
                 shape: RoundedRectangleBorder(
                   borderRadius: ksztalt,
-                  side: BorderSide(
-                    color: wybrany ? scheme.primary : Colors.transparent,
-                    width: 2,
-                  ),
+                  side: wybrany
+                      ? BorderSide(color: scheme.primary, width: 2)
+                      : obrys
+                          ? BorderSide(color: k.outline)
+                          : BorderSide.none,
                 ),
                 child: tile,
               ),
             );
           }
 
-          final lista = ListView.separated(
-            // Ostatnia rozmowa nie może chować się pod paskiem gestów.
+          return ListView.separated(
+            // Ostatnia karta kończy się nad paskiem nawigacji systemu i da
+            // się ją przewinąć spod przycisku „W pobliżu”.
             padding: EdgeInsets.fromLTRB(
-              k.rowCards ? 12 : 6,
-              k.rowCards ? 8 : 6,
-              k.rowCards ? 12 : 6,
-              (k.rowCards ? 8 : 6) + bottomSystemInset(context),
+              12,
+              8,
+              12,
+              _odstepKart +
+                  _wysokoscPrzycisku +
+                  kFloatingActionButtonMargin +
+                  bottomSystemInset(context),
             ),
             itemCount: items.length,
-            separatorBuilder: (_, _) => k.rowCards || k.listGap > 0
-                ? SizedBox(height: k.listGap)
-                : Divider(height: 1, indent: k.avatarSize + 26),
+            separatorBuilder: (_, _) => const SizedBox(height: _odstepKart),
             itemBuilder: (context, index) => wiersz(items[index]),
-          );
-          if (k.rowCards) return lista;
-          // Cisza i Precyzja: wiersze bez tła w jednym panelu. Tło daje
-          // Material, a nie dekoracja: inaczej zasłoniłoby efekt dotyku
-          // i zaznaczenie wiersza.
-          final gora =
-              BorderRadius.vertical(top: Radius.circular(k.radiusCard));
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: DecoratedBox(
-              decoration:
-                  BoxDecoration(borderRadius: gora, boxShadow: k.shadow1),
-              child: Material(
-                color: k.surface1,
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: gora,
-                  side: k.style == AppStyle.precyzja
-                      ? BorderSide(color: k.outline)
-                      : BorderSide.none,
-                ),
-                child: lista,
-              ),
-            ),
           );
         },
       ),

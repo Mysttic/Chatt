@@ -257,7 +257,8 @@ void main() {
         (tester) async {
       await uruchom(tester);
       lacze.odmowa(RemoteInputStart.notEnabled);
-      // Komunikat żyje na animacji przez 4 s; `pumpAndSettle` by go przeczekał.
+      // Komunikat żyje na animacji przez czas stylu (tu Cisza: 3,2 s);
+      // `pumpAndSettle` by go przeczekał.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(RemoteKeyboardScreen), findsNothing);

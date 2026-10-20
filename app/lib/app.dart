@@ -27,17 +27,27 @@ class ChattApp extends ConsumerWidget {
     };
     // null = idziemy za językiem systemu (Flutter wybierze z obsługiwanych).
     final locale = settings?.language.locale;
-    // Wybrane tło leży pod całą aplikacją, więc powierzchnie, które je
-    // zasłaniały (tło ekranu i pasek u góry), muszą zrobić się przezroczyste.
-    // Karty i dymki zostają nieprzezroczyste, na nich stoi czytelność.
+    // Tło leży pod całą aplikacją przy każdym wyborze, także przy „Bez tła”
+    // (kolor tła stylu), więc tło ekranu i pasek u góry są zawsze
+    // przezroczyste. Dzięki temu zmiana tła nie rusza motywu: przenika tylko
+    // AppBackground. Karty i dymki zostają nieprzezroczyste, na nich stoi
+    // czytelność.
     final tlo = backgroundAt(settings?.background ?? 0);
 
     // Styl (Cisza, Precyzja, Ciepło) zmienia wyłącznie wygląd: kolory,
     // fonty, zaokrąglenia i gęstość siedzą w ui/styles.dart.
     final styl = settings?.style ?? AppStyle.cisza;
 
-    ThemeData theme(Brightness brightness) =>
-        chattTheme(styl, brightness, gradient: !tlo.plain);
+    // „Ogranicz animacje” w systemie: ruch stylu ustawia każde przejście na
+    // przenikanie 100 ms. Flutter przy tej fladze skraca dodatkowo każdy
+    // kontroler do 5% czasu. MediaQuery daje tu View, który runApp stawia
+    // nad aplikacją.
+    final ograniczRuch = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final ruch =
+        ograniczRuch ? chattMotion(styl).reduced : chattMotion(styl);
+
+    ThemeData theme(Brightness brightness) => chattTheme(styl, brightness,
+        gradient: true, reduceMotion: ograniczRuch);
 
     return MaterialApp(
       // Tytuł okna/zadania: przed pierwszą klatką nie ma jeszcze skąd wziąć
@@ -47,6 +57,9 @@ class ChattApp extends ConsumerWidget {
       theme: theme(Brightness.light),
       darkTheme: theme(Brightness.dark),
       themeMode: themeMode,
+      // Zmiana stylu i motywu przenika w czasie i krzywej stylu.
+      themeAnimationStyle:
+          AnimationStyle(duration: ruch.themeChange, curve: ruch.enter),
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

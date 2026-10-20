@@ -31,6 +31,7 @@ więcej”, a Stop jest tam pod ręką, dopóki sesja trwa.
 - [Ekran blokady](#ekran-blokady)
 - [Zatrzymanie](#zatrzymanie)
 - [Pisanie bez pytania](#pisanie-bez-pytania)
+- [Historia pisania](#historia-pisania)
 - [Przez Bluetooth](#przez-bluetooth)
 - [Bezpieczeństwo i prywatność](#bezpieczeństwo-i-prywatność)
 - [Czego nie da się zrobić](#czego-nie-da-się-zrobić)
@@ -101,6 +102,9 @@ formularz, wpisać hasło.
 
 Wyłączenie dodatku wyłącza w tym samym kroku przyjmowanie pisania, więc
 późniejsze ponowne włączenie dodatku nie przywraca go po cichu.
+
+Na obu urządzeniach karta ma jeszcze jeden przełącznik, **Zapisuj historię
+pisania**, włączony od początku: patrz [Historia pisania](#historia-pisania).
 
 ### Klawiatura Chatt na Androidzie, raz
 
@@ -214,7 +218,9 @@ przesunęłoby kursora po drugiej stronie. Wklejenie, zmiana trybu i paczka,
 której drugie urządzenie nie wpisało (pauza, brak pola), też je opróżniają,
 więc wklejony tekst nigdy się w nim nie pokazuje. Backspace w pustym echu
 i tak kasuje na drugim urządzeniu. W tym polu nie ma sprawdzania pisowni,
-podpowiedzi ani cofania, więc ekran pisania nie trzyma historii pisania.
+podpowiedzi ani cofania, więc samo pole niczego z pisania nie pamięta. To, co
+wyszło, zapisuje [historia pisania](#historia-pisania), dopóki włączone jest
+**Zapisuj historię pisania**.
 
 ### Całość naraz
 
@@ -427,6 +433,66 @@ je z listy.
 
 <img src="screenshots/windows/pl/10_klawiatura_bez_pytania.png" alt="Pisanie bez pytania w panelu bezpieczeństwa rozmowy" width="760">
 
+## Historia pisania
+
+Przy włączonym **Zapisuj historię pisania** oba urządzenia zapisują każdą
+sesję w swojej zaszyfrowanej bazie: komputer to, co wysłał, i to, co
+odpowiedziało drugie urządzenie, a urządzenie, na którym się pisze, to, co
+przyszło, i to, co wpisała jego klawiatura. Przełącznik jest na karcie
+dodatku, włączony od początku, i działa tylko przy włączonym dodatku:
+wyłączony dodatek niczego nie zapisuje. Każde urządzenie prowadzi własną
+historię według swojego przełącznika. Wyłączenie przełącznika zostawia to,
+co już zapisane.
+
+Sesja w historii pokazuje:
+
+- które urządzenie pisało na którym, kiedy sesja się zaczęła i skończyła, jak
+  skończyła się prośba (zgoda, odmowa, brak odpowiedzi, pisze już ktoś inny,
+  pisanie wyłączone tam, prośba wycofana, starszy Chatt, brak połączenia)
+  i dlaczego sesja się skończyła (Stop po którejś stronie, koniec czasu,
+  zerwane łącze, wyłączony przełącznik, urządzenie usunięte z listy, nowa
+  sesja na jej miejsce, zamknięta aplikacja);
+- co wpisano, kawałek po kawałku, z godziną i aplikacją, do której trafiło:
+  tekst, Backspace, Delete i Enter;
+- czy każdy kawałek dotarł: wpisany, niewpisany (pole zniknęło, ekran się
+  zablokował, Stop był pierwszy), wstrzymany przez kartę, odrzucony,
+  niepotwierdzony (komputer nie dostał odpowiedzi albo dostał odmowę po
+  próbie bez odpowiedzi, więc nie wiadomo, czy dotarł) albo niewysłany
+  (czekał jeszcze na komputerze, gdy sesja się skończyła).
+
+**Pola haseł.** Tekst wpisany w pole hasła albo w pole, którego rodzaju
+Chatt nie rozpozna, zostaje zapisany jako liczba znaków i pokazuje się jako
+kropki. Rodzaj pola wiadomo dopiero z odpowiedzi drugiego urządzenia, więc
+kawałek liczy się jako ukryty, gdy pole przed nim albo po nim nie było
+zwykłym polem tekstowym: pierwsze znaki w świeżo stukniętym polu hasła
+zostają ukryte, tak samo jak pierwsze znaki w zwykłym polu tuż po polu hasła.
+Na komputerze kawałek bez odpowiedzi, która mówi, dokąd trafił
+(niepotwierdzony, odrzucony, niewysłany), też zostaje zapisany jako liczba
+znaków, bo pole, do którego szedł, jest nieznane. Pole hasła, którego
+aplikacja nie oznacza jako hasła, wygląda dla Chatt jak zwykłe pole, a to, co
+się w nie wpisze, zostaje zapisane jako tekst.
+
+**Tekst jest odtwarzany z klawiszy.** Backspace zabiera ostatni znak, a Enter
+zaczyna nową linię. Delete niczego w nim nie zmienia, bo Chatt nie wie, gdzie
+po drugiej stronie stał kursor, a tekstu, który był w polu przed sesją, nie
+widać. Dokładnym zapisem są same klawisze i to je niesie eksport.
+
+**Gdzie to znaleźć.** Ustawienia, **Dane i diagnostyka**, **Historia
+pisania**, widoczna tam, gdy zapisze się choć jedna sesja, albo przycisk
+**Historia pisania** na karcie dodatku. Oba urządzenia zapisują sesję pod tym
+samym identyfikatorem, więc zapis z komputera i zapis z urządzenia, na którym
+się pisało, da się położyć obok siebie.
+
+**Kasowanie.** **Kasuj wiadomości starsze niż** i **Wyczyść historię**
+w Ustawieniach, w sekcji Prywatność, zabierają też historię pisania,
+a **Wyczyść historię pisania** kasuje ją samą. Sesja, która jeszcze trwa
+w chwili czyszczenia, toczy się dalej bez zapisu. **Eksportuj dane** może
+zabrać historię pisania do pliku (patrz
+[instrukcja obsługi](guide.pl.md#dane-i-diagnostyka)).
+
+Dziennik aplikacji nigdy nie zawiera tego, co piszesz: odnotowuje, że sesja
+się zaczęła, jak się skończyła i ile paczek się nie udało.
+
 ## Przez Bluetooth
 
 Przy dodatku Bluetooth włączonym po obu stronach sesja może iść także przez
@@ -454,8 +520,14 @@ nie piętrzy: to, co przychodzi w czasie paczki w drodze, jedzie następną.
   a identyfikator prośby działa raz.
 - **Szyfrowane jak wiadomości**: te same klucze sesji, a każda paczka i każda
   odpowiedź dopełniona, więc w sieci jeden znak wygląda jak każdy inny.
-- **Nic nie jest zapisywane**: pisany tekst nie trafia do żadnej bazy, logu
-  ani stanu aplikacji, po żadnej stronie.
+- **Historia pisania po obu stronach**, przy włączonym **Zapisuj historię
+  pisania** (tak jest domyślnie): każde urządzenie trzyma w zaszyfrowanej
+  bazie, co wpisano, do której aplikacji, kiedy i czy dotarło. Tekst do pola
+  hasła albo pola nieznanego rodzaju zostaje zapisany jako liczba znaków,
+  a dziennik aplikacji nie zawiera wpisywanego tekstu. Kto ma w ręku
+  odblokowane urządzenie, może tę historię przeczytać, więc wyłącz
+  przełącznik na każdym urządzeniu, które ma jej nie trzymać (patrz
+  [Historia pisania](#historia-pisania)).
 - **Karty z pytaniami Chatt są poza zasięgiem.** Dopóki na urządzeniu, na
   którym się pisze, czeka karta, paczki dostają odpowiedź „wstrzymane” i nic
   się nie wpisuje. Na Windows długa paczka, która właśnie wpisuje się w okno
@@ -512,12 +584,16 @@ tekst tej długości zajmuje około 9 do 10 sekund.
 | Tekst trafia do złego okna na Windows | Pisanie idzie do okna na wierzchu. Najpierw kliknij pole, o które chodzi; pływający pasek nigdy nie zabiera fokusu. |
 | Enter wysłał wiadomość | Enter to Enter pola. Na Androidzie nową linię w polu wielowierszowym daje Shift+Enter, a także nowa linia w trybie Całość naraz bez zaznaczonego **Potem Enter**. Na Windows każda nowa linia dochodzi jako Enter (patrz [Nowa linia](#nowa-linia)), więc w aplikacji, w której Enter wysyła, pisz w jednej linii. |
 | W wolnej aplikacji na Windows brakuje liter | Zgłoś to z nazwą aplikacji: Chatt pisze w tempie, za którym nadąża nawet Notatnik z Windows 11, a wolniejsza aplikacja może potrzebować więcej. |
+| Chcesz sprawdzić, co dotarło na drugie urządzenie | Ustawienia, **Dane i diagnostyka**, **Historia pisania**: przy każdym kawałku widać, czy się wpisał. |
+| Zgłaszasz problem | Ustawienia, **Dane i diagnostyka**, **Eksportuj dane** z zaznaczonym tylko polem **Dziennik aplikacji** daje plik do dołączenia. Nie ma w nim wpisywanego tekstu. |
 
 ## Dla programistów
 
 - Jak to działa w środku, protokół (`/input-session`, `/input`), kanał
   `chatt/remoteinput`, klawiatura na Androidzie i ujście na Windows:
   [architecture.md](architecture.md), sekcja o dodatku Keyboard from a PC.
+  Historia pisania, z jej stanami, zasadą ukrywania tekstu haseł i powodami
+  końca sesji, jest w części [Typing history](architecture.md#typing-history).
 - Testy i scenariusze na sprzęcie (`tool/klawiatura_*`), z przebiegami,
   z których pochodzą liczby wyżej: [testing.md](testing.md).
 - Zrzuty pochodzą z `tool/windows_shots.dart` (Windows, oba języki),

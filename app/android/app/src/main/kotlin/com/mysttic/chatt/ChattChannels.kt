@@ -7,6 +7,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.MediaStore
 import android.provider.Settings
@@ -23,6 +25,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import kotlin.concurrent.thread
 
 /**
  * Kanały platformowe aplikacji. Instalowane na silniku Fluttera trzymanym
@@ -42,6 +45,8 @@ object ChattChannels {
     /** GCM: 12 bajtów wektora inicjującego z przodu, 128-bitowy tag z tyłu. */
     private const val ivLength = 12
     private const val tagBits = 128
+
+    private val mainThread = Handler(Looper.getMainLooper())
 
     fun install(context: Context, engine: FlutterEngine) {
         val messenger = engine.dartExecutor.binaryMessenger
@@ -66,7 +71,7 @@ object ChattChannels {
             when (call.method) {
                 "open" -> result.success(sendFile(context, path, share = false))
                 "share" -> result.success(sendFile(context, path, share = true))
-                "save" -> result.success(saveToStore(context, path))
+                "save" -> saveToStoreInBackground(context, path, result)
                 "installApk" -> result.success(installApk(context, path))
                 else -> result.notImplemented()
             }
@@ -328,6 +333,34 @@ object ChattChannels {
             // nijak nie widać.
             Log.w("Chatt", "Nie udało się wystawić pliku: $path", error)
             "failed"
+        }
+    }
+
+    /**
+     * [saveToStore] na osobnym wątku. Kopia dużego pliku (film, archiwum
+     * eksportu danych) trwa sekundy, a wątek główny w tym czasie ani nie
+     * rysuje, ani nie obsługuje kanałów, więc po kilku sekundach system
+     * pokazałby okno „Aplikacja nie odpowiada".
+     *
+     * Wynik kanału wolno oddać tylko z wątku głównego, stąd [mainThread].
+     * Wyjątek z [saveToStore] wraca do Darta jako błąd kanału, tak samo jak
+     * wtedy, gdy kopiowanie szło na wątku głównym i łapał go sam
+     * MethodChannel. Nieobsłużony wyjątek na zwykłym wątku zabiłby proces.
+     */
+    private fun saveToStoreInBackground(
+        context: Context,
+        path: String,
+        result: MethodChannel.Result,
+    ) {
+        val app = context.applicationContext
+        thread(name = "chatt-zapis-kopii") {
+            try {
+                val katalog = saveToStore(app, path)
+                mainThread.post { result.success(katalog) }
+            } catch (error: Exception) {
+                Log.w("Chatt", "Nie udało się zapisać kopii: $path", error)
+                mainThread.post { result.error("error", error.message, null) }
+            }
         }
     }
 

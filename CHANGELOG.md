@@ -8,6 +8,114 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.12.0] - 2026-10-20
+
+Three new things around the app's data and the rest of the new look. With
+Keyboard from a PC both devices now keep a typing history in their encrypted
+database (on by default, with its own switch), each device keeps an app log
+for diagnostics, and Settings can export the app's data to one ZIP file. In
+every style each conversation is its own card, and each style moves in its
+own way. Short messages keep their time with Remove animations on, and a
+screen reader reads the message field as a field of its own.
+
+### Added
+- **Typing history for Keyboard from a PC** (issue #50). Both devices keep a
+  record of every typing session in their encrypted database: which device
+  typed on which, when, how the request was answered and why the session
+  ended, and what was typed, piece by piece, with the app it went into and
+  whether it landed (typed, not typed, paused, refused, unconfirmed, not
+  sent). Text typed into a password field or a field of unknown kind is kept
+  as a number of characters, and so is a piece the typing device sent with no
+  answer saying where it went. A **Save typing history** switch on the
+  add-on's card, on by default, turns it off on that device, since each device
+  keeps its own history, and an add-on that is off records nothing. During
+  steady typing a piece goes to the database about 5 seconds after it
+  started. **Delete messages older than** and **Clear history** take the
+  typing history along, and **Clear typing history** deletes it alone. Both
+  sides write a session under the same request id, so the two records can be
+  laid side by side.
+- **App log** (issue #50). Each device keeps a diagnostic log in its
+  encrypted database: connections and their road, pairing, file transfers,
+  shared history, Bluetooth, keyboard sessions, update checks and uncaught
+  errors, each entry with a level and an area. It never holds message text,
+  typed text, pairing codes, keys, remote-input tokens or window titles.
+  Identical entries in a burst are written once, followed by one entry with
+  ` (repeated N times)`. Entries older than 30 days go, at most 20,000 stay,
+  and **Clear the log** on the App log screen deletes them all. **Quit Chatt**
+  in the Windows tray menu and every move to the background save what the log
+  and the typing history hold in memory.
+- **Export data** (issue #50). One ZIP with the parts picked in a dialog:
+  conversations with devices and settings, the typing history, the app log,
+  and received files with their size shown. JSON for programs, text for
+  reading, a `README.txt` and a `manifest.json`. No private key, session key
+  or database key goes in, and the file is not encrypted. Android 10 and newer
+  save it to Downloads. Older Android, or a failed copy to Downloads, hands it
+  to the share sheet, and that copy waits in the app's cache until the next
+  export, **Clear history**, **Clear typing history**, or the next start once
+  it is an hour old. Windows asks with the save dialog, and the app asks
+  before replacing a file the dialog did not ask about. The archive is
+  written to `<name>.part` and replaces the target only when complete, so a
+  failed export leaves no partial file.
+- **Data and diagnostics**, a new Settings section between Privacy and
+  Add-ons, holds App log and Export data, plus Typing history once at least
+  one session is saved.
+- Schema 16: the tables `typing_sessions`, `typing_entries` and `app_log`, and
+  `settings.typingHistory`, on by default.
+
+### Changed
+- **The keyboard keeps a typing history.** The 0.10.0 notes said that typed
+  text is stored nowhere. Since this release, with the keyboard add-on and
+  **Save typing history** on (the default), both devices keep what was typed
+  in their encrypted database, text for password fields as a number of
+  characters. The app log holds no typed text.
+- **Clear history** and **Delete messages older than** cover the typing
+  history as well. The app log keeps its own 30 days and has its own
+  **Clear the log**.
+- **The documentation follows.** The privacy policy covers the typing
+  history, the app log, the export and how each is deleted.
+  `docs/SECURITY.md` takes the three into scope and lists the plaintext
+  export, the typing history and the missing app lock among the intended
+  things. `docs/architecture.md` describes schema 16, the typing history, the
+  app log, the export and a fifth FileProvider root. Both keyboard pages gain
+  a Typing history section, both guides a Data and diagnostics section, and
+  the READMEs and the documentation index list the new features. The bug
+  report form suggests attaching an export with the app log alone.
+- **Every conversation is its own card, in every style** (issue #54). Calm
+  and Precise laid the list in one panel on the screen background, which gave
+  a double background and a panel running on under the system navigation bar.
+  Each conversation is now a separate card with the style's surface, corners
+  and shadow (an outline in Precise), 8 dp apart, and the last one scrolls out
+  from under the Nearby button.
+- **Each style moves in its own way** (issue #54). Screens slide in along a
+  shared axis, consent cards and dialogs come in with the style's scale and
+  offset (Warm with a small bounce), a new message rises into place, progress
+  bars glide between readings, short messages in the corner slide in and fade
+  out, and the scrim behind dialogs and sheets fades in the style's time.
+  Changing the style, the theme or the background is a crossfade. With
+  Android's **Remove animations** every transition is a 100 ms fade.
+- On Windows the security panel opens as a window in the middle, at most
+  460 px wide; on a phone it stays a sheet from the bottom.
+- Short messages in the corner stay 3.2 s in Calm and Warm, 4.2 s in Precise.
+- The banner (`docs/promo.png`) in Calm's colours and font. The app icon stays
+  the same.
+- The Windows screenshots in the documentation show the new list, the
+  security panel as a window and the density of the app on a PC.
+- The Android screenshots in the documentation and in the Polish guide show
+  Calm, light and dark, in Polish and in English.
+
+### Fixed
+- **Short messages vanished at once with Remove animations on.** Android's
+  setting makes Flutter shorten animations to a twentieth, and the message's
+  countdown was one of them, so "Copied" stood for a fifth of a second. The
+  countdown and every transition the app runs itself now keep their time.
+- **A screen reader read the whole conversation as one text field.** The
+  message field now has a node of its own, the size of the field.
+- On a phone the theme picker in Settings wrapped "Systemowy" in the middle of
+  the word; on a narrow screen it shows the names alone, as the style picker
+  does.
+- The save button on a file bubble and the search field at the top of a
+  conversation and of the list are 48 dp tall on a phone.
+
 ## [0.11.0] - 2026-10-19
 
 Two bigger things and two fixes. A conversation's history can come back from
@@ -940,6 +1048,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.12.0]: https://github.com/Mysttic/Chatt/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/Mysttic/Chatt/compare/v0.8.1...v0.9.0

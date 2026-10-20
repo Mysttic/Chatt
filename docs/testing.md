@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **442 `flutter test` tests** check everything that can be
+The split is simple: **703 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -257,7 +257,7 @@ when it speaks and when it stays quiet:
 - another kind of startup failure has nothing to reset, and the button is not
   offered at all
 
-### Migrations (`test/migration_test.dart`, 7 tests)
+### Migrations (`test/migration_test.dart`, 8 tests)
 - a database with the current column layout and `user_version` rolled back to
   8, which is what a process killed between `ALTER TABLE` and the version
   write leaves behind; it has to open, keep its rows, and not throw
@@ -275,9 +275,12 @@ when it speaks and when it stays quiet:
 - the step from 14 to 15 brings the Cisza style in and keeps the theme, the
   background and the nickname; a saved style comes back after reopening
 - a 0.10.0 database (schema 13, with neither `restored_at` nor `style`) goes
-  to 15 in one opening and keeps the peer, the message and the settings
+  to the current schema in one opening and keeps the peer, the message and
+  the settings, and the typing history and app log tables are there
+- the step from 15 to 16 adds `typing_sessions`, `typing_entries`, `app_log`
+  and their index, keeps every row, and turns on Save typing history
 
-### Styles (`test/style_test.dart`, 12 tests)
+### Styles (`test/style_test.dart`, 29 tests)
 - each of the six variants (three styles, light and dark) carries its own
   tokens, its text font and its fixed-width font
 - in each variant body text, secondary text, both bubbles, the primary button,
@@ -297,6 +300,67 @@ when it speaks and when it stays quiet:
 - the style picker in Settings writes to the database, and the "This device"
   panel shows the fingerprint and the identifier in the fixed-width font and
   copies the identifier with a "Copied" message
+- the conversation list draws every conversation as its own card in every
+  style (the style's surface, corner, shadow, an outline in Precyzja, 8 dp
+  apart, no shared panel), and after scrolling to the end the last card stands
+  above the Nearby button, which stands above the system bar
+- each style's motion matches the table in issue #54 row by row: times,
+  curves as control points, offsets, scales and the toast's hold; the scrim
+  colour sits under dialogs and sheets (36% and 55% in Cisza)
+- "reduce animations" turns every transition into a 100 ms fade with no
+  offset or scale and leaves the toast's hold alone, in the tokens, in the
+  page transitions and in the buttons, and `ChattMotion.of` follows the
+  system flag
+- every platform gets the style's shared X axis; a pushed screen starts
+  offset by the style's shift and transparent, ends in place, and goes back
+  in the style's return time
+- the tokens blend halfway between Cisza light and dark with no jump, switch
+  the style's flags at the midpoint, and walls with different colour counts
+  blend smoothly
+- the live app crossfades the theme in the style's time and a new background
+  from the old one without rebuilding the tree or dimming, also in 100 ms
+  under the system flag
+- the background chip in Settings moves its border and check in the style's
+  control time and follows the theme every frame during a style change; the
+  clear-history question opens like a consent card over the style's scrim
+
+### Motion in the conversation (`test/chat_motion_test.dart`, 27 tests)
+- in every style a message that arrives while the conversation is open rises
+  into place in the bubble time; messages already there stand still, and a
+  status change does not replay the entry
+- restored history, messages found while searching and a reopened
+  conversation stand in place at once; a bubble that has entered comes back
+  without an entry after scrolling; a second message during the first one's
+  entry gets its own entry and the first keeps going in its own row
+- the incoming file bar moves between samples in the style's motion, never
+  lags more than the style's time behind a sample per frame, and keeps its
+  own value when another transfer ends next to it
+- "reduce animations" makes the bubble a 100 ms fade and the bar follow the
+  samples
+- the security panel is a sheet from the bottom on a phone and a centred
+  window at most 460 dp wide on Windows, in the panel times over the style's
+  scrim, and a 100 ms fade with reduced motion
+- the message field has a semantics node of its own, the size of the field:
+  a screen reader once announced the whole conversation as one text field,
+  with the list and the buttons inside it
+
+### Dialogs and the conversation switch (`test/dialog_motion_test.dart`, 30 tests)
+- in every style a dialog opens in the consent card's time and closes in its
+  own, scaled as the style says on a phone and on Windows, while the scrim
+  reaches its colour in the scrim's time; Ciepło's spring overshoots a little
+  and settles at 1, the others do not overshoot
+- the panel variant takes the panel's times and scale with no shift or spring;
+  reduced motion makes both a 100 ms fade
+- the link question, deleting a conversation, the three Nearby dialogs and
+  the QR code open in the style's motion
+- on a wide window a conversation switch crossfades the pane in 200 ms
+  (Cisza, Ciepło) or 120 ms (Precyzja) over an image of the old pane, whose
+  screen leaves at once, so Ctrl+V and dropped files reach only the new
+  conversation; a switch during a crossfade fades the interrupted image from
+  where it was, and the system flag gives 100 ms
+- under the system's "remove animations", which cuts default controllers to
+  5%, dialogs, sheets, pushed screens, consent cards and new bubbles still
+  take their 100 ms
 
 ### Sharing history (`test/history_test.dart`, 29 tests)
 Two or three real instances over real sockets, paired, with a conversation both
@@ -342,7 +406,7 @@ side hands it back:
   not add up is dropped, an end without a token is dropped, and a reply that
   carries `from`, answers another history or another chunk does not count
 
-### History on screen (`test/history_ui_test.dart`, 6 tests)
+### History on screen (`test/history_ui_test.dart`, 14 tests)
 - restored bubbles carry the history icon and plain ones do not; the first
   bubble of each day gets "Today", "Yesterday" or the full date above it; a
   file row without content says "File not available" and offers no save
@@ -357,6 +421,16 @@ side hands it back:
   appears once an older conversation is picked
 - the progress bars: both sides get Stop while it runs, another conversation
   sees nothing, and a finished restore shows the skipped count and closes
+- consent cards on a phone and on Windows come and go in each style's motion,
+  and a card on its way out takes no tap and no Enter; a second request in
+  place of the first takes the focus as it arrives; with reduced motion,
+  from MediaQuery or from the system, a card only fades for 100 ms
+- every slot of the overlay (pairing, file, history, keyboard) changes cards
+  in the style's motion, and the pairing card leaves looking as it was while
+  the "paired" message still arrives
+- the share dialog opens like a consent card over the style's scrim, and the
+  history bar moves between samples in the style's motion (directly with the
+  samples in Precyzja and with reduced motion)
 
 ### Links in messages (`test/links_test.dart`, 25 tests)
 - `http`, `https` and a bare `www.` become links; `javascript:`, `data:`,
@@ -413,11 +487,13 @@ side hands it back:
 - a non-200, a malformed body and a thrown exception all end as `failed`, and
   the call never throws
 
-### The release card (`test/update_card_test.dart`, 5 tests)
+### The release card (`test/update_card_test.dart`, 9 tests)
 - an installable release shows the button and calls back when tapped
 - the portable copy and a release with no file for this platform get the page
   address instead
-- while downloading, the progress bar replaces the button
+- while downloading, the progress bar replaces the button, and it moves
+  between samples in each style's motion (directly with the samples under
+  reduced motion)
 - an error sits under the button without taking it away
 
 ### Presence on the list (`test/presence_test.dart`, 1 test)
@@ -429,10 +505,20 @@ side hands it back:
 - the constant in `lib/core/version.dart` agrees with `pubspec.yaml` and
   `VERSION.md`, which catches a file left behind when the number was raised
 
-### Messages in the corner (`test/toasts_test.dart`, 4 tests)
+### Messages in the corner (`test/toasts_test.dart`, 26 tests)
 - the queue keeps its order, a message goes away by its id, and the oldest
-  makes room once there are more than three
-- a card counts itself down and disappears, and a tap closes it at once
+  makes room once there are more than three; without an explicit time the
+  style decides
+- a card counts itself down and leaves through the style's exit, an explicit
+  time wins, a tap and the action button close it through the exit, and a
+  card on its way out takes no second action
+- a fourth card pushes the oldest out through the style's exit
+- a style change while a card is up does not reset its time
+- in every style the card stays its hold (3.2 s, 4.2 s in Precise), rises
+  into place by the style's shift, leaves with or without sliding back and
+  takes the style's hover time
+- "reduce animations", from MediaQuery or from the system, makes it a 100 ms
+  fade with no shift and keeps the hold
 
 The file is separate on purpose: one `testWidgets` anywhere in a file installs
 `TestWidgetsFlutterBinding`, which replaces `HttpClient` with a fake answering
@@ -598,7 +684,7 @@ thing keeping the channel silent:
 - an add-on saved in the database comes up with the app without a single call,
   and a verified peer then gets a grant
 
-### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 13 tests)
+### The keyboard add-on on screen (`test/keyboard_addon_ui_test.dart`, 14 tests)
 - the add-on's card is a single switch while the add-on is off; the receive
   switch appears with the add-on and goes away with it
 - turning receiving on with the real switches shows the safety note; turning
@@ -609,6 +695,8 @@ thing keeping the channel silent:
   disappears with the add-on
 - a file card puts the focus on Accept, and on Reject while someone types on
   this device
+- a batch arriving in place of an accepted file takes the second Enter on its
+  Reject, and the file card on its way out no longer listens
 - the overlay shows no keyboard card with the add-on off, even when a verified
   peer asks; the conversation list and the conversation screen show no
   keyboard icon
@@ -768,6 +856,169 @@ The native bar, the tray and the window are replaced by recorders:
 - the Chatt keyboard stepping aside for the lock screen's password field
   posts "Switch the keyboard to Chatt" during a grant, and nothing without
   one
+
+### Typing history inside (`test/typing_journal_test.dart`, 28 tests)
+The journal against an in-memory database, with a short flush delay and,
+where time matters, a clock of its own:
+- `TypingOp` goes to JSON and back, hidden text included; a broken row, an
+  unknown or incomplete operation drops out; its description holds no text
+- operations from the protocol: visible text or only a number of characters,
+  ping and stop drop out, neighbouring pieces of text join
+- the rebuilt text: Backspace past the start leaves it empty and takes a
+  whole emoji, Delete changes nothing, Enter is a new line, hidden text is one
+  dot per character; the text export writes keys in square brackets
+- hiding: only a text field before and after the packet stays visible, so the
+  first packet after leaving a password field is hidden too
+- a session row appears at once with the request's result; packets into the
+  same field join into one piece; a change of status, field or app starts a
+  new one; a piece goes to the database after a quiet second, and while
+  typing goes on without a pause at most five seconds after it started; the
+  end writes the last piece and the reason; a refused request is a row
+  ended at once
+- a journal that is off writes nothing; turned off mid-session it writes the
+  end only; a session already open still takes the packet in flight when
+  the add-on goes off and the switch stays on
+- after a clear the open session writes nothing and writes queued before the
+  clear do not bring the history back; closing ends open sessions with
+  `appClosed`; a failed write reaches `onError` and the queue goes on
+
+### Typing history between two devices (`test/typing_history_test.dart`, 27 tests)
+Alicja types on Bartek over real sockets, with the harness of the remote
+keyboard tests (a recording sink, with a valve that holds a packet while it
+is being typed):
+- both sides keep a session under the same request id, outgoing and
+  incoming, with the text and the end reason; the request result is a card
+  answer, "Don't ask again", and then no card at all
+- a password field and a field of unknown kind keep only the number of
+  characters on both sides, and the text is nowhere in the typing tables or
+  the app log
+- a card on the receiver's screen gives `paused`, a field that went away
+  gives `notTyped`
+- every way a session ends on the receiver (Stop, receiving off, add-on off,
+  device removed, shield taken away) gives that reason there and
+  `stoppedByPeer` on the sender after its next packet, or after a ping when it
+  types nothing; on the sender the add-on off, a new session, a removed device
+  and closing the app give their own reasons
+- a link that breaks after a confirmed packet gives `linkLost`, and the
+  packet with no reply is kept hidden; text that rides with Stop is typed and
+  recorded on both sides; Stop or the add-on going off while a packet is
+  being typed still records that packet before the end
+- a refusal, receiving off and a request withdrawn while the card is up leave
+  an ended row on both sides; an unverified sender leaves nothing in the
+  history and a warning in the log
+- the add-on off or the switch off records nothing; retention, Clear typing
+  history in the middle of a session and Clear history remove it
+- the app log has the keyboard events with each device named with the start
+  of its identifier, and none of the typed text
+
+### Typing history on screen (`test/typing_history_ui_test.dart`, 8 tests)
+- the Save typing history switch is on the add-on card only while the add-on
+  is on and writes to the database; the card's button opens an empty history
+- the list goes newest first, says the direction and the result in words and
+  sets a refusal apart; the detail shows the rebuilt text, a hidden field as
+  dots and keys as small symbols, never the text of a password
+- Clear typing history asks and clears; Clear history in Settings takes the
+  typing history too
+- Data and diagnostics sits between Privacy and Add-ons and shows Typing
+  history only once there is a session, then the log and the export
+- every result, end reason and status has words in both languages, and the
+  fixed names are right in Polish
+
+### The app log (`test/app_log_test.dart`, 28 tests)
+- entries wait in memory and reach the database after the flush delay; a
+  flush writes at once and waits; an entry after the database closed throws
+  nothing
+- trimming keeps 30 days and 20,000 entries and reports how many went
+- the same entry inside its window is counted; the count is written on flush,
+  at the end of the window on its own, or with the next entry after it; a
+  flood that goes on after a flush stays collapsed; another level or area is
+  another entry; a caller can ask for a longer window
+- Clear the log removes the database rows, the batch in memory and the open
+  windows, so the next occurrence comes back with its details; closing writes
+  the counts and takes no more entries
+- error descriptions: a file error loses its path, also the one written into
+  the message; a format error loses the quoted input; an SQLite error loses
+  every line of its parameters; a description that throws becomes the type
+  name
+- the console echo is off by default and, when on, prints stored entries
+  without the repeats
+- uncaught errors land in the log as errors and go on to the handler that was
+  there before
+- names from outside lose control characters and get the start of the
+  identifier, long text is cut, hardware addresses are hidden
+
+### What the app log records (`test/app_log_events_test.dart`, 7 tests)
+Two real instances:
+- the start leaves one summary entry with no paths
+- pairing leaves entries on both sides with no code, and a refused pairing
+  shows on both sides
+- a delivered and an undelivered message log the identifier with no body
+- a file logs its direction, size and result with no name, a refused file
+  its result on both sides
+- after closing, the last entry is in the database and the channel hooks are
+  free
+
+### The app log on screen (`test/app_log_ui_test.dart`, 7 tests)
+- entries go newest first with date, level and area, details on a tap; the
+  "Warnings and errors" filter hides the rest; copying gives the visible
+  entries as text, oldest first
+- Clear the log asks and clears; an empty log and an empty filter have their
+  own text
+- the export button opens the dialog with only the log ticked; the Settings
+  button opens the screen, in Polish too
+
+### The ZIP writer (`test/zip_writer_test.dart`, 16 tests)
+Archives are read back by a small reader written in the test:
+- CRC-32 matches the reference vectors, piece by piece too; an empty archive
+  is the end record alone
+- text is compressed, files go in as they are, Polish names are UTF-8; a
+  file's own date goes into its entry
+- the format limits: one more entry, a file over the size of the archive and
+  compression that runs over in the middle of an entry are refused and leave
+  the archive whole; room can be kept for entries that come later; an
+  entry's size counts before compression; `entryBound` is an upper bound
+- a missing source file leaves no trace; repeated names regardless of case
+  and names that try to leave the archive are refused
+- the archive grows in `<name>.part`: abort leaves an older file under the
+  name untouched and removes the working file, close replaces the older file
+
+### The data export (`test/data_export_test.dart`, 22 tests)
+A real instance with peers, a conversation with text and files (one of them
+gone from disk), typing sessions with a hidden piece, log entries and an old
+session key on a peer:
+- the file name; the estimate counts data and the received files still on
+  disk
+- every part on: the layout, the manifest and the README; the JSON of
+  settings, devices and conversations; the typing history with hidden text and
+  the rebuilt text; the log in JSON with milliseconds and in lines of text;
+  each part alone gives only its own entries; without received files there is
+  no `files/`, no `archivePath` and nothing skipped
+- no entry anywhere carries the identity key, the session key or the
+  database passphrase
+- a file over the archive limit is skipped as `tooLarge`, and a limit right at
+  the full size still gives a whole archive inside it
+- the export writes what was still in memory and leaves an entry in the log
+- desktop: the save dialog gets the suggested name and `.zip` is appended; a
+  closed dialog saves nothing; a place with no access ends as failed; an
+  appended `.zip` that already exists is replaced only after a yes; a failure
+  in the middle leaves an older file in place and no partial copy
+- Android: a copy to Downloads cleans the cache; without that copy the
+  archive goes to the share sheet; a failed share and a failed copy remove the
+  archive
+- an archive waiting in the cache goes when it is over an hour old at start,
+  and on Clear history and Clear typing history
+
+### The export dialog (`test/export_dialog_test.dart`, 8 tests)
+- counts next to the parts, received files off by default; the warning names
+  only what the chosen parts hold (message text, typed text, both or neither)
+- an existing file: the dialog asks about replacing it and passes the answer
+  on
+- without typing sessions there is no typing part, without files the files
+  part is off
+- the export goes with the chosen parts, the dialog waits busy, then a
+  message says where the file went; a failed export, a closed save dialog and
+  no place to save each have their message; a failed count still offers every
+  part; the dialog in Polish
 
 ## Scenarios on live hardware
 
@@ -1065,7 +1316,15 @@ one cannot be checked on an emulator.
 ### `tool/product_shots.dart`
 Sets up a demonstration conversation and takes screenshots into
 `docs/screenshots/produkt/`. Afterwards it wipes the app data so no demo is
-left on the device.
+left on the device, which is why it refuses any device that is not an
+emulator (`ro.kernel.qemu`). `CHATT_SHOTS_LANG=en` gives the English set,
+`CHATT_SHOTS_STYLE=precyzja` (or `cieplo`) another style and `CHATT_SHOTS_DIR`
+another folder. The Polish run in Cisza also refreshes the three pictures in
+the Polish guide (`docs/screenshots/android/and16`, `and20`, `and21`: the
+pairing code, Privacy, Clear history). The status bar runs in demo mode.
+`CHATT_SHOTS_TARGETS=1` prints, for every screen, the app's tappable elements
+smaller than 48 dp and also captures the conversation menu: the walk through
+the three styles, both themes and a font scale of 1.3 runs this way.
 
 ### `tool/windows_shots.dart`
 Screenshots of the Windows window **without clicking around the desktop**: the
@@ -1075,12 +1334,14 @@ the engine (`RepaintBoundary.toImage`). There are no private conversations in
 the screenshots, and the result is the same on every machine.
 `CHATT_SHOTS_LANG=en` gives the English version, `CHATT_SHOTS_STYLE=precyzja`
 (or `cieplo`) another style, and `CHATT_SHOTS_DIR` sends the pictures
-somewhere other than `docs/screenshots/windows/`. One trap: the harness replaces
+somewhere other than `docs/screenshots/windows/`. The tests run on the
+Windows platform (`TargetPlatformVariant`), so density and the security panel
+as a window match the app on a PC. One trap: the harness replaces
 `HttpClient` with a fake answering 400, so the script restores the real one
 (`HttpOverrides.global = null`). Three more tests, run alone with
 `--plain-name klawiatury`, take the keyboard add-on for `docs/keyboard.md`:
 the sender's screen typing to a phone (06); the keyboard button in the
-conversation (09), "Typing without asking" in the security sheet (10) and
+conversation (09), "Typing without asking" in the security panel (10) and
 the sender's screen in every state, driven by a link the test controls
 (waiting 11, a password field 12, Compose 13, paused 14, an administrator's
 window 15, the link dropped 16); and the consent card on this PC (07) with
@@ -1126,6 +1387,14 @@ Deliberate holes in coverage, to be checked by hand at release time:
 - **The keyboard's 8-hour limit, the card's two-minute timeout and the cap of
   8 waiting requests**: no test waits that long or raises nine cards. The idle
   clock has a test of its own, with a shortened duration.
+- **Exporting on a real device**: the copy to Downloads on its worker thread,
+  the share sheet over the `cache/eksport/` root and the Windows save dialog
+  never run under `flutter test`; the tests swap them for stand-ins. The
+  archive itself was opened by Python's `zipfile`, `bsdtar` and .NET; the
+  Explorer ZIP viewer with Polish names is checked by hand.
+- **Quit from the tray and a process ended by the system**: the steps that
+  save the app log and the typing history before the end are in `main.dart`,
+  which no test starts.
 
 - **Router behaviour**: client isolation on a guest network, broadcasts between
   the 2.4 and 5 GHz bands, masks other than /24 (the scanner computes the
@@ -1138,7 +1407,12 @@ Deliberate holes in coverage, to be checked by hand at release time:
 - **Manufacturer app killing** on Android outside stock systems.
 - **Doze mode**: the foreground service overrides the network block, but there
   is no automated test for it.
-- **The UI on Windows**: there are no widget tests; it is checked by clicking.
+- **The UI on Windows**: widget tests render it on the Windows platform
+  (density, the security panel as a window), but the real window, its mouse
+  and its keyboard are checked by clicking.
+- **How the motion feels on a device**: the tests pin each style's times,
+  curves and offsets, and whether it looks right on a phone and a PC is
+  checked by eye.
 - **Very large files and weak links**: the tests run over loopback, so they do
   not catch the timeouts typical of distant Wi-Fi.
 - **Pasting a file on Android**: a stock emulator image has no app that puts a

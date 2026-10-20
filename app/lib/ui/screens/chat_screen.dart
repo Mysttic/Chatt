@@ -23,6 +23,7 @@ import '../widgets/history_ui.dart';
 import '../widgets/link_confirm.dart';
 import '../widgets/link_preview_card.dart';
 import '../widgets/linked_text.dart';
+import '../widgets/motion.dart';
 import '../widgets/paste_shortcut.dart';
 import '../widgets/protocol_badge.dart';
 import '../widgets/security_sheet.dart';
@@ -61,6 +62,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// Pliki wiszą nad oknem (przeciąganie z pulpitu). Podpowiedź pokazuje się
   /// tylko wtedy, bo poza tym nie ma o czym mówić.
   bool _dragging = false;
+
+  /// Wiadomości już pokazane, po id. null: pierwsze dane jeszcze nie
+  /// przyszły, a to, co przyjdzie z nimi, stoi od razu na miejscu.
+  Set<int>? _pokazane;
+
+  /// Wiadomości, które przyszły albo wyszły przy otwartej rozmowie. Tylko
+  /// one wjeżdżają, i tylko w klatce, w której pojawiły się na liście:
+  /// powrót po przewinięciu buduje dymek od razu na miejscu.
+  Set<int> _wjezdzaja = const {};
+
+  /// Porównanie z poprzednią listą. Nie wjeżdża przywrócona historia
+  /// (potrafi przyjść setkami naraz) ani nic w trakcie szukania. Zmiana
+  /// statusu nie zmienia id, więc niczego nie wnosi. Nowa wiadomość ma id
+  /// większe od każdego pokazanego: wiersze przeniesione przy scalaniu
+  /// starszej rozmowy mają swoje dawne, mniejsze id i stoją od razu.
+  void _zauwazNowe(List<Message> all, String query) {
+    final pokazane = _pokazane;
+    _pokazane = {for (final m in all) m.id};
+    if (pokazane == null || query.isNotEmpty) return;
+    final najnowsza = pokazane.fold(-1, (a, b) => a > b ? a : b);
+    final nowe = {
+      for (final m in all)
+        if (m.restoredAt == null && m.id > najnowsza) m.id,
+    };
+    if (nowe.isEmpty) return;
+    _wjezdzaja = nowe;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (identical(_wjezdzaja, nowe)) _wjezdzaja = const {};
+    });
+  }
 
   @override
   void initState() {
@@ -114,7 +145,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// Pisanie na tamtym urządzeniu. Własna trasa na całe okno, także
   /// w układzie dwukolumnowym: pole pisania ma być jedynym polem na ekranie.
   void _piszNaTamtym(Peer peer) {
-    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
+    Navigator.of(context, rootNavigator: true).push(ChattPageRoute<void>(
       builder: (_) => RemoteKeyboardScreen(peer: peer),
     ));
   }
@@ -123,7 +154,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// potwierdzona po tej stronie od razu: widzieliśmy tamten ekran.
   Future<void> _scanQr() async {
     final peer = await Navigator.of(context).push<Peer>(
-      MaterialPageRoute(builder: (_) => const ScanScreen()),
+      ChattPageRoute(builder: (_) => const ScanScreen()),
     );
     if (!mounted || peer == null) return;
     showToast(context.l10n.pairedWith(peer.displayName));
@@ -143,7 +174,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   /// Karta z dwiema drogami do pliku. `null` znaczy „zamknięta bez wyboru".
-  Future<bool?> _askWhereFrom() => showModalBottomSheet<bool>(
+  Future<bool?> _askWhereFrom() => showChattSheet<bool>(
         context: context,
         builder: (sheet) => SafeArea(
           child: Wrap(
@@ -226,6 +257,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.listen(messagesProvider(widget.conversationId), (_, _) {
       ref.read(appServicesProvider).db.markConversationRead(widget.conversationId);
     });
+    final wszystkie = messages.valueOrNull;
+    if (wszystkie != null) _zauwazNowe(wszystkie, _search.text.trim());
+    final ruch = ChattMotion.of(context);
 
     final szeroko = czyDwupanel(context);
     return Scaffold(
@@ -236,8 +270,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 controller: _search,
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
-                decoration: InputDecoration.collapsed(
+                decoration: InputDecoration(
                   hintText: context.l10n.searchHint,
+                  // Bez ramki i tła, ale na wysokość celu dotyku (48 dp).
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               )
             : Row(
@@ -477,12 +518,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
                   );
                 }
+                // Wiersz ma klucz wiadomości: nowa na dole przesuwa indeksy,
+                // a stan (wejście, podgląd strony) zostaje przy swojej.
+                final indeksy = {
+                  for (var i = 0; i < items.length; i++)
+                    items[i].id: items.length - 1 - i,
+                };
                 final lista = ListView.builder(
                   controller: _scroll,
                   reverse: true,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   itemCount: items.length,
+                  findChildIndexCallback: (klucz) => klucz is ValueKey<int>
+                      ? indeksy[klucz.value]
+                      : null,
                   itemBuilder: (context, index) {
                     // reverse: true -> element 0 na dole, czytamy od końca.
                     final pozycja = items.length - 1 - index;
@@ -501,14 +551,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     // każdego dnia dostaje nad sobą datę. Bez tego
                     // przywrócona historia z kilku miesięcy zlewa się w jedno.
                     final starsza = pozycja > 0 ? items[pozycja - 1] : null;
-                    if (starsza != null &&
-                        _tenSamDzien(starsza.createdAt, message.createdAt)) {
-                      return dymek;
-                    }
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [_DateSeparator(date: message.createdAt), dymek],
+                    final zData = starsza == null ||
+                        !_tenSamDzien(starsza.createdAt, message.createdAt);
+                    // Nowy dymek wjeżdża w górę, data nad nim razem z nim.
+                    return EnterOnce(
+                      key: ValueKey(message.id),
+                      animate: _wjezdzaja.contains(message.id),
+                      duration: ruch.bubble,
+                      curve: ruch.bubbleCurve,
+                      shift: ruch.bubbleShift,
+                      child: zData
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _DateSeparator(date: message.createdAt),
+                                dymek,
+                              ],
+                            )
+                          : dymek,
                     );
                   },
                 );
@@ -533,9 +594,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   .where((t) => t.conversationId == widget.conversationId)
                   .toList(growable: false);
               if (here.isEmpty) return const SizedBox.shrink();
+              // Klucz pliku: pasek pamięta, gdzie jest, i po końcu jednego
+              // pliku drugi nie przejmuje jego paska.
               return Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [for (final t in here) _IncomingTransferTile(transfer: t)],
+                children: [
+                  for (final t in here)
+                    _IncomingTransferTile(
+                        key: ValueKey(t.messageGuid), transfer: t),
+                ],
               );
             },
           ),
@@ -552,22 +619,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     onPressed: _attachFile,
                   ),
                   Expanded(
-                    child: TextField(
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 5,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      // Przycisk „wstaw obrazek" na klawiaturze (GIF-y,
-                      // naklejki, zrzuty). Bez tego Android odmawia wstawienia,
-                      // bo domyślnie pole nie deklaruje żadnego typu treści.
-                      contentInsertionConfiguration:
-                          ContentInsertionConfiguration(
-                              onContentInserted: _insertFromKeyboard),
-                      decoration: InputDecoration(
-                        hintText: context.l10n.messageHint,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                    // Własny węzeł semantyki: bez niego czytnik ekranu
+                    // ogłaszał całą treść ekranu jako pole tekstowe, z listą
+                    // wiadomości i przyciskami w środku.
+                    child: Semantics(
+                      container: true,
+                      child: TextField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 5,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _send(),
+                        // Przycisk „wstaw obrazek" na klawiaturze (GIF-y,
+                        // naklejki, zrzuty). Bez tego Android odmawia wstawienia,
+                        // bo domyślnie pole nie deklaruje żadnego typu treści.
+                        contentInsertionConfiguration:
+                            ContentInsertionConfiguration(
+                                onContentInserted: _insertFromKeyboard),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.messageHint,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                        ),
                       ),
                     ),
                   ),
@@ -727,7 +800,7 @@ class _MessageBubble extends StatelessWidget {
   /// menu dymka, bo po obejrzeniu zdjęcia chce się zwykle z nim coś zrobić,
   /// a cofanie się do rozmowy po to samo menu byłoby drogą naokoło.
   void _openImage(BuildContext context, String path) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
+    Navigator.of(context).push(ChattPageRoute<void>(
       builder: (podglad) => ImageViewScreen(
         path: path,
         name: message.fileName,
@@ -763,7 +836,7 @@ class _MessageBubble extends StatelessWidget {
 
   /// Otwarcie pliku systemowym skojarzeniem; komunikat tylko wtedy, gdy się
   /// nie udało. Ścieżka do skopiowania zostaje na wypadek systemu, w którym
-  /// nie ma czym otworzyć pliku — na Androidzie znaczy to brak kanału, bo
+  /// nie ma czym otworzyć pliku: na Androidzie znaczy to brak kanału, bo
   /// samo otwieranie idzie przez dostawcę treści i melduje się osobno.
   Future<void> _openFile(BuildContext context) async {
     final result = await services.openFileFromMessage(message);
@@ -824,7 +897,7 @@ class _MessageBubble extends StatelessWidget {
 
   void _fileMenu(BuildContext context) {
     final path = message.filePath ?? '';
-    showModalBottomSheet<void>(
+    showChattSheet<void>(
       context: context,
       builder: (sheet) => SafeArea(
         child: Wrap(
@@ -895,7 +968,7 @@ class _MessageBubble extends StatelessWidget {
     // tam, gdzie dotknięcie samego napisu bywa przechwycone przez
     // zaznaczanie tekstu (pulpit, `SelectionArea`).
     final links = findLinks(message.body);
-    showModalBottomSheet<void>(
+    showChattSheet<void>(
       context: context,
       builder: (sheet) => SafeArea(
         child: Wrap(
@@ -942,7 +1015,7 @@ class _MessageBubble extends StatelessWidget {
   /// zaznaczanie i przytrzymanie otwierające menu biją się o ten sam gest,
   /// a menu jest jedyną drogą do skasowania wiadomości.
   void _selectText(BuildContext context) {
-    showModalBottomSheet<void>(
+    showChattSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
@@ -1059,6 +1132,7 @@ class _MessageBubble extends StatelessWidget {
         przywracanie.conversationId == message.conversationId;
     return InkWell(
       onTap: () => _tapFile(context),
+      hoverDuration: ChattMotion.of(context).hover,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -1102,7 +1176,7 @@ class _MessageBubble extends StatelessWidget {
                     valueListenable: progress,
                     builder: (_, value, _) => ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
+                      child: SmoothProgress(
                         value: value,
                         minHeight: 5,
                         backgroundColor: textColor.withValues(alpha: 0.22),
@@ -1118,9 +1192,9 @@ class _MessageBubble extends StatelessWidget {
           // pliku nie ma czego zapisywać, leży u nas od początku.
           if (message.direction == MessageDirection.incoming && dostepny) ...[
             const SizedBox(width: 4),
+            // Gęstość z motywu: na telefonie pełne 48 dp celu dotyku.
             IconButton(
               tooltip: context.l10n.saveFile,
-              visualDensity: VisualDensity.compact,
               icon: Icon(Icons.save_alt, size: 20, color: textColor),
               onPressed: () => _saveFile(context),
             ),
@@ -1274,7 +1348,7 @@ class _MessageBubble extends StatelessWidget {
 class _IncomingTransferTile extends StatelessWidget {
   final IncomingTransfer transfer;
 
-  const _IncomingTransferTile({required this.transfer});
+  const _IncomingTransferTile({super.key, required this.transfer});
 
   @override
   Widget build(BuildContext context) {
@@ -1311,7 +1385,7 @@ class _IncomingTransferTile extends StatelessWidget {
               const SizedBox(height: 4),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(value: value, minHeight: 5),
+                child: SmoothProgress(value: value, minHeight: 5),
               ),
             ],
           );
