@@ -746,6 +746,11 @@ void main() {
       await tester.tap(find.text(teksty.connect));
       await dokoncz(
           tester, () => find.byType(ChatScreen).evaluate().isNotEmpty);
+      // Okno schodzi od stuknięcia w fałszywym czasie, a rozmowa wchodzi,
+      // gdy odpowie prawdziwa sieć. Na szybkiej maszynie odpowiedź przychodzi
+      // przed końcem wyjścia, więc wyjście dochodzi do końca tutaj.
+      await tester.pump(m.cardOut);
+      await dokonczZejscie(tester);
       expect(poIp, findsNothing);
 
       // Z rozmowy z powrotem na listę i zapomnienie Bartka.
