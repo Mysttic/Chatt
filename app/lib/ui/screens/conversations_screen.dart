@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/rendering.dart' show OffsetLayer, RenderRepaintBoundary;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/search.dart';
+import '../../core/share_intake.dart';
 import '../../data/db.dart';
 import '../../services/presence.dart';
 import '../../services/providers.dart';
@@ -15,6 +17,7 @@ import '../widgets/motion.dart';
 import '../widgets/protocol_badge.dart';
 import 'chat_screen.dart';
 import 'nearby_screen.dart';
+import 'send_to_screen.dart';
 import 'settings_screen.dart';
 import '../widgets/toasts.dart';
 
@@ -121,6 +124,9 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen>
   Animation<double> _krycie = kAlwaysCompleteAnimation;
   final _znikajace = <_ZnikajacyPanel>[];
 
+  /// Prośby spoza aplikacji: udostępnienie i skrót rozmowy (issue #60).
+  late final ShareIntake _intake;
+
   @override
   void initState() {
     super.initState();
@@ -131,10 +137,15 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen>
       // Flutter skróciłby go jeszcze do 5%.
       animationBehavior: AnimationBehavior.preserve,
     );
+    // Udostępnienie, które uruchomiło aplikację, czeka już przed pierwszą
+    // klatką; kolejne przychodzą w trakcie.
+    _intake = ref.read(shareIntakeProvider)..pending.addListener(_zZewnatrz);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _zZewnatrz());
   }
 
   @override
   void dispose() {
+    _intake.pending.removeListener(_zZewnatrz);
     _search.dispose();
     _wejscie.dispose();
     for (final panel in _znikajace) {
@@ -201,6 +212,70 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen>
             ChatScreen(conversationId: conversationId, peer: peer),
       ),
     );
+  }
+
+  /// Prośba spoza aplikacji: treść z systemowego okna „Udostępnij” albo
+  /// skrót rozmowy z ekranu głównego. Wszystko, co leży nad listą rozmów,
+  /// schodzi, tak jak po stuknięciu w powiadomienie.
+  ///
+  /// Rozmówca wskazany wprost (skrót) dostaje rozmowę od razu, z treścią
+  /// czekającą na „Wyślij”. Bez niego, albo gdy tego rozmówcy już nie ma,
+  /// rozmowę wybiera się na ekranie „Wyślij do”.
+  Future<void> _zZewnatrz() async {
+    final prosba = _intake.pending.value;
+    if (prosba == null || !mounted) return;
+    _intake.pending.value = null;
+    final services = ref.read(appServicesProvider);
+    final teksty = context.l10n;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    if (prosba is IncomingShare) {
+      if (prosba.isEmpty) {
+        unawaited(_intake.discard(prosba.id));
+        showToast(teksty.shareNothing);
+        return;
+      }
+      if (prosba.skipped > 0) showToast(teksty.shareSkipped(prosba.skipped));
+    }
+    final guid = switch (prosba) {
+      OpenConversationRequest(:final peerGuid) => peerGuid,
+      IncomingShare(:final peerGuid) => peerGuid,
+    };
+    final peer = guid == null ? null : await services.db.peerByGuid(guid);
+    if (!mounted) return;
+    if (peer != null) {
+      final conversationId = await services.openConversationWith(peer);
+      if (!mounted) return;
+      if (prosba is IncomingShare) _intake.stage(conversationId, prosba);
+      _otworz(conversationId, peer);
+      return;
+    }
+    switch (prosba) {
+      case OpenConversationRequest():
+        showToast(teksty.conversationGone);
+      case IncomingShare share:
+        unawaited(Navigator.of(context).push(ChattPageRoute(
+          builder: (_) => SendToScreen(
+            share: share,
+            onChosen: (conversationId, peer) =>
+                _poWyborze(share, conversationId, peer),
+          ),
+        )));
+    }
+  }
+
+  /// Rozmowa wybrana na ekranie „Wyślij do”: treść czeka w niej na „Wyślij”.
+  void _poWyborze(IncomingShare share, int conversationId, Peer peer) {
+    _intake.stage(conversationId, share);
+    if (czyDwupanel(context)) {
+      Navigator.of(context).pop();
+      _otworz(conversationId, peer);
+      return;
+    }
+    // Rozmowa zastępuje ekran wyboru, więc „wstecz” wraca do listy rozmów.
+    Navigator.of(context).pushReplacement(ChattPageRoute(
+      builder: (_) => ChatScreen(conversationId: conversationId, peer: peer),
+    ));
   }
 
   @override

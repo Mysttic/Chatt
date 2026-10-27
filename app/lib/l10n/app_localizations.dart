@@ -2911,6 +2911,60 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Błąd'**
   String get appLogLevelError;
+
+  /// No description provided for @shareSendToTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyślij do'**
+  String get shareSendToTitle;
+
+  /// No description provided for @shareFiles.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} plik} few{{count} pliki} many{{count} plików} other{{count} pliku}}'**
+  String shareFiles(int count);
+
+  /// No description provided for @shareNoConversations.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie masz jeszcze żadnej rozmowy. Znajdź urządzenie przyciskiem „W pobliżu”, żeby mu to wysłać.'**
+  String get shareNoConversations;
+
+  /// No description provided for @sharePreparing.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{Przygotowuję plik…} few{Przygotowuję {count} pliki…} many{Przygotowuję {count} plików…} other{Przygotowuję {count} pliku…}}'**
+  String sharePreparing(int count);
+
+  /// No description provided for @shareDontSend.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie wysyłaj'**
+  String get shareDontSend;
+
+  /// No description provided for @shareNothing.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt nie dostał nic do wysłania: ani tekstu, ani pliku, który umie odczytać.'**
+  String get shareNothing;
+
+  /// No description provided for @shareSkipped.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{Pominięty {count} plik: Chatt nie przyjmuje plików podanych zwykłą ścieżką.} few{Pominięte {count} pliki: Chatt nie przyjmuje plików podanych zwykłą ścieżką.} many{Pominiętych {count} plików: Chatt nie przyjmuje plików podanych zwykłą ścieżką.} other{Pominięte {count} pliku: Chatt nie przyjmuje plików podanych zwykłą ścieżką.}}'**
+  String shareSkipped(int count);
+
+  /// No description provided for @shareFilesMissing.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się wczytać {missing} z {total} udostępnionych plików.'**
+  String shareFilesMissing(int missing, int total);
+
+  /// No description provided for @conversationGone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Tej rozmowy już nie ma.'**
+  String get conversationGone;
 }
 
 class _AppLocalizationsDelegate

@@ -4,19 +4,23 @@
      aplikacji. APK musi tędy przejść, bo systemowy instalator dostaje
      content://, nie ścieżkę.
 
-     Dwa korzenie w cache to pliki, które użytkownik sam wybrał albo wkleił,
-     żeby je wysłać: kopie lądują w `cache/wybrane/` (okno wyboru,
-     ChattFilePicker) i `cache/wklejone/` (schowek przez ChattClipboard oraz
-     obrazek wstawiony z klawiatury przez core/clipboard.dart). Bez nich
-     stuknięcie we własne wysłane zdjęcie kończyło się komunikatem „Nie udało
-     się otworzyć pliku.", bo FileProvider odmawia wszystkiemu spoza
-     wymienionych tu korzeni.
+     Pierwsze dwa korzenie w cache to pliki, które użytkownik sam wybrał
+     albo wkleił, żeby je wysłać: kopie lądują w `cache/wybrane/` (okno
+     wyboru, ChattFilePicker) i `cache/wklejone/` (schowek przez
+     ChattClipboard oraz obrazek wstawiony z klawiatury przez
+     core/clipboard.dart). Bez nich stuknięcie we własne wysłane zdjęcie
+     kończyło się komunikatem „Nie udało się otworzyć pliku.", bo
+     FileProvider odmawia wszystkiemu spoza wymienionych tu korzeni.
 
      Podkatalogi, nie całe `cache/`: wychodzi dokładnie to, co użytkownik
      świadomie wskazał do wysłania, a nie wszystko, co aplikacja akurat
      trzyma w cache'u.
 
-     Trzeci korzeń w cache, `cache/eksport/`, to archiwum ZIP z eksportu
+     Trzeci korzeń, `cache/udostepnione/`, to kopie treści udostępnionej
+     Chattowi z innej aplikacji przez systemowe okno „Udostępnij"
+     (ChattShare.kt): też pliki, które użytkownik sam wskazał do wysłania.
+
+     Czwarty korzeń w cache, `cache/eksport/`, to archiwum ZIP z eksportu
      danych (services/data_export.dart). Wychodzi stąd tylko wtedy, gdy
      zapis do Pobranych jest niedostępny (Android starszy niż 10 albo odmowa
      dostawcy treści) i archiwum idzie do okna „Udostępnij". Ten katalog
@@ -28,5 +32,6 @@
     <files-path name="aktualizacje" path="Chatt/updates/" />
     <cache-path name="wybrane" path="wybrane/" />
     <cache-path name="wklejone" path="wklejone/" />
+    <cache-path name="udostepnione" path="udostepnione/" />
     <cache-path name="eksport" path="eksport/" />
 </paths>

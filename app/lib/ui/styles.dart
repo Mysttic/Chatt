@@ -1427,7 +1427,9 @@ TextTheme _textTheme(AppStyle style, Color text) {
   return t.apply(bodyColor: text, displayColor: text);
 }
 
-String _fontOf(AppStyle style) => switch (style) {
+/// Krój pisma stylu. Także poza drzewem widżetów: awatary skrótów rozmów
+/// rysuje ui/share_shortcuts.dart.
+String fontFamilyOf(AppStyle style) => switch (style) {
       AppStyle.cisza => _figtree,
       AppStyle.precyzja => _plexSans,
       AppStyle.cieplo => _nunito,
@@ -1492,7 +1494,7 @@ ThemeData _motyw(AppStyle style, Brightness brightness, bool gradient,
     surfaceTint: Colors.transparent,
   );
   final text = _textTheme(style, c.text);
-  final font = _fontOf(style);
+  final font = fontFamilyOf(style);
   RoundedRectangleBorder shape(double r, {Color? side}) =>
       RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(r),

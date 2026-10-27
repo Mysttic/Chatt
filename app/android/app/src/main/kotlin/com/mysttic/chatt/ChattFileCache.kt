@@ -33,10 +33,11 @@ object ChattFileCache {
      * [fallbackName] to nazwa dla pliku, którego dostawca nie nazwał.
      *
      * [typed] dokłada rozszerzenie z typu MIME, gdy nazwy nie ma albo nie ma
-     * w niej kropki. Włącza to wyłącznie wklejanie ze schowka, gdzie obrazek
-     * zwykle przychodzi bez nazwy. Wybór pliku z dysku zostawia nazwę taką,
-     * jaką podał dostawca: tam nazwa jest prawdziwa, a zgadywanie kończyłoby
-     * się plikami w rodzaju `kopia.bak.bin`.
+     * w niej kropki. Włącza to wklejanie ze schowka i udostępnianie z innej
+     * aplikacji ([ChattShare]), gdzie obrazek bywa bez nazwy. Wybór pliku
+     * z dysku zostawia nazwę taką, jaką podał dostawca: tam nazwa jest
+     * prawdziwa, a zgadywanie kończyłoby się plikami w rodzaju
+     * `kopia.bak.bin`.
      */
     fun copy(
         context: Context,

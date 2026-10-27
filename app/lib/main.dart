@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/background_service.dart';
 import 'core/languages.dart';
+import 'core/share_intake.dart';
 import 'core/startup_error.dart';
 import 'core/tray.dart';
 import 'data/db.dart';
@@ -17,6 +18,7 @@ import 'services/app_services.dart';
 import 'services/providers.dart';
 import 'ui/remote_input_desktop.dart';
 import 'ui/remote_input_mobile.dart';
+import 'ui/share_shortcuts.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,6 +83,14 @@ Future<void> _start() async {
   final klawiaturaMobilna = Platform.isAndroid
       ? (RemoteInputMobile(services, texts: () => biezaceTeksty)..attach())
       : null;
+
+  // Android: udostępnianie z innych aplikacji (issue #60). Treść, która
+  // uruchomiła aplikację, czeka już w kanale; ostatnie rozmowy idą do
+  // systemowego okna „Udostępnij" i pod przytrzymaną ikonę Chatt.
+  if (Platform.isAndroid) {
+    unawaited(ShareIntake.instance.attach());
+    ShareShortcuts(services, ShareIntake.instance).attach();
+  }
 
   // Android: usługa pierwszoplanowa trzyma proces (a z nim serwer i
   // discovery) także po zamknięciu okna. Teksty jej powiadomienia biorą się
