@@ -1425,7 +1425,11 @@ Deliberate holes in coverage, to be checked by hand at release time:
   cross and Back drop the files, the home screen shortcut opens its
   conversation, a cold start works through a share and through a shortcut,
   and a file whose grant cannot be passed on still brings the window up with
-  a message. Not yet on a phone.
+  a message. The same day on a moto g84 (Android 15, release build, real
+  conversations, nothing sent): the Share sheet shows two conversations and
+  Chatt, two images reach the bar both ways, a link lands in the field, the
+  cross and Back drop the content, and the launcher's three shortcuts open
+  their conversation.
 - **Typing into a real field.** `flutter test` has no native side, so
   `SendInput` on Windows and the Chatt keyboard on Android are never reached
   there. The Android side is covered by `tool/klawiatura_android_e2e_test.dart`
