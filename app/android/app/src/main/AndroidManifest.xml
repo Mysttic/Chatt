@@ -80,6 +80,35 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Rozmowy w systemowym oknie „Udostępnij" (Android 10+) i po
+                 przytrzymaniu ikony Chatt. Skróty publikuje aplikacja
+                 (ChattShare.kt), tu jest tylko cel udostępniania. -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+        <!-- Wejście z systemowego okna „Udostępnij" (issue #60): tekst,
+             odnośniki i pliki dowolnego rodzaju, jeden albo kilka naraz.
+             Bez wyglądu: przekazuje treść oknu Chatta i od razu znika
+             (ShareActivity.kt), bo Chatt ma jeden silnik Fluttera i jedno
+             okno. -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
         </activity>
         <service
             android:name=".ChattService"

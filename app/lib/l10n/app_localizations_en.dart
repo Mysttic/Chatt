@@ -1775,4 +1775,61 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appLogLevelError => 'Error';
+
+  @override
+  String get shareSendToTitle => 'Send to';
+
+  @override
+  String shareFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files',
+      one: '$count file',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get shareNoConversations =>
+      'No conversations yet. Find a device with the “Nearby” button to send this to it.';
+
+  @override
+  String sharePreparing(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Preparing $count files…',
+      one: 'Preparing the file…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get shareDontSend => 'Don\'t send';
+
+  @override
+  String get shareNothing =>
+      'Chatt got nothing it can send: no text and no file it can read.';
+
+  @override
+  String shareSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count files left out: Chatt doesn\'t accept files handed over as a plain path.',
+      one:
+          '$count file left out: Chatt doesn\'t accept files handed over as a plain path.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String shareFilesMissing(int missing, int total) {
+    return 'Couldn\'t read $missing of $total shared files.';
+  }
+
+  @override
+  String get conversationGone => 'That conversation is gone.';
 }

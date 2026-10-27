@@ -573,5 +573,14 @@
   "appLogDetails": "Details",
   "appLogLevelInfo": "Info",
   "appLogLevelWarning": "Warning",
-  "appLogLevelError": "Error"
+  "appLogLevelError": "Error",
+  "shareSendToTitle": "Send to",
+  "shareFiles": "{count, plural, one{{count} file} other{{count} files}}",
+  "shareNoConversations": "No conversations yet. Find a device with the “Nearby” button to send this to it.",
+  "sharePreparing": "{count, plural, one{Preparing the file…} other{Preparing {count} files…}}",
+  "shareDontSend": "Don't send",
+  "shareNothing": "Chatt got nothing it can send: no text and no file it can read.",
+  "shareSkipped": "{count, plural, one{{count} file left out: Chatt doesn't accept files handed over as a plain path.} other{{count} files left out: Chatt doesn't accept files handed over as a plain path.}}",
+  "shareFilesMissing": "Couldn't read {missing} of {total} shared files.",
+  "conversationGone": "That conversation is gone."
 }

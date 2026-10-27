@@ -24,16 +24,21 @@ class MainActivity : FlutterActivity() {
         askForNotifications()
         ChattRemoteInput.attach(this)
         ChattRemoteInput.handleIntent(this, intent)
+        // Skrót rozmowy z ekranu głównego. Okno odtworzone po zmianie
+        // konfiguracji ma za sobą tę intencję już obsłużoną.
+        if (savedInstanceState == null) ChattShare.handleIntent(intent)
     }
 
     /**
-     * `singleTop`: powiadomienie „Przełącz klawiaturę na Chatt" przy
-     * otwartym oknie przychodzi tutaj.
+     * `singleTop`: powiadomienie „Przełącz klawiaturę na Chatt", skrót rozmowy
+     * i udostępnienie z innej aplikacji ([ShareActivity]) przy otwartym oknie
+     * przychodzą tutaj.
      */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         ChattRemoteInput.handleIntent(this, intent)
+        ChattShare.handleIntent(intent)
     }
 
     /** Okno wyboru klawiatury pokazuje się i zamyka przez fokus okna. */

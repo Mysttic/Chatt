@@ -766,5 +766,26 @@
   "appLogDetails": "Szczegóły",
   "appLogLevelInfo": "Informacja",
   "appLogLevelWarning": "Ostrzeżenie",
-  "appLogLevelError": "Błąd"
+  "appLogLevelError": "Błąd",
+  "shareSendToTitle": "Wyślij do",
+  "shareFiles": "{count, plural, one{{count} plik} few{{count} pliki} many{{count} plików} other{{count} pliku}}",
+  "@shareFiles": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "shareNoConversations": "Nie masz jeszcze żadnej rozmowy. Znajdź urządzenie przyciskiem „W pobliżu”, żeby mu to wysłać.",
+  "sharePreparing": "{count, plural, one{Przygotowuję plik…} few{Przygotowuję {count} pliki…} many{Przygotowuję {count} plików…} other{Przygotowuję {count} pliku…}}",
+  "@sharePreparing": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "shareDontSend": "Nie wysyłaj",
+  "shareNothing": "Chatt nie dostał nic do wysłania: ani tekstu, ani pliku, który umie odczytać.",
+  "shareSkipped": "{count, plural, one{Pominięty {count} plik: Chatt nie przyjmuje plików podanych zwykłą ścieżką.} few{Pominięte {count} pliki: Chatt nie przyjmuje plików podanych zwykłą ścieżką.} many{Pominiętych {count} plików: Chatt nie przyjmuje plików podanych zwykłą ścieżką.} other{Pominięte {count} pliku: Chatt nie przyjmuje plików podanych zwykłą ścieżką.}}",
+  "@shareSkipped": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "shareFilesMissing": "Nie udało się wczytać {missing} z {total} udostępnionych plików.",
+  "@shareFilesMissing": {
+    "placeholders": { "missing": { "type": "int" }, "total": { "type": "int" } }
+  },
+  "conversationGone": "Tej rozmowy już nie ma."
 }

@@ -17,8 +17,14 @@ import '../widgets/toasts.dart';
 /// Wyszukiwanie urządzeń w sieci (odpowiednik ListOfNearbyDevices.PNG
 /// + ManuallyFindDevice.PNG). Wyniki skanu od razu trafiają do bazy, więc
 /// lista niżej to po prostu wszystkie znane urządzenia, na żywo.
+///
+/// Przy [choose] stuknięcie w urządzenie zamyka ekran i oddaje to urządzenie
+/// temu, kto ekran otworzył: tak wybiera się rozmówcę dla treści
+/// udostępnionej z innej aplikacji (issue #60).
 class NearbyScreen extends ConsumerStatefulWidget {
-  const NearbyScreen({super.key});
+  final bool choose;
+
+  const NearbyScreen({super.key, this.choose = false});
 
   @override
   ConsumerState<NearbyScreen> createState() => _NearbyScreenState();
@@ -125,6 +131,10 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
           : context.l10n.scanNothingFound;
 
   Future<void> _openChat(Peer peer) async {
+    if (widget.choose) {
+      Navigator.of(context).pop(peer);
+      return;
+    }
     final services = ref.read(appServicesProvider);
     final conversationId = await services.openConversationWith(peer);
     if (!mounted) return;
