@@ -13,6 +13,7 @@ import '../../core/clipboard.dart';
 import '../../core/file_actions.dart';
 import '../../core/links.dart';
 import '../../core/search.dart';
+import '../../core/share_intake.dart';
 import '../../data/db.dart';
 import '../../services/app_services.dart';
 import '../../services/providers.dart';
@@ -63,6 +64,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// tylko wtedy, bo poza tym nie ma o czym mówić.
   bool _dragging = false;
 
+  /// Treść udostępniona z innej aplikacji (issue #60). Tekst trafia do pola
+  /// wiadomości, pliki czekają na pasku nad nim, aż padnie „Wyślij".
+  late final ShareIntake _intake;
+  _Udostepnione? _udostepnione;
+
+  /// Trasa, na której stoi ten ekran (na szerokim oknie: lista rozmów).
+  ModalRoute<Object?>? _trasa;
+
   /// Wiadomości już pokazane, po id. null: pierwsze dane jeszcze nie
   /// przyszły, a to, co przyjdzie z nimi, stoi od razu na miejscu.
   Set<int>? _pokazane;
@@ -101,15 +110,75 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     services.isPeerOnline(widget.peer).then((online) {
       if (mounted) setState(() => _online = online);
     });
+    // Treść czeka na tę rozmowę od chwili wyboru, a przy otwartej rozmowie
+    // (prawy panel) może przyjść w każdej chwili.
+    _intake = ref.read(shareIntakeProvider)
+      ..staged.addListener(_wezUdostepnione);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _wezUdostepnione());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _trasa = ModalRoute.of(context);
   }
 
   @override
   void dispose() {
+    _intake.staged.removeListener(_wezUdostepnione);
+    // Wyjście z rozmowy bez „Wyślij": kopie udostępnionych plików do kosza.
+    final udostepnione = _udostepnione;
+    if (udostepnione != null) unawaited(_intake.discard(udostepnione.share.id));
     _input.dispose();
     _scroll.dispose();
     _search.dispose();
     super.dispose();
   }
+
+  /// Treść z okna „Udostępnij" dla tej rozmowy. Tekst dopisuje się do tego,
+  /// co już jest w polu. Pliki z nowszego udostępnienia wypierają starsze.
+  ///
+  /// Ekran zdjęty ze stosu (udostępnienie z zewnątrz zdejmuje wszystko nad
+  /// listą rozmów) żyje jeszcze przez animację wyjścia. Treść tej samej
+  /// rozmowy jest wtedy dla nowego ekranu, który zaraz wejdzie.
+  void _wezUdostepnione() {
+    if (!mounted || !(_trasa?.isActive ?? true)) return;
+    final share = _intake.takeStaged(widget.conversationId);
+    if (share == null) return;
+    final tekst = share.text?.trim();
+    if (tekst != null && tekst.isNotEmpty) {
+      final obecny = _input.text;
+      _input.text = obecny.trim().isEmpty ? tekst : '$obecny\n$tekst';
+      _input.selection = TextSelection.collapsed(offset: _input.text.length);
+    }
+    if (share.fileCount == 0) return;
+    final starsze = _udostepnione;
+    if (starsze != null) unawaited(_intake.discard(starsze.share.id));
+    final czekajace = _Udostepnione(share, _intake.files(share.id));
+    setState(() => _udostepnione = czekajace);
+    final teksty = context.l10n;
+    czekajace.files.then((pliki) {
+      if (!mounted || !identical(_udostepnione, czekajace)) return;
+      final brak = share.fileCount - pliki.length;
+      if (brak > 0) showToast(teksty.shareFilesMissing(brak, share.fileCount));
+      setState(() {
+        czekajace.ready = pliki;
+        if (pliki.isEmpty) _udostepnione = null;
+      });
+    });
+  }
+
+  /// Rezygnacja z udostępnionych plików (krzyżyk na pasku).
+  void _odrzucUdostepnione() {
+    final udostepnione = _udostepnione;
+    if (udostepnione == null) return;
+    setState(() => _udostepnione = null);
+    unawaited(_intake.discard(udostepnione.share.id));
+  }
+
+  /// Wysłana wiadomość podnosi tę rozmowę w podpowiedziach systemowego okna
+  /// „Udostępnij".
+  void _zglosUzycie() => unawaited(_intake.reportUsed(widget.peer.guid));
 
   void _toggleSearch() {
     setState(() {
@@ -124,10 +193,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     showToast(teksty.messageDeleted);
   }
 
+  /// Tekst z pola, a za nim pliki czekające na pasku, jeśli są.
   Future<void> _send() async {
     final text = _input.text;
+    final udostepnione = _udostepnione;
     _input.clear();
-    await ref.read(appServicesProvider).sendText(widget.conversationId, text);
+    if (udostepnione != null) setState(() => _udostepnione = null);
+    if (text.trim().isEmpty && udostepnione == null) return;
+    final services = ref.read(appServicesProvider);
+    _zglosUzycie();
+    await services.sendText(widget.conversationId, text);
+    if (udostepnione == null) return;
+    // Kopie mogą się jeszcze robić. Wysyłka rusza, gdy będą gotowe, także
+    // po wyjściu z rozmowy.
+    final pliki = await udostepnione.files;
+    unawaited(_intake.keep(udostepnione.share.id));
+    if (pliki.isEmpty) return;
+    await services.sendFiles(
+        widget.conversationId, pliki.map((plik) => plik.path));
   }
 
   /// Parowanie: uzgodnienie leci pod spodem, a kod do porównania pokazuje
@@ -233,9 +316,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await _sendPaths([path]);
   }
 
-  Future<void> _sendPaths(Iterable<String> paths) => ref
-      .read(appServicesProvider)
-      .sendFiles(widget.conversationId, paths);
+  Future<void> _sendPaths(Iterable<String> paths) {
+    _zglosUzycie();
+    return ref
+        .read(appServicesProvider)
+        .sendFiles(widget.conversationId, paths);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -606,6 +692,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               );
             },
           ),
+          if (_udostepnione != null)
+            _PasekUdostepnionych(
+              udostepnione: _udostepnione!,
+              onRemove: _odrzucUdostepnione,
+            ),
           SafeArea(
             top: false,
             child: Padding(
@@ -666,6 +757,84 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 }
 
 enum _MenuRozmowy { szukaj, klawiatura, udostepnij, popros }
+
+/// Pliki udostępnione z innej aplikacji, czekające na „Wyślij". Liczba jest
+/// od razu, kopie dopiero po skopiowaniu.
+class _Udostepnione {
+  final IncomingShare share;
+  final Future<List<SharedFile>> files;
+
+  /// Gotowe kopie; null, dopóki kopiowanie trwa.
+  List<SharedFile>? ready;
+
+  _Udostepnione(this.share, this.files);
+}
+
+/// Pasek nad polem wiadomości: ile plików czeka, ich nazwy i łączny rozmiar,
+/// krzyżyk do rezygnacji. Wysyła je „Wyślij" razem z tekstem z pola.
+class _PasekUdostepnionych extends StatelessWidget {
+  final _Udostepnione udostepnione;
+  final VoidCallback onRemove;
+
+  const _PasekUdostepnionych(
+      {required this.udostepnione, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    final k = ChattTokens.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final pliki = udostepnione.ready;
+    final opis = pliki == null
+        ? context.l10n.sharePreparing(udostepnione.share.fileCount)
+        : '${context.l10n.shareFiles(pliki.length)} · '
+            '${formatFileSize(pliki.fold<int>(0, (suma, plik) => suma + plik.size))}';
+    final nazwy = pliki?.map((plik) => plik.name).join(', ');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+        decoration: BoxDecoration(
+          color: k.surface2,
+          borderRadius: BorderRadius.circular(k.radiusCard),
+          border: Border.all(color: k.outline),
+        ),
+        child: Row(
+          children: [
+            if (pliki == null)
+              const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Icon(Icons.attach_file, size: 18, color: scheme.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(opis, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (nazwy != null && nazwy.isNotEmpty)
+                    Text(
+                      nazwy,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: k.caption.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: context.l10n.shareDontSend,
+              icon: const Icon(Icons.close),
+              onPressed: onRemove,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 bool _tenSamDzien(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;

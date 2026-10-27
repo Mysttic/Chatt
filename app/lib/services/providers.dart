@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/share_intake.dart';
 import '../data/db.dart';
 import 'app_services.dart';
 
@@ -8,6 +9,10 @@ import 'app_services.dart';
 final appServicesProvider = Provider<AppServices>(
   (ref) => throw UnimplementedError('appServicesProvider nadpisywany w main()'),
 );
+
+/// Udostępnianie z innych aplikacji (issue #60). Testy podstawiają własną
+/// instancję z kanałem na niby.
+final shareIntakeProvider = Provider<ShareIntake>((ref) => ShareIntake.instance);
 
 final settingsProvider = StreamProvider<Setting>(
   (ref) => ref.watch(appServicesProvider).db.watchSettings(),

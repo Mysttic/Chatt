@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cel udostępniania dla skrótów rozmów (issue #60). Skrót z kategorią
+     niżej pokazuje się w systemowym oknie „Udostępnij" jako rozmówca,
+     a stuknięcie w niego oddaje treść ShareActivity z identyfikatorem
+     skrótu, czyli guidem rozmówcy. Samych skrótów tu nie ma: publikuje je
+     aplikacja (ChattShare.kt), po jednym na każdą z ostatnich rozmów.
+     Android starszy niż 10 tego pliku nie czyta, tam zostaje sam Chatt na
+     liście aplikacji. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <share-target android:targetClass="com.mysttic.chatt.ShareActivity">
+        <data android:mimeType="*/*" />
+        <category android:name="com.mysttic.chatt.category.ROZMOWA" />
+    </share-target>
+</shortcuts>

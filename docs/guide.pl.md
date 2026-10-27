@@ -480,6 +480,31 @@ Zdjęcie rysuje sam Chatt i nie oddaje go żadnej innej aplikacji, więc otworzy
 się niezależnie od tego, czy w systemie jest czym oglądać obrazki. Pozostałe
 pliki dalej otwierają się tym, co system ma do nich skojarzone.
 
+## Udostępnianie z innych aplikacji
+
+Na Androidzie Chatt jest w systemowym oknie **Udostępnij**: odnośnik
+z przeglądarki, zdjęcie z galerii, dokument z menedżera plików, jeden plik
+albo kilka naraz. Wybranie **Chatt** otwiera ekran **Wyślij do** z rozmowami
+od ostatniej, polem szukania i przyciskiem **W pobliżu** dla urządzenia, z
+którym jeszcze nie rozmawiałeś. Na Androidzie 10 i nowszym cztery ostatnie
+rozmowy stoją też w samym oknie Udostępnij, jako osoby z inicjałami, a
+stuknięcie w którąś prowadzi prosto do tej rozmowy.
+
+Tak czy inaczej rozmowa otwiera się z treścią, która czeka. Tekst trafia do
+pola wiadomości, gdzie wciąż można go zmienić albo coś dopisać, a pliki czekają
+na pasku nad nim, z nazwami i łącznym rozmiarem. **Nic nie wychodzi przed
+„Wyślij".** Potem pliki idą tak samo jak wybrane spinaczem, z tym samym
+pytaniem po drugiej stronie. Krzyżyk na pasku je odrzuca, wyjście z rozmowy
+też.
+
+Te same cztery rozmowy pokazują się po przytrzymaniu ikony Chatt na ekranie
+głównym, a stuknięcie w którąś ją otwiera.
+
+Chatt przyjmuje udostępniony plik tylko w tej postaci, w jakiej pliki wydaje
+system (`content://`). Plik podany zwykłą ścieżką zostaje pominięty, bo zwykła
+ścieżka mogłaby wskazać prywatny katalog samego Chatta, i Chatt mówi, ile
+plików pominął.
+
 ## Szyfrowanie i potwierdzanie tożsamości
 
 **Rozmowa jest szyfrowana od pierwszej wiadomości**, także z urządzeniem,
@@ -707,6 +732,12 @@ W obu przypadkach **odebrane pliki zostają na dysku**. Aplikacja kasuje własne
 wpisy; pliki, które otwierasz innymi programami, zostają. Dziennik aplikacji
 też zostaje: nie ma w nim treści, wpisy starsze niż 30 dni kasuje sam,
 a **Wyczyść dziennik** na jego ekranie kasuje go od razu.
+
+Na Androidzie nazwy czterech ostatnich rozmów leżą też na liście skrótów
+aplikacji w systemie, poza zaszyfrowaną bazą: dzięki temu okno Udostępnij
+i ekran główny mogą je pokazać
+([Udostępnianie z innych aplikacji](#udostępnianie-z-innych-aplikacji)).
+Lista idzie za rozmowami, a usunięta rozmowa z niej znika.
 
 ## Dane i diagnostyka
 

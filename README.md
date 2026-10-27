@@ -61,6 +61,11 @@ mouse between PCs. Chatt fills the gap between them:
   bytes flow only after accepting. Interrupted transfers resume where they
   stopped and are verified with sha256. Several files at once, on the PC also
   by dragging them onto the window.
+- **Share from any app** (Android): a link from the browser, a photo from the
+  gallery, a document from the file manager. Chatt is in the system's Share
+  sheet, the four most recent conversations stand there as people (Android 10
+  and newer), and the conversation opens with the text in the field and the
+  files above it. Nothing leaves before Send.
 - **Encrypted at rest**: conversation history, the typing history and the app
   log live in an encrypted database with the key held by the OS (Android
   Keystore, Windows DPAPI). Clear history or auto‑delete messages older than
@@ -160,7 +165,7 @@ The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 703 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export
+flutter test        # 723 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt
 flutter analyze
 ```
 

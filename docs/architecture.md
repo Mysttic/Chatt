@@ -1448,6 +1448,10 @@ there as a count. What comes back goes onto the sender's screen, so
 
 ### What stays open
 
+- **Recent conversation names live outside the database.** The sharing
+  shortcuts put the names of the four most recent conversations into the
+  system's shortcut list on Android, unencrypted, the way a notification
+  carries a name. Without them the Share sheet could not show people.
 - `POST /pair` is not authenticated, so anyone can raise the confirmation card
   while borrowing a friend's name. That does not get them a green shield, and a
   card for an already known device is marked in red.
@@ -1576,9 +1580,9 @@ Files go out to other apps through FileProvider as `content://` (our own
 `chatt/files` channel), because from API 24 a plain path ends in
 `FileUriExposedException`. FileProvider serves only what
 [`res/xml/file_paths.xml`](../app/android/app/src/main/res/xml/file_paths.xml)
-lists, and it lists five roots: received files, a downloaded release, the
-two cache directories holding copies of files the user picked or pasted to
-send, and `cache/eksport/`, where an export waits for the share sheet on
+lists, and it lists six roots: received files, a downloaded release, the
+three cache directories holding copies of files the user picked, pasted or
+shared to Chatt to send, and `cache/eksport/`, where an export waits for the share sheet on
 Android 9 and older or when the copy to Downloads fails (see
 [Exporting data](#exporting-data)). A file outside all of them cannot be
 handed out at all. That is what made tapping your own sent photo fail until
@@ -1601,6 +1605,64 @@ paths. `file_selector`'s Android side reads every chosen file into a byte
 array and ships it over the channel, which for a 150 MB file ends in
 `OutOfMemoryError`; the desktop pickers return paths only, so `file_selector`
 stays there.
+
+## Android: sharing into Chatt
+
+Issue #60. Chatt is a target of the system Share sheet for `SEND` and
+`SEND_MULTIPLE` of any type. The target is
+[`ShareActivity`](../app/android/app/src/main/kotlin/com/mysttic/chatt/ShareActivity.kt),
+with no view and no Flutter: Chatt has one engine, attached to
+`MainActivity`, and a second `MainActivity` in the sending app's task would
+take the engine away from Chatt's own window. `ShareActivity` hands the intent
+to [`ChattShare`](../app/android/app/src/main/kotlin/com/mysttic/chatt/ChattShare.kt),
+starts `MainActivity` in Chatt's own task (`NEW_TASK | CLEAR_TOP |
+SINGLE_TOP`, so an open window gets `onNewIntent`) and finishes at once.
+
+- **Files are copied straight away** into `cache/udostepnione/<uuid>/` on a
+  worker thread, through the same `ChattFileCache` as the paperclip and the
+  clipboard, with the extension taken from the MIME type when the provider
+  gave no name with a dot. A read grant on someone else's `content://`
+  belongs to the activity that got the intent and dies with it, so the intent
+  to `MainActivity` carries the same URIs in its `ClipData` with
+  `FLAG_GRANT_READ_URI_PERMISSION`. When the provider does not allow passing
+  the grant on, that start throws, and `ShareActivity` starts the window again
+  without it: the window always comes up, and the copies run on the grant
+  `ShareActivity` holds until it goes.
+- **Only `content://` is accepted.** A `file://` path would let another app
+  point Chatt at a file in its private directory, the database included, which
+  the Chatt process would read itself. Our own FileProvider stays allowed: it
+  serves only the roots in `file_paths.xml`, and it is the way a received file
+  is passed on.
+- **The `chatt/share` channel.** The native side keeps one announcement for
+  Dart (`take`), a newer one replacing an untaken older one together with its
+  copies, and says so with `incoming`. Dart also asks on start, so a share
+  that launched the process is not lost. The announcement carries the text,
+  the number of files, how many were skipped and the shortcut id when a person
+  was tapped in the Share sheet. `files` waits for the copies, `discard`
+  deletes them and `keep` leaves them to the sent message.
+- **The Dart side.** [`ShareIntake`](../app/lib/core/share_intake.dart) turns
+  an announcement into a request, and `ConversationsScreen` pops everything
+  above the list, then either opens the peer's conversation (a person was
+  tapped) or pushes [`SendToScreen`](../app/lib/ui/screens/send_to_screen.dart).
+  The chosen conversation gets the content through `ShareIntake.staged`:
+  `ChatScreen` takes it on start, or at once when it is already open in the
+  right pane, puts the text into the field and the files on a bar above it,
+  and Send sends the files after the text. A chat screen whose route is
+  already popped leaves the content alone, since it would take it on its way
+  out and drop the files when it went away.
+- **Sharing shortcuts.** [`ShareShortcuts`](../app/lib/ui/share_shortcuts.dart)
+  publishes the four most recent conversations as long-lived dynamic shortcuts
+  with the category from
+  [`res/xml/shortcuts.xml`](../app/android/app/src/main/res/xml/shortcuts.xml),
+  whose `share-target` points at `ShareActivity`. The id is the peer's guid,
+  the icon an avatar drawn in Dart in the current style's colours (288 px,
+  full bleed, masked by the system), and the intent opens the conversation,
+  which is what a long-press on the Chatt icon offers. The list goes out again
+  when the order, a name or the style changes, two seconds after the last
+  change, because the system limits these calls for apps in the background;
+  dropped ids leave the system's cache of long-lived shortcuts too. Android 9
+  and older read no `share-target`, and there Chatt is only in the list of
+  apps.
 
 ## Windows: tray and autostart
 

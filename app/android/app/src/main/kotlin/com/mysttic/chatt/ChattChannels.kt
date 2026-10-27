@@ -148,6 +148,10 @@ object ChattChannels {
         // milczy, dopóki dodatek i odbiór są wyłączone, a klawiatura Chatt
         // jest wtedy wyłączonym komponentem.
         ChattRemoteInput.install(context, messenger)
+
+        // Udostępnianie z innych aplikacji (issue #60), kanał "chatt/share":
+        // treść z okna „Udostępnij" i rozmowy pokazywane w tym oknie.
+        ChattShare.install(context, messenger)
     }
 
     /**

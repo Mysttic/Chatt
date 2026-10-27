@@ -1793,4 +1793,69 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get appLogLevelError => 'Błąd';
+
+  @override
+  String get shareSendToTitle => 'Wyślij do';
+
+  @override
+  String shareFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pliku',
+      many: '$count plików',
+      few: '$count pliki',
+      one: '$count plik',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get shareNoConversations =>
+      'Nie masz jeszcze żadnej rozmowy. Znajdź urządzenie przyciskiem „W pobliżu”, żeby mu to wysłać.';
+
+  @override
+  String sharePreparing(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Przygotowuję $count pliku…',
+      many: 'Przygotowuję $count plików…',
+      few: 'Przygotowuję $count pliki…',
+      one: 'Przygotowuję plik…',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get shareDontSend => 'Nie wysyłaj';
+
+  @override
+  String get shareNothing =>
+      'Chatt nie dostał nic do wysłania: ani tekstu, ani pliku, który umie odczytać.';
+
+  @override
+  String shareSkipped(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Pominięte $count pliku: Chatt nie przyjmuje plików podanych zwykłą ścieżką.',
+      many:
+          'Pominiętych $count plików: Chatt nie przyjmuje plików podanych zwykłą ścieżką.',
+      few:
+          'Pominięte $count pliki: Chatt nie przyjmuje plików podanych zwykłą ścieżką.',
+      one:
+          'Pominięty $count plik: Chatt nie przyjmuje plików podanych zwykłą ścieżką.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String shareFilesMissing(int missing, int total) {
+    return 'Nie udało się wczytać $missing z $total udostępnionych plików.';
+  }
+
+  @override
+  String get conversationGone => 'Tej rozmowy już nie ma.';
 }
