@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **703 `flutter test` tests** check everything that can be
+The split is simple: **723 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -1020,6 +1020,46 @@ session key on a peer:
   no place to save each have their message; a failed count still offers every
   part; the dialog in Polish
 
+### Sharing into Chatt (`test/share_intake_test.dart`, 12 tests)
+The Dart side of the `chatt/share` channel against a native side faked in the
+test, and the list for the Share sheet:
+- an announcement becomes a share (text, number of files, skipped files, the
+  person tapped in the Share sheet) or a shortcut to a conversation; an empty
+  person means choosing a conversation, whitespace means no text, and an
+  announcement without an id or a person is dropped
+- on start Dart takes the share that launched the app; a newer share replaces
+  one the screen has not taken yet, and the older one's copies are discarded
+- copies come back with their names and sizes; the targets go out in order,
+  with or without an avatar
+- content waiting in a conversation: a newer share replaces the older and
+  discards its files, taking it leaves nothing behind
+- with no channel (Windows) nothing throws and nothing is there
+- the Share sheet gets the first four conversations under the name shown in
+  Chatt, an alias included; the avatar is a 288 px PNG square in the style's
+  colour
+
+### Sharing on screen (`test/share_ui_test.dart`, 8 tests)
+- a share with no person: **Send to** shows the text and the number of files,
+  search finds a conversation by its alias, the conversation opens with the
+  text in the field and the files on the bar (names, total size), nothing is
+  in the database before Send, and Send stores the text and both files in
+  that order, keeps the copies and reports the conversation as used
+- a person tapped in the Share sheet: the conversation opens at once
+- a person who is gone: **Send to** instead; closing it discards the share; a
+  shortcut to a conversation that is gone says so
+- a shortcut from the home screen pops whatever is open and opens its
+  conversation
+- nothing to send: a message and no **Send to**; some files skipped: a
+  message and **Send to** for the rest
+- the cross on the bar and leaving the conversation discard the files; a
+  second share into the conversation that is open lands in the new screen,
+  and the screen on its way out does not take it
+- a wide window: a share for the conversation open in the right pane lands in
+  the same screen and adds to the text already typed; a choice on **Send to**
+  closes it and opens the conversation in the pane
+- **Send to** with no conversations points at **Nearby**, and leaving it
+  discards the share
+
 ## Scenarios on live hardware
 
 ### `tool/klawiatura_android_e2e_test.dart`
@@ -1377,6 +1417,15 @@ all without a password. On an encrypted database it answers "cannot be read".
 
 Deliberate holes in coverage, to be checked by hand at release time:
 
+- **The Share sheet itself**: `ShareActivity`, the copies in
+  `cache/udostepnione/` and the sharing shortcuts have no native side under
+  `flutter test`. Checked by hand on the `Pixel_9_Pro` emulator (Android 17)
+  on 27 October 2026: the Files app's Share sheet shows a person and Chatt,
+  one and two images reach the bar both ways, text through `am start`, the
+  cross and Back drop the files, the home screen shortcut opens its
+  conversation, a cold start works through a share and through a shortcut,
+  and a file whose grant cannot be passed on still brings the window up with
+  a message. Not yet on a phone.
 - **Typing into a real field.** `flutter test` has no native side, so
   `SendInput` on Windows and the Chatt keyboard on Android are never reached
   there. The Android side is covered by `tool/klawiatura_android_e2e_test.dart`

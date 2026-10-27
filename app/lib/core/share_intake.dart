@@ -20,7 +20,8 @@ class IncomingShare extends OutsideRequest {
   final String? text;
   final int fileCount;
 
-  /// Pliki, których Chatt nie przyjął: zwykła ścieżka zamiast `content://`.
+  /// Pliki, których Chatt nie przyjął, bo przyszły jako zwykła ścieżka
+  /// (`file://`).
   final int skipped;
 
   /// Rozmówca stuknięty wprost w oknie systemu (guid). Bez niego rozmowę

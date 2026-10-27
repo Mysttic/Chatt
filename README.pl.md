@@ -35,6 +35,11 @@
 - **Pliki z pytaniem o zgodę**: odbiorca najpierw widzi nazwę, rozmiar i sumę
   kontrolną, dopiero potem lecą bajty. Przerwany transfer wznawia się od
   miejsca przerwania, a całość jest weryfikowana sumą sha256.
+- **Udostępnianie z innych aplikacji** (Android): odnośnik z przeglądarki,
+  zdjęcie z galerii, dokument z menedżera plików. Chatt jest w systemowym
+  oknie „Udostępnij", cztery ostatnie rozmowy stoją tam jako osoby (Android 10
+  i nowszy), a rozmowa otwiera się z tekstem w polu i plikami nad nim. Nic nie
+  wychodzi przed „Wyślij".
 - **Szyfrowane zawsze**: klucz sesji uzgadniany na każde połączenie, jawnego
   tekstu w protokole nie ma. Nagrany dziś ruch nie odszyfruje się po
   późniejszej kradzieży urządzenia.
@@ -139,7 +144,7 @@ Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 703 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport
+flutter test        # 723 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta
 flutter analyze
 ```
 

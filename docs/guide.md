@@ -253,6 +253,31 @@ The picture is drawn by Chatt itself and never handed to another app, so it
 opens whether or not the system has anything installed that shows images.
 Other files still open with whatever the system associates with them.
 
+## Sharing from another app
+
+On Android Chatt is in the system **Share** sheet: a link from the browser, a
+photo from the gallery, a document from the file manager, one file or several
+at once. Picking **Chatt** opens **Send to**, with your conversations newest
+first, a search box, and **Nearby** for a device you have not talked to yet.
+On Android 10 and newer the four most recent conversations also stand in the
+Share sheet itself, as people with their initials, and tapping one goes
+straight to that conversation.
+
+Either way the conversation opens with the content waiting. Text goes into the
+message field, where you can still change it or add to it, and files wait on
+a bar above it with their names and total size. **Nothing leaves before
+Send.** Then the files go exactly like ones picked with the paperclip, with
+the same question on the other side. The cross on the bar drops them, and so
+does leaving the conversation.
+
+The same four conversations show up when you long-press the Chatt icon on the
+home screen, and tapping one opens it.
+
+Chatt takes a shared file only in the form the system hands files out in
+(`content://`). A file given as a plain path is left out, because a plain path
+could point at Chatt's own private folder, and Chatt says how many it left
+out.
+
 ## Talking over Bluetooth
 
 Everything above assumes the two devices share a network. Often they do not: a
@@ -691,6 +716,12 @@ In both cases **received files stay on disk**: the app deletes its own
 entries, and the files you open with other programs stay where they are. The
 app log stays too. It holds no content, deletes its entries by itself after
 30 days, and **Clear the log** on its screen deletes it at once.
+
+On Android the names of the four most recent conversations also sit in the
+system's list of app shortcuts, outside the encrypted database: that is how the
+Share sheet and the home screen can show them
+([Sharing from another app](#sharing-from-another-app)). The list follows your
+conversations, and a deleted conversation drops off it.
 
 ## Data and diagnostics
 

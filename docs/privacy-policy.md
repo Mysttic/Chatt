@@ -1,6 +1,6 @@
 # Chatt Privacy Policy
 
-Last updated: 19 October 2026.
+Last updated: 27 October 2026.
 
 ## In short
 
@@ -27,6 +27,8 @@ a copy to the clipboard from its screen.
 | Text typed with Keyboard from a PC (add-on only) | travels encrypted to the device being typed on and lands in the field you chose there. With **Save typing history** on (the default), both devices keep it in their typing history, in the encrypted database: what was typed, into which app, when, and whether it landed. Text typed into a password field or a field of unknown kind is kept as a number of characters | the two devices, and anyone who gets an export made on either of them |
 | The name of the app with the focused field and the kind of that field (ordinary or password) on the device being typed on (Keyboard from a PC only) | sent encrypted to the device that types, during a session, for its "Typing into" line; with the typing history on, both devices keep them next to what was typed | the two devices |
 | App log: what the app did and what went wrong (connections, pairing, file transfers, Bluetooth, typing sessions without their text, errors), with device names, addresses and file sizes | on your device, in the encrypted database, for 30 days at most | only you, and anyone who gets an export you made |
+| Content another app shares to Chatt (Android) | text goes into the message field; files are copied to the app's private cache, and a copy stays there as the source of the sent message or is deleted when you drop it without sending | only you, and the recipient once you press Send |
+| Names of the four most recent conversations (Android) | in the system's list of app shortcuts, outside the encrypted database, so the Share sheet and the home screen can show them; the list follows the conversations and a deleted one drops off | anyone who can use the phone, as with the names in Chatt's notifications |
 | An export made with **Export data** | one ZIP file, not encrypted, where you saved it or whichever app you handed it to. On Android, after the share sheet, a copy waits in the app's private cache until the next export, **Clear history**, **Clear typing history**, or the next start once it is an hour old | anyone who can open that file |
 
 None of the above is sent to the app's author or to anyone outside your local

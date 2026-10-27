@@ -8,6 +8,25 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+### Added
+- **Sharing into Chatt from other apps** (issue #60, Android). Chatt is in the
+  system's Share sheet for text, links and files of any kind, one or several
+  at once. **Send to** lists the conversations, newest first, with a search
+  box and **Nearby** for a device with no conversation yet. On Android 10 and
+  newer the four most recent conversations also stand in the Share sheet
+  itself as people, and tapping one skips **Send to**. The conversation opens
+  with the text in the message field and the files on a bar above it, with
+  their names and total size, and nothing leaves before **Send**; the cross on
+  the bar, or leaving the conversation, drops the files. The same four
+  conversations show up when you long-press the Chatt icon, and tapping one
+  opens it. Shared files are copied into the app's private cache as they
+  arrive, as with the paperclip, and only `content://` is accepted, because a
+  plain path could point at Chatt's own private folder. The names of those
+  four conversations sit in the system's list of app shortcuts, outside the
+  encrypted database, and the privacy policy says so.
+
 ## [0.12.0] - 2026-10-20
 
 Three new things around the app's data and the rest of the new look. With
@@ -1048,6 +1067,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[Unreleased]: https://github.com/Mysttic/Chatt/compare/v0.12.0...HEAD
 [0.12.0]: https://github.com/Mysttic/Chatt/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/Mysttic/Chatt/compare/v0.9.0...v0.10.0
