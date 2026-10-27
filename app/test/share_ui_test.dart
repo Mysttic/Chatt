@@ -393,10 +393,22 @@ void main() {
     expect(find.textContaining('a.txt'), findsNothing);
     expect(natywna.argumenty('discard'), ['s6']);
 
-    await tester.runAsync(() => natywna
-        .zapowiedz(_udostepnienie('s7', count: 1, peer: 'guid-alicja')));
+    // Kolejne udostępnienie do tej samej, otwartej rozmowy: stary ekran
+    // schodzi, treść czeka w nowym. Schodzący ekran nie może jej zabrać
+    // (i odrzucić przy zniknięciu).
+    await tester.enterText(
+        find.descendant(
+            of: find.byType(ChatScreen), matching: find.byType(TextField)),
+        'zostaje w starym');
+    await tester.runAsync(() => natywna.zapowiedz(_udostepnienie('s7',
+        text: 'nowy tekst', count: 1, peer: 'guid-alicja')));
     await dokoncz(tester, () => find.textContaining('b.txt').evaluate().isNotEmpty);
     await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(ChatScreen), findsOneWidget);
+    expect(find.text('b.txt'), findsOneWidget);
+    expect(pole(tester).controller!.text, 'nowy tekst');
+    expect(natywna.argumenty('discard'), ['s6']);
+
     await tester.pageBack();
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));

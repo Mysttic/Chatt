@@ -1,6 +1,7 @@
 package com.mysttic.chatt
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 
@@ -19,16 +20,28 @@ class ShareActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val okno = ChattShare.receive(this, intent)
-        if (okno != null) {
-            try {
-                startActivity(okno)
-                // Aplikacja, która czeka na wynik udostępnienia, dostaje
-                // „przyjęte". Bez tego wynik brzmiałby „anulowane".
-                setResult(RESULT_OK)
-            } catch (error: Exception) {
-                Log.w("Chatt", "Nie udało się otworzyć okna Chatta", error)
-            }
+        // Prawo do pliku da się przekazać oknu Chatta tylko wtedy, gdy
+        // dostawca na to pozwala. Gdy nie pozwala, system odmawia otwarcia
+        // okna z takim prawem, a okno ma wyjść na wierzch tak czy inaczej:
+        // kopie robią się już z prawa tej aktywności.
+        if (okno != null && (open(okno) || open(withoutGrants(okno)))) {
+            // Aplikacja, która czeka na wynik udostępnienia, dostaje
+            // „przyjęte". Bez tego wynik brzmiałby „anulowane".
+            setResult(RESULT_OK)
         }
         finish()
+    }
+
+    private fun open(okno: Intent): Boolean = try {
+        startActivity(okno)
+        true
+    } catch (error: Exception) {
+        Log.w("Chatt", "Nie udało się otworzyć okna Chatta", error)
+        false
+    }
+
+    private fun withoutGrants(okno: Intent): Intent = Intent(okno).apply {
+        clipData = null
+        removeFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 }

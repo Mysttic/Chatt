@@ -69,6 +69,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   late final ShareIntake _intake;
   _Udostepnione? _udostepnione;
 
+  /// Trasa, na której stoi ten ekran (na szerokim oknie: lista rozmów).
+  ModalRoute<Object?>? _trasa;
+
   /// Wiadomości już pokazane, po id. null: pierwsze dane jeszcze nie
   /// przyszły, a to, co przyjdzie z nimi, stoi od razu na miejscu.
   Set<int>? _pokazane;
@@ -115,6 +118,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _trasa = ModalRoute.of(context);
+  }
+
+  @override
   void dispose() {
     _intake.staged.removeListener(_wezUdostepnione);
     // Wyjście z rozmowy bez „Wyślij": kopie udostępnionych plików do kosza.
@@ -128,8 +137,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   /// Treść z okna „Udostępnij" dla tej rozmowy. Tekst dopisuje się do tego,
   /// co już jest w polu. Pliki z nowszego udostępnienia wypierają starsze.
+  ///
+  /// Ekran zdjęty ze stosu (udostępnienie z zewnątrz zdejmuje wszystko nad
+  /// listą rozmów) żyje jeszcze przez animację wyjścia. Treść tej samej
+  /// rozmowy jest wtedy dla nowego ekranu, który zaraz wejdzie.
   void _wezUdostepnione() {
-    if (!mounted) return;
+    if (!mounted || !(_trasa?.isActive ?? true)) return;
     final share = _intake.takeStaged(widget.conversationId);
     if (share == null) return;
     final tekst = share.text?.trim();

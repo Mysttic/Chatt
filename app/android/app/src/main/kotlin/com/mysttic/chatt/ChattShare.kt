@@ -35,7 +35,9 @@ import kotlin.concurrent.thread
  * Prawo do cudzego `content://` należy do okna, które dostało intencję,
  * i znika razem z nim. [ShareActivity] znika od razu, więc intencja do okna
  * Chatta niesie te same adresy w ClipData z prawem do odczytu: system
- * przypisuje je wtedy także [MainActivity] i kopiowanie trwa dalej.
+ * przypisuje je wtedy także [MainActivity] i kopiowanie trwa dalej. Gdy
+ * dostawca nie pozwala przekazać prawa dalej, okno wychodzi bez niego,
+ * a kopie robią się z prawa [ShareActivity], póki ono trwa.
  *
  * Przyjmujemy wyłącznie `content://`. Zwykła ścieżka (`file://`) pozwoliłaby
  * obcej aplikacji wskazać plik z prywatnego katalogu Chatta, na przykład
