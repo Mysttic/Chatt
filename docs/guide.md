@@ -337,7 +337,7 @@ On Android the search needs location services switched on. Chatt never asks
 where you are, but without them Android hands out no search results at all;
 the Nearby screen says so and offers a **Turn location on** button. When that
 is not an option, **Add by radio address** (the link icon in the bar) goes
-straight to an address such as `70:D8:C2:64:D9:B1`, which the other device
+straight to an address such as `12:34:56:78:9A:BC`, which the other device
 shows in its Bluetooth settings. A PC also shows its own on the add-on's card in
 Chatt's Settings.
 

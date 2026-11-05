@@ -6,27 +6,27 @@ import 'package:flutter_test/flutter_test.dart';
 /// resztę wyjątkiem, więc sprowadzenie do niej musi się odbyć u nas.
 void main() {
   test('adres radia sprowadza się do jednej postaci', () {
-    const oczekiwany = '70:D8:C2:64:D9:B1';
-    expect(normalizeBtAddress('70:D8:C2:64:D9:B1'), oczekiwany);
-    expect(normalizeBtAddress('70d8c264d9b1'), oczekiwany);
-    expect(normalizeBtAddress('70-d8-c2-64-d9-b1'), oczekiwany);
-    expect(normalizeBtAddress('  70:d8:c2:64:d9:b1  '), oczekiwany);
+    const oczekiwany = '12:34:56:78:9A:BC';
+    expect(normalizeBtAddress('12:34:56:78:9A:BC'), oczekiwany);
+    expect(normalizeBtAddress('123456789abc'), oczekiwany);
+    expect(normalizeBtAddress('12-34-56-78-9a-bc'), oczekiwany);
+    expect(normalizeBtAddress('  12:34:56:78:9a:bc  '), oczekiwany);
   });
 
   test('to, co adresem nie jest, wraca puste', () {
     expect(normalizeBtAddress(''), '');
     // Pięć bajtów: najczęstsza literówka przy przepisywaniu.
-    expect(normalizeBtAddress('70:D8:C2:64:D9'), '');
-    expect(normalizeBtAddress('70:D8:C2:64:D9:B1:AA'), '');
+    expect(normalizeBtAddress('12:34:56:78:9A'), '');
+    expect(normalizeBtAddress('12:34:56:78:9A:BC:AA'), '');
     // Litera spoza zakresu szesnastkowego wygląda jak cyfra i nią nie jest.
-    expect(normalizeBtAddress('70:D8:C2:64:DO:B1'), '');
+    expect(normalizeBtAddress('12:34:56:78:9A:BO'), '');
     expect(normalizeBtAddress('192.168.0.2'), '');
   });
 
   test('pole „skąd przyszło" rozdziela adres radia od adresu w sieci', () {
-    expect(btAddressOf('bt:70:D8:C2:64:D9:B1'), '70:D8:C2:64:D9:B1');
+    expect(btAddressOf('bt:12:34:56:78:9A:BC'), '12:34:56:78:9A:BC');
     expect(btAddressOf('192.168.0.2'), isNull);
-    expect(ipAddressOf('bt:70:D8:C2:64:D9:B1'), '');
+    expect(ipAddressOf('bt:12:34:56:78:9A:BC'), '');
     expect(ipAddressOf('192.168.0.2'), '192.168.0.2');
   });
 }

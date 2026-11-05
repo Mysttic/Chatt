@@ -15,12 +15,12 @@ void main() {
       publicKey: klucz,
     );
 
-    final kod = PairLink.encode(identity: ja, address: '192.168.68.147');
+    final kod = PairLink.encode(identity: ja, address: '192.168.1.20');
     final odczytany = PairLink.decode(kod);
 
     expect(odczytany, isNotNull);
     expect(odczytany!.publicKey, klucz);
-    expect(odczytany.host, '192.168.68.147');
+    expect(odczytany.host, '192.168.1.20');
     expect(odczytany.port, 47780);
     expect(odczytany.name, 'Komputer w biurze');
     expect(odczytany.guid, ja.guid,

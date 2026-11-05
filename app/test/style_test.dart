@@ -759,7 +759,7 @@ void main() {
         (await tester.runAsync(() => AppServices.start(
               executor: NativeDatabase.memory(),
               portOverride: 0,
-              nameOverride: 'Pixel Mysttic',
+              nameOverride: 'Telefon Ani',
               enableDiscovery: false,
               receivedDirOverride: '${katalog.path}/odebrane',
             )))!;
@@ -849,19 +849,19 @@ void main() {
         child: const ChattApp(),
       ));
       await dokoncz(tester,
-          () => find.text('Pixel Mysttic').evaluate().isNotEmpty);
+          () => find.text('Telefon Ani').evaluate().isNotEmpty);
       expect(find.textContaining(appVersion), findsNothing,
           reason: 'wersja mieszka w Ustawieniach');
 
       ChattTokens tokeny() => ChattTokens.of(
-          tester.element(find.text('Pixel Mysttic')));
+          tester.element(find.text('Telefon Ani')));
       expect(tokeny().style, AppStyle.cisza);
 
       for (final styl in [AppStyle.precyzja, AppStyle.cieplo, AppStyle.cisza]) {
         await tester.runAsync(() => services.db.saveStyle(styl));
         await dokoncz(tester, () => tokeny().style == styl);
         expect(
-            Theme.of(tester.element(find.text('Pixel Mysttic')))
+            Theme.of(tester.element(find.text('Telefon Ani')))
                 .textTheme
                 .bodyLarge!
                 .fontFamily,
@@ -1091,13 +1091,13 @@ void main() {
         ),
       ));
       await dokoncz(tester,
-          () => find.text('Pixel Mysttic').evaluate().isNotEmpty);
+          () => find.text('Telefon Ani').evaluate().isNotEmpty);
 
       AnimationStyle przejscie() => tester
           .widget<MaterialApp>(find.byType(MaterialApp))
           .themeAnimationStyle!;
       ChattTokens tokeny() =>
-          ChattTokens.of(tester.element(find.text('Pixel Mysttic')));
+          ChattTokens.of(tester.element(find.text('Telefon Ani')));
 
       // Przenikanie motywu: czas zmiany motywu i krzywa wejścia stylu.
       const czasy = {
@@ -1154,7 +1154,7 @@ void main() {
       Color kolorSciany(Wall w, int i) =>
           w.colors.length == 1 ? w.colors.single : w.colors[i];
       void naEkranie(Wall od, Wall cel, String powod) {
-        final motyw = Theme.of(tester.element(find.text('Pixel Mysttic')));
+        final motyw = Theme.of(tester.element(find.text('Telefon Ani')));
         final widac = narysowane();
         for (var i = 0; i < widac.length; i++) {
           final ekran =
@@ -1206,7 +1206,7 @@ void main() {
       // przenikanie 100 ms.
       const sto = Duration(milliseconds: 100);
       ChattPageTransitionsBuilder ekrany() =>
-          Theme.of(tester.element(find.text('Pixel Mysttic')))
+          Theme.of(tester.element(find.text('Telefon Ani')))
               .pageTransitionsTheme
               .builders[TargetPlatform.android]! as ChattPageTransitionsBuilder;
       ograniczRuch.value = true;

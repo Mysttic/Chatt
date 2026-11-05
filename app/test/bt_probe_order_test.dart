@@ -31,9 +31,9 @@ void main() {
     // Komputer rozgłasza się przez BLE losowym adresem pod tą samą nazwą.
     // RFCOMM pod taki adres czeka pełny limit strony i nigdy się nie łączy.
     final kolejnosc = btProbeOrder([
-      urzadzenie('4A:E7:8D:CA:8C:18', btClassComputer, leOnly: true),
-      urzadzenie('70:D8:C2:64:D9:B1', btClassComputer),
+      urzadzenie('6E:11:22:33:44:55', btClassComputer, leOnly: true),
+      urzadzenie('12:34:56:78:9A:BC', btClassComputer),
     ]);
-    expect([for (final d in kolejnosc) d.address], ['70:D8:C2:64:D9:B1']);
+    expect([for (final d in kolejnosc) d.address], ['12:34:56:78:9A:BC']);
   });
 }

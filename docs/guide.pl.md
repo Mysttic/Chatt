@@ -75,7 +75,7 @@ Na Androidzie szukanie wymaga włączonych usług lokalizacji. Chatt nie pyta,
 gdzie jesteś, ale bez nich Android nie oddaje żadnych wyników; ekran „W
 pobliżu" mówi o tym wprost i daje przycisk „Włącz lokalizację". Kiedy to nie
 wchodzi w grę, „Dodaj po adresie radia" (ikona łącza na pasku) łączy się od
-razu z adresem w rodzaju `70:D8:C2:64:D9:B1`, który drugie urządzenie pokazuje
+razu z adresem w rodzaju `12:34:56:78:9A:BC`, który drugie urządzenie pokazuje
 w ustawieniach Bluetooth. Komputer pokazuje swój także na karcie dodatku
 w Ustawieniach Chatta.
 
