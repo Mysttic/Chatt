@@ -32,7 +32,7 @@ void main() {
     'canScan': true,
     'locationOn': true,
     'name': 'Testowy',
-    'address': '70:D8:C2:64:D9:B1',
+    'address': '12:34:56:78:9A:BC',
   };
 
   /// Radio wyłączone w systemie: dodatek się włącza, transport nie wstaje.
@@ -125,7 +125,7 @@ void main() {
     await services.refreshBluetoothStatus();
     expect(await services.startBluetooth(), isFalse);
     expect(await services.scanBluetooth(), isEmpty);
-    expect(await services.addPeerByBluetooth('70:D8:C2:64:D9:B1'), isNull);
+    expect(await services.addPeerByBluetooth('12:34:56:78:9A:BC'), isNull);
     expect(await services.showThisDeviceNearby(), isFalse);
 
     expect(wywolania, isEmpty);

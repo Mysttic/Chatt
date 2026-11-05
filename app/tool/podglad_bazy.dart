@@ -7,9 +7,10 @@ import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
 
 void main(List<String> args) {
+  // Bez ścieżki: baza aplikacji na Windowsie, `chatt.sqlite` w Dokumentach.
   final path = args.isNotEmpty
       ? args.first
-      : r'C:\Users\mystt\Documents\chatt.sqlite';
+      : '${Platform.environment['USERPROFILE'] ?? '.'}\\Documents\\chatt.sqlite';
   if (!File(path).existsSync()) {
     print('Brak pliku $path');
     return;

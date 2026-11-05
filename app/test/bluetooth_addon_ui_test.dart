@@ -74,7 +74,7 @@ void main() {
           welcomeMessage: '',
           host: '',
           port: 0,
-          btAddress: '70:D8:C2:64:D9:B2',
+          btAddress: '12:34:56:78:9A:BD',
           protocol: PeerProtocol.bluetooth.index,
         )))!;
 
