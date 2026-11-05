@@ -6,7 +6,7 @@ import '../styles.dart';
 
 /// Inicjały do awatara: pierwsze litery dwóch pierwszych słów, a przy
 /// jednym słowie jego dwie pierwsze litery („Laptop Ani" to LA,
-/// „BEEMYSTTIC" to BE).
+/// „KOMPUTER" to KO).
 String initialsOf(String name) {
   final slowa = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty);
   if (slowa.isEmpty) return '?';

@@ -74,10 +74,11 @@ It works. An RFCOMM link stands between the two devices under our own service
 UUID, both directions carry a megabyte, and the byte pattern arrives intact
 every time (both sides print FNV-1a `0xc2dc9dc5` for all eight phases).
 
-PC: BEEMYSTTIC, Windows 11, Microsoft stack, PC listening
+PC: desktop, Windows 11, Microsoft stack, PC listening
 Phone: moto g84 5G, Android 15 (API 35), phone connecting
 Distance: same desk
 Payload: 1 MiB per phase, kB = 1000 B, timed by the receiving side
+Addresses: the radio addresses below are placeholders
 
 | Chunk | Direction | ms | kB/s |
 |---|---|---|---|
@@ -264,7 +265,7 @@ What stood between the phone and a working search, in the order it came up:
 - **The order of asking.** Every device that is not Chatt costs time, and an
   address seen only over BLE costs the most: RFCOMM to it waits out the page
   timeout (5.12 s) and never connects. The PC was in the air twice, as
-  `70:D8:C2:64:D9:B1` and as the BLE address `4A:E7:8D:CA:8C:18` under the
+  `12:34:56:78:9A:BC` and as the BLE address `6E:11:22:33:44:55` under the
   same name. BLE-only addresses are now skipped, computers and phones go
   first by Class of Device, and each device that answers is on the list at
   once. The PC went from about 65 s, at the very end, to about 25 s.
@@ -291,15 +292,15 @@ switch off on both sides, so everything went over the radio.
   Chatt. Switching it on brought up the "Nearby devices" question and then
   the RFCOMM listener named `Chatt`.
 - The first search tripped over a leftover system pairing: the phone still
-  had the PC (`…D9:B1`) on its bonded list, the PC no longer had the phone.
+  had the PC (`…9A:BC`) on its bonded list, the PC no longer had the phone.
   The link came up and Android reported `bondLossCallback:
   BREDR_AUTH_FAILURE`, showed its own "pair again" dialog and dropped the
   link. Once the user removed the PC from the phone's Bluetooth settings, the
-  next search found `Chatt PC` at `70:D8:C2:64:D9:B1` after about 25 seconds,
+  next search found `Chatt PC` at `12:34:56:78:9A:BC` after about 25 seconds,
   with no dialog, and the whole search ended at 86 seconds.
 - A message each way, 1 MiB from the PC to the phone and a 323 KB image from
   the phone to the PC, both with the consent card and a matching SHA-256. The
-  phone's socket log showed RFCOMM connections to `…d9:b1` under Chatt's
+  phone's socket log showed RFCOMM connections to `…9a:bc` under Chatt's
   service UUID.
 - With the add-on then switched off on the phone, a message to the PC (known
   only by its radio address, so with no IP address on record) was delivered
@@ -310,10 +311,10 @@ switch off on both sides, so everything went over the radio.
 
 **A bonded peer can be filed under an address that is not its radio's.**
 While the two were paired, the phone's bonded list showed the PC as
-`69:A9:11:53:99:E2` and only that address connected, even though
-`BluetoothGetRadioInfo` reported `70:D8:C2:64:D9:B1` and enumerating all
+`7A:66:77:88:99:AA` and only that address connected, even though
+`BluetoothGetRadioInfo` reported `12:34:56:78:9A:BC` and enumerating all
 radios found exactly one. Unpairing resolved it: with no bond, the phone
-connects to `70:D8:C2:64:D9:B1` and nothing else. So the bond was made over
+connects to `12:34:56:78:9A:BC` and nothing else. So the bond was made over
 dual-mode LE, the phone stored the LE address, and its stack was resolving
 that back to the BR/EDR transport through the bond record. The rule that
 falls out is the one Chatt already applies to IP: **a Bluetooth route is
