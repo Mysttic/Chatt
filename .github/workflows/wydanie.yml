@@ -15,6 +15,17 @@ name: Wydanie
 # (`gh release upload`), a job `wydanie` publikuje szkic, gdy są wszystkie
 # trzy. Szkic jest niewidoczny dla ludzi i dla aktualizacji w aplikacji, tag
 # powstaje dopiero przy publikacji, więc nieudany bieg niczego nie wystawia.
+#
+# Ta zasada obowiązuje w całym repozytorium: żaden workflow nie woła
+# `upload-artifact`, więc ARTEFAKTY biegów w ogóle się nie zbierają. Do tego
+# samego limitu miejsca liczą się jednak nadal archiwa logów każdego biegu.
+# Nie kasuje ich już żaden przebieg cykliczny - zostają na domyślnej
+# 90-dniowej retencji GitHuba, a doraźnie czyści się je ręcznie (Actions,
+# wybrany bieg, Delete logs) albo przez
+# `gh api -X DELETE repos/:owner/:repo/actions/runs/<id>/logs`.
+# Cache zależności (Flutter, Gradle) zostaje - to on ratuje minuty, a GitHub
+# zarządza nim sam: kasuje wpisy nieużywane przez 7 dni i wypycha najstarsze
+# po przekroczeniu 10 GB.
 on:
   push:
     branches: [master]
@@ -33,6 +44,10 @@ jobs:
   wersja:
     name: Numer wersji
     runs-on: ubuntu-latest
+    # Bezpiecznik, nie oszczędność: job czyta plik i woła API GitHuba, realnie
+    # trwa minutę. Bez tego wpisu obowiązuje domyślny limit 6 godzin, więc
+    # pojedyncze zawieszone wywołanie sieciowe spaliłoby 360 minut z limitu.
+    timeout-minutes: 10
     outputs:
       wersja: ${{ steps.odczyt.outputs.wersja }}
       tag: ${{ steps.odczyt.outputs.tag }}
@@ -107,10 +122,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `cache: gradle` trzyma ~/.gradle/caches i ~/.gradle/wrapper między
+      # biegami, kluczując je plikami gradle z repozytorium (app/android).
+      # Bez tego cały graf zależności Androida leci od zera przy każdym
+      # wydaniu. Checkout jest krok wyżej, więc pliki do klucza już są.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - uses: subosito/flutter-action@v2
         with:
@@ -248,6 +268,9 @@ jobs:
     needs: [wersja, android, windows]
     if: needs.wersja.outputs.wydajemy == 'true'
     runs-on: ubuntu-latest
+    # Dwa wywołania `gh`, kilkanaście sekund. Limit wyłącznie po to, żeby
+    # zawieszone wywołanie nie stało domyślnych 6 godzin.
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -283,6 +306,10 @@ jobs:
     needs: [wersja, wydanie]
     if: needs.wersja.outputs.wydajemy == 'true'
     runs-on: ubuntu-latest
+    # Pobranie trzech plików i wydanie ich w drugim repozytorium; zapas większy
+    # niż wyżej, bo tu idzie transfer instalatora. Znowu tylko bezpiecznik
+    # przeciw domyślnym 6 godzinom.
+    timeout-minutes: 15
     env:
       HUB: Mysttic/Mysttic
       STRONA: https://mysttic.github.io/Mysttic/chatt/

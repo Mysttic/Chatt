@@ -225,23 +225,30 @@ feature/x ──┐
 claude/x  ──┘                   │                │
                                 │                └── Windows build + APK,
                                 └── tests            tag and Release
+                                    (only for a PR
+                                     from develop)
 ```
 
 - **`develop`** is where current work lands. Ordinary pushes **start nothing**,
   so runners are not burned on every commit.
-- **A pull request to `master`** runs
+- **A pull request to `master` from `develop`** runs
   [`.github/workflows/testy.yml`](../.github/workflows/testy.yml): `flutter
-  analyze` and the whole test suite. While the PR is open, commits added to it
-  go through the tests again. Otherwise a PR could be merged on the strength of
-  a run from before the fixes.
+  analyze` and the whole test suite. The source branch has to be exactly
+  `develop`; a PR from any other branch skips the job. While the PR is open,
+  commits added to it go through the tests again. Otherwise a PR could be
+  merged on the strength of a run from before the fixes.
 - **A merge into `master`** runs
   [`.github/workflows/wydanie.yml`](../.github/workflows/wydanie.yml): the
   Windows build and a signed APK, a tag and a GitHub Release.
 
-The tests run for every PR **into `master`**, whichever branch it comes from.
-Narrowing it to one source branch would mean a PR from a hotfix branch gets no
-check at all, and with green tests required for merging it would hang forever,
-waiting for a run that never starts.
+The tests run only for a PR whose **source branch is `develop`**. A PR opened
+into `master` from anywhere else (a hotfix straight off a working branch, or a
+fork) skips the job entirely, and GitHub reports such a run as **green**: a job
+held back by a job-level `if:` counts as a success. It does not hang in pending;
+that is what a `paths-ignore` filter would cause, and this workflow has none. So
+a green check on a PR from another branch proves nothing, because nothing ran.
+Changes are meant to reach `master` through `develop`; a hotfix straight to
+`master` has to be tested locally, or the workflow started by hand.
 
 The tests can also be started by hand: *Actions, Testy, Run workflow*.
 
@@ -333,6 +340,11 @@ The workflows do not block a merge by themselves; that has to be turned on in
 the repository settings: *Settings, Branches, Add branch ruleset* for `master`,
 with **Require status checks to pass** and the `analyze i flutter test` check.
 The same is worth adding for `develop`.
+
+That required check does **not** protect a PR that comes from a branch other
+than `develop`: the job is skipped, the check is reported as successful, and the
+ruleset is satisfied without a single test having run. The gate holds for the
+route from `develop` into `master`, and only for it.
 
 ### The Flutter version in CI
 

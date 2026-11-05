@@ -83,9 +83,15 @@ should carry the new images.
 Work goes into `develop`. Pushing there starts nothing, so the runners are not
 burned on every commit.
 
-A pull request **into `master`** runs `flutter analyze` and the whole test
-suite. Please describe what changes and how it was verified; the template asks
-for both.
+A pull request **from `develop` into `master`** runs `flutter analyze` and the
+whole test suite, and that is the only case it runs in. A pull request into
+`master` from any other branch (a feature branch, a fork) skips the job, and
+GitHub still shows the check as green even though nothing was run. Run the tests
+locally before you trust that green, or start them by hand: *Actions, Testy, Run
+workflow*.
+
+Please describe what changes and how it was verified; the template asks for
+both.
 
 A release is a separate pull request. It raises the number in `VERSION.md`,
 `app/pubspec.yaml` and `app/lib/core/version.dart` with one command:
