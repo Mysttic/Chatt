@@ -198,9 +198,103 @@ void main() {
     await a.close();
     await zly.close();
   });
+
+  test('zgubiony segment idzie od razu, gdy doszły późniejsze, bez czekania '
+      'na RTO i bez powtarzania tego, co doszło', () async {
+    net.latency = const Duration(milliseconds: 5);
+    final p = await parka();
+    // Ginie trzeci pakiet danych od A (pełny segment, dłuższy niż 100 B);
+    // potwierdzenia i krótkie pakiety przechodzą.
+    var duze = 0;
+    net.filter = (data, from, to) {
+      if (from.address != '10.0.0.1' || data.length < 100) return true;
+      duze++;
+      return duze != 3;
+    };
+    final dane = List<int>.generate(40 * kSegmentPayload, (i) => i % 251);
+    p.a.add(dane);
+    await _czekajNa(() => p.gotB.length >= dane.length);
+
+    expect(p.gotB, dane);
+    expect(p.a.segmentsSent, 40);
+    // Jedno ponowienie, wywołane luką w mapie SACK, zanim RTO (co najmniej
+    // 200 ms) zdążyło upłynąć; segmenty za luką nie poszły drugi raz.
+    expect(p.a.fastRetransmits, 1);
+    expect(p.a.timeoutRetransmits, 0);
+    expect(duze, 41);
+    await p.a.close();
+    await p.b.close();
+  });
+
+  test('mapa SACK sięga za całe okno: przy luce na początku nic, co doszło, '
+      'nie idzie drugi raz', () async {
+    net.latency = const Duration(milliseconds: 5);
+    final p = await parka();
+    // Ginie pierwszy pakiet danych, a za nim leci całe okno.
+    var duze = 0;
+    net.filter = (data, from, to) {
+      if (from.address != '10.0.0.1' || data.length < 100) return true;
+      duze++;
+      return duze != 1;
+    };
+    final dane =
+        List<int>.generate(kSendWindow * kSegmentPayload, (i) => i % 241);
+    p.a.add(dane);
+    await _czekajNa(() => p.gotB.length >= dane.length);
+
+    expect(p.gotB, dane);
+    expect(p.a.fastRetransmits + p.a.timeoutRetransmits, 1);
+    expect(duze, kSendWindow + 1);
+    await p.a.close();
+    await p.b.close();
+  });
+
+  test('przy stracie co setnego pakietu nadawca ponawia tylko zgubione '
+      'i nie czeka na RTO', () async {
+    // Przed zmianą każda strata zatrzymywała łącze na RTO, a potem szło
+    // drugi raz wszystko, co czekało na potwierdzenie: przy 1% strat co
+    // trzeci segment szedł dwa razy.
+    net.latency = const Duration(milliseconds: 5);
+    final p = await parka();
+    var duze = 0;
+    var zgubione = 0;
+    net.filter = (data, from, to) {
+      if (from.address != '10.0.0.1' || data.length < 100) return true;
+      duze++;
+      if (duze % 100 != 0) return true;
+      zgubione++;
+      return false;
+    };
+    final dane = List<int>.generate(512 * kSegmentPayload, (i) => i % 239);
+    for (var i = 0; i < dane.length; i += 16384) {
+      p.a.add(dane.sublist(i, i + 16384));
+      await p.a.flush();
+    }
+    await _czekajNa(() => p.gotB.length >= dane.length,
+        limit: const Duration(seconds: 20));
+
+    expect(p.gotB, dane);
+    expect(zgubione, 5);
+    expect(p.a.fastRetransmits, zgubione);
+    expect(p.a.timeoutRetransmits, 0);
+    await p.a.close();
+    await p.b.close();
+  });
 }
 
 List<int> utf8Bytes(String s) => s.codeUnits;
+
+/// Czeka, aż [warunek] będzie prawdziwy, najwyżej [limit].
+Future<void> _czekajNa(bool Function() warunek,
+    {Duration limit = const Duration(seconds: 5)}) async {
+  final koniec = DateTime.now().add(limit);
+  while (!warunek()) {
+    if (DateTime.now().isAfter(koniec)) {
+      fail('warunek nie spełnił się w ${limit.inMilliseconds} ms');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+}
 
 /// Przepuszcza mikrozadania i timery, aż ruch ucichnie.
 Future<void> _settle({int rounds = 200}) async {

@@ -957,6 +957,12 @@ Future<void> _linkDzwoniacy(_Tozsamosc ja, _Tozsamosc on) async {
       for (final bajtow in k == 1 ? rozmiary : const <int>[]) {
         final los = Random();
         final dane = List<int>.generate(bajtow, (_) => los.nextInt(256));
+        final rura = transport.manager.pipeFor(on.guid);
+        final przed = (
+          rura?.segmentsSent ?? 0,
+          rura?.fastRetransmits ?? 0,
+          rura?.timeoutRetransmits ?? 0,
+        );
         final t1 = DateTime.now();
         final echo = await transport.request(
             InternetRoute(on.guid), 'POST', '/echo',
@@ -969,6 +975,13 @@ Future<void> _linkDzwoniacy(_Tozsamosc ja, _Tozsamosc on) async {
         wypisz(doszlo
             ? 'Przesył $bajtow B: $sek s, około $kBs kB/s.'
             : 'Przesył $bajtow B nie doszedł (status ${echo.status}).');
+        if (rura != null) {
+          // Liczniki rury tej strony: ile segmentów poszło pierwszy raz i ile
+          // trzeba było ponowić, od razu (luka w SACK) albo po RTO.
+          wypisz('  segmenty: ${rura.segmentsSent - przed.$1} wysłanych, '
+              '${rura.fastRetransmits - przed.$2} ponowionych od razu, '
+              '${rura.timeoutRetransmits - przed.$3} po RTO.');
+        }
         opis += doszlo
             ? ', $bajtow B w $sek s ($kBs kB/s)'
             : ', $bajtow B nie doszło';

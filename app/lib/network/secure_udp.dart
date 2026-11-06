@@ -100,11 +100,19 @@ HelloPacket? parseHello(Uint8List data) {
 const int kSegmentPayload = 1024;
 
 /// Nagłówek niezawodności w jawnej (odszyfrowanej) treści pakietu danych:
-/// `seq(4) ack(4) sack(4) len(2)`.
-const int _reliableHeader = 14;
+/// `seq(4) ack(4) sack(8) len(2)`. Mapa SACK ma 64 bity, tyle, ile okno, więc
+/// opisuje każdy segment w locie i nadawca nie ponawia niczego, co doszło.
+const int _reliableHeader = 18;
 
-/// Okno wysyłania: tyle segmentów może być w locie bez potwierdzenia.
+/// Okno wysyłania: najwyżej tyle kolejnych numerów segmentów od najstarszego
+/// niepotwierdzonego. Przy luce okno stoi, aż luka się wypełni, więc nic nie
+/// wyjdzie poza zasięg mapy SACK.
 const int kSendWindow = 64;
+
+/// Ile wysyłek późniejszych niż ostatnia wysyłka segmentu musi już dojść,
+/// żeby segment uznać za zgubiony i wysłać od razu, bez czekania na RTO (jak
+/// trzy zdublowane ACK w TCP).
+const int kFastRetransmitThreshold = 3;
 
 /// Domyślny czas do retransmisji, zanim zmierzymy RTT.
 const Duration kInitialRto = Duration(milliseconds: 500);
@@ -145,6 +153,10 @@ class SecureUdpPipe implements BytePipe {
 
   /// Klucz sesji łącza. Pusty, dopóki uścisk się nie skończy.
   List<int>? _key;
+
+  /// Ten sam klucz jako obiekt biblioteki, zrobiony raz na łącze: biblioteka
+  /// rozwija z niego klucz AES tylko przy pierwszym pakiecie.
+  SecretKey? _secret;
   SimpleKeyPair? _myEphemeral;
   List<int>? _myEphemeralPub;
 
@@ -160,6 +172,20 @@ class SecureUdpPipe implements BytePipe {
   /// Okno antyreplay przychodzących liczników.
   int _highestSeen = -1;
   final _seenBits = <int>{};
+
+  /// Segmenty danych wysłane pierwszy raz, ponowione od razu (luka w mapie
+  /// SACK) i ponowione dopiero po upływie RTO. Do diagnostyki i testów.
+  int get segmentsSent => _segmentsSent;
+  int get fastRetransmits => _fastRetransmits;
+  int get timeoutRetransmits => _timeoutRetransmits;
+  int _segmentsSent = 0;
+  int _fastRetransmits = 0;
+  int _timeoutRetransmits = 0;
+
+  /// Numer kolejnej wysyłki segmentu (pierwszej albo ponownej) i najwyższy
+  /// numer wysyłki, o której druga strona już dała znać, że doszła.
+  int _txCounter = 0;
+  int _deliveredTx = 0;
 
   // --- ARQ: wysyłanie ---
   int _nextSeq = 1;
@@ -349,7 +375,7 @@ class SecureUdpPipe implements BytePipe {
   Future<void> _deriveKey(List<int> theirEphemeral,
       {required bool initiator}) async {
     final mojEf = _myEphemeralPub!;
-    _key = await ChattCrypto.sessionKey(
+    final key = await ChattCrypto.sessionKey(
       myStatic: _myStatic,
       myEphemeral: _myEphemeral!,
       theirStatic: _theirStatic,
@@ -360,6 +386,8 @@ class SecureUdpPipe implements BytePipe {
       initiatorEphemeral: initiator ? mojEf : theirEphemeral,
       responderEphemeral: initiator ? theirEphemeral : mojEf,
     );
+    _secret = await _gcm.newSecretKeyFromBytes(key);
+    _key = key;
   }
 
   void _up() {
@@ -426,8 +454,8 @@ class SecureUdpPipe implements BytePipe {
   DateTime _lastSeen = DateTime.now();
 
   Future<void> _onData(UdpPacket packet) async {
-    final key = _key;
-    if (key == null || packet.data.length < _dataCipherOffset) return;
+    final secret = _secret;
+    if (secret == null || packet.data.length < _dataCipherOffset) return;
     final counter = _readCounter(packet.data, _dataCounterOffset);
     // Antyreplay: licznik spoza okna albo już widziany odpada.
     if (!_acceptCounter(counter)) return;
@@ -438,7 +466,7 @@ class SecureUdpPipe implements BytePipe {
     try {
       clear = await _gcm.decrypt(
         SecretBox(cipher, nonce: nonce, mac: Mac(mac)),
-        secretKey: SecretKey(key),
+        secretKey: secret,
       );
     } catch (_) {
       // Pakiet, który się nie odszyfrował: podmieniony albo nie nasz. Nie
@@ -460,8 +488,8 @@ class SecureUdpPipe implements BytePipe {
     final view = ByteData.sublistView(clear);
     final seq = view.getUint32(0);
     final ack = view.getUint32(4);
-    final sack = view.getUint32(8);
-    final len = view.getUint16(12);
+    final sack = (view.getUint32(8) << 32) | view.getUint32(12);
+    final len = view.getUint16(16);
     if (seq == _closeSeq) {
       close(powod: 'peer closed');
       return;
@@ -502,12 +530,13 @@ class SecureUdpPipe implements BytePipe {
     var potwierdzono = false;
     for (final seq in _unacked.keys.toList()) {
       final bySack = seq >= ack + 2 &&
-          seq <= ack + 2 + 31 &&
-          (sack & (1 << (seq - ack - 2))) != 0;
+          seq <= ack + 2 + 63 &&
+          ((sack >>> (seq - ack - 2)) & 1) != 0;
       if (seq <= ack || bySack) {
         final segment = _unacked.remove(seq);
         if (segment != null) {
           _sampleRtt(segment);
+          if (segment.tx > _deliveredTx) _deliveredTx = segment.tx;
           potwierdzono = true;
         }
       }
@@ -516,10 +545,30 @@ class SecureUdpPipe implements BytePipe {
       _sendBase = ack + 1;
       _timeoutBackoff = 0; // postęp: zdejmujemy wykładnicze wycofanie
     }
+    if (potwierdzono) _fastRetransmit();
     if (potwierdzono) {
       _wakeWindow();
       _rearmRto();
       _pump();
+    }
+  }
+
+  /// Szybkie ponowienie: segment, którego ostatnią wysyłkę wyprzedziło już co
+  /// najmniej [kFastRetransmitThreshold] późniejszych wysyłek, które doszły
+  /// (cumulative ACK albo bit SACK), zginął. Idzie od razu, bez czekania na
+  /// RTO, które przy każdej stracie zatrzymywało łącze na co najmniej 200 ms.
+  /// Liczy się kolejność wysyłek: ponowiony segment, który zginie drugi raz,
+  /// wraca, gdy dojdą wysłane po nim, a potwierdzenia sprzed ponowienia,
+  /// które dalej pokazują lukę, nie sypią duplikatami.
+  void _fastRetransmit() {
+    final teraz = DateTime.now();
+    for (final segment in _unacked.values) {
+      if (_deliveredTx - segment.tx < kFastRetransmitThreshold) continue;
+      segment.retransmitted = true;
+      segment.sentAt = teraz;
+      segment.tx = ++_txCounter;
+      _fastRetransmits++;
+      unawaited(_sendPacket(seq: segment.seq, payload: segment.payload));
     }
   }
 
@@ -550,15 +599,16 @@ class SecureUdpPipe implements BytePipe {
   /// Dzieli kolejkę na segmenty i wysyła tyle, ile mieści okno.
   void _pump() {
     if (_state != LinkState.up) return;
-    while (_sendQueue.isNotEmpty && _unacked.length < kSendWindow) {
+    while (_sendQueue.isNotEmpty && _windowOpen) {
       final take = _sendQueue.length < kSegmentPayload
           ? _sendQueue.length
           : kSegmentPayload;
       final payload = Uint8List.fromList(_sendQueue.sublist(0, take));
       _sendQueue.removeRange(0, take);
       final seq = _nextSeq++;
-      final segment = _Segment(seq, payload);
+      final segment = _Segment(seq, payload, ++_txCounter);
       _unacked[seq] = segment;
+      _segmentsSent++;
       unawaited(_sendPacket(seq: seq, payload: payload));
     }
     _rearmRto();
@@ -569,14 +619,17 @@ class SecureUdpPipe implements BytePipe {
     // Hamowanie: wracamy dopiero, gdy zaległość zeszła na łącze (kolejka
     // pusta) i w oknie jest miejsce na kolejny segment. Dzięki temu duży
     // plik idzie w tempie łącza i nie ląduje w całości w pamięci.
-    if (_sendQueue.isEmpty && _unacked.length < kSendWindow) return;
+    if (_sendQueue.isEmpty && _windowOpen) return;
     final completer = Completer<void>();
     _windowDrained.add(completer);
     return completer.future;
   }
 
+  /// Czy następny segment mieści się w oknie (patrz [kSendWindow]).
+  bool get _windowOpen => _nextSeq - _sendBase < kSendWindow;
+
   void _wakeWindow() {
-    if (_sendQueue.isEmpty && _unacked.length < kSendWindow) {
+    if (_sendQueue.isEmpty && _windowOpen) {
       for (final c in _windowDrained) {
         if (!c.isCompleted) c.complete();
       }
@@ -585,19 +638,21 @@ class SecureUdpPipe implements BytePipe {
   }
 
   Future<void> _sendPacket({required int seq, required List<int> payload}) async {
-    final key = _key;
-    if (key == null) return;
+    final secret = _secret;
+    if (secret == null) return;
     final clear = Uint8List(_reliableHeader + payload.length);
     final view = ByteData.sublistView(clear);
+    final sack = _sackBits();
     view.setUint32(0, seq);
     view.setUint32(4, _recvNext - 1); // kumulatywne ACK
-    view.setUint32(8, _sackBits());
-    view.setUint16(12, payload.length);
+    view.setUint32(8, (sack >>> 32) & 0xFFFFFFFF);
+    view.setUint32(12, sack & 0xFFFFFFFF);
+    view.setUint16(16, payload.length);
     clear.setRange(_reliableHeader, clear.length, payload);
 
     final counter = _sendCounter++;
     final nonce = _nonceFor(counter, incoming: false);
-    final box = await _gcm.encrypt(clear, secretKey: SecretKey(key), nonce: nonce);
+    final box = await _gcm.encrypt(clear, secretKey: secret, nonce: nonce);
     final out = BytesBuilder(copy: false)
       ..addByte(_linkMagic)
       ..addByte(_PacketType.data)
@@ -608,8 +663,9 @@ class SecureUdpPipe implements BytePipe {
   }
 
   int _sackBits() {
+    if (_recvBuffer.isEmpty) return 0;
     var bits = 0;
-    for (var i = 0; i < 32; i++) {
+    for (var i = 0; i < 64; i++) {
       if (_recvBuffer.containsKey(_recvNext + 1 + i)) bits |= 1 << i;
     }
     return bits;
@@ -650,6 +706,8 @@ class SecureUdpPipe implements BytePipe {
       if (teraz.difference(segment.sentAt) >= prog) {
         segment.retransmitted = true;
         segment.sentAt = teraz;
+        segment.tx = ++_txCounter;
+        _timeoutRetransmits++;
         unawaited(_sendPacket(seq: segment.seq, payload: segment.payload));
       }
     }
@@ -691,7 +749,12 @@ class SecureUdpPipe implements BytePipe {
   void _markSeen(int counter) {
     if (counter > _highestSeen) _highestSeen = counter;
     _seenBits.add(counter);
-    _seenBits.removeWhere((c) => c <= _highestSeen - _replayWindow);
+    // Liczniki starsze niż okno odrzuca już [_acceptCounter], więc zbiór
+    // czyścimy rzadko: przeglądanie go przy każdym pakiecie kosztowało więcej
+    // niż reszta obsługi pakietu.
+    if (_seenBits.length > _replayWindow * 2) {
+      _seenBits.removeWhere((c) => c <= _highestSeen - _replayWindow);
+    }
   }
 
   // --- nonce ---------------------------------------------------------------
@@ -754,5 +817,9 @@ class _Segment {
   final Uint8List payload;
   DateTime sentAt;
   bool retransmitted = false;
-  _Segment(this.seq, this.payload) : sentAt = DateTime.now();
+
+  /// Numer ostatniej wysyłki tego segmentu w kolejności wszystkich wysyłek.
+  int tx;
+
+  _Segment(this.seq, this.payload, this.tx) : sentAt = DateTime.now();
 }

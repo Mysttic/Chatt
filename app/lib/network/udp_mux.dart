@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -55,6 +56,11 @@ abstract class UdpMux {
   Future<void> close();
 }
 
+/// Ile pakietów najwyżej czeka w [SocketUdpMux] na miejsce w buforze
+/// wysyłki systemu. Więcej to już zator: nadmiar ginie jak każdy pakiet UDP,
+/// a warstwa wyżej go ponowi.
+const int kUdpSendBacklog = 1024;
+
 /// [UdpMux] na prawdziwym gnieździe UDP.
 class SocketUdpMux implements UdpMux {
   RawDatagramSocket _socket;
@@ -63,6 +69,16 @@ class SocketUdpMux implements UdpMux {
   final _handlers = <UdpHandler>[];
   StreamSubscription<RawSocketEvent>? _sub;
   bool _closed = false;
+
+  /// Pakiety, których system nie przyjął od razu. `send` zwraca wtedy zero
+  /// i pakiet nie wychodzi: na Windows z serii 64 pakietów wysłanych jednym
+  /// ciągiem tak przepadało około czterech na pięć (pomiar w
+  /// docs/spike-nat.md). Czekają tu, aż gniazdo zgłosi gotowość do zapisu,
+  /// i wychodzą w kolejności.
+  final _waiting = Queue<({List<int> data, InternetAddress address, int port})>();
+
+  /// Ile pakietów odpadło, bo kolejka [_waiting] była pełna.
+  int dropped = 0;
 
   /// Pakiety, których nikt nie wziął. Wyłącznie do diagnostyki (spike).
   void Function(UdpPacket packet)? onUnhandled;
@@ -75,6 +91,8 @@ class SocketUdpMux implements UdpMux {
 
   void _listen() {
     _socket.readEventsEnabled = true;
+    // Nowe gniazdo po [_reopen]: zaległe pakiety czekają na jego gotowość.
+    if (_waiting.isNotEmpty) _socket.writeEventsEnabled = true;
     _sub = _socket.listen(
       _onEvent,
       // Błąd jednego pakietu nie jest błędem warstwy wyżej: ta i tak ponawia.
@@ -131,15 +149,49 @@ class SocketUdpMux implements UdpMux {
   @override
   void send(List<int> data, InternetAddress address, int port) {
     if (_closed || !udpSendable(address, port)) return;
+    // Za czekającymi, żeby pakiety nie wyprzedzały się nawzajem.
+    if (_waiting.isNotEmpty || !_trySend(data, address, port)) {
+      _enqueue(data, address, port);
+    }
+  }
+
+  /// Wysyła od razu. false: system nie przyjął pakietu (pełny bufor).
+  bool _trySend(List<int> data, InternetAddress address, int port) {
     try {
-      _socket.send(data, address, port);
+      return _socket.send(data, address, port) > 0;
     } on SocketException {
       // Pojedynczy pakiet UDP, który nie wyszedł (np. sieć chwilowo znikła),
       // nie jest błędem warstwy wyżej: ta i tak ponawia.
+      return true;
+    }
+  }
+
+  void _enqueue(List<int> data, InternetAddress address, int port) {
+    if (_waiting.length >= kUdpSendBacklog) {
+      dropped++;
+      return;
+    }
+    _waiting.add((data: data, address: address, port: port));
+    _socket.writeEventsEnabled = true;
+  }
+
+  /// Gniazdo jest gotowe do zapisu: wychodzi tyle zaległych, ile przyjmie.
+  void _drain() {
+    while (_waiting.isNotEmpty) {
+      final p = _waiting.first;
+      if (!_trySend(p.data, p.address, p.port)) {
+        _socket.writeEventsEnabled = true;
+        return;
+      }
+      _waiting.removeFirst();
     }
   }
 
   void _onEvent(RawSocketEvent event) {
+    if (event == RawSocketEvent.write) {
+      _drain();
+      return;
+    }
     if (event != RawSocketEvent.read) return;
     final datagram = _socket.receive();
     if (datagram == null) return;
@@ -164,6 +216,7 @@ class SocketUdpMux implements UdpMux {
   @override
   Future<void> close() async {
     _closed = true;
+    _waiting.clear();
     await _sub?.cancel();
     _sub = null;
     _socket.close();

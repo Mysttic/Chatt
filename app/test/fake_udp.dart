@@ -22,6 +22,26 @@ class FakeUdpNet {
   /// Opóźnienie dostarczenia. Zero = w następnym mikrozadaniu.
   Duration latency;
 
+  /// Wąskie gardło w drodze do każdego adresu: przepustowość w bajtach na
+  /// sekundę (0 = bez ograniczenia) i najwyżej tyle bajtów czekających
+  /// w kolejce przed nim (0 = kolejka bez dna). Pakiet, który się nie
+  /// mieści, ginie, jak w routerze z pełną kolejką.
+  int bandwidth = 0;
+  int queueBytes = 0;
+
+  /// Ile pakietów zgubiła pełna kolejka przed wąskim gardłem.
+  int queueDrops = 0;
+
+  /// Sito na wybrane pakiety: false gubi pakiet. Do testów, które muszą
+  /// zgubić jeden wskazany pakiet.
+  bool Function(Uint8List data, InternetAddress from, InternetAddress to)?
+      filter;
+
+  final _zegar = Stopwatch()..start();
+
+  /// Adres -> mikrosekunda zegara, od której gardło do niego jest wolne.
+  final _wolneOd = <String, int>{};
+
   FakeUdpNet({this.loss = 0, this.latency = Duration.zero, int seed = 1})
       : _random = Random(seed);
 
@@ -45,16 +65,31 @@ class FakeUdpNet {
   void _deliver(
       Uint8List data, InternetAddress from, int fromPort, InternetAddress to, int toPort) {
     if (loss > 0 && _random.nextDouble() < loss) return;
+    final sito = filter;
+    if (sito != null && !sito(data, from, to)) return;
     final nat = _nats[to.address];
     final target = _muxes['${to.address}:$toPort'];
     if (nat == null && target == null) return;
+    var opoznienie = latency;
+    if (bandwidth > 0) {
+      final teraz = _zegar.elapsedMicroseconds;
+      final start = max(teraz, _wolneOd[to.address] ?? 0);
+      final wKolejce = (start - teraz) * bandwidth ~/ 1000000;
+      if (queueBytes > 0 && wKolejce + data.length > queueBytes) {
+        queueDrops++;
+        return;
+      }
+      final koniec = start + data.length * 1000000 ~/ bandwidth;
+      _wolneOd[to.address] = koniec;
+      opoznienie += Duration(microseconds: koniec - teraz);
+    }
     void go() => nat != null
         ? nat._inbound(data, from, fromPort, toPort)
         : target!._receive(UdpPacket(data, from, fromPort));
-    if (latency == Duration.zero) {
+    if (opoznienie == Duration.zero) {
       scheduleMicrotask(go);
     } else {
-      Timer(latency, go);
+      Timer(opoznienie, go);
     }
   }
 }
