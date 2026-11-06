@@ -182,7 +182,7 @@
 
   "updates": "Updates",
   "updateChecksLabel": "Check for updates automatically",
-  "updateChecksHelp": "Once a day Chatt asks GitHub whether a newer release is out. It is the only thing the app sends outside your own network, and it stays off until you turn it on.",
+  "updateChecksHelp": "Once a day Chatt asks GitHub whether a newer release is out. The question leaves your own network, so it stays off until you turn it on.",
   "updateCheckNow": "Check now",
   "updateChecking": "Checking…",
   "updateUpToDate": "This is the newest release.",

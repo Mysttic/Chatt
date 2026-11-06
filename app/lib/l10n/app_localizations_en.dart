@@ -628,7 +628,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateChecksHelp =>
-      'Once a day Chatt asks GitHub whether a newer release is out. It is the only thing the app sends outside your own network, and it stays off until you turn it on.';
+      'Once a day Chatt asks GitHub whether a newer release is out. The question leaves your own network, so it stays off until you turn it on.';
 
   @override
   String get updateCheckNow => 'Check now';

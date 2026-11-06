@@ -258,7 +258,7 @@
 
   "updates": "Aktualizacje",
   "updateChecksLabel": "Sprawdzaj aktualizacje automatycznie",
-  "updateChecksHelp": "Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.",
+  "updateChecksHelp": "Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. Pytanie wychodzi poza Twoją sieć, więc stoi wyłączone, dopóki go nie włączysz.",
   "updateCheckNow": "Sprawdź teraz",
   "updateChecking": "Sprawdzam…",
   "updateUpToDate": "To najnowsze wydanie.",

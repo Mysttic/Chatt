@@ -1133,7 +1133,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateChecksHelp.
   ///
   /// In pl, this message translates to:
-  /// **'Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.'**
+  /// **'Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. Pytanie wychodzi poza Twoją sieć, więc stoi wyłączone, dopóki go nie włączysz.'**
   String get updateChecksHelp;
 
   /// No description provided for @updateCheckNow.
