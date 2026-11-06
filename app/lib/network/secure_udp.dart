@@ -45,6 +45,7 @@ class _PacketType {
   static const hello = 1;
   static const helloAck = 2;
   static const data = 3;
+  static const knock = 4;
 }
 
 /// Numer segmentu znaczący „zamykam łącze". Jedzie w nagłówku wewnątrz koperty
@@ -70,6 +71,15 @@ class HelloPacket {
 /// gnieździe).
 bool isLinkPacket(Uint8List data) =>
     data.length >= 2 && data[0] == _linkMagic;
+
+/// Pukanie: pakiet od odbiorcy pod adres dzwoniącego. Każdy wychodzący pakiet
+/// otwiera w NAT-cie odbiorcy furtkę dla adresu, do którego poszedł, więc
+/// po pukaniu HELLO dzwoniącego zaczyna dochodzić. Dzwoniący pukanie połyka;
+/// pakiet nie niesie nic, co trzeba by chronić.
+Uint8List knockPacket() => Uint8List.fromList([_linkMagic, _PacketType.knock]);
+
+bool isKnock(Uint8List data) =>
+    isLinkPacket(data) && data[1] == _PacketType.knock;
 
 /// Rozkłada HELLO na guid i klucz efemeryczny; null, gdy to nie HELLO albo
 /// jest obcięty.
@@ -178,6 +188,9 @@ class SecureUdpPipe implements BytePipe {
   /// port). Menedżer po tym przepina swoją mapę „adres → łącze".
   void Function(String oldLabel, String newLabel)? onRebind;
 
+  /// Klucz efemeryczny z HELLO, które przyjęła strona przyjmująca.
+  List<int>? _theirHelloEphemeral;
+
   SecureUdpPipe({
     required UdpMux mux,
     required SimpleKeyPair myStatic,
@@ -213,6 +226,35 @@ class SecureUdpPipe implements BytePipe {
   /// Adres, pod którym stoi teraz druga strona. Może się zmienić, gdy NAT
   /// przestawi port: pakiet od znanego łącza z nowego adresu go odświeża.
   String get remoteLabel => '${_remoteAddress.address}:$_remotePort';
+
+  /// Klucz statyczny drugiej strony, przypięty przy tworzeniu rury.
+  List<int> get theirStatic => _theirStatic;
+
+  /// Czy to HELLO tego samego uścisku, który ta rura już przyjęła. Dzwoniący
+  /// powtarza HELLO co 400 ms; HELLO z nowym kluczem efemerycznym znaczy, że
+  /// zaczął uścisk od nowa.
+  bool isHelloFrom(List<int> ephemeral) {
+    final mam = _theirHelloEphemeral;
+    if (mam == null || mam.length != ephemeral.length) return false;
+    for (var i = 0; i < mam.length; i++) {
+      if (mam[i] != ephemeral[i]) return false;
+    }
+    return true;
+  }
+
+  /// Strona inicjująca w trakcie uścisku: rozmówca podał w skrzynce nowy
+  /// adres, więc HELLO idzie od teraz tam.
+  void retarget(InternetAddress address, int port) {
+    if (_state != LinkState.handshaking || !initiator) return;
+    if (address.address == _remoteAddress.address && port == _remotePort) {
+      return;
+    }
+    final stary = remoteLabel;
+    _remoteAddress = address;
+    _remotePort = port;
+    onRebind?.call(stary, remoteLabel);
+    if (_myEphemeralPub != null) _sendHello();
+  }
 
   // --- uścisk dłoni --------------------------------------------------------
 
@@ -287,6 +329,7 @@ class SecureUdpPipe implements BytePipe {
   /// pakiet od drugiej strony, który się odszyfruje.
   Future<void> acceptHello(List<int> theirEphemeral) async {
     if (_state != LinkState.handshaking || _key != null) return;
+    _theirHelloEphemeral = List<int>.of(theirEphemeral);
     await _prepareEphemeral();
     await _deriveKey(theirEphemeral, initiator: false);
     _armDead();

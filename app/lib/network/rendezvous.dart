@@ -37,9 +37,14 @@ class RendezvousAddress {
   final InternetAddress? address6;
   final int port6;
 
-  /// Kiedy rekord powstał (ms od epoki) — starszy niż kilka minut znaczy, że
-  /// rozmówca prawdopodobnie już gdzie indziej jest.
+  /// Kiedy rekord powstał (ms od epoki). Starszy niż kilka minut znaczy, że
+  /// rozmówca prawdopodobnie jest już gdzie indziej.
   final int timestamp;
+
+  /// Rozmówca dzwoni: wpisał adres, bo właśnie próbuje się z nami połączyć.
+  /// Odbiorca puka wtedy pod ten adres; zwykłe odświeżenie adresu tego nie
+  /// robi, więc odbiorca nie budzi radia na darmo.
+  final bool calling;
 
   const RendezvousAddress({
     required this.address,
@@ -47,6 +52,7 @@ class RendezvousAddress {
     this.address6,
     this.port6 = 0,
     required this.timestamp,
+    this.calling = false,
   });
 
   @override
@@ -114,13 +120,15 @@ class Rendezvous {
 
   /// Zapisuje własny adres do skrzynki, pod solą z własnego guida. [seq]
   /// musi rosnąć między zapisami (BEP 44 nie cofa numeru), więc bierzemy
-  /// znacznik czasu w sekundach. Zwraca, do ilu węzłów rekord trafił.
+  /// znacznik czasu w sekundach. [calling] to znacznik „dzwonię", patrz
+  /// [RendezvousAddress.calling]. Zwraca, do ilu węzłów rekord trafił.
   Future<int> publish(
     DhtClient dht, {
     required InternetAddress address,
     required int port,
     InternetAddress? address6,
     int port6 = 0,
+    bool calling = false,
     DateTime? now,
   }) async {
     final teraz = now ?? DateTime.now().toUtc();
@@ -132,6 +140,7 @@ class Rendezvous {
       if (address6 != null) 'ip6': address6.rawAddress,
       if (address6 != null) 'p6': port6,
       't': teraz.millisecondsSinceEpoch,
+      if (calling) 'c': 1,
     });
     final sealed = await _seal(payload);
     final value = bencode(sealed); // v = napis bajtowy z szyfrogramem
@@ -177,6 +186,7 @@ class Rendezvous {
               type: InternetAddressType.IPv6),
       port6: bInt(payload, 'p6') ?? 0,
       timestamp: bInt(payload, 't') ?? 0,
+      calling: bInt(payload, 'c') == 1,
     );
   }
 

@@ -64,6 +64,19 @@ void main() {
     expect(got, isNotNull);
     expect(got!.address.address, '203.0.113.9');
     expect(got.port, 51820);
+    expect(got.calling, isFalse);
+    await dhtA.close();
+    await dhtB.close();
+  });
+
+  test('znacznik „dzwonię" dociera do drugiej strony', () async {
+    final (a, b) = await para();
+    final dhtA = dht1.client();
+    final dhtB = dht1.client();
+    await a.publish(dhtA,
+        address: InternetAddress('203.0.113.9'), port: 51820, calling: true);
+    final got = await b.lookup(dhtB);
+    expect(got?.calling, isTrue);
     await dhtA.close();
     await dhtB.close();
   });
