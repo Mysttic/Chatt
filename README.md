@@ -114,7 +114,8 @@ nothing.
   connects. None of them sees the content. The first message after a quiet
   spell takes up to about a minute, a network that blocks it (a symmetric NAT,
   UDP filtered) stays out of reach, and there is no relay to fall back on. A
-  2.5 MB photo took 7 to 15 seconds between a PC at home and a phone on LTE.
+  7.7 MB photo took 11 to 13 seconds each way between a PC at home and a phone
+  on LTE.
   How it works, step by step with diagrams, and the measurements:
   [Talking over the internet](docs/internet.md).
 - **Keyboard from a PC**: the PC's keyboard types into the field that has the

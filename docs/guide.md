@@ -417,8 +417,8 @@ server stores or relays them on the way: Chatt has none.
   later. There is no server to fall back on. **Check reachability** on the
   add-on's card tells you whether the network you are on lets it through.
 - Files go at a few hundred kilobytes per second: between a PC at home and a
-  phone on LTE, a 2.5 MB photo took 15 seconds from the PC and 7 from the
-  phone. On a shared Wi-Fi network the same photo takes under a second.
+  phone on LTE, a 7.7 MB photo took 11 to 13 seconds each way. On a shared
+  Wi-Fi network a 2.5 MB photo takes under a second.
 - On a phone the add-on costs battery: the look into the mailboxes every minute
   and, while a connection is open, a small packet every 25 seconds or so. The
   add-on's card says so.

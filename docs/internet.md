@@ -200,23 +200,25 @@ Messages after it go at once.
 **Delay.** Half the packets made the round trip in under 37 ms over the
 internet, against 11 ms between the same two devices in one Wi-Fi network.
 
-**Files.** Two photos sent in the app, timed from Chatt's own log on the PC:
+**Files.** Two photos sent in the app, timed from Chatt's own log on the PC.
+The first measurement showed that the link lost a lot of time on every lost
+packet; after the fix the same photos went three to four times faster from
+the PC ([details](spike-nat.md#files-over-the-punched-path)):
 
 | Path | Photo 2.5 MB | Photo 7.7 MB |
 |---|---|---|
-| PC at home to phone on LTE, over the internet | 15.0 s | 45.4 s |
-| Phone on LTE to PC at home, over the internet | 6.9 s | 16.1 s |
+| PC at home to phone on LTE, over the internet | 4.2 s | 11.2 s |
+| Phone on LTE to PC at home, over the internet | | 12.2 s and 13.3 s |
+| The same, before the fix: PC to phone | 15.0 s | 45.4 s |
+| The same, before the fix: phone to PC | 6.9 s | 16.1 s and 16.4 s |
 | PC to phone in one Wi-Fi network | 0.5 s | |
 | Phone to PC in one Wi-Fi network | 0.3 s | |
 
-Over the internet that is about 170 kB/s from the PC and 370 to 480 kB/s from
-the phone. These times come from before a change in how the link recovers
-lost packets: in a simulated network with 1% loss it went from 434 to
-779 kB/s ([details](spike-nat.md#files-over-the-punched-path)). The photos
-have not been timed on hardware again yet. Every photo arrived whole: the copies on the PC have the same
-SHA-256 as the originals, and Chatt checks every file against its checksum
-before it shows it. Large files are much faster on a shared Wi-Fi network,
-and a transfer that breaks off resumes from where it stopped.
+Over the internet that is now 580 to 690 kB/s each way. Every photo arrived
+whole: the copies on the PC have the same SHA-256 as the originals, and Chatt
+checks every file against its checksum before it shows it. Large files are
+still much faster on a shared Wi-Fi network, and a transfer that breaks off
+resumes from where it stopped.
 
 ## Where it does not work
 

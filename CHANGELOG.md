@@ -16,7 +16,7 @@ different networks, for example a PC at home and a phone on mobile data,
 directly and with no server: messages and files are never stored on or relayed
 through anything outside the two devices. Measured on hardware between a PC at
 home and a phone on LTE: it connects both ways, and photos of 2.5 and 7.7 MB
-went through in 7 to 45 seconds. A new page explains how it works, with
+went through in 4 to 13 seconds. A new page explains how it works, with
 diagrams: [docs/internet.md](docs/internet.md)
 ([polski](docs/internet.pl.md)).
 
@@ -50,7 +50,10 @@ diagrams: [docs/internet.md](docs/internet.md)
   with 1% loss, 1 MB went at 434 kB/s with 410 extra sends, and now at
   779 kB/s with 12. On Windows the UDP socket queues packets the system refuses
   in a burst (it dropped about four in five of them) and sends them when the
-  socket is ready.
+  socket is ready. On hardware a 7.7 MB photo from a PC at home to a phone on
+  LTE took 11.2 s, down from 45.4 s, and 12.2 to 13.3 s the other way, down
+  from 16.1 to 16.4 s. The app log adds the link's counters (segments, resends,
+  round trip) to every file sent over the internet.
 - **A page about the add-on** in the documentation, in English and Polish
   ([docs/internet.md](docs/internet.md)). It starts with what matters most:
   messages and files never pass through or stay on a server. Two diagrams

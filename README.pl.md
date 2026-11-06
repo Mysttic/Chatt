@@ -97,8 +97,8 @@ pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
   i moment połączenia. Treści nie widzi żaden z nich. Pierwsza wiadomość po
   dłuższej ciszy idzie do około minuty, sieć, która to blokuje (symetryczny
   NAT, odfiltrowany UDP), zostaje poza zasięgiem, a przekaźnika w zapasie nie
-  ma. Zdjęcie 2,5 MB szło od 7 do 15 sekund między komputerem w domu
-  a telefonem na LTE. Jak to działa, krok po kroku z diagramami, i pomiary:
+  ma. Zdjęcie 7,7 MB szło od 11 do 13 sekund w każdą stronę między
+  komputerem w domu a telefonem na LTE. Jak to działa, krok po kroku z diagramami, i pomiary:
   [Rozmowy przez internet](docs/internet.pl.md).
 - **Klawiatura z PC**: klawiatura komputera pisze w polu z fokusem na
   telefonie albo tablecie z Androidem (przez klawiaturę Chatt bez klawiszy)

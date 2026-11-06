@@ -175,9 +175,9 @@ Two causes came out of it, plus one on Windows:
 
 - **Every lost packet stopped the link for an RTO** (at least 200 ms), and then
   everything still unacknowledged went out again. With 1% loss the sender
-  needed 410 extra sends for 1,024 segments. The receiver did report the gap (SACK bits), but the
-  sender used them only to drop delivered segments, and only 32 segments
-  behind the gap fit in the map while the window is 64.
+  needed 410 extra sends for 1,024 segments. The receiver did report the gap
+  (SACK bits), but the sender used them only to drop delivered segments, and
+  only 32 segments behind the gap fit in the map while the window is 64.
 - **The window counted unacknowledged segments**, so with a gap it kept sliding
   past the end of the SACK map, and the segments beyond it had to be resent.
 - **Windows drops UDP packets sent in one burst.** `RawDatagramSocket.send`
@@ -202,8 +202,30 @@ Not changed: there is no congestion window. A queue smaller than the window
 still loses part of every window (the 32 KB row), and halving the window on
 every loss would cost the most on random loss: Reno's formula gives about
 300 kB/s at 1% loss and a 40 ms round trip, where the link now does 779 kB/s.
-The photo transfers have not been measured again on hardware after the
-change.
+
+**On hardware after the change**, the same pair and photos, new test copies
+paired over USB (an `adb forward` and `adb reverse` of the two ports, taken
+down before the measurement, so the phone never joined the Wi-Fi):
+
+| Path | 2.5 MB | 7.7 MB |
+|---|---|---|
+| PC at home to phone on LTE | 4.2 s (600 kB/s) | 11.2 s (690 kB/s) |
+| Phone on LTE to PC at home | | 12.2 s and 13.3 s (630 and 580 kB/s) |
+| Phone to PC with the build from before the change, between those runs | | 16.4 s (470 kB/s) |
+
+The app log now ends the line of every file sent over the internet with the
+link's counters. The two uploads above: 8,500 segments each, 1 and 7 resent at
+once, none after a timeout, smoothed round trip 79 and 117 ms. Two earlier
+uploads with the new build, made within minutes after the add-on had been
+switched off and on on the phone, took 29 and 31 s; they ran before the
+counters existed, and the cause was not found.
+
+Two more things showed up. A 7.7 MB file takes 8,500 segments for 7,554 full
+ones: each 8 KB frame of the request multiplexer is 9 bytes longer than eight
+segments, so every ninth segment carries 9 bytes. And the first message to a
+device confirmed minutes earlier failed with "peer address not in DHT": a
+device writes its address for a newly confirmed peer only at the next
+ten-minute refresh.
 
 ### Found along the way
 

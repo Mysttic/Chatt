@@ -204,24 +204,25 @@ z Wi-Fi. Następne wiadomości idą od razu.
 wobec 11 ms między tymi samymi urządzeniami w jednej sieci Wi-Fi.
 
 **Pliki.** Dwa zdjęcia wysłane w aplikacji, czasy z dziennika Chatta na
-komputerze:
+komputerze. Pierwszy pomiar pokazał, że łącze traciło dużo czasu na każdym
+zgubionym pakiecie; po poprawce te same zdjęcia szły z komputera trzy do
+czterech razy szybciej ([szczegóły](spike-nat.md#files-over-the-punched-path),
+po angielsku):
 
 | Droga | Zdjęcie 2,5 MB | Zdjęcie 7,7 MB |
 |---|---|---|
-| Komputer w domu do telefonu na LTE, przez internet | 15,0 s | 45,4 s |
-| Telefon na LTE do komputera w domu, przez internet | 6,9 s | 16,1 s |
+| Komputer w domu do telefonu na LTE, przez internet | 4,2 s | 11,2 s |
+| Telefon na LTE do komputera w domu, przez internet | | 12,2 s i 13,3 s |
+| To samo przed poprawką: komputer do telefonu | 15,0 s | 45,4 s |
+| To samo przed poprawką: telefon do komputera | 6,9 s | 16,1 s i 16,4 s |
 | Komputer do telefonu w jednej sieci Wi-Fi | 0,5 s | |
 | Telefon do komputera w jednej sieci Wi-Fi | 0,3 s | |
 
-Przez internet to około 170 kB/s z komputera i od 370 do 480 kB/s z telefonu.
-Te czasy są sprzed zmiany w tym, jak łącze odzyskuje zgubione pakiety:
-w symulowanej sieci z 1% strat przesył wzrósł z 434 do 779 kB/s
-([szczegóły](spike-nat.md#files-over-the-punched-path), po angielsku).
-Zdjęć nie zmierzono jeszcze ponownie na sprzęcie.
-Każde zdjęcie doszło w całości: kopie na komputerze mają ten sam SHA-256 co
-oryginały, a Chatt sprawdza każdy plik z jego sumą kontrolną, zanim go pokaże.
-Duże pliki idą dużo szybciej we wspólnej sieci Wi-Fi, a przerwany przesył
-wznawia się od miejsca, w którym stanął.
+Przez internet to teraz od 580 do 690 kB/s w każdą stronę. Każde zdjęcie doszło
+w całości: kopie na komputerze mają ten sam SHA-256 co oryginały, a Chatt
+sprawdza każdy plik z jego sumą kontrolną, zanim go pokaże. Duże pliki dalej
+idą dużo szybciej we wspólnej sieci Wi-Fi, a przerwany przesył wznawia się od
+miejsca, w którym stanął.
 
 ## Gdzie to nie działa
 

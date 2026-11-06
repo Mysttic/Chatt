@@ -166,8 +166,8 @@ drodze nie przechowuje ani nie przekazuje: Chatt żadnego nie ma.
   później. Serwera w zapasie nie ma. **Sprawdź osiągalność** na karcie dodatku
   pokazuje, czy sieć, w której jesteś, to przepuści.
 - Pliki idą z prędkością kilkuset kilobajtów na sekundę: między komputerem
-  w domu a telefonem na LTE zdjęcie 2,5 MB szło 15 sekund z komputera i 7
-  z telefonu. We wspólnej sieci Wi‑Fi to samo zdjęcie idzie poniżej sekundy.
+  w domu a telefonem na LTE zdjęcie 7,7 MB szło od 11 do 13 sekund w każdą
+  stronę. We wspólnej sieci Wi‑Fi zdjęcie 2,5 MB idzie poniżej sekundy.
 - Na telefonie dodatek kosztuje baterię: zajrzenie do skrzynek co minutę, a gdy
   połączenie stoi, mały pakiet mniej więcej co 25 sekund. Karta dodatku to
   mówi.
