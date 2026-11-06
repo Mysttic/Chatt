@@ -382,6 +382,10 @@ hardware yet.
 
 ## Talking over the internet
 
+The add-on has a page of its own, with diagrams of how two devices find each
+other without a server, what others can see and the measurements:
+[Talking over the internet](internet.md). Below is the short version.
+
 Bluetooth helps within ten metres. When the PC is at home and the phone is out
 on mobile data, the third road is the internet, and it is an add-on too:
 **Settings → Add-ons → Internet**, off from the start. It is experimental.
@@ -400,7 +404,8 @@ to that address. The other device looks into its mailboxes about once a
 minute; when it sees that you are calling, it answers toward your address, and
 the routers on both sides let the two devices through to each other. From then
 on messages and files go straight between the two, encrypted the same way as
-on Wi-Fi, and the connection stays open while both devices are online.
+on Wi-Fi, and the connection stays open while both devices are online. No
+server stores or relays them on the way: Chatt has none.
 
 **What to expect.**
 
@@ -412,7 +417,8 @@ on Wi-Fi, and the connection stays open while both devices are online.
   later. There is no server to fall back on. **Check reachability** on the
   add-on's card tells you whether the network you are on lets it through.
 - Files go at a few hundred kilobytes per second: between a PC at home and a
-  phone on LTE, 256 KB took half a second one way and one second the other.
+  phone on LTE, a 2.5 MB photo took 15 seconds from the PC and 7 from the
+  phone. On a shared Wi-Fi network the same photo takes under a second.
 - On a phone the add-on costs battery: the look into the mailboxes every minute
   and, while a connection is open, a small packet every 25 seconds or so. The
   add-on's card says so.

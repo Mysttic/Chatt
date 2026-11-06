@@ -130,6 +130,10 @@ Bolą dopiero pliki.
 
 ## Dodatek Internet
 
+Dodatek ma własną stronę, z diagramami tego, jak dwa urządzenia znajdują się
+bez serwera, co widzą inni, i z pomiarami:
+[Rozmowy przez internet](internet.pl.md). Niżej wersja skrócona.
+
 Bluetooth pomaga w promieniu dziesięciu metrów. Gdy komputer jest w domu,
 a telefon poza nim na danych komórkowych, trzecią drogą jest internet, też jako
 dodatek: **Ustawienia → Dodatki → Internet**, wyłączony od początku. To funkcja
@@ -149,7 +153,8 @@ nadawać pod ten adres. Drugie urządzenie zagląda do skrzynek mniej więcej co
 minutę; gdy zobaczy, że dzwonisz, odzywa się w stronę Twojego adresu i routery
 po obu stronach przepuszczają oba urządzenia do siebie. Od tej chwili
 wiadomości i pliki idą prosto między nimi, szyfrowane tak samo jak przez Wi‑Fi,
-a połączenie trzyma, dopóki oba urządzenia są w sieci.
+a połączenie trzyma, dopóki oba urządzenia są w sieci. Żaden serwer ich po
+drodze nie przechowuje ani nie przekazuje: Chatt żadnego nie ma.
 
 **Czego się spodziewać.**
 
@@ -161,8 +166,8 @@ a połączenie trzyma, dopóki oba urządzenia są w sieci.
   później. Serwera w zapasie nie ma. **Sprawdź osiągalność** na karcie dodatku
   pokazuje, czy sieć, w której jesteś, to przepuści.
 - Pliki idą z prędkością kilkuset kilobajtów na sekundę: między komputerem
-  w domu a telefonem na LTE 256 KB szło pół sekundy w jedną stronę i sekundę
-  w drugą.
+  w domu a telefonem na LTE zdjęcie 2,5 MB szło 15 sekund z komputera i 7
+  z telefonu. We wspólnej sieci Wi‑Fi to samo zdjęcie idzie poniżej sekundy.
 - Na telefonie dodatek kosztuje baterię: zajrzenie do skrzynek co minutę, a gdy
   połączenie stoi, mały pakiet mniej więcej co 25 sekund. Karta dodatku to
   mówi.

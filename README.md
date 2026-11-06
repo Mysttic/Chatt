@@ -104,16 +104,19 @@ nothing.
   and no shared network, for devices within some ten metres. A short message
   comes back as fast as over Wi-Fi; files are tens of times slower.
 - **Internet** (experimental): a conversation with a confirmed device on
-  another network, for example a PC at home and a phone on mobile data, with
-  no server carrying it. The two devices find each other through a sealed
-  mailbox in the public BitTorrent DHT and punch through their routers' NAT
-  straight to each other; messages and files keep the same encryption as on
-  Wi-Fi. Public STUN servers and DHT nodes see this device's IP address and
-  when it connects. None of them sees the content. The first message after a
-  quiet spell takes up to about a minute, a network that blocks it (a
-  symmetric NAT, UDP filtered) stays out of reach, and there is no relay to
-  fall back on. Measured between a PC at home and a phone on LTE:
-  [docs/spike-nat.md](docs/spike-nat.md).
+  another network, for example a PC at home and a phone on mobile data.
+  **Messages and files go straight from one device to the other and are never
+  stored on any server**: Chatt has none. The two devices find each other
+  through a sealed mailbox in the public BitTorrent DHT and punch through
+  their routers' NAT straight to each other; every packet is encrypted, and
+  inside it messages and files keep the same encryption as on Wi-Fi. Public
+  STUN servers and DHT nodes see this device's IP address and when it
+  connects. None of them sees the content. The first message after a quiet
+  spell takes up to about a minute, a network that blocks it (a symmetric NAT,
+  UDP filtered) stays out of reach, and there is no relay to fall back on. A
+  2.5 MB photo took 7 to 15 seconds between a PC at home and a phone on LTE.
+  How it works, step by step with diagrams, and the measurements:
+  [Talking over the internet](docs/internet.md).
 - **Keyboard from a PC**: the PC's keyboard types into the field that has the
   focus on an Android phone or tablet (through a Chatt keyboard with no keys)
   or on another Windows PC, in any app. A session starts only after consent
@@ -128,9 +131,10 @@ nothing.
 |---|---|
 | <img src="docs/screenshots/windows/en/06_klawiatura_pisanie.png" alt="Typing on a phone from a PC" width="380"> | <img src="docs/screenshots/windows/en/07_klawiatura_zgoda.png" alt="The consent card" width="380"> |
 
-All three are described in the [user guide](docs/guide.md); the keyboard has
+All three are described in the [user guide](docs/guide.md). The keyboard has
 a page of its own, step by step with pictures from both systems:
-[Keyboard from a PC](docs/keyboard.md).
+[Keyboard from a PC](docs/keyboard.md), and so has the internet:
+[Talking over the internet](docs/internet.md).
 
 Platforms: **Windows** and **Android**. Both devices must be on the same
 network, within radio range with the Bluetooth add-on, or, with the Internet
@@ -177,7 +181,7 @@ The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 777 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt, the internet route (STUN, DHT, hole punching)
+flutter test        # 782 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt, the internet route (STUN, DHT, hole punching)
 flutter analyze
 ```
 

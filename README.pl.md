@@ -87,16 +87,19 @@ pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
   wiadomość wraca równie szybko jak przez Wi‑Fi; pliki idą kilkadziesiąt razy
   wolniej.
 - **Internet** (eksperymentalny): rozmowa z potwierdzonym urządzeniem w innej
-  sieci, na przykład komputer w domu i telefon na danych komórkowych, bez
-  serwera po drodze. Urządzenia odnajdują się przez zaszyfrowaną skrzynkę
-  w publicznym DHT BitTorrenta i przebijają się przez NAT swoich routerów
-  prosto do siebie; wiadomości i pliki mają to samo szyfrowanie co przez
-  Wi‑Fi. Publiczne serwery STUN i węzły DHT widzą adres IP urządzenia
+  sieci, na przykład komputer w domu i telefon na danych komórkowych.
+  **Wiadomości i pliki idą prosto z jednego urządzenia na drugie i nigdy nie
+  są przechowywane na żadnym serwerze**: Chatt żadnego nie ma. Urządzenia
+  odnajdują się przez zaszyfrowaną skrzynkę w publicznym DHT BitTorrenta
+  i przebijają się przez NAT swoich routerów prosto do siebie; każdy pakiet
+  jest szyfrowany, a w środku wiadomości i pliki mają to samo szyfrowanie co
+  przez Wi‑Fi. Publiczne serwery STUN i węzły DHT widzą adres IP urządzenia
   i moment połączenia. Treści nie widzi żaden z nich. Pierwsza wiadomość po
   dłuższej ciszy idzie do około minuty, sieć, która to blokuje (symetryczny
   NAT, odfiltrowany UDP), zostaje poza zasięgiem, a przekaźnika w zapasie nie
-  ma. Pomiar między komputerem w domu a telefonem na LTE:
-  [docs/spike-nat.md](docs/spike-nat.md).
+  ma. Zdjęcie 2,5 MB szło od 7 do 15 sekund między komputerem w domu
+  a telefonem na LTE. Jak to działa, krok po kroku z diagramami, i pomiary:
+  [Rozmowy przez internet](docs/internet.pl.md).
 - **Klawiatura z PC**: klawiatura komputera pisze w polu z fokusem na
   telefonie albo tablecie z Androidem (przez klawiaturę Chatt bez klawiszy)
   albo na innym komputerze z Windows, w dowolnej aplikacji. Sesja zaczyna się
@@ -113,9 +116,10 @@ pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
 |---|---|
 | <img src="docs/screenshots/windows/pl/06_klawiatura_pisanie.png" alt="Pisanie z komputera na telefonie" width="380"> | <img src="docs/screenshots/windows/pl/07_klawiatura_zgoda.png" alt="Karta zgody" width="380"> |
 
-Wszystkie trzy opisuje [instrukcja obsługi](docs/guide.pl.md); klawiatura ma
+Wszystkie trzy opisuje [instrukcja obsługi](docs/guide.pl.md). Klawiatura ma
 własną stronę, krok po kroku, z obrazkami z obu systemów:
-[Klawiatura z PC](docs/keyboard.pl.md).
+[Klawiatura z PC](docs/keyboard.pl.md), a internet swoją:
+[Rozmowy przez internet](docs/internet.pl.md).
 
 Platformy: **Windows** i **Android**. Oba urządzenia muszą być w tej samej
 sieci, z dodatkiem Bluetooth w zasięgu radia, a z dodatkiem Internet w dowolnych
@@ -155,7 +159,7 @@ Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 777 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury)
+flutter test        # 782 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury)
 flutter analyze
 ```
 

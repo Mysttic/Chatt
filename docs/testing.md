@@ -687,6 +687,16 @@ so none of it needs a public IP or a real NAT:
   mapping, filtering by address and port): without a knock the receiver's NAT
   drops the HELLO; with it the link comes up, also when the receiver's address
   in the box is stale; when both sides call at once one link stays
+- a 1 MB file crosses both NATs whole while one packet in twenty is lost (the
+  receiver's SHA-256 matches the sender's); the routine address refresh that
+  runs while a call starts keeps the "calling" mark in the box; a device with a
+  valid identity that the receiver has not confirmed gets not a single packet
+  back, and no link appears
+- the receiver's reading schedule: five reads a minute apart for an empty box,
+  then twice as long each time up to 15 minutes, back to a minute once a record
+  shows up; the caller punches longer than the receiver waits between reads,
+  the "calling" mark stays fresh for the whole punch, and the caller rereads
+  the box several times while it punches
 - the add-on in `AppServices`: off by default, the switch persists, and an
   `InternetRoute` appears only for a verified peer with the add-on on, after
   the local-network route
@@ -1510,6 +1520,8 @@ Deliberate holes in coverage, to be checked by hand at release time:
   measured by hand with `app/tool/nat_spike.dart` and written up in
   [spike-nat.md](spike-nat.md). Measured: a PC at home and a phone on LTE.
   The protocol itself is covered over an in-memory UDP network with NATs.
+  Photos of 2.5 and 7.7 MB went both ways between test copies of the app
+  on those two networks, with the times in [internet.md](internet.md#how-fast-it-is).
 - **Pasting a file on Android**: a stock emulator image has no app that puts a
   `content://` on the clipboard, so the reading side of `ChattClipboard` is
   checked on a real phone, with a file manager and with "copy image" in a

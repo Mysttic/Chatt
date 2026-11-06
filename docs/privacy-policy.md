@@ -137,8 +137,9 @@ The Internet add-on is offered only for a device whose identity you confirmed
 (green shield). The record it leaves in the DHT holds this device's public
 address, sealed with a key only the two devices can compute; DHT nodes store
 and pass on the sealed bytes. Messages and files then go straight between the
-two devices, with the same encryption as on your local network. The network
-operators on the way see addresses and timing; the content stays encrypted. To
+two devices, with the same encryption as on your local network, and no server
+stores or relays them on the way. The network operators on the way see
+addresses and timing; the content stays encrypted. To
 stay reachable, a device with the add-on on checks every minute whether a
 confirmed device is calling it, and a connected pair exchanges a small packet
 every 25 seconds or so; on a phone that costs battery.

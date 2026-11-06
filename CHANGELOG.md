@@ -10,12 +10,15 @@ into `master`.
 
 ## [Unreleased]
 
-Research spike, measured on hardware. A third transport reaches a confirmed
-device on another network with no relay, behind an add-on that is off by
-default, so nothing leaves your network by itself while it stays off. Between a
-PC at home and a phone on LTE it connects both ways; the numbers are in
-[docs/spike-nat.md](docs/spike-nat.md). The README lists it with the other
-add-ons, and its line about there being no internet mode is gone.
+The internet as a third road. With the **Internet** add-on, experimental and
+off by default, two devices that have confirmed each other talk across
+different networks, for example a PC at home and a phone on mobile data,
+directly and with no server: messages and files are never stored on or relayed
+through anything outside the two devices. Measured on hardware between a PC at
+home and a phone on LTE: it connects both ways, and photos of 2.5 and 7.7 MB
+went through in 7 to 45 seconds. A new page explains how it works, with
+diagrams: [docs/internet.md](docs/internet.md)
+([polski](docs/internet.pl.md)).
 
 ### Added (experimental, off by default)
 - **Internet route** (issue #68). An add-on in Settings that connects two
@@ -40,12 +43,26 @@ add-ons, and its line about there being no internet mode is gone.
   The route fails behind a symmetric NAT and where UDP or DHT is blocked, with
   no relay fallback by design. `app/tool/nat_spike.dart` measures a given pair
   of networks.
+- **A page about the add-on** in the documentation, in English and Polish
+  ([docs/internet.md](docs/internet.md)). It starts with what matters most:
+  messages and files never pass through or stay on a server. Two diagrams
+  show how two devices find each other through STUN and the DHT without one,
+  a table lists what STUN servers, DHT nodes, providers and the other device
+  can see, and the measured times include photos sent both ways in the app.
+  The README, the guide and the documentation index link to it.
+
+### Fixed
+- The conversation header no longer says the device is unavailable while
+  messages go over the internet. The header checked once, when the
+  conversation opened, and right after the phone left Wi-Fi that check came
+  before the internet link stood up. It now turns to available as soon as an
+  internet or Bluetooth link to the device comes up.
 
 ### Changed
-- The README lists the Internet add-on with the other add-ons, the guide (EN
-  and PL) has a section on it, and the privacy policy names it as the third
-  connection outside the local network, with what STUN servers and DHT nodes
-  learn.
+- The README lists the Internet add-on with the other add-ons and drops its
+  line about there being no internet mode, the guide (EN and PL) has a section
+  on it, and the privacy policy names it as the third connection outside the
+  local network, with what STUN servers and DHT nodes learn.
 
 ## [0.13.0] - 2026-10-27
 
