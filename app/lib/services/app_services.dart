@@ -33,6 +33,7 @@ import '../network/inet_link.dart';
 import '../network/inet_transport.dart';
 import '../network/protocol.dart';
 import '../network/rendezvous.dart';
+import '../network/secure_udp.dart' show SecureUdpPipe;
 import '../network/server.dart';
 import '../network/stun.dart' show NatMapping;
 import '../network/transport.dart';
@@ -1724,6 +1725,20 @@ class AppServices {
     return null;
   }
 
+  /// Liczniki łącza internetowego za czas jednego pliku, do dziennika: ile
+  /// segmentów poszło, ile trzeba było ponowić i jaki był czas obiegu. Pusto,
+  /// gdy plik poszedł inną drogą.
+  static String _linkStats(SecureUdpPipe? rura, (int, int, int)? przed) {
+    if (rura == null || przed == null) return '';
+    final (wyslane, szybko, poRto) = przed;
+    final segmenty = rura.segmentsSent - wyslane;
+    if (segmenty <= 0) return '';
+    return ', internet link: $segmenty segments, '
+        '${rura.fastRetransmits - szybko} resent at once, '
+        '${rura.timeoutRetransmits - poRto} after a timeout, '
+        'smoothed round trip ${rura.smoothedRtt.inMilliseconds} ms';
+  }
+
   /// Wysyłka pliku: najpierw zapowiedź (odbiorca decyduje, czy chce go
   /// przyjąć i od którego bajtu), potem dopiero bajty. Odmowa i zerwany
   /// transfer kończą się statusem "niedostarczone" z możliwością ponowienia:
@@ -1866,6 +1881,11 @@ class AppServices {
             'Outgoing file to $kto resumes at $resumeFrom of $total bytes $ktora');
       }
 
+      // Liczniki łącza internetowego sprzed przesyłu, do dziennika.
+      final rura = _internetManager?.pipeFor(target.guid);
+      final przed = rura == null
+          ? null
+          : (rura.segmentsSent, rura.fastRetransmits, rura.timeoutRetransmits);
       var wynik = await _streamFile(message, file, target, name, total, hash,
           resumeFrom, progress, fileKey, sesja.id);
       var delivered = wynik.delivered;
@@ -1898,7 +1918,8 @@ class AppServices {
       await status(
           delivered ? MessageStatus.delivered : MessageStatus.failed);
       if (delivered) {
-        log.info(LogArea.file, 'Outgoing file delivered to $kto: $total bytes $ktora');
+        log.info(LogArea.file,
+            'Outgoing file delivered to $kto: $total bytes $ktora${_linkStats(rura, przed)}');
       } else {
         nieWyszlo('transfer ${wynik.name}');
       }

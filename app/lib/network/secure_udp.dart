@@ -178,6 +178,9 @@ class SecureUdpPipe implements BytePipe {
   int get segmentsSent => _segmentsSent;
   int get fastRetransmits => _fastRetransmits;
   int get timeoutRetransmits => _timeoutRetransmits;
+
+  /// Wygładzony czas obiegu (zero przed pierwszą próbką). Do dziennika.
+  Duration get smoothedRtt => _srtt;
   int _segmentsSent = 0;
   int _fastRetransmits = 0;
   int _timeoutRetransmits = 0;
