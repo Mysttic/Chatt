@@ -39,6 +39,14 @@
 //          Stąd interwał podtrzymania. Żeby zmierzyć drugi kierunek, zamień
 //          role.
 //
+//   link   droga internetowa aplikacji w całości: ten sam InetLinkManager
+//          i InternetTransport, z tożsamościami wyprowadzonymi ze słowa
+//          CHATT_NAT_PAIR, bez bazy i bez danych Chatta. Strona `b` tylko
+//          czeka: wpisuje adres do skrzynki, czyta skrzynkę `a` i puka.
+//          Strona `a` dzwoni CHATT_NAT_CALLS razy, za każdym razem od zimnego
+//          startu (nowe gniazdo), mierzy czas do odpowiedzi, a przy pierwszej
+//          rozmowie wysyła CHATT_NAT_BYTES bajtów i mierzy przepustowość.
+//
 // Wymiana adresów w trybie punch:
 //
 //   CHATT_NAT_PAIR=<słowo>  to samo słowo po obu stronach. Adresy idą przez
@@ -61,6 +69,16 @@
 //                    dostanie. Gdy pakiet drugiej strony mimo to dojdzie,
 //                    NAT tej strony wpuszcza ruch od nieznanego nadawcy
 //                    i odbiorca nie musi nadawać pierwszy
+//   CHATT_NAT_WATCH  link: co ile sekund `b` czyta skrzynkę, domyślnie 60
+//                    jak w aplikacji
+//   CHATT_NAT_CALLS  link: ile razy `a` dzwoni, domyślnie 3
+//   CHATT_NAT_BYTES  link: bajtów w próbie przepustowości, domyślnie 262144
+//   CHATT_NAT_FOR    link: ile minut `b` czeka najwyżej, domyślnie 15
+//
+// Na komputerze te same klucze można podać jako zmienne środowiska, co
+// przydaje się przy zbudowanym programie (`flutter build windows -t
+// tool/nat_spike.dart`, potrzebnym w trybie link). CHATT_NAT_LOG=<plik>
+// dopisuje wydruk także do pliku.
 //
 // Na telefonie te same klucze można podać bez przebudowy, w pliku
 // chatt_nat.conf w katalogu tymczasowym aplikacji (ścieżka w wydruku),
@@ -79,12 +97,18 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:chatt/core/crypto.dart';
 import 'package:chatt/network/bencode.dart';
+import 'package:chatt/network/bt_link.dart';
 import 'package:chatt/network/dht.dart';
+import 'package:chatt/network/inet_link.dart';
+import 'package:chatt/network/inet_transport.dart';
 import 'package:chatt/network/rendezvous.dart';
 import 'package:chatt/network/stun.dart';
+import 'package:chatt/network/transport.dart';
 import 'package:chatt/network/udp_mux.dart';
 import 'package:crypto/crypto.dart' as digest;
+import 'package:cryptography/cryptography.dart';
 
 /// Ustawienia z --dart-define (albo `dart run -D`). Na telefonie nadpisuje je
 /// plik chatt_nat.conf, patrz [_wczytajPlik].
@@ -99,6 +123,14 @@ final _ust = <String, String>{
       defaultValue: '15,30,60,120'),
   'CHATT_NAT_PORT':
       const String.fromEnvironment('CHATT_NAT_PORT', defaultValue: '0'),
+  'CHATT_NAT_WATCH':
+      const String.fromEnvironment('CHATT_NAT_WATCH', defaultValue: '60'),
+  'CHATT_NAT_CALLS':
+      const String.fromEnvironment('CHATT_NAT_CALLS', defaultValue: '3'),
+  'CHATT_NAT_BYTES':
+      const String.fromEnvironment('CHATT_NAT_BYTES', defaultValue: '262144'),
+  'CHATT_NAT_FOR':
+      const String.fromEnvironment('CHATT_NAT_FOR', defaultValue: '15'),
   'CHATT_NAT_LISTEN':
       const String.fromEnvironment('CHATT_NAT_LISTEN', defaultValue: 'false'),
   'CHATT_NAT_LOCAL':
@@ -112,6 +144,8 @@ int get _ileProb => int.tryParse(_ust['CHATT_NAT_TRIES']!) ?? 3;
 int get _stalyPort => int.tryParse(_ust['CHATT_NAT_PORT']!) ?? 0;
 bool get _lokalnie => _ust['CHATT_NAT_LOCAL'] == 'true';
 bool get _tylkoSlucha => _ust['CHATT_NAT_LISTEN'] == 'true';
+int _liczba(String klucz, int domyslna) =>
+    int.tryParse(_ust[klucz]!) ?? domyslna;
 
 List<int> get _przerwy => [
       for (final s in _ust['CHATT_NAT_GAPS']!.split(','))
@@ -122,18 +156,34 @@ List<int> get _przerwy => [
 const _oknoPrzebicia = Duration(seconds: 30);
 
 /// `print`, bo na Androidzie `stdout` nie dociera do konsoli `flutter run`,
-/// a `print` trafia tam i do logcatu.
-void wypisz(String linia) => print(linia);
+/// a `print` trafia tam i do logcatu. Na komputerze z CHATT_NAT_LOG także do
+/// pliku: zbudowany program okienkowy nie zawsze ma konsolę.
+void wypisz(String linia) {
+  print(linia);
+  final log = Platform.isAndroid ? null : Platform.environment['CHATT_NAT_LOG'];
+  if (log != null && log.isNotEmpty) {
+    File(log).writeAsStringSync('$linia\n',
+        mode: FileMode.append, flush: true);
+  }
+}
 
-final _startProcesu = DateTime.now();
+/// Start procesu. Ustawiany w [main]: zmienna globalna z inicjalizatorem
+/// powstaje dopiero przy pierwszym użyciu.
+late final DateTime _start;
 
 String _wTemp(String nazwa) =>
     '${Directory.systemTemp.path}${Platform.pathSeparator}$nazwa';
 
-/// Na telefonie: KLUCZ=wartość z pliku chatt_nat.conf, żeby zmiana trybu
-/// nie wymagała przebudowy aplikacji.
+/// Na komputerze: zmienne środowiska. Na telefonie: KLUCZ=wartość z pliku
+/// chatt_nat.conf, żeby zmiana trybu nie wymagała przebudowy aplikacji.
 void _wczytajPlik() {
-  if (!Platform.isAndroid) return;
+  if (!Platform.isAndroid) {
+    for (final klucz in _ust.keys.toList()) {
+      final wartosc = Platform.environment[klucz];
+      if (wartosc != null) _ust[klucz] = wartosc;
+    }
+    return;
+  }
   final plik = File(_wTemp('chatt_nat.conf'));
   if (!plik.existsSync()) {
     wypisz('Bez pliku ${plik.path}, ustawienia z budowania.');
@@ -149,6 +199,7 @@ void _wczytajPlik() {
 }
 
 Future<void> main() async {
+  _start = DateTime.now();
   _wczytajPlik();
   wypisz('== Chatt NAT spike: tryb "$_tryb"'
       '${_rola.isEmpty ? '' : ', rola $_rola'} ==');
@@ -160,8 +211,10 @@ Future<void> main() async {
         await _dht();
       case 'punch':
         await _punch();
+      case 'link':
+        await _link();
       default:
-        wypisz('Nieznany tryb. Użyj stun, dht albo punch.');
+        wypisz('Nieznany tryb. Użyj stun, dht, punch albo link.');
     }
   } catch (blad, slad) {
     wypisz('Błąd: $blad\n$slad');
@@ -448,7 +501,7 @@ Future<(InternetAddress, int)?> _adresZeSkrzynki(
     // Rekord sprzed startu tego procesu to ślad poprzedniego pomiaru z tym
     // samym słowem. Minuta zapasu na różnicę zegarów.
     if (adres != null &&
-        adres.timestamp > _startProcesu.millisecondsSinceEpoch - 60000) {
+        adres.timestamp > _start.millisecondsSinceEpoch - 60000) {
       final wiek =
           (DateTime.now().millisecondsSinceEpoch - adres.timestamp) ~/ 1000;
       wypisz('Adres drugiej strony ze skrzynki: '
@@ -709,4 +762,145 @@ void _podsumuj(List<_Proba> wyniki) {
   }
   final udane = wyniki.where((p) => p.msObie != null).length;
   wypisz('Udane: $udane z ${wyniki.length}.');
+}
+
+// --- link ------------------------------------------------------------------
+
+class _Tozsamosc {
+  _Tozsamosc(this.klucz, this.pub, this.guid);
+  final SimpleKeyPair klucz;
+  final List<int> pub;
+  final String guid;
+}
+
+/// Tożsamość pomiarowa: klucz X25519 z ziarna wyprowadzonego ze słowa i roli,
+/// więc każda strona zna klucz publiczny drugiej bez żadnej wymiany.
+Future<_Tozsamosc> _tozsamosc(String rola) async {
+  final klucz = await X25519().newKeyPairFromSeed(_zeSlowa('identity-$rola'));
+  final pub = await ChattCrypto.publicKeyOf(klucz);
+  return _Tozsamosc(klucz, pub, ChattCrypto.guidFromPublicKey(pub));
+}
+
+String _czas() {
+  final ms = DateTime.now().difference(_start).inMilliseconds;
+  return '${(ms / 1000).toStringAsFixed(1)} s';
+}
+
+InetLinkManager _menedzer(_Tozsamosc ja, _Tozsamosc on, UdpMux mux) =>
+    InetLinkManager(
+      mux: mux,
+      myStatic: ja.klucz,
+      myStaticPub: ja.pub,
+      myGuid: ja.guid,
+      resolveStatic: (g) async => g == on.guid ? on.pub : null,
+      resolveRendezvous: (g) async => g == on.guid
+          ? await Rendezvous.forPeer(
+              myStatic: ja.klucz,
+              theirStatic: on.pub,
+              myGuid: ja.guid,
+              theirGuid: on.guid)
+          : null,
+      verifiedPeers: () async => [on.guid],
+      watchInterval: Duration(seconds: _liczba('CHATT_NAT_WATCH', 60)),
+      onPhase: (_, faza, powod) =>
+          wypisz('[${_czas()}] łącze: ${faza.name} ($powod)'),
+    )
+      ..onDebug = ((m) => wypisz('[${_czas()}] $m'))
+      ..debugStun = _lokalnie
+          // Sprawdzenie na jednym komputerze: adres pętli zwrotnej, bez STUN-u.
+          ? (() => StunMapping(InternetAddress.loopbackIPv4, mux.port))
+          : null;
+
+Future<void> _link() async {
+  if ((_rola != 'a' && _rola != 'b') || _slowo.isEmpty) {
+    wypisz('Tryb link potrzebuje CHATT_NAT_ROLE=a albo b i tego samego '
+        'CHATT_NAT_PAIR po obu stronach.');
+    return;
+  }
+  final ja = await _tozsamosc(_rola);
+  final on = await _tozsamosc(_rola == 'a' ? 'b' : 'a');
+  if (_rola == 'b') {
+    await _linkOdbiorca(ja, on);
+  } else {
+    await _linkDzwoniacy(ja, on);
+  }
+}
+
+/// Strona `b`: zachowuje się jak aplikacja, która tylko czeka na rozmowę.
+Future<void> _linkOdbiorca(_Tozsamosc ja, _Tozsamosc on) async {
+  final mux = await SocketUdpMux.bind(port: _stalyPort);
+  final koniec = Completer<void>();
+  final transport = InternetTransport(
+    manager: _menedzer(ja, on, mux),
+    onRequest: (request, guid) async {
+      var ile = 0;
+      await for (final kawalek in request.body) {
+        ile += kawalek.length;
+      }
+      wypisz('[${_czas()}] żądanie ${request.path}, $ile B.');
+      if (request.path == '/done' && !koniec.isCompleted) koniec.complete();
+      return BtResponse.ofBytes(200, utf8.encode('$ile'));
+    },
+  );
+  transport.start();
+  final limit = _liczba('CHATT_NAT_FOR', 15);
+  wypisz('Odbiorca czeka najwyżej $limit min, skrzynkę `a` czyta co '
+      '${_liczba('CHATT_NAT_WATCH', 60)} s.');
+  await koniec.future
+      .timeout(Duration(minutes: limit), onTimeout: () {});
+  // Odpowiedź na /done musi jeszcze wyjść.
+  await Future<void>.delayed(const Duration(seconds: 2));
+  await transport.stop();
+  await mux.close();
+}
+
+/// Strona `a`: każda rozmowa od zimnego startu, jak po uruchomieniu
+/// aplikacji, a na koniec grzeczne zamknięcie, żeby `b` też zaczynał od zera.
+Future<void> _linkDzwoniacy(_Tozsamosc ja, _Tozsamosc on) async {
+  final ile = max(1, _liczba('CHATT_NAT_CALLS', 3));
+  final bajtow = _liczba('CHATT_NAT_BYTES', 262144);
+  final wyniki = <String>[];
+  for (var k = 1; k <= ile; k++) {
+    final mux = await SocketUdpMux.bind(port: _stalyPort);
+    final transport = InternetTransport(manager: _menedzer(ja, on, mux));
+    transport.start();
+    wypisz('--- rozmowa $k ---');
+    final t0 = DateTime.now();
+    final odp = await transport.request(InternetRoute(on.guid), 'GET', '/info',
+        timeout: const Duration(seconds: 10));
+    final ms = DateTime.now().difference(t0).inMilliseconds;
+    if (odp.status != 200) {
+      wypisz('Rozmowa $k: brak połączenia po $ms ms.');
+      wyniki.add('rozmowa $k: brak połączenia po ${ms ~/ 1000} s');
+    } else {
+      wypisz('Rozmowa $k: odpowiedź po $ms ms od zimnego startu.');
+      var opis = 'rozmowa $k: odpowiedź po ${(ms / 1000).toStringAsFixed(1)} s';
+      if (k == 1 && bajtow > 0) {
+        final los = Random();
+        final dane = List<int>.generate(bajtow, (_) => los.nextInt(256));
+        final t1 = DateTime.now();
+        final echo = await transport.request(
+            InternetRoute(on.guid), 'POST', '/echo',
+            body: dane, timeout: const Duration(seconds: 30));
+        final msPrzesylu = DateTime.now().difference(t1).inMilliseconds;
+        final doszlo = echo.status == 200 &&
+            InternetTransport.asText(echo) == '$bajtow';
+        final kBs = msPrzesylu <= 0 ? 0 : bajtow ~/ msPrzesylu;
+        wypisz(doszlo
+            ? 'Przesył $bajtow B: $msPrzesylu ms, około $kBs kB/s.'
+            : 'Przesył $bajtow B nie doszedł (status ${echo.status}).');
+        opis += doszlo ? ', przesył $kBs kB/s' : ', przesył nie doszedł';
+      }
+      wyniki.add(opis);
+    }
+    if (k == ile) {
+      await transport.request(InternetRoute(on.guid), 'GET', '/done',
+          timeout: const Duration(seconds: 5));
+    }
+    await transport.stop();
+    await mux.close();
+    if (k < ile) await Future<void>.delayed(const Duration(seconds: 5));
+  }
+  wypisz('== Podsumowanie, rola a ==');
+  wyniki.forEach(wypisz);
 }
