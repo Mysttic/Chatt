@@ -69,6 +69,27 @@ void main() {
     await dhtB.close();
   });
 
+  test('adres i klucz podpisu skrzynki zmieniają się co dobę', () async {
+    final (a, b) = await para();
+    final dhtA = dht1.client();
+    final dzien1 = DateTime.utc(2026, 11, 6, 12);
+    final dzien2 = dzien1.add(const Duration(days: 1));
+    await a.publish(dhtA,
+        address: InternetAddress('203.0.113.9'), port: 1, now: dzien1);
+    await a.publish(dhtA,
+        address: InternetAddress('203.0.113.9'), port: 2, now: dzien2);
+    // Dwa rekordy pod dwoma adresami, podpisane dwoma różnymi kluczami:
+    // węzeł nie połączy ich po kluczu publicznym.
+    final rekordy = dht1.node.stored.values.toList();
+    expect(rekordy.length, 2);
+    expect(rekordy[0].publicKey, isNot(equals(rekordy[1].publicKey)));
+    // Druga strona liczy te same klucze i czyta rekord bieżącego dnia.
+    final dhtB = dht1.client();
+    expect((await b.lookup(dhtB, now: dzien2))?.port, 2);
+    await dhtA.close();
+    await dhtB.close();
+  });
+
   test('znacznik „dzwonię" dociera do drugiej strony', () async {
     final (a, b) = await para();
     final dhtA = dht1.client();

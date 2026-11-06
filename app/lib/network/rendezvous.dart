@@ -17,7 +17,8 @@ import 'dht.dart';
 /// strona zapisuje swój adres pod solą wyprowadzoną z **własnego** guida
 /// i numeru epoki, a czyta spod soli **drugiej** strony. Dwie sole to dwie
 /// różne skrzynki (adres = SHA-1 klucza+soli), więc strony się nie nadpisują.
-/// Epoka (dzień UTC) zmienia adres skrzynki co dobę, żeby po stałym adresie
+/// Epoka (dzień UTC) zmienia co dobę adres skrzynki i klucz, którym rekord
+/// jest podpisany, żeby ani po adresie, ani po kluczu publicznym w rekordzie
 /// nie dało się śledzić pary w czasie.
 ///
 /// W rekordzie jedzie tylko zaszyfrowany adres. Węzły DHT widzą podpisany
@@ -70,7 +71,7 @@ class Rendezvous {
   final String theirGuid;
 
   final _gcm = AesGcm.with256bits();
-  DhtSigner? _signer;
+  final _signers = <int, DhtSigner>{};
 
   Rendezvous({
     required this.signSeed,
@@ -98,8 +99,13 @@ class Rendezvous {
     );
   }
 
-  Future<DhtSigner> _ensureSigner() async =>
-      _signer ??= await DhtSigner.fromSeed(signSeed);
+  /// Klucz podpisu skrzynki na daną epokę, z ziarna pary i numeru epoki.
+  /// Węzeł DHT widzi klucz publiczny w każdym zapisie i odczycie, więc stały
+  /// klucz łączyłby skrzynkę z jednego dnia ze skrzynką z następnego.
+  Future<DhtSigner> _signerFor(int epoch) async =>
+      _signers[epoch] ??= await DhtSigner.fromSeed(digest.sha256
+          .convert(<int>[...signSeed, ...ascii.encode('|sign|e$epoch')])
+          .bytes);
 
   /// Numer epoki dla danej chwili (domyślnie teraz).
   int epochOf([DateTime? when]) =>
@@ -134,8 +140,9 @@ class Rendezvous {
     DateTime? now,
   }) async {
     final teraz = now ?? DateTime.now().toUtc();
-    final signer = await _ensureSigner();
-    final salt = _salt(myGuid, epochOf(teraz));
+    final epoka = epochOf(teraz);
+    final signer = await _signerFor(epoka);
+    final salt = _salt(myGuid, epoka);
     final payload = bencode(<String, Object>{
       'ip': address.rawAddress,
       'p': port,
@@ -156,8 +163,8 @@ class Rendezvous {
   /// gdy nic nie ma albo rekordu nie da się rozszyfrować.
   Future<RendezvousAddress?> lookup(DhtClient dht, {DateTime? now}) async {
     final teraz = now ?? DateTime.now().toUtc();
-    final signer = await _ensureSigner();
     for (final epoch in [epochOf(teraz), epochOf(teraz) - 1]) {
+      final signer = await _signerFor(epoch);
       final salt = _salt(theirGuid, epoch);
       final record = await dht.getMutable(signer.publicKey, salt: salt);
       if (record == null) continue;
