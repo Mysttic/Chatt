@@ -102,7 +102,7 @@ flowchart TB
     end
     subgraph path["Jedyna droga wiadomości i plików"]
         direction LR
-        PC["Komputer z Chattem"] --- R1["Router domowy<br/>(NAT)"] --- R2["NAT dostawcy"] <== "zaszyfrowane,<br/>bezpośrednio" ==> CG["NAT operatora"] --- TEL["Telefon z Chattem<br/>na LTE"]
+        PC["Komputer z Chattem"] --- R1["Router domowy<br/>(NAT)"] --- RM["Modem dostawcy<br/>(NAT)"] --- R2["NAT dostawcy"] <== "zaszyfrowane,<br/>bezpośrednio" ==> CG["NAT operatora"] --- TEL["Telefon z Chattem<br/>na LTE"]
     end
     helpers -. "tylko adresy" .- path
 ```

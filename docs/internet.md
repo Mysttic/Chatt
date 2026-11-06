@@ -99,7 +99,7 @@ flowchart TB
     end
     subgraph path["The only path of messages and files"]
         direction LR
-        PC["PC with Chatt"] --- R1["Home router<br/>(NAT)"] --- R2["Provider's NAT"] <== "encrypted,<br/>directly" ==> CG["Carrier's NAT"] --- TEL["Phone with Chatt<br/>on LTE"]
+        PC["PC with Chatt"] --- R1["Home router<br/>(NAT)"] --- RM["Provider's modem<br/>(NAT)"] --- R2["Provider's NAT"] <== "encrypted,<br/>directly" ==> CG["Carrier's NAT"] --- TEL["Phone with Chatt<br/>on LTE"]
     end
     helpers -. "addresses only" .- path
 ```
