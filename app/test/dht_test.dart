@@ -129,6 +129,41 @@ void main() {
       await czytelnik.close();
     });
 
+    test('węzeł rozruchowy bez BEP 44 prowadzi do węzła ze skrzynką',
+        () async {
+      // Tak wygląda prawdziwa sieć: router.bittorrent.com i podobne znają
+      // tylko drogę. Przeszukiwanie pyta je o nią i idzie dalej.
+      final router = FakeDhtNode(net.create('10.0.0.30', 6881), 'router',
+          onlyRoutes: true);
+      router.others.add((node2.id, node2.mux.address, node2.mux.port));
+      DhtClient przezRouter() => DhtClient(
+            net.create('10.0.0.9', 40001),
+            bootstrap: const [],
+            queryTimeout: const Duration(seconds: 1),
+          )..debugBootstrap = [
+              DhtEndpoint(router.mux.address, router.mux.port),
+            ];
+
+      final signer = await DhtSigner.fromSeed(seed);
+      final salt = ascii.encode('przez-router');
+      final pisarz = przezRouter();
+      final stored = await pisarz.putMutable(signer,
+          bencodedValue: value, seq: 3, salt: salt);
+      expect(stored, 1);
+      expect(router.stored, isEmpty);
+      expect(node2.stored, isNotEmpty);
+      await pisarz.close();
+
+      final czytelnik = DhtClient(
+        net.create('10.0.0.9', 40100),
+        bootstrap: const [],
+        queryTimeout: const Duration(seconds: 1),
+      )..debugBootstrap = [DhtEndpoint(router.mux.address, router.mux.port)];
+      final got = await czytelnik.getMutable(signer.publicKey, salt: salt);
+      expect(got?.seq, 3);
+      await czytelnik.close();
+    });
+
     test('nieznana skrzynka daje null', () async {
       final signer = await DhtSigner.fromSeed(seed);
       final czytelnik = client();

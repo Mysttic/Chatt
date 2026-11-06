@@ -34,7 +34,11 @@ class FakeDhtNode {
   final stored = <String, StoredItem>{};
   final others = <(Uint8List, dynamic, int)>[];
 
-  FakeDhtNode(this.mux, String name)
+  /// Węzeł jak router.bittorrent.com: wskazuje drogę (`find_node`), a na
+  /// `get` i `put` z BEP 44 odpowiada błędem 204.
+  final bool onlyRoutes;
+
+  FakeDhtNode(this.mux, String name, {this.onlyRoutes = false})
       : id = Uint8List.fromList(digest.sha1.convert(ascii.encode(name)).bytes) {
     mux.register(_onPacket);
   }
@@ -48,9 +52,20 @@ class FakeDhtNode {
     final args = bDict(msg, 'a');
     if (tid == null || method == null || args == null) return true;
 
+    if (onlyRoutes && method != 'find_node') {
+      mux.send(
+          bencode(<String, Object>{
+            't': tid,
+            'y': 'e',
+            'e': <Object>[204, 'Method Unknown'],
+          }),
+          packet.address,
+          packet.port);
+      return true;
+    }
     final r = <String, Object>{'id': id};
-    if (method == 'get') {
-      r['token'] = ascii.encode('tok-${mux.port}');
+    if (method == 'get' || method == 'find_node') {
+      if (method == 'get') r['token'] = ascii.encode('tok-${mux.port}');
       if (others.isNotEmpty) {
         final nodes = <int>[];
         for (final (oid, addr, port) in others) {
@@ -61,7 +76,7 @@ class FakeDhtNode {
         r['nodes'] = Uint8List.fromList(nodes);
       }
       final target = bBytes(args, 'target');
-      if (target != null) {
+      if (target != null && method == 'get') {
         final rekord = stored[keyOf(target)];
         if (rekord != null) {
           r['v'] = BencodeRaw(rekord.value);
