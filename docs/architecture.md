@@ -149,7 +149,8 @@ It goes down again when the add-on goes off.
 [`bt_link.dart`](../app/lib/network/bt_link.dart) does the framing and the
 multiplexing over that single link. A frame is `[1 byte kind][4 bytes stream
 number][4 bytes length][payload]`, the kinds are `head`, `body`, `end`, `reply`
-and `abort`, and a payload holds at most 8192 bytes. The side that dialled
+and `abort`, and a payload holds at most 8,183 bytes, so a full frame with its
+header is 8 KiB, eight whole segments of the internet link. The side that dialled
 numbers its streams odd and the side that answered numbers them even, so two
 exchanges in flight cannot claim the same number. It is plain Dart over a
 `BytePipe` abstraction, which is what makes it testable without a radio.
@@ -230,7 +231,14 @@ reach:
   a peer the device has not sent to, so both sides have to send:
   - the caller asks STUN for its public address, writes it to its box with a
     "calling" mark, reads the receiver's box and sends HELLO there for up to
-    90 s, rereading the box every 15 s in case the receiver's address moved;
+    90 s, rereading the box every 15 s in case the receiver's address moved.
+    An empty box is reread every 15 s for up to 105 s (90 s and one more
+    step), because the receiver answers a "calling" mark by writing its
+    address; the punch then still gets its full 90 s. A box that was empty at
+    five reads in a row (the watch reads and the caller's own) ends the call
+    at once, so a peer without the add-on costs one wait per run of the app;
+  - a device writes its address to a peer's box when the peer gets confirmed,
+    at start and every 10 minutes;
   - the receiver reads the boxes of confirmed peers it has no link with every
     60 s (after five empty reads in a row the gap doubles, up to 15 min). On
     a "calling" record under two minutes old it sends two-byte knock packets
@@ -247,7 +255,13 @@ reach:
 
 Only a confirmed peer (green shield) gets this road: `routesOf` adds an
 `InternetRoute` only when the add-on is on and `peer.verified`, and the link
-manager hands out a static key only for a verified peer. The handshake, and
+manager hands out a static key only for a verified peer. Both sides of a
+pairing pin the other's static key when it completes: the answering side
+takes the key the code was computed from, and the scanned side the scanner's
+key once its user accepts. It used to learn the key only with the first
+message, and until then the road was closed in both directions. A presence
+check over this road waits at most 6 s, while a call it starts goes on in the
+background. The handshake, and
 therefore every request, is reachable only after a key the user confirmed.
 
 ## Add-ons

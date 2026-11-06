@@ -699,6 +699,15 @@ so none of it needs a public IP or a real NAT:
   runs while a call starts keeps the "calling" mark in the box; a device with a
   valid identity that the receiver has not confirmed gets not a single packet
   back, and no link appears
+- the first call after pairing, to a box the receiver has not written yet,
+  waits and gets through once the receiver answers the "calling" mark; a box
+  empty for five reads before the call ends it within seconds, and so does the
+  next call after one unsuccessful wait; a newly confirmed peer finds the
+  address in the box at once; a 512 KiB file goes in full segments of the link
+  (at most one short segment per 64 KiB read)
+- in `AppServices` (`internet_addon_test.dart`): a presence check over the
+  internet road to a confirmed peer with an empty box answers within the 6 s
+  limit
 - the receiver's reading schedule: five reads a minute apart for an empty box,
   then twice as long each time up to 15 minutes, back to a minute once a record
   shows up; the caller punches longer than the receiver waits between reads,

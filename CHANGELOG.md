@@ -54,6 +54,23 @@ diagrams: [docs/internet.md](docs/internet.md)
   LTE took 11.2 s, down from 45.4 s, and 12.2 to 13.3 s the other way, down
   from 16.1 to 16.4 s. The app log adds the link's counters (segments, resends,
   round trip) to every file sent over the internet.
+- The first message after pairing gets through over the internet. A device
+  writes its address to a peer's mailbox as soon as the peer is confirmed, and
+  a caller that finds the mailbox empty keeps reading it for up to 105 s,
+  since the other device answers the "calling" mark by writing its address.
+  Before, the address went in only at the next ten-minute refresh and the
+  first message failed with "peer address not in DHT". A mailbox that stayed
+  empty at five reads in a row ends the call at once.
+- The side that answered a pairing stores the other device's key when the
+  pairing completes (after a scan: when its user accepts). It used to learn the
+  key only with the first message, and until then the internet route could not
+  reach that device in either direction.
+- A presence check over the internet waits at most 6 s, so the online dots and
+  the conversation header do not hang on a call that takes up to a minute and
+  a half.
+- A frame of the request multiplexer, header included, is 8 KiB, so files go
+  over the internet in full 1 KiB packets: every ninth packet used to carry 9
+  bytes.
 - **A page about the add-on** in the documentation, in English and Polish
   ([docs/internet.md](docs/internet.md)). It starts with what matters most:
   messages and files never pass through or stay on a server. Two diagrams

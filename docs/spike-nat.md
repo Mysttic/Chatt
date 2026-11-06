@@ -220,12 +220,25 @@ uploads with the new build, made within minutes after the add-on had been
 switched off and on on the phone, took 29 and 31 s; they ran before the
 counters existed, and the cause was not found.
 
-Two more things showed up. A 7.7 MB file takes 8,500 segments for 7,554 full
-ones: each 8 KB frame of the request multiplexer is 9 bytes longer than eight
-segments, so every ninth segment carries 9 bytes. And the first message to a
-device confirmed minutes earlier failed with "peer address not in DHT": a
-device writes its address for a newly confirmed peer only at the next
-ten-minute refresh.
+Two more things showed up, both fixed since. A 7.7 MB file took 8,500
+segments for 7,554 full ones: each 8 KB frame of the request multiplexer was 9
+bytes longer than eight segments, so every ninth segment carried 9 bytes. A
+frame is now 8 KiB including its header; in the in-memory test a 512 KiB file
+goes in at most 524 segments, against 578 before. And the first message to a device
+confirmed minutes earlier failed with "peer address not in DHT": a device wrote
+its address for a newly confirmed peer only at the next ten-minute refresh.
+Now it writes the address as soon as the peer is confirmed, and a caller that
+finds the box empty rereads it every 15 s for up to 105 s, since the receiver
+answers the "calling" mark by writing its address. A box that was empty at
+five reads in a row ends the call at once, so a peer without the add-on holds
+a message for 90 s at most once per run of the app.
+
+A review of these two fixes found a third problem behind the first: the side
+that answered a pairing never stored the other device's key, which it learns
+only with the first message. Without the key it could neither write to the
+shared box nor accept a HELLO, so a pair that met on Wi-Fi, confirmed the code
+and parted without a message could not reach each other over the internet
+from that side. Both sides now store the key when the pairing completes.
 
 ### Found along the way
 
