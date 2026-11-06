@@ -6,7 +6,7 @@ import 'dart:typed_data';
 /// Cztery rodzaje wartości: liczba całkowita (`i42e`), napis bajtowy
 /// (`4:spam`), lista (`l...e`) i słownik (`d...e`) o kluczach-napisach
 /// w kolejności bajtów. Napisy bajtowe są tu zawsze [Uint8List], bo DHT
-/// trzyma w nich identyfikatory, klucze i adresy, a nie tekst. Klucze
+/// trzyma w nich identyfikatory, klucze i adresy w postaci bajtów. Klucze
 /// słowników dekodujemy do [String] w latin1, żeby dało się je porównywać
 /// zwykłym `==`, a przy kodowaniu wracają do tych samych bajtów.
 ///
@@ -28,8 +28,8 @@ const int _maxDepth = 16;
 /// Już zakodowany fragment bencode, wstawiany bez ponownego kodowania.
 ///
 /// BEP 44 podpisuje surową postać `v`, więc przy „put" trzeba wysłać
-/// dokładnie te bajty, z których policzono podpis, a nie przekodowaną
-/// wartość (słownik o innej kolejności kluczy dałby inne bajty).
+/// dokładnie te bajty, z których policzono podpis. Ponowne kodowanie mogłoby
+/// je zmienić (słownik o innej kolejności kluczy daje inne bajty).
 class BencodeRaw {
   final Uint8List bytes;
   const BencodeRaw(this.bytes);

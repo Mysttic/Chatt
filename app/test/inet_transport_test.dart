@@ -89,7 +89,7 @@ void main() {
         address: InternetAddress('10.0.0.11'), port: 4000);
     expect(stored, greaterThan(0));
 
-    // A pyta B o /info — to uruchamia odnalezienie w skrzynce i przebicie.
+    // A pyta B o /info: to uruchamia odnalezienie w skrzynce i przebicie.
     final reply = await transportA.request(
       InternetRoute(gb),
       'GET',
@@ -134,7 +134,7 @@ void main() {
       ..dht.debugBootstrap = [DhtEndpoint(dhtNode.mux.address, dhtNode.mux.port)];
 
     // B dostaje listę potwierdzonych rozmówców, więc sam z siebie wpisuje
-    // swój adres do skrzynki A — bez żadnego ręcznego publishera.
+    // swój adres do skrzynki A, bez żadnego ręcznego publishera.
     final mgrB = InetLinkManager(
       mux: net.create('10.0.0.11', 4000),
       myStatic: kb, myStaticPub: pb, myGuid: gb,

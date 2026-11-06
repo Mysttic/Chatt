@@ -9,7 +9,7 @@ import 'package:chatt/network/udp_mux.dart';
 /// Sieć UDP w pamięci: kilka [UdpMux] połączonych tak, że pakiet wysłany
 /// z jednego trafia do drugiego po adresie i porcie. Dzięki temu DHT, STUN
 /// i łącze dają się sprawdzić bez prawdziwych gniazd, bez internetu i bez
-/// drugiego urządzenia — tak samo, jak Bluetooth sprawdza się nad rurą
+/// drugiego urządzenia, tak samo jak Bluetooth sprawdza się nad rurą
 /// w pamięci.
 class FakeUdpNet {
   final _muxes = <String, FakeUdpMux>{};

@@ -9,7 +9,7 @@ import 'package:chatt/services/app_services.dart';
 
 /// Dodatek drogi internetowej w [AppServices]: przełącznik włącza i wyłącza
 /// transport, zapisuje się w bazie, a trasa internetowa pojawia się tylko dla
-/// rozmówcy z zieloną tarczą. Bez prawdziwego ruchu — samo wpięcie w resztę.
+/// rozmówcy z zieloną tarczą. Bez prawdziwego ruchu: samo wpięcie w resztę.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = null;

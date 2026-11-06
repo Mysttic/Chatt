@@ -188,7 +188,7 @@ void main() {
 
     // Klucze się różnią, więc żaden pakiet obcego się u A nie odszyfruje.
     // A nigdy nie przejdzie w „stoi" (czeka na pakiet, który się odszyfruje),
-    // więc connect() nie kończy się sukcesem — nie czekamy na nie.
+    // więc connect() nie kończy się sukcesem i nie czekamy na nie.
     unawaited(a.connect());
     zly.add(utf8Bytes('cokolwiek'));
     await _settle();

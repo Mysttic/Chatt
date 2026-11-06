@@ -127,10 +127,10 @@ class BluetoothRoute extends PeerRoute {
   String toString() => 'BluetoothRoute($address)';
 }
 
-/// Trasa przez internet. Nie niesie adresu, tylko guid rozmówcy: publiczny
-/// adres jest ulotny i wyznacza go skrzynka kontaktowa w DHT w chwili
-/// łączenia. Transport internetowy sam odnajduje, pod czym rozmówca jest
-/// teraz, i przebija do niego dziurę w NAT-cie.
+/// Trasa przez internet. Niesie guid rozmówcy: jego publiczny adres jest
+/// ulotny i wyznacza go skrzynka kontaktowa w DHT w chwili łączenia.
+/// Transport internetowy sam odnajduje, pod czym rozmówca jest teraz,
+/// i przebija do niego dziurę w NAT-cie.
 class InternetRoute extends PeerRoute {
   final String guid;
 

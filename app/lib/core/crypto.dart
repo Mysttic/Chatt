@@ -265,11 +265,11 @@ class ChattCrypto {
   /// statyczny × statyczny (`ss`). Obie strony liczą to samo, bo uzgodnienie
   /// X25519 jest symetryczne, więc po jednym spotkaniu w sieci lokalnej mają
   /// wspólny:
-  /// - `signSeed` — 32-bajtowe ziarno Ed25519, którym podpisują rekord BEP 44
+  /// - `signSeed`: 32-bajtowe ziarno Ed25519, którym podpisują rekord BEP 44
   ///   (klucz jawny, podpis zadowala węzły DHT),
-  /// - `sealKey` — klucz AES-GCM, którym szyfrują sam adres w rekordzie, żeby
+  /// - `sealKey`: klucz AES-GCM, którym szyfrują sam adres w rekordzie, żeby
   ///   węzły DHT widziały tylko szyfrogram,
-  /// - `saltBase` — baza soli; z niej, numeru epoki i guida powstaje adres
+  /// - `saltBase`: baza soli; z niej, numeru epoki i guida powstaje adres
   ///   skrzynki, inny dla każdej strony i zmienny w czasie.
   ///
   /// Nic z tego nie przecieka do ruchu właściwego: to osobne klucze, nie klucz

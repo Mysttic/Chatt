@@ -17,9 +17,9 @@ import 'transport.dart';
 class InternetTransport implements PeerTransport {
   final InetLinkManager manager;
 
-  /// Obsługa żądań od drugiej strony — ta sama, którą karmi serwer HTTP.
-  /// Drugi argument to guid rozmówcy (trasa internetowa adresuje po
-  /// tożsamości, nie po adresie).
+  /// Obsługa żądań od drugiej strony: ta sama, którą karmi serwer HTTP.
+  /// Drugi argument to guid rozmówcy, bo trasa internetowa adresuje po
+  /// tożsamości.
   final Future<BtResponse> Function(BtRequest request, String peerGuid)?
       onRequest;
 
@@ -131,7 +131,7 @@ class InternetTransport implements PeerTransport {
     }
     try {
       // `_muxFor` sięga do DHT i STUN-u: błąd stamtąd (brak węzłów, cisza
-      // sieci) ma być „nieosiągalny", a nie wyjątkiem lecącym do wołającego.
+      // sieci) kończy się wynikiem „nieosiągalny".
       final muxed = await _muxFor(route.guid);
       if (muxed == null) return const TransportReply.unreachable();
       final response = await muxed.link
