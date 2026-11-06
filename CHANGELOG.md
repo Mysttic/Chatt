@@ -8,7 +8,7 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [Unreleased]
+## [0.14.0] - 2026-11-06
 
 The internet as a third road. With the **Internet** add-on, experimental and
 off by default, two devices that have confirmed each other talk across
@@ -1129,6 +1129,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.14.0]: https://github.com/Mysttic/Chatt/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/Mysttic/Chatt/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Mysttic/Chatt/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.11.0
