@@ -144,7 +144,7 @@ Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 723 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta
+flutter test        # 765 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury)
 flutter analyze
 ```
 
@@ -152,7 +152,7 @@ Struktura `app/lib/`:
 
 - `core/`: tożsamość urządzenia, kryptografia, kanały platformowe
 - `data/db.dart`: schemat SQLite (drift) i zapytania
-- `network/`: protokół, discovery UDP, serwer HTTP, klient
+- `network/`: protokół, discovery UDP, serwer HTTP, klient, transporty (HTTP, Bluetooth i eksperymentalna droga internetowa: STUN, DHT, przebicie dziury)
 - `services/`: `AppServices` (korzeń łączący wszystko) i providery Riverpod
 - `ui/screens/`: rozmowy, czat, urządzenia w pobliżu, ustawienia
 

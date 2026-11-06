@@ -165,7 +165,7 @@ The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 723 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt
+flutter test        # 765 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt, the internet route (STUN, DHT, hole punching)
 flutter analyze
 ```
 
@@ -173,7 +173,7 @@ Layout of `app/lib/`:
 
 - `core/`: device identity, cryptography, platform channels
 - `data/db.dart`: the SQLite schema (drift) and queries
-- `network/`: the protocol, UDP discovery, HTTP server and client
+- `network/`: the protocol, UDP discovery, HTTP server and client, transports (HTTP, Bluetooth, and the experimental internet route: STUN, DHT, hole punching)
 - `services/`: `AppServices`, the root that ties everything together, plus Riverpod providers
 - `ui/screens/`: conversations, chat, nearby devices, settings
 

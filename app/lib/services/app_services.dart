@@ -29,9 +29,14 @@ import '../data/db_open.dart';
 import '../network/bt_transport.dart';
 import '../network/client.dart';
 import '../network/discovery.dart';
+import '../network/inet_link.dart';
+import '../network/inet_transport.dart';
 import '../network/protocol.dart';
+import '../network/rendezvous.dart';
 import '../network/server.dart';
+import '../network/stun.dart' show NatMapping;
 import '../network/transport.dart';
+import '../network/udp_mux.dart';
 import 'app_log.dart';
 import 'typing_journal.dart';
 
@@ -751,6 +756,10 @@ class AppServices {
     final candidates = <PeerRoute>[
       IpRoute(peer.host, peer.port),
       if (radio != null && radio.isNotEmpty) BluetoothRoute(radio),
+      // Droga internetowa tylko dla rozmówcy z zieloną tarczą: skrzynka
+      // kontaktowa i przebicie dziury opierają się na przypiętym kluczu
+      // statycznym, a napastnikowi bez niego i tak nic nie da.
+      if (internetAddon.value && peer.verified) InternetRoute(peer.guid),
     ];
     final last = _lastGoodProtocol[peer.guid];
     final ordered = last == null
@@ -770,9 +779,11 @@ class AppServices {
   /// parowania, odpis, zgoda na plik) poszła tą samą drogą. Bez tego po
   /// parowaniu przez radio odpowiedź szłaby najpierw na stary adres IP.
   int _drogaPrzychodzaca(String guid, String fromHost) {
-    final protokol = btAddressOf(fromHost) == null
-        ? PeerProtocol.wifi
-        : PeerProtocol.bluetooth;
+    final protokol = inetGuidOf(fromHost) != null
+        ? PeerProtocol.internet
+        : (btAddressOf(fromHost) == null
+            ? PeerProtocol.wifi
+            : PeerProtocol.bluetooth);
     _lastGoodProtocol[guid] = protokol;
     return protokol.index;
   }
@@ -2741,6 +2752,8 @@ class AppServices {
         (settings?.bluetoothEnabled ?? false) && BtChannel.supported;
     _applyWifi(settings);
     if (bluetoothAddon.value) await startBluetooth();
+    internetAddon.value = settings?.internetEnabled ?? false;
+    if (internetAddon.value) unawaited(startInternet());
     // Z obserwatora idzie wyłącznie sieć. Dodatek ma jednego właściciela,
     // [setBluetoothAddon], więc spóźnione zdarzenie z bazy nie podniesie
     // radia po jego wyłączeniu.
@@ -3131,6 +3144,177 @@ class AppServices {
     return _przypnijKlucz(peer, info);
   }
 
+  // --- Droga internetowa (dodatek, issue #68) -------------------------------
+
+  InternetTransport? _internet;
+  SocketUdpMux? _internetMux;
+  InetLinkManager? _internetManager;
+  Future<bool>? _internetStarting;
+
+  /// Czy dodatek drogi internetowej jest włączony (Ustawienia, „Dodatki").
+  /// Jedyny włącznik całej funkcji; przy false żadna trasa internetowa się
+  /// nie pojawia, gniazdo UDP nie wstaje, a do DHT nie idzie ani jeden pakiet.
+  final ValueNotifier<bool> internetAddon = ValueNotifier(false);
+
+  /// Czy droga internetowa naprawdę chodzi (gniazdo otwarte).
+  final ValueNotifier<bool> internetRunning = ValueNotifier(false);
+
+  /// Rośnie, gdy łącze internetowe stanie albo padnie: znacznik drogi
+  /// odświeża się po tym na żywo.
+  final ValueNotifier<int> internetRevision = ValueNotifier(0);
+
+  /// Ostatni znany publiczny adres tego urządzenia (ze STUN), do panelu
+  /// „To urządzenie". Pusty, dopóki STUN nie odpowie.
+  final ValueNotifier<String> internetPublicAddress = ValueNotifier('');
+
+  /// Adresy, z którymi stoi teraz łącze internetowe.
+  List<String> get internetLinks => _internet?.linkedGuids ?? const [];
+
+  /// Czy z tym rozmówcą stoi teraz łącze internetowe.
+  bool isLinkedByInternet(Peer peer) => _internet?.isLinked(peer.guid) ?? false;
+
+  /// Klucz statyczny rozmówcy dla drogi internetowej. Tylko rozmówca
+  /// z zieloną tarczą: bez potwierdzonej tożsamości przebicie dziury nie ma
+  /// komu ufać, a skrzynka kontaktowa i tak opiera się na jego kluczu.
+  Future<List<int>?> _internetStaticKey(String guid) async {
+    final peer = await db.peerByGuid(guid);
+    if (peer == null || !peer.verified) return null;
+    return _peerStaticKey(peer);
+  }
+
+  /// Skrzynka kontaktowa pary dla danego guida. Null, gdy rozmówcy nie znamy
+  /// albo nie jest potwierdzony.
+  Future<Rendezvous?> _internetRendezvous(String guid) async {
+    final theirStatic = await _internetStaticKey(guid);
+    if (theirStatic == null) return null;
+    return Rendezvous.forPeer(
+      myStatic: _identityKeys,
+      theirStatic: theirStatic,
+      myGuid: identity.guid,
+      theirGuid: guid,
+    );
+  }
+
+  /// Przełącznik dodatku z ekranu ustawień (kolejkowany jak Bluetooth, żeby
+  /// szybkie „włącz, wyłącz" skończyło się tym, co kliknięto na końcu).
+  Future<bool> setInternetAddon(bool on) {
+    final wynik = _addonQueue.then((_) => _setInternetAddon(on));
+    _addonQueue = wynik.then((_) {}, onError: (_) {});
+    return wynik;
+  }
+
+  Future<bool> _setInternetAddon(bool on) async {
+    if (internetAddon.value != on) {
+      log.info(LogArea.net, 'Internet add-on turned ${on ? 'on' : 'off'}');
+    }
+    internetAddon.value = on;
+    if (!on) {
+      await stopInternet();
+      await db.saveInternetAddon(false);
+      return true;
+    }
+    await db.saveInternetAddon(true);
+    return startInternet();
+  }
+
+  Future<bool> startInternet() {
+    final trwa = _internetStarting;
+    if (trwa != null) return trwa;
+    if (_internet != null) return Future.value(true);
+    final proba = _startInternet();
+    _internetStarting = proba;
+    proba.whenComplete(() => _internetStarting = null);
+    return proba;
+  }
+
+  Future<bool> _startInternet() async {
+    if (_internet != null) return true;
+    if (!internetAddon.value) return false;
+    try {
+      final mux = await SocketUdpMux.bind();
+      final manager = InetLinkManager(
+        mux: mux,
+        myStatic: _identityKeys,
+        myStaticPub: identity.publicKey,
+        myGuid: identity.guid,
+        resolveStatic: _internetStaticKey,
+        resolveRendezvous: _internetRendezvous,
+        onPhase: _internetPhase,
+      );
+      final transport = InternetTransport(
+        manager: manager,
+        // Żądanie z łącza internetowego idzie tą samą drogą co z gniazda TCP:
+        // ten sam routing, ci sami obsługujący, to samo szyfrowanie aplikacji.
+        onRequest: (request, guid) => server.handleInternet(request, guid),
+      );
+      transport.start();
+      if (!internetAddon.value) {
+        // Dodatek zgaszono w trakcie podnoszenia.
+        await transport.stop();
+        return false;
+      }
+      _internetMux = mux;
+      _internetManager = manager;
+      _internet = transport;
+      client.useInternet(transport);
+      internetRunning.value = true;
+      internetRevision.value++;
+      log.info(LogArea.net, 'Internet route started on UDP port ${mux.port}');
+      return true;
+    } catch (blad, slad) {
+      log.error(LogArea.net, 'Internet route failed to start',
+          error: blad, stack: slad);
+      internetRunning.value = false;
+      return false;
+    }
+  }
+
+  Future<void> stopInternet() async {
+    final trwa = _internetStarting;
+    if (trwa != null) await trwa;
+    final transport = _internet;
+    final mux = _internetMux;
+    _internet = null;
+    _internetManager = null;
+    _internetMux = null;
+    client.useInternet(null);
+    internetRunning.value = false;
+    internetRevision.value++;
+    if (transport != null) {
+      await transport.stop();
+      // Transport zatrzymuje menedżera (STUN, DHT, łącza), ale samo gniazdo
+      // UDP należy do nas: zamykamy je tutaj.
+      await mux?.close();
+      log.info(LogArea.net, 'Internet route stopped');
+    }
+  }
+
+  void _internetPhase(String guid, InetLinkPhase phase, String reason) {
+    internetRevision.value++;
+    if (phase == InetLinkPhase.up) {
+      final adres = _internetManager?.publicAddress?.label;
+      if (adres != null) internetPublicAddress.value = adres;
+      unawaited(() async {
+        final peer = await db.peerByGuid(guid);
+        log.info(LogArea.net,
+            'Internet link up with ${peer == null ? guid : _kto(peer)}');
+      }());
+    } else if (phase == InetLinkPhase.failed) {
+      log.info(LogArea.net,
+          'Internet link to ${logText(guid)} ended: ${logText(reason)}');
+    }
+  }
+
+  /// Diagnostyka NAT-u dla panelu „To urządzenie" i narzędzia spike.
+  Future<({String? public, NatMapping nat})> probeInternetNat() async {
+    final manager = _internetManager;
+    if (manager == null) return (public: null, nat: NatMapping.unknown);
+    final addrs = await localAddresses();
+    final wynik = await manager.probeNat(localAddresses: addrs);
+    if (wynik.mapping != null) internetPublicAddress.value = wynik.mapping!.label;
+    return (public: wynik.mapping?.label, nat: wynik.nat);
+  }
+
   // --- Udostępnianie historii (issue #36) -----------------------------------
 
   /// Logika siedzi w `history.dart`, tu są tylko wejścia.
@@ -3491,6 +3675,12 @@ class AppServices {
     bluetoothRunning.dispose();
     bluetoothRevision.dispose();
     bluetoothStatus.dispose();
+    // Gniazdo UDP drogi internetowej gaśnie razem z aplikacją.
+    await stopInternet();
+    internetAddon.dispose();
+    internetRunning.dispose();
+    internetRevision.dispose();
+    internetPublicAddress.dispose();
     responder.stop();
     await server.stop();
     client.dispose();

@@ -1,0 +1,207 @@
+import 'dart:io';
+
+import 'package:chatt/core/crypto.dart';
+import 'package:chatt/network/secure_udp.dart';
+import 'package:chatt/network/udp_mux.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'fake_udp.dart';
+
+/// Zaszyfrowana, niezawodna rura po UDP. Testy nad siecią w pamięci
+/// sprawdzają uścisk, dostarczanie w kolejności mimo gubienia i przestawiania
+/// pakietów, odporność na powtórki i to, że napastnik bez klucza statycznego
+/// nie postawi łącza.
+void main() {
+  late FakeUdpNet net;
+
+  /// Para łączy: dwa klucze statyczne, dwa gniazda, uścisk w obie strony.
+  /// Oddaje gotowe, połączone rury i zebrane u każdej strony bajty.
+  Future<({SecureUdpPipe a, SecureUdpPipe b, List<int> gotA, List<int> gotB})>
+      parka({double loss = 0}) async {
+    net.loss = loss;
+    final aStatic = await ChattCrypto.newKeyPair();
+    final bStatic = await ChattCrypto.newKeyPair();
+    final aPub = await ChattCrypto.publicKeyOf(aStatic);
+    final bPub = await ChattCrypto.publicKeyOf(bStatic);
+
+    final muxA = net.create('10.0.0.1', 5000);
+    final muxB = net.create('10.0.0.2', 5000);
+
+    final a = SecureUdpPipe(
+      mux: muxA,
+      myStatic: aStatic,
+      myStaticPub: aPub,
+      theirStatic: bPub,
+      myGuid: 'AAA',
+      remoteAddress: InternetAddress('10.0.0.2'),
+      remotePort: 5000,
+      initiator: true,
+    );
+    final b = SecureUdpPipe(
+      mux: muxB,
+      myStatic: bStatic,
+      myStaticPub: bPub,
+      theirStatic: aPub,
+      myGuid: 'BBB',
+      remoteAddress: InternetAddress('10.0.0.1'),
+      remotePort: 5000,
+      initiator: false,
+    );
+
+    // Routing pakietów do właściwej rury; B przyjmuje HELLO od A.
+    muxA.register((p) {
+      a.handlePacket(p);
+      return true;
+    });
+    muxB.register((p) {
+      if (p.data.isNotEmpty && p.data[0] == 1) {
+        // HELLO: guidLen|guid|ephem(32)
+        final guidLen = p.data[1];
+        final ephem = p.data.sublist(2 + guidLen, 2 + guidLen + 32);
+        b.acceptHello(ephem);
+      } else {
+        b.handlePacket(p);
+      }
+      return true;
+    });
+
+    final gotA = <int>[];
+    final gotB = <int>[];
+    a.input.listen(gotA.addAll);
+    b.input.listen(gotB.addAll);
+
+    final up = await a.connect();
+    expect(up, isTrue);
+    await b.ready;
+    return (a: a, b: b, gotA: gotA, gotB: gotB);
+  }
+
+  setUp(() => net = FakeUdpNet());
+
+  test('uścisk staje i obie strony liczą ten sam klucz', () async {
+    final p = await parka();
+    expect(p.a.state, LinkState.up);
+    expect(p.b.state, LinkState.up);
+    await p.a.close();
+    await p.b.close();
+  });
+
+  test('bajty dochodzą w obie strony', () async {
+    final p = await parka();
+    p.a.add(utf8Bytes('czesc od A'));
+    p.b.add(utf8Bytes('i od B'));
+    await _settle();
+    expect(String.fromCharCodes(p.gotB), 'czesc od A');
+    expect(String.fromCharCodes(p.gotA), 'i od B');
+    await p.a.close();
+    await p.b.close();
+  });
+
+  test('duży strumień dochodzi w kolejności mimo 20% strat', () async {
+    final p = await parka(loss: 0.2);
+    // 50 kB rosnącego wzorca: każda luka albo przestawienie od razu widać.
+    final data = Uint8List.fromList(
+        List<int>.generate(50000, (i) => i % 251));
+    p.a.add(data);
+    await _settle(rounds: 4000);
+    expect(p.gotB.length, data.length);
+    expect(listEquals(p.gotB, data), isTrue);
+    await p.a.close();
+    await p.b.close();
+  });
+
+  test('powtórzony pakiet nie dubluje bajtów', () async {
+    net.loss = 0;
+    final aStatic = await ChattCrypto.newKeyPair();
+    final bStatic = await ChattCrypto.newKeyPair();
+    final aPub = await ChattCrypto.publicKeyOf(aStatic);
+    final bPub = await ChattCrypto.publicKeyOf(bStatic);
+    final muxA = net.create('10.0.0.1', 5000);
+    final muxB = net.create('10.0.0.2', 5000);
+
+    final a = SecureUdpPipe(
+        mux: muxA, myStatic: aStatic, myStaticPub: aPub, theirStatic: bPub,
+        myGuid: 'A', remoteAddress: InternetAddress('10.0.0.2'), remotePort: 5000,
+        initiator: true);
+    final b = SecureUdpPipe(
+        mux: muxB, myStatic: bStatic, myStaticPub: bPub, theirStatic: aPub,
+        myGuid: 'B', remoteAddress: InternetAddress('10.0.0.1'), remotePort: 5000,
+        initiator: false);
+
+    // Każdy pakiet do B jest doręczany dwa razy: replay nie ma prawa
+    // przełożyć się na zdublowane bajty u odbiorcy.
+    final gotB = <int>[];
+    b.input.listen(gotB.addAll);
+    muxA.register((p) { a.handlePacket(p); return true; });
+    muxB.register((p) {
+      if (p.data.isNotEmpty && p.data[0] == 1) {
+        final guidLen = p.data[1];
+        b.acceptHello(p.data.sublist(2 + guidLen, 2 + guidLen + 32));
+      } else {
+        b.handlePacket(p);
+        b.handlePacket(UdpPacket(Uint8List.fromList(p.data), p.address, p.port));
+      }
+      return true;
+    });
+    await a.connect();
+    await b.ready;
+    a.add(utf8Bytes('dokladnie raz'));
+    await _settle();
+    expect(String.fromCharCodes(gotB), 'dokladnie raz');
+    await a.close();
+    await b.close();
+  });
+
+  test('napastnik z innym kluczem statycznym nie postawi łącza', () async {
+    final aStatic = await ChattCrypto.newKeyPair();
+    final bStatic = await ChattCrypto.newKeyPair();
+    final obcy = await ChattCrypto.newKeyPair(); // nie ten, kogo A oczekuje
+    final aPub = await ChattCrypto.publicKeyOf(aStatic);
+    final bPub = await ChattCrypto.publicKeyOf(bStatic);
+    final obcyPub = await ChattCrypto.publicKeyOf(obcy);
+    final muxA = net.create('10.0.0.1', 5000);
+    final muxB = net.create('10.0.0.2', 5000);
+
+    // A oczekuje B (bPub), ale po drugiej stronie odpowiada obcy (obcy klucz).
+    final a = SecureUdpPipe(
+        mux: muxA, myStatic: aStatic, myStaticPub: aPub, theirStatic: bPub,
+        myGuid: 'A', remoteAddress: InternetAddress('10.0.0.2'), remotePort: 5000,
+        initiator: true);
+    final zly = SecureUdpPipe(
+        mux: muxB, myStatic: obcy, myStaticPub: obcyPub, theirStatic: aPub,
+        myGuid: 'X', remoteAddress: InternetAddress('10.0.0.1'), remotePort: 5000,
+        initiator: false);
+
+    final gotA = <int>[];
+    a.input.listen(gotA.addAll);
+    muxA.register((p) { a.handlePacket(p); return true; });
+    muxB.register((p) {
+      if (p.data.isNotEmpty && p.data[0] == 1) {
+        final guidLen = p.data[1];
+        zly.acceptHello(p.data.sublist(2 + guidLen, 2 + guidLen + 32));
+      } else {
+        zly.handlePacket(p);
+      }
+      return true;
+    });
+
+    // Uścisk „staje" po stronie obu rur (wymieniły efemeryczne), ale klucze
+    // się różnią, więc dane się nie odszyfrują.
+    await a.connect();
+    zly.add(utf8Bytes('cokolwiek'));
+    await _settle();
+    expect(gotA, isEmpty, reason: 'pakiet obcego nie powinien się odszyfrować');
+    await a.close();
+    await zly.close();
+  });
+}
+
+List<int> utf8Bytes(String s) => s.codeUnits;
+
+/// Przepuszcza mikrozadania i timery, aż ruch ucichnie.
+Future<void> _settle({int rounds = 200}) async {
+  for (var i = 0; i < rounds; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+}

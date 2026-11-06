@@ -8,6 +8,29 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [Unreleased]
+
+Research spike, not a release. A third transport that reaches a confirmed
+device on another network with no relay, behind an add-on that is off by
+default. It challenges the project's "there is no internet mode", so it ships
+switched off and honest about its limits until the hardware measurement in
+[docs/spike-nat.md](docs/spike-nat.md) says whether it is worth keeping.
+
+### Added (experimental, off by default)
+- **Internet route** (issue #68). An add-on in Settings that connects two
+  already-paired devices across different networks by punching a hole through
+  NAT, with no server carrying the traffic. Pure Dart, no new native
+  dependency: a shared UDP socket, a STUN client (RFC 5389) for the public
+  address and NAT type, a Mainline DHT client (BEP 44, RFC 8032 signatures) as
+  a per-pair contact box whose address record is sealed with a key derived from
+  the pair's static×static secret, and a reliable encrypted UDP link (Noise-KK
+  handshake, per-packet AES-GCM with a replay window, ARQ) under the same
+  request/response multiplexer the other roads use. Offered only to a peer with
+  a green shield. Metadata (IPs, timing) is visible to the STUN servers and DHT
+  nodes; it fails behind carrier-grade or symmetric NAT and where UDP or DHT is
+  blocked, with no relay fallback by design. `app/tool/nat_spike.dart` measures
+  whether it works in a given pair of networks.
+
 ## [0.13.0] - 2026-10-27
 
 One new thing on Android: other apps can share into Chatt. Text, links and

@@ -38,17 +38,34 @@ class ProtocolBadge extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.read(appServicesProvider);
     return ListenableBuilder(
-      listenable: Listenable.merge(
-          [services.bluetoothAddon, services.bluetoothRevision]),
+      listenable: Listenable.merge([
+        services.bluetoothAddon,
+        services.bluetoothRevision,
+        services.internetAddon,
+        services.internetRevision,
+      ]),
       builder: (context, _) {
-        if (!services.bluetoothAddon.value) return const SizedBox.shrink();
+        // Znacznik ma sens tylko wtedy, gdy jest więcej niż jedna droga:
+        // dopóki żaden dodatek nie działa, sieć lokalna jest jedyną i nie ma
+        // czego rozróżniać.
+        if (!services.bluetoothAddon.value && !services.internetAddon.value) {
+          return const SizedBox.shrink();
+        }
         final radiem = services.isLinkedByBluetooth(peer) ||
             peer.lastProtocol == PeerProtocol.bluetooth.index;
+        final internetem = !radiem &&
+            (services.isLinkedByInternet(peer) ||
+                peer.lastProtocol == PeerProtocol.internet.index);
         final scheme = Theme.of(context).colorScheme;
-        final kolor = radiem ? scheme.tertiary : scheme.onSurfaceVariant;
-        final ikona = radiem ? Icons.bluetooth : Icons.wifi;
-        final podpis =
-            radiem ? context.l10n.viaBluetooth : context.l10n.viaWifi;
+        final wyrozniona = radiem || internetem;
+        final kolor =
+            wyrozniona ? scheme.tertiary : scheme.onSurfaceVariant;
+        final ikona = radiem
+            ? Icons.bluetooth
+            : (internetem ? Icons.public : Icons.wifi);
+        final podpis = radiem
+            ? context.l10n.viaBluetooth
+            : (internetem ? context.l10n.viaInternet : context.l10n.viaWifi);
 
         // Sama ikona, także w nagłówku rozmowy: podpis jest w podpowiedzi
         // i dla czytnika ekranu. Na liście styl dokłada kafelek (Cisza)

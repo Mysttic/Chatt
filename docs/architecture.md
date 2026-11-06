@@ -172,6 +172,54 @@ device is added by IP by hand. Devices without Chatt fall away, because they
 carry no such record in SDP. A scan jams the link for as long as it runs, so it
 happens only when the user asks for it from the "Nearby" screen.
 
+### The internet add-on (issue #68, experimental)
+
+A third road, off by default and still a spike: reach a confirmed device on
+another network, with no relay in between. It challenges the README's "there is
+no internet mode", so it ships only as an add-on the user turns on, with the
+limits stated plainly.
+
+The pieces, bottom to top, all pure Dart (no native dependency, no WebRTC), on
+one shared UDP socket so the port STUN measures is the port the peer is told to
+reach:
+
+- [`udp_mux.dart`](../app/lib/network/udp_mux.dart) owns the socket and hands
+  each inbound datagram to the first handler that claims it (STUN by its magic
+  cookie, DHT by its bencode shape, a link by its header).
+- [`stun.dart`](../app/lib/network/stun.dart): a minimal STUN Binding client
+  (RFC 5389) that learns the public address the NAT gives this socket, and, by
+  asking two servers, whether the NAT is endpoint-independent (punchable) or
+  symmetric (not).
+- [`bencode.dart`](../app/lib/network/bencode.dart) and
+  [`dht.dart`](../app/lib/network/dht.dart): a small Mainline DHT client doing
+  BEP 44 mutable `get`/`put` with Ed25519 (RFC 8032) signatures.
+- [`rendezvous.dart`](../app/lib/network/rendezvous.dart): the contact box.
+  From the static×static X25519 secret both sides derive the same signing seed,
+  AES-GCM seal key and salt base. Each publishes its address under a salt from
+  its **own** guid and the day number, and reads the peer's under the peer's
+  salt; the address inside the record is sealed, so DHT nodes see only a signed
+  ciphertext, and the daily epoch moves the mailbox so a fixed address cannot
+  track the pair.
+- [`secure_udp.dart`](../app/lib/network/secure_udp.dart): a reliable,
+  encrypted byte pipe over UDP — a Noise-KK handshake (the same
+  `ChattCrypto.sessionKey` four-DH, so a wrong static key yields a dead key and
+  the link never opens), per-packet AES-GCM with a monotonic counter in the
+  nonce and a replay window, then ARQ (sequence numbers, cumulative + selective
+  ACK, RTO with backoff, keepalive). It implements `BytePipe`, so the same
+  `BtLink` request/response multiplexer the other roads use rides on top
+  unchanged.
+- [`inet_link.dart`](../app/lib/network/inet_link.dart) orchestrates it: STUN
+  for the public address, publish to and read from the DHT box, then both sides
+  send at once to punch the hole. [`inet_transport.dart`](../app/lib/network/inet_transport.dart)
+  wraps that as a `PeerTransport` (`InternetRoute` carries the guid, not an
+  address) and `ChattServer.handleInternet` feeds it into the one handler, with
+  `inet:` as "where it came from".
+
+Only a confirmed peer (green shield) gets this road: `routesOf` adds an
+`InternetRoute` only when the add-on is on and `peer.verified`, and the link
+manager hands out a static key only for a verified peer, so the handshake —
+and therefore every request — is reachable only after a key the user confirmed.
+
 ## Add-ons
 
 Settings has an **Add-ons** section for features most users can do without, so
@@ -1550,6 +1598,25 @@ there as a count. What comes back goes onto the sender's screen, so
   Reject, so an Enter that got there first can only refuse. The same hold
   covers a device that is itself typing on another one, so its own typing
   screen never relays or echoes what it receives.
+- **The internet add-on leaks metadata and is not a sure thing.** With it on,
+  the STUN servers see this device's IP and when it connects, and the DHT
+  nodes see its IP and that it reads or writes a mailbox; none of them sees the
+  content. Hole punching fails when either side is behind a carrier-grade or
+  symmetric NAT, and some networks block UDP or DHT outright; there is no relay
+  fallback by design, so a connection that will not punch ends as a plain "not
+  delivered". The measurement that decides whether the road is worth keeping is
+  `app/tool/nat_spike.dart`, written up in [spike-nat.md](spike-nat.md).
+- **The internet road has no automated end-to-end test over the real
+  internet**: CI has no public IP and no NAT. The protocol is covered over an
+  in-memory UDP network (`test/secure_udp_test.dart`, `test/dht_test.dart`,
+  `test/rendezvous_test.dart`, `test/inet_transport_test.dart`), and what is
+  left — real NAT traversal, STUN and DHT reachability — is the manual spike.
+- **A rendezvous record can be replayed within its epoch.** A recorded box
+  entry put back into the DHT points the peer at a stale address; the sealed
+  address is authentic (AES-GCM) but its freshness rests only on the `t`
+  timestamp inside and the once-a-day salt. The punch simply fails over to "not
+  delivered" against a dead address, but a tighter epoch or a nonce is the fix
+  if this proves to matter on hardware.
 
 ## Android: background listening
 

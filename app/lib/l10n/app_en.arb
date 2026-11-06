@@ -243,6 +243,7 @@
 
   "addons": "Add-ons",
   "transportWifi": "Local network",
+  "transportInternet": "Internet",
   "transportBluetooth": "Bluetooth",
   "transportBluetoothUnsupported": "Chatt has no Bluetooth on this system.",
   "transportBluetoothRadioOff": "Turn Bluetooth on in the system settings.",
@@ -308,8 +309,10 @@
   "remoteKeyboardAddonOff": "The Keyboard from a PC add-on is off.",
   "viaWifi": "over the network",
   "viaBluetooth": "over Bluetooth",
+  "viaInternet": "over the internet",
   "protocolWifi": "Network",
   "protocolBluetooth": "Bluetooth",
+  "protocolInternet": "Internet",
   "searchWhere": "Where to look",
   "searchBluetoothHint": "Looking over the radio takes up to a minute and a half and slows open conversations down while it runs.",
   "searchBluetoothOff": "Bluetooth is not running. Check the radio and the permission in Settings, under Add-ons.",
@@ -470,6 +473,19 @@
   "styleCieplo": "Warm",
   "themeLabel": "Theme",
   "addonBluetoothShort": "Conversations with no shared Wi-Fi",
+  "addonInternetShort": "Conversations across different networks",
+  "addonInternetBody": "Reach a confirmed device on another network, with no server in between. The connection is found through public STUN servers and the BitTorrent DHT, which see your IP address and when you connect, never the content. It does not always get through: it usually fails when both sides are behind a carrier-grade NAT, and some Wi-Fi networks block it. Off by default.",
+  "internetAddonExperimental": "Experimental. Works device-to-device by punching through NAT; about seven connections in ten get through.",
+  "internetPublicAddressLabel": "This device is seen at: {address}",
+  "@internetPublicAddressLabel": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "internetPublicAddressUnknown": "Public address not known yet.",
+  "internetCheckNat": "Check reachability",
+  "internetNatOpen": "Endpoint-independent NAT: hole punching should work.",
+  "internetNatSymmetric": "Symmetric NAT: hole punching will usually fail here.",
+  "internetNatNone": "No NAT: this device is directly reachable.",
+  "internetNatUnknown": "Could not reach the STUN servers.",
   "addonKeyboardShort": "Typing from a computer's keyboard",
 
   "historyClearedWithTyping": "Messages deleted: {messages}, typing sessions: {sessions}",

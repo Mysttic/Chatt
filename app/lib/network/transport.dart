@@ -9,12 +9,29 @@ import 'dart:io';
 /// drugie: adres radia nie ma prawa trafić do kolumny `Peers.host`.
 const String btHostPrefix = 'bt:';
 
+/// Przedrostek „skąd" dla ruchu z drogi internetowej. Niesie guid rozmówcy,
+/// nie adres: publiczny adres z przebicia dziury jest ulotny i nie ma po co
+/// go zapisywać jako trasy (tę i tak wyznacza skrzynka kontaktowa). Dzięki
+/// przedrostkowi kontakt przez internet nie nadpisze ani adresu IP, ani
+/// adresu radia rozmówcy w bazie.
+const String inetHostPrefix = 'inet:';
+
 /// Klucz w kontekście żądania shelf, pod którym leży adres radia.
 const String contextPeerAddress = 'chatt.bluetooth.peer';
+
+/// Klucz w kontekście żądania shelf, pod którym leży guid rozmówcy, gdy
+/// żądanie przyszło drogą internetową.
+const String contextPeerGuid = 'chatt.internet.peer';
 
 /// Adres radia z pola „skąd", albo null, gdy to zwykłe IP.
 String? btAddressOf(String fromHost) =>
     fromHost.startsWith(btHostPrefix) ? fromHost.substring(btHostPrefix.length) : null;
+
+/// Guid rozmówcy z pola „skąd", gdy żądanie przyszło drogą internetową;
+/// null w przeciwnym razie.
+String? inetGuidOf(String fromHost) => fromHost.startsWith(inetHostPrefix)
+    ? fromHost.substring(inetHostPrefix.length)
+    : null;
 
 /// Adres radia w jedynej postaci, którą przyjmują obie platformy:
 /// `AA:BB:CC:DD:EE:FF`, wielkimi literami.
@@ -28,16 +45,20 @@ String normalizeBtAddress(String raw) {
   return [for (var at = 0; at < 12; at += 2) hex.substring(at, at + 2)].join(':');
 }
 
-/// Adres IP z pola „skąd", albo pusty napis, gdy to był Bluetooth.
+/// Adres IP z pola „skąd", albo pusty napis, gdy to był Bluetooth lub
+/// internet (tam „skąd" niesie adres radia albo guid, nie adres w sieci
+/// lokalnej, i nie ma prawa trafić do `Peers.host`).
 String ipAddressOf(String fromHost) =>
-    fromHost.startsWith(btHostPrefix) ? '' : fromHost;
+    (fromHost.startsWith(btHostPrefix) || fromHost.startsWith(inetHostPrefix))
+        ? ''
+        : fromHost;
 
 /// Którą drogą jadą bajty do rozmówcy.
 ///
 /// Chatt ma dwa transporty i oba mogą działać naraz. Wybór nie jest wyborem
 /// aplikacji: IP wymaga wspólnej sieci, Bluetooth wymaga bycia obok siebie,
 /// więc w danej chwili zwykle działa dokładnie jeden z nich.
-enum PeerProtocol { wifi, bluetooth }
+enum PeerProtocol { wifi, bluetooth, internet }
 
 /// Gdzie to urządzenie teraz jest.
 ///
@@ -104,6 +125,34 @@ class BluetoothRoute extends PeerRoute {
 
   @override
   String toString() => 'BluetoothRoute($address)';
+}
+
+/// Trasa przez internet. Nie niesie adresu, tylko guid rozmówcy: publiczny
+/// adres jest ulotny i wyznacza go skrzynka kontaktowa w DHT w chwili
+/// łączenia. Transport internetowy sam odnajduje, pod czym rozmówca jest
+/// teraz, i przebija do niego dziurę w NAT-cie.
+class InternetRoute extends PeerRoute {
+  final String guid;
+
+  const InternetRoute(this.guid);
+
+  @override
+  PeerProtocol get protocol => PeerProtocol.internet;
+
+  @override
+  String get label => 'inet:${guid.length > 8 ? guid.substring(0, 8) : guid}';
+
+  bool get isUsable => guid.isNotEmpty;
+
+  @override
+  bool operator ==(Object other) =>
+      other is InternetRoute && other.guid == guid;
+
+  @override
+  int get hashCode => guid.hashCode;
+
+  @override
+  String toString() => 'InternetRoute($label)';
 }
 
 /// Odpowiedź z drugiej strony, w kształcie, który i tak miała: kod jak
