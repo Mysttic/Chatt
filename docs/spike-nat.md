@@ -6,15 +6,14 @@ first, decide after. The question that gates everything else is whether two
 devices on different networks can reach each other directly, with no relay, in
 the networks people actually use.
 
-The issue puts it bluntly: if the main case — a PC at home on Wi-Fi and a phone
-on mobile data — does not connect in most attempts, the road is not worth
-shipping and this file is where it is retired.
+The gate from the issue: if the main case (a PC at home and a phone on mobile
+data) does not connect in most attempts, the route is not worth shipping and
+this file records why.
 
 ## What is already built
 
-Unlike the Bluetooth spike, the protocol was written up front and is covered by
-tests over an in-memory UDP network, because none of it needs real hardware to
-be exercised:
+The protocol was written up front and is covered by tests over an in-memory
+UDP network, because none of it needs real hardware to be exercised:
 
 | File | Role | Test |
 |---|---|---|
@@ -26,39 +25,68 @@ be exercised:
 | `app/lib/network/secure_udp.dart` | KK handshake + replay-proof AES-GCM + ARQ | `test/secure_udp_test.dart` (loss, reorder, replay, attacker) |
 | `app/lib/network/inet_link.dart`, `inet_transport.dart` | punch orchestration + `PeerTransport` | `test/inet_transport_test.dart` (full path over fake net) |
 
-The Ed25519 signatures were cross-checked against OpenSSL, not just the BEP 44
-examples (whose published bytes predate RFC 8032 and do not match what today's
-libtorrent nodes expect — see the note in `test/dht_test.dart`).
+The Ed25519 signatures were cross-checked against OpenSSL. The bytes published
+in BEP 44 predate RFC 8032 and do not match what today's libtorrent nodes
+expect (see the note in `test/dht_test.dart`).
 
-## What step 1 measures on hardware
+## How to measure
 
-`app/tool/nat_spike.dart` (`flutter run -t tool/nat_spike.dart`), three modes:
+`app/tool/nat_spike.dart` runs on the PC under the plain Dart VM. On a phone it
+installs as a separate app id, next to Chatt, and leaves Chatt's data alone:
 
-1. `stun` — run on each device by itself. Reports the public address, whether
-   the NAT is endpoint-independent (punchable) or symmetric (not), whether UDP
-   leaves the network at all, and whether there is a global IPv6 address.
-2. `punch` — the real attempt. Each side prints its STUN address; paste the
-   other side's into `CHATT_NAT_PEER` and start both within a few seconds.
-   Reports whether and after how long packets started flowing, then holds
-   silent for 15/30/60/120 s to find when the NAT closes the pinhole — that is
-   the keepalive interval.
-3. `dht` — whether a record can be written to and read from the public DHT from
-   this network (some corporate and school networks block DHT).
+```
+cd app
+dart run -DCHATT_NAT_MODE=stun tool/nat_spike.dart
+flutter build apk --debug -t tool/nat_spike.dart -P chattAppIdSuffix=.natspike
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+On the phone the mode comes from `code_cache/chatt_nat.conf`, written with
+`adb shell run-as`, so one build covers every mode (the header of the tool has
+the commands). Output goes to `adb logcat -s flutter`.
+
+1. `stun`, on each device by itself: the public address, whether the NAT keeps
+   one mapping for every destination (punchable) or makes one per destination
+   (symmetric, usually not punchable), whether UDP leaves the network at all,
+   whether there is a global IPv6 address.
+2. `dht`: write a record to the public DHT and read it back, with times. Some
+   corporate and school networks block DHT.
+3. `punch`, the real attempt: `CHATT_NAT_ROLE=a` on one device, `b` on the
+   other, one socket per attempt for STUN and for the packets to the peer.
+   Addresses go through the DHT contact box when both sides get the same
+   `CHATT_NAT_PAIR` word, or through a file (and stdin on the PC) without it.
+   After the first success side `a` stays silent for 15, 30, 60 and 120 s and
+   checks whether its next packet still reaches `b`. That bounds the keepalive
+   interval in the direction toward `b`; swapping the roles measures the other
+   direction.
 
 ## Results
 
-Fill this in from real runs. Leave the verdict explicit.
+Addresses are left out on purpose.
 
-| Side A network | Side B network | STUN A | STUN B | Punch? | Time to first packet | Pinhole closes after |
-|---|---|---|---|---|---|---|
-| _home Wi-Fi_ | _phone LTE_ | | | | | |
-| _home Wi-Fi_ | _other Wi-Fi_ | | | | | |
-| _phone LTE_ | _phone LTE_ | | | | | |
-| _café / hotel Wi-Fi_ | _any_ | | | | | |
+### Single networks
 
-DHT reachability: _home Wi-Fi_ … , _LTE_ … , _corporate Wi-Fi_ … .
+| Network | NAT mapping | Ports kept | Global IPv6 | DHT write | DHT read |
+|---|---|---|---|---|---|
+| Home, Ethernet behind a mesh router | endpoint-independent | yes | no | 8 nodes in 13 to 18 s; 1 run of 3 reached no node | 15 to 18 s |
+| Phone on LTE | | | | | |
 
-**Verdict:** _to be written after the runs._ If the home-Wi-Fi ↔ LTE case
-succeeds in most attempts, step 2 (wiring the box publish/poll into a running
-app and measuring first-message latency after a network change) is worth doing;
-if not, the add-on stays off and this measurement is the record of why.
+The DHT times come from the first version of the lookup in `dht.dart`: six
+rounds in lock step, each waiting for its slowest node up to the 3 s timeout.
+When the first round toward the bootstrap nodes gets no answer, the whole
+operation ends with no node.
+
+### Pairs
+
+| Side A | Side B | Punch | Time to two-way traffic | Silence survived, A to B |
+|---|---|---|---|---|
+| home | phone LTE | | | |
+| phone LTE | home | | | |
+| home | other Wi-Fi | | | |
+| phone LTE | phone LTE | | | |
+| café or hotel Wi-Fi | any | | | |
+
+**Verdict:** to be written after the runs. If the home to LTE case succeeds in
+most attempts, the next steps are the receiver punching toward the caller
+(open point 1 in the issue) and intervals set from the silence column. If not,
+the add-on stays off and this file is the record of why.

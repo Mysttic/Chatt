@@ -1,204 +1,668 @@
-// Rozpoznanie do issue #68: czy w TWOICH sieciach da się przebić dziurę
-// w NAT-cie, czyli czy droga internetowa Chatta ma sens bez serwera
-// przekazującego ruch. Mierzy, nie zakłada.
+// ignore_for_file: avoid_print
+
+// Pomiar do issue #68: czy w Twoich sieciach da się przebić dziurę w NAT-cie
+// bez serwera przekazującego ruch. Od wyniku zależy, czy droga internetowa
+// Chatta ma sens.
 //
-// `flutter test` nie dotknie prawdziwego internetu, więc tak jak przy
-// Bluetoothcie (docs/spike-rfcomm.md) pomiar robi osobny program uruchamiany
-// na obu urządzeniach: `flutter run -t tool/nat_spike.dart`.
+// `flutter test` nie dotyka prawdziwego internetu, więc pomiar robi osobny
+// program uruchamiany na obu urządzeniach, tak jak przy Bluetoothcie
+// (docs/spike-rfcomm.md). Program nie ma interfejsu: wynik idzie na konsolę,
+// na telefonie do konsoli `flutter run` i do `adb logcat -s flutter`.
 //
-// Trzy tryby, wybierane przez --dart-define=CHATT_NAT_MODE=...:
+// Uruchomienie:
 //
-//   stun   (domyślny) — pyta dwa serwery STUN z jednego gniazda i mówi, jaki
-//          masz NAT. Ten sam port w obu odpowiedziach = mapowanie niezależne
-//          od celu (przebicie powinno wyjść). Różny = NAT symetryczny
-//          (przebicie zwykle nie wyjdzie). Wypisuje też, czy jest globalny
-//          adres IPv6 i czy UDP w ogóle wychodzi. Od tego zacznij, po obu
-//          stronach osobno.
-//
-//   punch  — próba właściwa. Oba urządzenia pytają STUN o swój adres,
-//          wypisują go, a Ty przeklejasz adres drugiej strony ręcznie
-//          (schowek, dowolny komunikator) i podajesz go w CHATT_NAT_PEER.
-//          Potem oba nadają do siebie naraz; program mówi, czy i po jakim
-//          czasie pakiety zaczęły chodzić, a następnie testuje przerwy bez
-//          ruchu (15/30/60/120 s), żeby zobaczyć, po jakim czasie NAT zamyka
-//          furtkę — stąd wychodzi interwał podtrzymania.
-//
-//   dht    — sprawdza samą skrzynkę kontaktową: czy z tej sieci da się
-//          zapisać i odczytać rekord w publicznym DHT BitTorrenta (część
-//          sieci firmowych i szkolnych blokuje ruch DHT).
-//
-// Przykład:
 //   cd app
-//   # po obu stronach, każda u siebie:
-//   flutter run -t tool/nat_spike.dart --dart-define=CHATT_NAT_MODE=stun
+//   # komputer: wystarczy sama maszyna wirtualna Darta
+//   dart run -DCHATT_NAT_MODE=stun tool/nat_spike.dart
 //
-//   # próba przebicia (adres drugiej strony z jej wydruku):
-//   flutter run -t tool/nat_spike.dart \
-//     --dart-define=CHATT_NAT_MODE=punch \
-//     --dart-define=CHATT_NAT_PEER=203.0.113.9:51820
+//   # telefon: pomiar instaluje się obok Chatta pod osobnym identyfikatorem
+//   # i nie rusza danych prawdziwej aplikacji
+//   flutter run -d <telefon> -t tool/nat_spike.dart -P chattAppIdSuffix=.natspike \
+//     --dart-define=CHATT_NAT_MODE=stun
 //
-// Wyniki wpisz do docs/spike-nat.md. To jest program bez interfejsu: cały
-// wynik idzie na konsolę.
+// Tryby (CHATT_NAT_MODE):
+//
+//   stun   (domyślny) pyta dwa serwery STUN z jednego gniazda. Ten sam port
+//          w obu odpowiedziach znaczy, że NAT nadaje mapowanie niezależne od
+//          celu i przebicie powinno wyjść. Różne porty to NAT symetryczny,
+//          przy którym przebicie zwykle zawodzi. Do tego: czy UDP w ogóle
+//          wychodzi i czy jest globalny adres IPv6.
+//
+//   dht    zapis i odczyt rekordu w publicznym DHT BitTorrenta, z czasami.
+//          Część sieci firmowych i szkolnych blokuje ruch DHT.
+//
+//   punch  próba właściwa na dwóch urządzeniach naraz: CHATT_NAT_ROLE=a po
+//          jednej stronie, b po drugiej. Każda próba to świeże gniazdo, STUN,
+//          wymiana adresów i nadawanie w obie strony co 200 ms przez najwyżej
+//          30 s. Po pierwszej udanej próbie strona `a` sprawdza, po ilu
+//          sekundach ciszy jej pakiet jeszcze dochodzi do `b` (CHATT_NAT_GAPS).
+//          Stąd interwał podtrzymania. Żeby zmierzyć drugi kierunek, zamień
+//          role.
+//
+// Wymiana adresów w trybie punch:
+//
+//   CHATT_NAT_PAIR=<słowo>  to samo słowo po obu stronach. Adresy idą przez
+//          skrzynkę kontaktową w DHT (ten sam kod co w aplikacji, klucze
+//          wyprowadzone ze słowa), więc nic nie trzeba przeklejać.
+//   bez słowa  każda strona wypisuje swój adres i czeka na adres drugiej
+//          w pliku, którego ścieżkę podaje (na telefonie zapis przez
+//          `adb shell run-as`), a na komputerze także na wejściu: wklej
+//          i Enter. Jedna próba.
+//
+// Pozostałe pokrętła:
+//
+//   CHATT_NAT_TRIES  liczba prób w trybie ze słowem, domyślnie 3
+//   CHATT_NAT_GAPS   długości ciszy w sekundach, domyślnie 15,30,60,120;
+//                    pusty napis pomija ten test
+//   CHATT_NAT_PORT   stały port lokalny, domyślnie dowolny wolny
+//   CHATT_NAT_LOCAL  true: bez STUN-u, adres 127.0.0.1; sprawdzenie samego
+//                    narzędzia na jednym komputerze
+//
+// Na telefonie te same klucze można podać bez przebudowy, w pliku
+// chatt_nat.conf w katalogu tymczasowym aplikacji (ścieżka w wydruku),
+// po jednym KLUCZ=wartość w linii; plik wygrywa z --dart-define:
+//
+//   adb shell "run-as com.mysttic.chatt.natspike sh -c \
+//     'printf \"CHATT_NAT_MODE=dht\n\" > code_cache/chatt_nat.conf'"
+//   adb shell am force-stop com.mysttic.chatt.natspike
+//   adb shell am start -n com.mysttic.chatt.natspike/com.mysttic.chatt.MainActivity
+//
+// Wyniki trafiają do docs/spike-nat.md, bez adresów IP.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:chatt/network/bencode.dart';
 import 'package:chatt/network/dht.dart';
+import 'package:chatt/network/rendezvous.dart';
 import 'package:chatt/network/stun.dart';
 import 'package:chatt/network/udp_mux.dart';
-import 'package:flutter/widgets.dart';
+import 'package:crypto/crypto.dart' as digest;
 
-const _mode = String.fromEnvironment('CHATT_NAT_MODE', defaultValue: 'stun');
-const _peer = String.fromEnvironment('CHATT_NAT_PEER');
+/// Ustawienia z --dart-define (albo `dart run -D`). Na telefonie nadpisuje je
+/// plik chatt_nat.conf, patrz [_wczytajPlik].
+final _ust = <String, String>{
+  'CHATT_NAT_MODE':
+      const String.fromEnvironment('CHATT_NAT_MODE', defaultValue: 'stun'),
+  'CHATT_NAT_ROLE': const String.fromEnvironment('CHATT_NAT_ROLE'),
+  'CHATT_NAT_PAIR': const String.fromEnvironment('CHATT_NAT_PAIR'),
+  'CHATT_NAT_TRIES':
+      const String.fromEnvironment('CHATT_NAT_TRIES', defaultValue: '3'),
+  'CHATT_NAT_GAPS': const String.fromEnvironment('CHATT_NAT_GAPS',
+      defaultValue: '15,30,60,120'),
+  'CHATT_NAT_PORT':
+      const String.fromEnvironment('CHATT_NAT_PORT', defaultValue: '0'),
+  'CHATT_NAT_LOCAL':
+      const String.fromEnvironment('CHATT_NAT_LOCAL', defaultValue: 'false'),
+};
+
+String get _tryb => _ust['CHATT_NAT_MODE']!;
+String get _rola => _ust['CHATT_NAT_ROLE']!;
+String get _slowo => _ust['CHATT_NAT_PAIR']!;
+int get _ileProb => int.tryParse(_ust['CHATT_NAT_TRIES']!) ?? 3;
+int get _stalyPort => int.tryParse(_ust['CHATT_NAT_PORT']!) ?? 0;
+bool get _lokalnie => _ust['CHATT_NAT_LOCAL'] == 'true';
+
+List<int> get _przerwy => [
+      for (final s in _ust['CHATT_NAT_GAPS']!.split(','))
+        if (int.tryParse(s.trim()) case final n? when n > 0) n,
+    ];
+
+/// Okno nadawania jednej próby.
+const _oknoPrzebicia = Duration(seconds: 30);
+
+/// `print`, bo na Androidzie `stdout` nie dociera do konsoli `flutter run`,
+/// a `print` trafia tam i do logcatu.
+void wypisz(String linia) => print(linia);
+
+final _startProcesu = DateTime.now();
+
+String _wTemp(String nazwa) =>
+    '${Directory.systemTemp.path}${Platform.pathSeparator}$nazwa';
+
+/// Na telefonie: KLUCZ=wartość z pliku chatt_nat.conf, żeby zmiana trybu
+/// nie wymagała przebudowy aplikacji.
+void _wczytajPlik() {
+  if (!Platform.isAndroid) return;
+  final plik = File(_wTemp('chatt_nat.conf'));
+  if (!plik.existsSync()) {
+    wypisz('Bez pliku ${plik.path}, ustawienia z budowania.');
+    return;
+  }
+  for (final linia in plik.readAsLinesSync()) {
+    final i = linia.indexOf('=');
+    if (i <= 0) continue;
+    final klucz = linia.substring(0, i).trim();
+    if (_ust.containsKey(klucz)) _ust[klucz] = linia.substring(i + 1).trim();
+  }
+  wypisz('Ustawienia z ${plik.path}.');
+}
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  stdout.writeln('== Chatt NAT spike: tryb "$_mode" ==');
+  _wczytajPlik();
+  wypisz('== Chatt NAT spike: tryb "$_tryb"'
+      '${_rola.isEmpty ? '' : ', rola $_rola'} ==');
   try {
-    switch (_mode) {
+    switch (_tryb) {
       case 'stun':
         await _stun();
-      case 'punch':
-        await _punch();
       case 'dht':
         await _dht();
+      case 'punch':
+        await _punch();
       default:
-        stdout.writeln('Nieznany tryb. Użyj stun | punch | dht.');
+        wypisz('Nieznany tryb. Użyj stun, dht albo punch.');
     }
   } catch (blad, slad) {
-    stdout.writeln('Błąd: $blad\n$slad');
+    wypisz('Błąd: $blad\n$slad');
   }
-  stdout.writeln('== koniec ==');
+  wypisz('== koniec ==');
+  // Na telefonie aplikacja zostaje, żeby `flutter run` dowiózł ostatnie
+  // linie. Na komputerze proces kończy się od razu, także gdy czekał na
+  // wejście.
+  if (!Platform.isAndroid) exit(0);
 }
 
-Future<List<String>> _localV4() async {
-  final interfaces =
-      await NetworkInterface.list(type: InternetAddressType.IPv4);
-  return [for (final i in interfaces) for (final a in i.addresses) a.address];
-}
+// --- stun ------------------------------------------------------------------
 
-Future<bool> _hasGlobalV6() async {
+Future<void> _stun() async {
+  final mux = await SocketUdpMux.bind(port: _stalyPort);
+  final stun = StunClient(mux);
   try {
-    final interfaces =
+    final lokalne = await _lokalneV4();
+    wypisz('Gniazdo UDP na porcie ${mux.port}. '
+        'Adresy lokalne: ${lokalne.join(', ')}.');
+    final pierwszy = await stun.query(defaultStunServers[0]);
+    final drugi = await stun.query(defaultStunServers[1]);
+    wypisz('${defaultStunServers[0].$1}: '
+        '${pierwszy?.label ?? 'brak odpowiedzi'}');
+    wypisz('${defaultStunServers[1].$1}: '
+        '${drugi?.label ?? 'brak odpowiedzi'}');
+    final m = pierwszy ?? drugi;
+    if (m == null) {
+      wypisz('Żaden serwer STUN nie odpowiedział: UDP prawdopodobnie nie '
+          'wychodzi z tej sieci i droga internetowa się tu nie uda.');
+      return;
+    }
+    wypisz('NAT: '
+        '${_opisNat(classifyNat(pierwszy, drugi, localAddresses: lokalne))}.');
+    wypisz(m.port == mux.port
+        ? 'Port publiczny równy lokalnemu: NAT zachowuje numery portów.'
+        : 'Port publiczny ${m.port}, lokalny ${mux.port}: NAT zmienia '
+            'numery portów.');
+  } finally {
+    stun.dispose();
+    await mux.close();
+  }
+  wypisz('Globalny adres IPv6: ${await _globalnyV6() ? 'jest' : 'brak'}.');
+}
+
+String _opisNat(NatMapping nat) => switch (nat) {
+      NatMapping.endpointIndependent =>
+        'niezależny od celu, przebicie powinno wyjść',
+      NatMapping.endpointDependent => 'symetryczny, przebicie zwykle zawodzi',
+      NatMapping.none => 'brak, urządzenie ma adres publiczny',
+      NatMapping.unknown => 'nieznany, odpowiedział jeden serwer',
+    };
+
+Future<List<String>> _lokalneV4() async {
+  final interfejsy =
+      await NetworkInterface.list(type: InternetAddressType.IPv4);
+  return [for (final i in interfejsy) for (final a in i.addresses) a.address];
+}
+
+/// Globalny adres IPv6: bez lokalnych łącza, bez prywatnych fc00::/7 i bez
+/// tunelu Teredo (2001:0::/32), który na Windowsie udaje adres globalny.
+Future<bool> _globalnyV6() async {
+  try {
+    final interfejsy =
         await NetworkInterface.list(type: InternetAddressType.IPv6);
-    for (final i in interfaces) {
+    for (final i in interfejsy) {
       for (final a in i.addresses) {
-        if (!a.isLinkLocal && !a.isLoopback && !a.address.startsWith('fd')) {
-          return true;
-        }
+        final s = a.address.toLowerCase();
+        if (a.isLinkLocal || a.isLoopback) continue;
+        if (s.startsWith('fc') || s.startsWith('fd')) continue;
+        if (s.startsWith('2001:0:')) continue;
+        return true;
       }
     }
   } catch (_) {}
   return false;
 }
 
-Future<void> _stun() async {
-  final mux = await SocketUdpMux.bind();
-  stdout.writeln('Gniazdo UDP na porcie ${mux.port}.');
-  final client = StunClient(mux);
-  final lokalne = await _localV4();
-  final wynik = await client.discover(localAddresses: lokalne);
-  final m = wynik.mapping;
-  if (m == null) {
-    stdout.writeln('Żaden serwer STUN nie odpowiedział.');
-    stdout.writeln('UDP prawdopodobnie nie wychodzi z tej sieci: droga '
-        'internetowa się tu nie uda.');
-  } else {
-    stdout.writeln('Widać mnie pod: ${m.label}');
-    stdout.writeln('Lokalne adresy IPv4: ${lokalne.join(", ")}');
-    stdout.writeln(switch (wynik.nat) {
-      NatMapping.endpointIndependent =>
-        'NAT niezależny od celu — przebicie dziury powinno działać.',
-      NatMapping.endpointDependent =>
-        'NAT symetryczny — przebicie dziury zwykle tu zawodzi, bez '
-            'przekaźnika się nie połączysz.',
-      NatMapping.none => 'Brak NAT — jesteś osiągalny wprost.',
-      NatMapping.unknown => 'Odpowiedział jeden serwer; rodzaju NAT nie '
-          'dało się ocenić.',
-    });
+// --- dht -------------------------------------------------------------------
+
+Future<void> _dht() async {
+  final mux = await SocketUdpMux.bind(port: _stalyPort);
+  final dht = DhtClient(mux);
+  try {
+    final los = Random.secure();
+    final podpis = await DhtSigner.fromSeed(
+        List<int>.generate(32, (_) => los.nextInt(256)));
+    final sol = utf8.encode('chatt-nat-spike');
+    final wartosc =
+        bencode('spike ${DateTime.now().toUtc().toIso8601String()}');
+    wypisz('Zapis do DHT ...');
+    final t0 = DateTime.now();
+    final ile = await dht
+        .putMutable(podpis, bencodedValue: wartosc, seq: 1, salt: sol)
+        .timeout(const Duration(seconds: 30), onTimeout: () => -1);
+    final t1 = DateTime.now();
+    if (ile <= 0) {
+      wypisz(ile < 0
+          ? 'Zapis nie skończył się w 30 s.'
+          : 'Zapis nie dotarł do żadnego węzła.');
+      wypisz('Ruch DHT jest tu prawdopodobnie zablokowany.');
+      return;
+    }
+    wypisz('Zapis: $ile węzłów, ${t1.difference(t0).inMilliseconds} ms.');
+    final odczyt = await dht
+        .getMutable(podpis.publicKey, salt: sol)
+        .timeout(const Duration(seconds: 30), onTimeout: () => null);
+    final ms = DateTime.now().difference(t1).inMilliseconds;
+    wypisz(odczyt == null
+        ? 'Odczyt: rekordu nie ma ($ms ms).'
+        : 'Odczyt: rekord jest, $ms ms.');
+  } finally {
+    await dht.close();
+    await mux.close();
   }
-  stdout.writeln('Globalny adres IPv6: ${await _hasGlobalV6() ? "jest "
-      "(pomaga, bez translacji portów)" : "brak"}.');
-  client.dispose();
-  await mux.close();
+}
+
+// --- punch -----------------------------------------------------------------
+
+/// Pakiety próby. Pierwsze dwa bajty „CN" odróżniają je od STUN-u (dwa
+/// najstarsze bity zero) i od DHT (słownik bencode zaczyna się od „d").
+const _znak0 = 0x43, _znak1 = 0x4E;
+const _probe = 0x50; // P: „jestem", z numerem do odesłania
+const _echo = 0x45; // E: odpowiedź na P z tym samym numerem
+const _cisza = 0x47; // G: `a` zapowiada ciszę: runda, sekundy
+const _ciszaOk = 0x67; // g: `b` przyjął zapowiedź
+const _koniec = 0x44; // D: `a` kończy próbę
+const _koniecOk = 0x64; // d: `b` przyjął koniec
+
+Uint8List _pakiet(int typ, [List<int> dane = const []]) =>
+    Uint8List.fromList([_znak0, _znak1, typ, ...dane]);
+
+List<int> _bajty(int n) =>
+    [(n >> 24) & 0xFF, (n >> 16) & 0xFF, (n >> 8) & 0xFF, n & 0xFF];
+
+int _numer(Uint8List d) => (d[3] << 24) | (d[4] << 16) | (d[5] << 8) | d[6];
+
+class _Proba {
+  final int numer;
+  _Proba(this.numer);
+
+  String nat = '?';
+  bool znamAdres = false;
+
+  /// Od startu własnego nadawania do pierwszego pakietu z drugiej strony.
+  int? msPierwszy;
+
+  /// Do pierwszego echa, czyli do ruchu w obie strony.
+  int? msObie;
+
+  /// Druga strona nadawała z innego portu niż ten z wymiany adresów.
+  bool innyPort = false;
+
+  /// (sekundy ciszy, czy pakiet `a` po niej doszedł)
+  final cisza = <(int, bool)>[];
 }
 
 Future<void> _punch() async {
-  final mux = await SocketUdpMux.bind();
-  final client = StunClient(mux);
-  final me = (await client.discover()).mapping;
-  stdout.writeln('Mój publiczny adres (przeklej drugiej stronie): '
-      '${me?.label ?? "nieznany"}');
-  if (_peer.isEmpty) {
-    stdout.writeln('Podaj adres drugiej strony w CHATT_NAT_PEER i uruchom '
-        'ponownie na obu urządzeniach mniej więcej naraz.');
-    client.dispose();
-    await mux.close();
+  if (_rola != 'a' && _rola != 'b') {
+    wypisz('Tryb punch potrzebuje CHATT_NAT_ROLE=a po jednej stronie '
+        'i b po drugiej.');
     return;
   }
-  final czesci = _peer.split(':');
-  final peerAddr = InternetAddress(czesci[0]);
-  final peerPort = int.parse(czesci[1]);
-  stdout.writeln('Przebijam do $_peer ...');
-
-  var odebrane = 0;
-  DateTime? pierwszy;
-  mux.register((p) {
-    if (p.address.address == peerAddr.address && p.port == peerPort) {
-      odebrane++;
-      pierwszy ??= DateTime.now();
-      return true;
-    }
-    return false;
-  });
-
-  final start = DateTime.now();
-  // Nadajemy co 200 ms przez 20 s. Każdy pakiet otwiera furtkę w naszym NAT.
-  final nadawanie = Timer.periodic(const Duration(milliseconds: 200), (_) {
-    mux.send([0x9e, 0x3c], peerAddr, peerPort); // dwa bajty: „jestem"
-  });
-  await Future<void>.delayed(const Duration(seconds: 20));
-  nadawanie.cancel();
-
-  if (odebrane > 0) {
-    final ms = pierwszy!.difference(start).inMilliseconds;
-    stdout.writeln('UDAŁO SIĘ: pierwszy pakiet po $ms ms, łącznie '
-        '$odebrane pakietów. Dziura stoi.');
-    stdout.writeln('To znaczy, że w tej parze sieci droga internetowa Chatta '
-        'ma szansę działać.');
-  } else {
-    stdout.writeln('Nic nie przyszło w 20 s. W tej parze sieci przebicie '
-        'dziury nie wychodzi (symetryczny NAT albo UDP zablokowane).');
+  final ile = _slowo.isEmpty ? 1 : max(1, _ileProb);
+  final wyniki = <_Proba>[];
+  var ciszaZrobiona = _przerwy.isEmpty || _rola == 'b';
+  for (var k = 1; k <= ile; k++) {
+    final proba = await _jednaProba(k, zCisza: !ciszaZrobiona);
+    wyniki.add(proba);
+    if (proba.cisza.isNotEmpty) ciszaZrobiona = true;
   }
-  client.dispose();
-  await mux.close();
+  _podsumuj(wyniki);
 }
 
-Future<void> _dht() async {
-  final mux = await SocketUdpMux.bind();
+Future<_Proba> _jednaProba(int k, {required bool zCisza}) async {
+  final p = _Proba(k);
+  wypisz('--- próba $k ---');
+  final mux = await SocketUdpMux.bind(port: _stalyPort);
+  final stun = StunClient(mux);
   final dht = DhtClient(mux);
-  stdout.writeln('Pytam węzły rozruchowe DHT ...');
-  // Prosty rekord niemutowalny by wymagał innej ścieżki; tu sprawdzamy samą
-  // osiągalność przez zapytanie o losowy cel i policzenie odpowiedzi.
-  final signer = await DhtSigner.fromSeed(
-      List<int>.generate(32, (i) => (i * 7 + 13) & 0xFF));
-  final salt = 'chatt-nat-spike'.codeUnits;
   try {
-    final zapis = await dht
-        .putMutable(signer,
-            bencodedValue: bencode('spike'),
-            seq: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-            salt: salt)
-        .timeout(const Duration(seconds: 20));
-    stdout.writeln(zapis > 0
-        ? 'Zapis do DHT: dotarł do $zapis węzłów. DHT działa z tej sieci.'
-        : 'Zapis do DHT nie dotarł do żadnego węzła: ruch DHT jest tu '
-            'prawdopodobnie zablokowany.');
-  } on TimeoutException {
-    stdout.writeln('DHT nie odpowiedziało w 20 s: ruch DHT jest tu '
-        'prawdopodobnie zablokowany.');
+    final InternetAddress mojIp;
+    final int mojPort;
+    if (_lokalnie) {
+      mojIp = InternetAddress.loopbackIPv4;
+      mojPort = mux.port;
+      p.nat = 'pominięty (CHATT_NAT_LOCAL)';
+    } else {
+      final wynik = await stun.discover(localAddresses: await _lokalneV4());
+      final m = wynik.mapping;
+      if (m == null) {
+        wypisz('STUN nie odpowiada: UDP nie wychodzi z tej sieci.');
+        return p;
+      }
+      p.nat = _opisNat(wynik.nat);
+      mojIp = m.address;
+      mojPort = m.port;
+      wypisz('Mój adres publiczny: ${m.label} (port lokalny ${mux.port}), '
+          'NAT ${p.nat}.');
+    }
+    final cel = _slowo.isNotEmpty
+        ? await _adresZeSkrzynki(dht, k, mojIp, mojPort)
+        : await _adresRecznie(mojIp, mojPort);
+    if (cel == null) {
+      wypisz('Brak adresu drugiej strony, próba przepada.');
+      return p;
+    }
+    p.znamAdres = true;
+    if (!_lokalnie && cel.$1.address == mojIp.address) {
+      wypisz('Druga strona ma ten sam adres publiczny, czyli stoi za tym '
+          'samym NAT-em. Przebicie wyjdzie tylko wtedy, gdy router zawraca '
+          'ruch do własnych adresów (hairpin). W jednej sieci Chatt i tak '
+          'łączy się wprost.');
+    }
+    await _przebij(mux, p, cel.$1, cel.$2, zCisza: zCisza);
+  } finally {
+    stun.dispose();
+    await dht.close();
+    await mux.close();
   }
-  await dht.close();
-  await mux.close();
+  return p;
+}
+
+List<int> _zeSlowa(String cel) =>
+    digest.sha256.convert(utf8.encode('chatt-nat-spike|$cel|$_slowo')).bytes;
+
+/// Wymiana adresów przez skrzynkę kontaktową w DHT. Każda próba ma własną
+/// parę skrzynek (numer próby w guidzie), więc rekord z poprzedniej próby
+/// nie myli następnej.
+Future<(InternetAddress, int)?> _adresZeSkrzynki(
+    DhtClient dht, int k, InternetAddress ip, int port) async {
+  final druga = _rola == 'a' ? 'b' : 'a';
+  final skrzynka = Rendezvous(
+    signSeed: _zeSlowa('sign'),
+    sealKey: _zeSlowa('seal'),
+    saltBase: _zeSlowa('salt'),
+    myGuid: '$_rola#$k',
+    theirGuid: '$druga#$k',
+  );
+  final start = DateTime.now();
+  DateTime? zapisano;
+  while (DateTime.now().difference(start) < const Duration(minutes: 3)) {
+    // Zapis co 30 s: rekord ma świeży znacznik czasu, a druga strona,
+    // uruchomiona później, i tak go znajdzie.
+    if (zapisano == null ||
+        DateTime.now().difference(zapisano) > const Duration(seconds: 30)) {
+      final t0 = DateTime.now();
+      final ile = await skrzynka
+          .publish(dht, address: ip, port: port)
+          .catchError((Object _) => 0);
+      zapisano = DateTime.now();
+      wypisz('Zapis do skrzynki: $ile węzłów, '
+          '${zapisano.difference(t0).inMilliseconds} ms.');
+    }
+    final t0 = DateTime.now();
+    final adres =
+        await skrzynka.lookup(dht).catchError((Object _) => null);
+    final ms = DateTime.now().difference(t0).inMilliseconds;
+    // Rekord sprzed startu tego procesu to ślad poprzedniego pomiaru z tym
+    // samym słowem. Minuta zapasu na różnicę zegarów.
+    if (adres != null &&
+        adres.timestamp > _startProcesu.millisecondsSinceEpoch - 60000) {
+      final wiek =
+          (DateTime.now().millisecondsSinceEpoch - adres.timestamp) ~/ 1000;
+      wypisz('Adres drugiej strony ze skrzynki: '
+          '${adres.address.address}:${adres.port} '
+          '(odczyt $ms ms, rekord sprzed $wiek s).');
+      return (adres.address, adres.port);
+    }
+    await Future<void>.delayed(const Duration(seconds: 2));
+  }
+  wypisz('Druga strona nie pojawiła się w skrzynce przez 3 minuty.');
+  return null;
+}
+
+/// Wymiana ręczna: adres drugiej strony z pliku albo z wejścia.
+Future<(InternetAddress, int)?> _adresRecznie(
+    InternetAddress ip, int port) async {
+  final plik = File(_wTemp('chatt_nat_peer_$_rola.txt'));
+  if (plik.existsSync()) plik.deleteSync();
+  wypisz('Mój adres (przekaż drugiej stronie): ${ip.address}:$port');
+  wypisz('Czekam na adres drugiej strony w pliku ${plik.path}'
+      '${Platform.isAndroid ? '' : ' albo na wejściu (wklej i Enter)'}.');
+  final wynik = Completer<(InternetAddress, int)?>();
+  StreamSubscription<String>? wejscie;
+  if (!Platform.isAndroid) {
+    wejscie = stdin
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((linia) {
+      final a = _adres(linia);
+      if (a != null && !wynik.isCompleted) wynik.complete(a);
+    }, onError: (Object _) {});
+  }
+  final zegar = Timer.periodic(const Duration(milliseconds: 300), (_) {
+    if (wynik.isCompleted || !plik.existsSync()) return;
+    final a = _adres(plik.readAsStringSync());
+    if (a != null) wynik.complete(a);
+  });
+  final a = await wynik.future
+      .timeout(const Duration(minutes: 10), onTimeout: () => null);
+  zegar.cancel();
+  await wejscie?.cancel();
+  return a;
+}
+
+(InternetAddress, int)? _adres(String napis) {
+  final s = napis.trim();
+  final i = s.lastIndexOf(':');
+  if (i <= 0) return null;
+  final ip = InternetAddress.tryParse(s.substring(0, i));
+  final port = int.tryParse(s.substring(i + 1));
+  if (ip == null || port == null || port <= 0 || port > 65535) return null;
+  return (ip, port);
+}
+
+/// Nadawanie w obie strony i, po stronie `a`, test ciszy. Strona `b` tylko
+/// odpowiada i wykonuje polecenia `a`.
+Future<void> _przebij(UdpMux mux, _Proba p, InternetAddress ip, int port,
+    {required bool zCisza}) async {
+  var celPort = port;
+  final start = DateTime.now();
+  int ms() => DateTime.now().difference(start).inMilliseconds;
+  final los = Random();
+
+  var nadaje = true;
+  var ostatnio = DateTime.now();
+  var zapowiedzianaCisza = 0;
+  var ostatniaRunda = 0;
+  final koniecB = Completer<void>();
+  Completer<void>? echo;
+  int? echoNumer;
+  Completer<void>? potwierdzenie;
+  int? czekamNa;
+  var runda = 0;
+
+  void domknij(Completer<void>? c) {
+    if (c != null && !c.isCompleted) c.complete();
+  }
+
+  bool obsluz(UdpPacket pk) {
+    final d = pk.data;
+    if (d.length < 3 || d[0] != _znak0 || d[1] != _znak1) return false;
+    if (pk.address.address != ip.address) return true;
+    if (pk.port != celPort) {
+      wypisz('Druga strona nadaje z portu ${pk.port}, w wymianie był '
+          '$celPort: jej NAT dał temu połączeniu osobny port. Odpowiadam '
+          'na nowy.');
+      p.innyPort = true;
+      celPort = pk.port;
+    }
+    ostatnio = DateTime.now();
+    if (p.msPierwszy == null) {
+      p.msPierwszy = ms();
+      wypisz('Pierwszy pakiet od drugiej strony po ${p.msPierwszy} ms.');
+    }
+    switch (d[2]) {
+      case _probe:
+        mux.send(_pakiet(_echo, d.sublist(3)), ip, celPort);
+      case _echo:
+        if (p.msObie == null) {
+          p.msObie = ms();
+          wypisz('Ruch w obie strony po ${p.msObie} ms.');
+        }
+        nadaje = false;
+        if (echoNumer != null && d.length >= 7 && _numer(d) == echoNumer) {
+          domknij(echo);
+        }
+      case _cisza:
+        nadaje = false;
+        if (d.length >= 6) {
+          zapowiedzianaCisza = (d[4] << 8) | d[5];
+          if (d[3] != ostatniaRunda) {
+            ostatniaRunda = d[3];
+            wypisz('Druga strona zapowiada ciszę: $zapowiedzianaCisza s.');
+          }
+          mux.send(_pakiet(_ciszaOk, [d[3]]), ip, celPort);
+        }
+      case _ciszaOk:
+        if (czekamNa == _ciszaOk && d.length > 3 && d[3] == runda) {
+          domknij(potwierdzenie);
+        }
+      case _koniec:
+        nadaje = false;
+        mux.send(_pakiet(_koniecOk), ip, celPort);
+        domknij(koniecB);
+      case _koniecOk:
+        if (czekamNa == _koniecOk) domknij(potwierdzenie);
+    }
+    return true;
+  }
+
+  /// Wysyła co 300 ms, aż przyjdzie potwierdzenie danego typu (do 5 s).
+  Future<bool> zPotwierdzeniem(Uint8List pakiet, int typOk) async {
+    final c = potwierdzenie = Completer<void>();
+    czekamNa = typOk;
+    final zegar = Timer.periodic(const Duration(milliseconds: 300),
+        (_) => mux.send(pakiet, ip, celPort));
+    mux.send(pakiet, ip, celPort);
+    try {
+      await c.future.timeout(const Duration(seconds: 5));
+      return true;
+    } on TimeoutException {
+      return false;
+    } finally {
+      zegar.cancel();
+      czekamNa = null;
+    }
+  }
+
+  final numerStartu = los.nextInt(1 << 30);
+  var licznik = 0;
+  final nadawanie = Timer.periodic(const Duration(milliseconds: 200), (_) {
+    if (nadaje && ms() < _oknoPrzebicia.inMilliseconds) {
+      mux.send(_pakiet(_probe, _bajty(numerStartu + ++licznik)), ip, celPort);
+    }
+  });
+  mux.register(obsluz);
+  wypisz('Nadaję do ${ip.address}:$port co 200 ms ...');
+  mux.send(_pakiet(_probe, _bajty(numerStartu)), ip, celPort);
+
+  try {
+    if (_rola == 'a') {
+      while (p.msObie == null && ms() < _oknoPrzebicia.inMilliseconds) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      if (p.msObie == null) {
+        wypisz(p.msPierwszy == null
+            ? 'Nic nie przyszło w ${_oknoPrzebicia.inSeconds} s.'
+            : 'Pakiety szły tylko od drugiej strony do mnie.');
+        return;
+      }
+      // Chwila, żeby druga strona też dostała echo i przestała nadawać.
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (zCisza) {
+        for (final s in _przerwy) {
+          runda++;
+          if (!await zPotwierdzeniem(
+              _pakiet(_cisza, [runda, s >> 8, s & 0xFF]), _ciszaOk)) {
+            wypisz('Druga strona nie potwierdziła ciszy, test przerwany.');
+            break;
+          }
+          wypisz('Cisza przez $s s ...');
+          await Future<void>.delayed(Duration(seconds: s));
+          final numer = echoNumer = los.nextInt(1 << 30);
+          final c = echo = Completer<void>();
+          final zegar = Timer.periodic(const Duration(milliseconds: 400),
+              (_) => mux.send(_pakiet(_probe, _bajty(numer)), ip, celPort));
+          mux.send(_pakiet(_probe, _bajty(numer)), ip, celPort);
+          var otwarta = true;
+          try {
+            await c.future.timeout(const Duration(seconds: 3));
+          } on TimeoutException {
+            otwarta = false;
+          } finally {
+            zegar.cancel();
+          }
+          p.cisza.add((s, otwarta));
+          wypisz(otwarta
+              ? 'Po $s s ciszy pakiet wciąż dochodzi.'
+              : 'Po $s s ciszy pakiet już nie dochodzi.');
+          if (!otwarta) break;
+        }
+      }
+      if (!await zPotwierdzeniem(_pakiet(_koniec), _koniecOk)) {
+        wypisz('Druga strona nie potwierdziła końca próby '
+            '(po zamkniętej furtce to normalne).');
+      }
+    } else {
+      while (!koniecB.isCompleted) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+        if (p.msPierwszy == null && ms() > _oknoPrzebicia.inMilliseconds) {
+          wypisz('Nic nie przyszło w ${_oknoPrzebicia.inSeconds} s.');
+          break;
+        }
+        final limit = Duration(seconds: zapowiedzianaCisza + 20);
+        if (p.msPierwszy != null &&
+            DateTime.now().difference(ostatnio) > limit) {
+          wypisz('Druga strona milczy dłużej, niż zapowiedziała: koniec '
+              'próby.');
+          break;
+        }
+      }
+    }
+  } finally {
+    nadawanie.cancel();
+    mux.unregister(obsluz);
+  }
+}
+
+void _podsumuj(List<_Proba> wyniki) {
+  wypisz('== Podsumowanie, rola $_rola ==');
+  for (final p in wyniki) {
+    final wynik = !p.znamAdres
+        ? 'bez adresu drugiej strony'
+        : p.msObie != null
+            ? 'udana, pierwszy pakiet po ${p.msPierwszy} ms, obie strony po '
+                '${p.msObie} ms'
+            : p.msPierwszy != null
+                ? 'tylko w jedną stronę (do mnie), pierwszy pakiet po '
+                    '${p.msPierwszy} ms'
+                : 'nieudana, nic nie przyszło';
+    wypisz('Próba ${p.numer}: $wynik. NAT tej strony: ${p.nat}.'
+        '${p.innyPort ? ' Druga strona nadawała z innego portu.' : ''}');
+    for (final (s, otwarta) in p.cisza) {
+      wypisz('  cisza $s s: pakiet ${otwarta ? 'doszedł' : 'nie doszedł'}');
+    }
+  }
+  final udane = wyniki.where((p) => p.msObie != null).length;
+  wypisz('Udane: $udane z ${wyniki.length}.');
 }
