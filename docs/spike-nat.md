@@ -61,6 +61,13 @@ the commands). Output goes to `adb logcat -s flutter`.
    direction. With `CHATT_NAT_LISTEN=true` one side sends nothing until it
    hears from the other, which shows whether its NAT lets in a packet from a
    sender it never contacted.
+4. `link`: the app's own `InetLinkManager` and `InternetTransport` with
+   throwaway identities derived from `CHATT_NAT_PAIR`, without Chatt's
+   database. Side `b` only waits, as an idle app does; side `a` calls from a
+   cold start (a new socket each time), times the answer and sends a block of
+   bytes once. On the PC this mode needs the Windows build of the tool
+   (`flutter build windows --debug -t tool/nat_spike.dart`), with the settings
+   in environment variables.
 
 ## Results
 
@@ -103,6 +110,19 @@ below). Neither network blocks DHT.
 Not measured: other carriers, LTE to LTE, a second home network, hotel or café
 Wi-Fi, IPv6.
 
+### The app's link manager over real networks (`link`)
+
+Side `b` reads boxes every 60 s, as the app does; every call starts cold.
+
+| Caller | Receiver, only waiting | Answered | From cold start to answer | 256 KB transfer |
+|---|---|---|---|---|
+| PC at home | phone on LTE | 3 of 3 | 60.0, 66.9, 72.6 s | 0.5 s, about 520 kB/s |
+| phone on LTE | PC at home | 3 of 3 | 60.3, 64.7, 68.5 s | 0.9 s, about 290 kB/s |
+
+Each answer took one box read on the receiver's side: it found the "calling"
+record 43 to 62 s after the caller wrote it, knocked, and the link came up 1.1
+to 1.5 s later. The time to answer is therefore set by the read interval.
+
 ### Found along the way
 
 - Windows accepts `send` to 0.0.0.0 and then reports error 1214 on the
@@ -113,10 +133,16 @@ Wi-Fi, IPv6.
 - The bootstrap routers answer BEP 44 `get` with error 204. The lookup now
   asks them `find_node`, runs without rounds and remembers nodes between
   lookups.
+- The first `link` runs failed for two reasons, both fixed: an empty box at
+  start doubled the receiver's read interval past the caller's 90 s, and the
+  routine address refresh could overwrite the "calling" record written in the
+  same second (BEP 44 `seq` was in seconds, now in milliseconds).
 
 **Verdict:** the main case connects: 7 of 7 attempts between the PC at home
 and the phone on LTE. Both NATs drop packets from a peer they have not sent to,
 so the receiver has to send toward the caller (open point 1 in the issue).
 After 60 s of silence the path still worked both ways; after 90 s in one
 direction and 120 s in the other it did not, so a kept link needs a keepalive
-well under 60 s. The route is worth finishing.
+well under 60 s (now one after 25 s of silence). With the receiver knocking,
+the app's own link manager connected 6 of 6 calls, three each way. The route
+is worth finishing.

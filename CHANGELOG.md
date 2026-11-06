@@ -10,11 +10,12 @@ into `master`.
 
 ## [Unreleased]
 
-Research spike, not a release. A third transport that reaches a confirmed
+Research spike, measured on hardware. A third transport reaches a confirmed
 device on another network with no relay, behind an add-on that is off by
 default. It challenges the project's "there is no internet mode", so it ships
-switched off and honest about its limits until the hardware measurement in
-[docs/spike-nat.md](docs/spike-nat.md) says whether it is worth keeping.
+switched off and plain about its limits. Between a PC at home and a phone on
+LTE it connects both ways; the numbers are in
+[docs/spike-nat.md](docs/spike-nat.md).
 
 ### Added (experimental, off by default)
 - **Internet route** (issue #68). An add-on in Settings that connects two
@@ -26,27 +27,17 @@ switched off and honest about its limits until the hardware measurement in
   the pair's static×static secret, and a reliable encrypted UDP link (Noise-KK
   handshake, per-packet AES-GCM with a replay window, ARQ) under the same
   request/response multiplexer the other roads use. Offered only to a peer with
-  a green shield. Metadata (IPs, timing) is visible to the STUN servers and DHT
-  nodes; it fails behind carrier-grade or symmetric NAT and where UDP or DHT is
-  blocked, with no relay fallback by design. `app/tool/nat_spike.dart` measures
-  whether it works in a given pair of networks.
-
-### Fixed (internet route, from the self-review)
-- Link packets carry a magic first byte so a STUN reply (which also starts
-  `0x01`) is no longer mistaken for a handshake packet and swallowed.
-- A device publishes its address to its verified peers' boxes on a timer, so
-  a device that is only listening is findable, not just one that is dialing.
-- The handshake confirms both directions with a packet that must decrypt
-  before a link counts as up, so an unauthenticated packet can neither occupy
-  a peer's slot nor be lost without recovery; a still-handshaking pipe can be
-  superseded by a handshake from another address.
-- Closing a link travels inside the encrypted channel; a one-byte plaintext
-  packet can no longer tear a link down.
-- A DHT record's signature is checked during the lookup, so a forged
-  high-sequence record cannot hide the genuine one.
-- Link packets route to a link even after the peer's NAT changes its port.
-- DHT and STUN errors on a call become "not delivered" instead of escaping to
-  the caller; the socket is not leaked when the add-on is toggled off mid-start.
+  a green shield.
+- Both measured NATs drop a packet from a peer the device has not contacted.
+  The caller marks its record "calling" and keeps sending for 90 s; the
+  receiver reads its confirmed peers' boxes every minute and knocks toward a
+  caller it finds there. The first message after a quiet spell arrives within
+  about 70 s, later ones go over the kept link at once, and a link keeps its
+  NAT path open with a packet after 25 s of silence.
+- STUN servers and DHT nodes see metadata: IPs, timing, and a mailbox read per
+  confirmed peer about once a minute. The route fails behind a symmetric NAT
+  and where UDP or DHT is blocked, with no relay fallback by design.
+  `app/tool/nat_spike.dart` measures a given pair of networks.
 
 ## [0.13.0] - 2026-10-27
 
