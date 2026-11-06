@@ -13,19 +13,19 @@ import 'udp_mux.dart';
 /// gubienia, brak powtórek i uścisk dłoni, który uwierzytelnia drugi koniec.
 ///
 /// Trzy warstwy, każda z osobnym powodem:
-///  1. **Uścisk KK** — obie strony znają nawzajem swój klucz statyczny
+///  1. **Uścisk KK**: obie strony znają nawzajem swój klucz statyczny
 ///     (trasa internetowa jest tylko dla rozmówców z zieloną tarczą), więc
 ///     wymieniają klucze efemeryczne i liczą klucz sesji tym samym
 ///     [ChattCrypto.sessionKey] co reszta aplikacji. Napastnik bez klucza
 ///     prywatnego policzy inny klucz i pierwszy pakiet danych mu się nie
-///     odszyfruje — łącze pada, zanim cokolwiek przez nie przejdzie.
-///  2. **Koperta pakietu** — każdy pakiet to AES-GCM z własnym licznikiem
+///     odszyfruje, więc łącze pada, zanim cokolwiek przez nie przejdzie.
+///  2. **Koperta pakietu**: każdy pakiet to AES-GCM z własnym licznikiem
 ///     w nonce. Licznik rośnie i nigdy się nie powtarza, a odbiorca trzyma
 ///     okno antyreplay, więc nagranego pakietu nie da się odtworzyć. To
 ///     zamyka lukę, którą koperta warstwy aplikacji ma w sieci lokalnej:
 ///     tam nagrać mógł tylko ktoś w tej samej sieci, w internecie każdy po
 ///     drodze.
-///  3. **ARQ** — numery segmentów, potwierdzenia i retransmisja z czasem
+///  3. **ARQ**: numery segmentów, potwierdzenia i retransmisja z czasem
 ///     RTO dają strumień bajtów w kolejności, nad którym działa ten sam
 ///     multiplekser żądań i odpowiedzi ([BtLink]), co nad Bluetoothem i TCP.
 ///
@@ -36,7 +36,7 @@ import 'udp_mux.dart';
 /// STUN-u (pierwszy bajt 0x00 lub 0x01, dwa najstarsze bity zerowe) i od
 /// bencode DHT (zaczyna się od `d`, `l`, `i` albo cyfry). 0xCC ma ustawione
 /// dwa najstarsze bity, więc [looksLikeStun] go odrzuca, a żaden bencode się
-/// nim nie zaczyna — bez tego odpowiedź STUN (0x01…) trafiała do obsługi
+/// nim nie zaczyna. Bez tego odpowiedź STUN (0x01…) trafiała do obsługi
 /// pakietu powitalnego i nigdy nie docierała do klienta STUN.
 const int _linkMagic = 0xCC;
 
@@ -111,9 +111,11 @@ const Duration kInitialRto = Duration(milliseconds: 500);
 const Duration kMinRto = Duration(milliseconds: 200);
 const Duration kMaxRto = Duration(seconds: 5);
 
-/// Co ile wysyłamy pusty pakiet, żeby NAT nie zamknął furtki. Pomiar na
-/// sprzęcie (patrz docs/spike-nat.md) ma to uściślić; 15 s jest ostrożne.
-const Duration kKeepalive = Duration(seconds: 15);
+/// Po takiej ciszy z naszej strony łącze wysyła pusty pakiet, żeby NAT nie
+/// zamknął furtki. Zmierzone (docs/spike-nat.md): po 60 s ciszy furtka stała
+/// w obu kierunkach, po 90 s w jednym i 120 s w drugim już nie. 25 s
+/// zostawia miejsce na jeden zgubiony pakiet.
+const Duration kKeepalive = Duration(seconds: 25);
 
 /// Po tylu sekundach ciszy uznajemy łącze za martwe.
 const Duration kLinkDead = Duration(seconds: 60);
@@ -318,7 +320,7 @@ class SecureUdpPipe implements BytePipe {
 
   /// Pusty, uwierzytelniony pakiet (seq 0): dowód dla drugiej strony, że mamy
   /// klucz. Dopiero taki pakiet, który się u niej odszyfruje, przełącza ją
-  /// w stan „stoi" — podszywający się pod cudzy guid nie policzy klucza i tego
+  /// w stan „stoi". Podszywający się pod cudzy guid nie policzy klucza i tego
   /// pakietu nie wyśle.
   void _sendConfirm() {
     if (_key != null) unawaited(_sendPacket(seq: 0, payload: const []));
@@ -565,8 +567,8 @@ class SecureUdpPipe implements BytePipe {
   @override
   Future<void> flush() async {
     // Hamowanie: wracamy dopiero, gdy zaległość zeszła na łącze (kolejka
-    // pusta) i w oknie jest miejsce na kolejny segment. Bez tego duży plik
-    // wjechałby w całości do pamięci, zamiast iść w tempie łącza.
+    // pusta) i w oknie jest miejsce na kolejny segment. Dzięki temu duży
+    // plik idzie w tempie łącza i nie ląduje w całości w pamięci.
     if (_sendQueue.isEmpty && _unacked.length < kSendWindow) return;
     final completer = Completer<void>();
     _windowDrained.add(completer);
@@ -657,7 +659,9 @@ class SecureUdpPipe implements BytePipe {
 
   void _armKeepalive() {
     _keepaliveTimer?.cancel();
-    _keepaliveTimer = Timer.periodic(kKeepalive, (_) {
+    // Sprawdzanie co piąty ułamek: przy sprawdzaniu co [kKeepalive] cisza
+    // potrafiła trwać prawie dwa takie odstępy.
+    _keepaliveTimer = Timer.periodic(kKeepalive ~/ 5, (_) {
       if (_state != LinkState.up) return;
       if (DateTime.now().difference(_lastSent) >= kKeepalive) {
         _sendAck(); // pusty pakiet trzyma furtkę w NAT-cie otwartą
@@ -693,8 +697,8 @@ class SecureUdpPipe implements BytePipe {
   // --- nonce ---------------------------------------------------------------
 
   /// Nonce 12 bajtów: bajt kierunku + 8 bajtów licznika + 3 zera. Kierunek
-  /// rozróżnia strony, licznik — pakiety, więc żadna para (klucz, nonce) się
-  /// nie powtórzy.
+  /// rozróżnia strony, licznik rozróżnia pakiety, więc żadna para (klucz,
+  /// nonce) się nie powtórzy.
   Uint8List _nonceFor(int counter, {required bool incoming}) {
     final dir = (initiator ? !incoming : incoming) ? 1 : 0;
     final nonce = Uint8List(12);
@@ -731,7 +735,7 @@ class SecureUdpPipe implements BytePipe {
     _handshakeTimer?.cancel();
     if (byloUp && _key != null) {
       // Grzeczne pożegnanie: zaszyfrowany segment z numerem [_closeSeq],
-      // best-effort. Jawnego bajtu nie wysyłamy — dało się go podrobić.
+      // best-effort. Jawnego bajtu nie wysyłamy, bo dało się go podrobić.
       unawaited(_sendPacket(seq: _closeSeq, payload: const []));
     }
     if (!_ready.isCompleted) _ready.complete(false);

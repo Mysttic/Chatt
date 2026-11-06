@@ -120,7 +120,9 @@ class Rendezvous {
 
   /// Zapisuje własny adres do skrzynki, pod solą z własnego guida. [seq]
   /// musi rosnąć między zapisami (BEP 44 nie cofa numeru), więc bierzemy
-  /// znacznik czasu w sekundach. [calling] to znacznik „dzwonię", patrz
+  /// znacznik czasu w milisekundach: dwa zapisy w tej samej sekundzie
+  /// (odświeżenie adresu i dzwonienie) też mają kolejność, i wygrywa
+  /// późniejszy. [calling] to znacznik „dzwonię", patrz
   /// [RendezvousAddress.calling]. Zwraca, do ilu węzłów rekord trafił.
   Future<int> publish(
     DhtClient dht, {
@@ -144,7 +146,7 @@ class Rendezvous {
     });
     final sealed = await _seal(payload);
     final value = bencode(sealed); // v = napis bajtowy z szyfrogramem
-    final seq = teraz.millisecondsSinceEpoch ~/ 1000;
+    final seq = teraz.millisecondsSinceEpoch;
     return dht.putMutable(signer,
         bencodedValue: value, seq: seq, salt: salt);
   }

@@ -47,9 +47,16 @@ typedef VerifiedPeersResolver = Future<List<String>> Function();
 /// Co ile odbiorca czyta skrzynkę rozmówcy, z którym nie ma łącza.
 const Duration kWatchInterval = Duration(seconds: 60);
 
-/// Pusta skrzynka (rozmówca bez dodatku albo dawno poza siecią): odstęp
-/// czytania rośnie dwukrotnie aż do tej wartości.
+/// Pusta skrzynka (rozmówca bez dodatku albo dawno poza siecią): po
+/// [kWatchPatience] pustych odczytach z rzędu odstęp rośnie dwukrotnie aż do
+/// tej wartości. Rozmówca z włączonym dodatkiem odświeża swój rekord co
+/// [kPublishInterval], więc pusta skrzynka go nie dotyczy.
 const Duration kWatchMax = Duration(minutes: 15);
+
+/// Ile pustych odczytów z rzędu przed wydłużaniem odstępu. Pierwszy odczyt
+/// tuż po starcie zwykle bywa pusty, bo rozmówca jeszcze nic nie wpisał,
+/// a dzwoniący przebija krócej niż dwa odstępy.
+const int kWatchPatience = 5;
 
 /// Znacznik „dzwonię" starszy niż to już nie budzi pukania.
 const Duration kCallFresh = Duration(minutes: 2);
@@ -90,6 +97,9 @@ class InetLinkManager {
   /// Wołane, gdy łącze stanie albo padnie (log, interfejs).
   final void Function(String guid, InetLinkPhase phase, String reason)? onPhase;
 
+  /// Szczegóły dla narzędzia pomiarowego: każdy odczyt i zapis skrzynki.
+  void Function(String message)? onDebug;
+
   final Duration watchInterval;
   final Duration watchMax;
   final Duration punchTimeout;
@@ -128,6 +138,7 @@ class InetLinkManager {
   /// Kiedy następny odczyt skrzynki rozmówcy i jaki odstęp ostatnio.
   final _nextWatch = <String, DateTime>{};
   final _watchGap = <String, Duration>{};
+  final _emptyReads = <String, int>{};
 
   /// Znacznik czasu rekordu „dzwonię", na który już zapukaliśmy.
   final _answered = <String, int>{};
@@ -156,12 +167,12 @@ class InetLinkManager {
   /// (`manager.dht.debugBootstrap = [...]`), żeby obejść DNS i prawdziwą sieć.
   DhtClient get dht => _dht;
 
-  /// Gdy ustawione, [_refreshPublic] bierze adres stąd zamiast pytać STUN.
+  /// Gdy ustawione, [_refreshPublic] bierze adres stąd i nie pyta STUN-u.
   /// Do testów nad siecią w pamięci, gdzie nie ma serwerów STUN; funkcja,
   /// bo NAT w pamięci potrafi zmienić mapowanie.
   StunMapping? Function()? debugStun;
 
-  /// Stały adres zamiast STUN-u, skrót dla [debugStun].
+  /// Stały adres, skrót dla [debugStun].
   set debugPublic(StunMapping? mapping) =>
       debugStun = mapping == null ? null : () => mapping;
 
@@ -231,6 +242,8 @@ class InetLinkManager {
       final ile = await skrzynka.publish(_dht,
           address: mine.address, port: mine.port, calling: calling);
       if (ile > 0) _publishedTo[guid] = mine.label;
+      onDebug?.call('${calling ? 'calling' : 'address'} written for $guid '
+          'to $ile DHT nodes');
       return ile;
     } catch (_) {
       return 0;
@@ -252,9 +265,15 @@ class InetLinkManager {
     }
     for (final guid in guids) {
       if (!_running) return;
-      // Jeden nieudany zapis (brak węzłów, chwilowa cisza sieci) nie
-      // przerywa reszty; następna runda spróbuje znowu.
-      await _publishTo(guid, mine, calling: false);
+      // Rozmówca, do którego właśnie dzwonimy, dostaje znacznik „dzwonię"
+      // także tutaj, żeby zwykłe odświeżenie nie skasowało go w trakcie.
+      // Zapis, który nie trafił do żadnego węzła, ponawiamy od razu: bez
+      // adresu w skrzynce nikt się do nas nie dodzwoni aż do następnej rundy.
+      for (var proba = 0; proba < 3 && _running; proba++) {
+        final ile = await _publishTo(guid, mine,
+            calling: _connecting.containsKey(guid));
+        if (ile > 0) break;
+      }
     }
   }
 
@@ -269,8 +288,8 @@ class InetLinkManager {
   // --- odbiorca: czytanie skrzynek i pukanie -------------------------------
 
   /// Jedna runda przeglądu: skrzynki rozmówców bez łącza, którym minął
-  /// termin. Rekord jest: następny odczyt za [watchInterval]. Rekordu nie ma:
-  /// odstęp rośnie dwukrotnie do [watchMax].
+  /// termin. Rekord jest: następny odczyt za [watchInterval]. Rekordu nie ma
+  /// [kWatchPatience] razy z rzędu: odstęp rośnie dwukrotnie do [watchMax].
   Future<void> _watchRound() async {
     final peers = verifiedPeers;
     if (peers == null || _watching || !_running) return;
@@ -288,6 +307,7 @@ class InetLinkManager {
           // Po zerwaniu łącza czytamy od nowa w podstawowym odstępie.
           _nextWatch.remove(guid);
           _watchGap.remove(guid);
+          _emptyReads.remove(guid);
           continue;
         }
         final termin = _nextWatch[guid];
@@ -295,7 +315,19 @@ class InetLinkManager {
         final box = await resolveRendezvous(guid);
         if (box == null) continue;
         final rekord = await _lookup(box);
-        final odstep = rekord != null ? watchInterval : _longer(_watchGap[guid]);
+        if (rekord == null) {
+          onDebug?.call('box of $guid: empty');
+        } else {
+          final wiek =
+              (DateTime.now().millisecondsSinceEpoch - rekord.timestamp) ~/
+                  1000;
+          onDebug?.call('box of $guid: '
+              '${rekord.calling ? 'calling' : 'address'}, $wiek s old');
+        }
+        final puste = rekord == null ? (_emptyReads[guid] ?? 0) + 1 : 0;
+        _emptyReads[guid] = puste;
+        final odstep =
+            puste < kWatchPatience ? watchInterval : _longer(_watchGap[guid]);
         _watchGap[guid] = odstep;
         _nextWatch[guid] = DateTime.now().add(odstep);
         if (rekord != null &&
@@ -441,7 +473,9 @@ class InetLinkManager {
       }
     }
     final ostatnia = pipe;
-    if (ostatnia != null && !ostatnia.isClosed && ostatnia.state != LinkState.up) {
+    if (ostatnia != null &&
+        !ostatnia.isClosed &&
+        ostatnia.state != LinkState.up) {
       _dropPipe(guid, ostatnia);
       await ostatnia.close(powod: 'punch timed out');
     }
