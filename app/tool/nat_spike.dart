@@ -72,7 +72,8 @@
 //   CHATT_NAT_WATCH  link: co ile sekund `b` czyta skrzynkę, domyślnie 60
 //                    jak w aplikacji
 //   CHATT_NAT_CALLS  link: ile razy `a` dzwoni, domyślnie 3
-//   CHATT_NAT_BYTES  link: bajtów w próbie przepustowości, domyślnie 262144
+//   CHATT_NAT_BYTES  link: bajtów w próbie przepustowości, domyślnie 262144;
+//                    kilka rozmiarów po przecinku daje kilka prób po kolei
 //   CHATT_NAT_FOR    link: ile minut `b` czeka najwyżej, domyślnie 15
 //   CHATT_NAT_PINGS  punch: po zestawieniu `a` wysyła tyle pakietów co 100 ms
 //                    i mierzy czas obiegu (wysłanie, echo, powrót); 0 pomija
@@ -933,7 +934,10 @@ Future<void> _linkOdbiorca(_Tozsamosc ja, _Tozsamosc on) async {
 /// aplikacji, a na koniec grzeczne zamknięcie, żeby `b` też zaczynał od zera.
 Future<void> _linkDzwoniacy(_Tozsamosc ja, _Tozsamosc on) async {
   final ile = max(1, _liczba('CHATT_NAT_CALLS', 3));
-  final bajtow = _liczba('CHATT_NAT_BYTES', 262144);
+  final rozmiary = [
+    for (final r in _ust['CHATT_NAT_BYTES']!.split(','))
+      if (int.tryParse(r.trim()) case final n? when n > 0) n,
+  ];
   final wyniki = <String>[];
   for (var k = 1; k <= ile; k++) {
     final mux = await SocketUdpMux.bind(port: _stalyPort);
@@ -950,21 +954,24 @@ Future<void> _linkDzwoniacy(_Tozsamosc ja, _Tozsamosc on) async {
     } else {
       wypisz('Rozmowa $k: odpowiedź po $ms ms od zimnego startu.');
       var opis = 'rozmowa $k: odpowiedź po ${(ms / 1000).toStringAsFixed(1)} s';
-      if (k == 1 && bajtow > 0) {
+      for (final bajtow in k == 1 ? rozmiary : const <int>[]) {
         final los = Random();
         final dane = List<int>.generate(bajtow, (_) => los.nextInt(256));
         final t1 = DateTime.now();
         final echo = await transport.request(
             InternetRoute(on.guid), 'POST', '/echo',
-            body: dane, timeout: const Duration(seconds: 30));
+            body: dane, timeout: const Duration(seconds: 60));
         final msPrzesylu = DateTime.now().difference(t1).inMilliseconds;
         final doszlo = echo.status == 200 &&
             InternetTransport.asText(echo) == '$bajtow';
         final kBs = msPrzesylu <= 0 ? 0 : bajtow ~/ msPrzesylu;
+        final sek = (msPrzesylu / 1000).toStringAsFixed(1);
         wypisz(doszlo
-            ? 'Przesył $bajtow B: $msPrzesylu ms, około $kBs kB/s.'
+            ? 'Przesył $bajtow B: $sek s, około $kBs kB/s.'
             : 'Przesył $bajtow B nie doszedł (status ${echo.status}).');
-        opis += doszlo ? ', przesył $kBs kB/s' : ', przesył nie doszedł';
+        opis += doszlo
+            ? ', $bajtow B w $sek s ($kBs kB/s)'
+            : ', $bajtow B nie doszło';
       }
       wyniki.add(opis);
     }
