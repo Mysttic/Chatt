@@ -214,6 +214,10 @@ komputerze:
 | Telefon do komputera w jednej sieci Wi-Fi | 0,3 s | |
 
 Przez internet to około 170 kB/s z komputera i od 370 do 480 kB/s z telefonu.
+Te czasy są sprzed zmiany w tym, jak łącze odzyskuje zgubione pakiety:
+w symulowanej sieci z 1% strat przesył wzrósł z 434 do 779 kB/s
+([szczegóły](spike-nat.md#files-over-the-punched-path), po angielsku).
+Zdjęć nie zmierzono jeszcze ponownie na sprzęcie.
 Każde zdjęcie doszło w całości: kopie na komputerze mają ten sam SHA-256 co
 oryginały, a Chatt sprawdza każdy plik z jego sumą kontrolną, zanim go pokaże.
 Duże pliki idą dużo szybciej we wspólnej sieci Wi-Fi, a przerwany przesył

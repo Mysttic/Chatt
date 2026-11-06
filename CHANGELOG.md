@@ -43,6 +43,14 @@ diagrams: [docs/internet.md](docs/internet.md)
   The route fails behind a symmetric NAT and where UDP or DHT is blocked, with
   no relay fallback by design. `app/tool/nat_spike.dart` measures a given pair
   of networks.
+- The link resends a lost segment as soon as three transmissions sent after
+  it have arrived, and its SACK map covers the whole window. Before, every
+  loss stopped the link for at least 200 ms until the retransmission timeout,
+  and then everything still unacknowledged went again: in a simulated network
+  with 1% loss, 1 MB went at 434 kB/s with 410 extra sends, and now at
+  779 kB/s with 12. On Windows the UDP socket queues packets the system refuses
+  in a burst (it dropped about four in five of them) and sends them when the
+  socket is ready.
 - **A page about the add-on** in the documentation, in English and Polish
   ([docs/internet.md](docs/internet.md)). It starts with what matters most:
   messages and files never pass through or stay on a server. Two diagrams

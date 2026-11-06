@@ -210,7 +210,10 @@ internet, against 11 ms between the same two devices in one Wi-Fi network.
 | Phone to PC in one Wi-Fi network | 0.3 s | |
 
 Over the internet that is about 170 kB/s from the PC and 370 to 480 kB/s from
-the phone. Every photo arrived whole: the copies on the PC have the same
+the phone. These times come from before a change in how the link recovers
+lost packets: in a simulated network with 1% loss it went from 434 to
+779 kB/s ([details](spike-nat.md#files-over-the-punched-path)). The photos
+have not been timed on hardware again yet. Every photo arrived whole: the copies on the PC have the same
 SHA-256 as the originals, and Chatt checks every file against its checksum
 before it shows it. Large files are much faster on a shared Wi-Fi network,
 and a transfer that breaks off resumes from where it stopped.

@@ -677,10 +677,17 @@ so none of it needs a public IP or a real NAT:
   foreign pair cannot read the box, the box's address and signing key change
   every day, and the "calling" mark reaches the peer
 - the UDP socket: packets to 0.0.0.0 or port 0 are dropped and the socket
-  keeps working, and a socket closed underneath reopens on the same port
+  keeps working, and a socket closed underneath reopens on the same port; a
+  packet the system refuses (`send` returns 0, through a fake socket) waits
+  and goes out in order on the write event, a new packet queues behind the
+  waiting ones, and a full queue drops the excess
 - the secure UDP pipe: the KK handshake agrees a key, a 50 KB stream arrives in
   order through 20% packet loss, a replayed packet does not double bytes, and a
-  peer with the wrong static key cannot bring the link up
+  peer with the wrong static key cannot bring the link up; a lost segment is
+  resent once, before any RTO, when later ones arrive, and nothing delivered
+  behind the gap goes again, also with the gap at the start of a full window;
+  with every hundredth data packet lost, 512 KB needs exactly one resend per
+  lost packet and no RTO
 - the full path: two managers find each other through the DHT, punch, and
   complete a request/response
 - behind NATs shaped like the measured ones (`FakeNat`: endpoint-independent

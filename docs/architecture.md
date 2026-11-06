@@ -189,7 +189,9 @@ reach:
   addresses the system rejects (0.0.0.0, port 0, multicast): Windows accepts
   such a `send`, reports the error later and closes the socket. A socket that
   closes on its own is reopened on the same port, so the NAT mapping and the
-  address in the box stay valid.
+  address in the box stay valid. A packet the system refuses (`send` returns
+  0, which Windows does for most of a burst) waits in a queue of up to 1,024
+  and goes out in order on the socket's write event.
 - [`stun.dart`](../app/lib/network/stun.dart): a minimal STUN Binding client
   (RFC 5389) that learns the public address the NAT gives this socket, and, by
   asking two servers, whether the NAT is endpoint-independent (punchable) or
@@ -214,8 +216,13 @@ reach:
   encrypted byte pipe over UDP: a Noise-KK handshake (the same
   `ChattCrypto.sessionKey` four-DH, so a wrong static key yields a dead key and
   the link never opens), per-packet AES-GCM with a monotonic counter in the
-  nonce and a replay window, then ARQ (sequence numbers, cumulative + selective
-  ACK, RTO with backoff, keepalive). It implements `BytePipe`, so the same
+  nonce and a replay window, then ARQ: sequence numbers, a cumulative ACK with
+  a 64-bit SACK map covering the whole window of 64 segments, a window counted
+  in sequence numbers from the oldest unacknowledged one, a resend as soon as
+  three transmissions sent after a segment have been delivered, an RTO with
+  backoff for the rest, and a keepalive. There is no congestion window (see
+  [spike-nat.md](spike-nat.md#files-over-the-punched-path)). It implements
+  `BytePipe`, so the same
   `BtLink` request/response multiplexer the other roads use rides on top
   unchanged.
 - [`inet_link.dart`](../app/lib/network/inet_link.dart) orchestrates it. Both

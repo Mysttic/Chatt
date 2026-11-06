@@ -147,6 +147,64 @@ reach: light in fiber covers about 200 km per millisecond, so 34 ms bounds the
 path at roughly 3,400 km each way, and the same numbers would come from a phone
 in another city.
 
+### Files over the punched path
+
+Test copies of the app on both devices, the phone on LTE, two photos each way;
+times from the app log on the PC (sender's log for PC to phone, receiver's log
+for phone to PC):
+
+| Path | 2.5 MB | 7.7 MB |
+|---|---|---|
+| PC at home to phone on LTE | 15.0 s (170 kB/s) | 45.4 s (170 kB/s) |
+| Phone on LTE to PC at home | 6.9 s (370 kB/s) | 16.1 s (480 kB/s) |
+| One Wi-Fi network (TCP, no internet route) | 0.5 s and 0.3 s | |
+
+Those rates sat far below what the path carries, so the link was measured
+without hardware, over the in-memory network of the tests with a 20 ms delay
+each way, 1 MB per run (`SecureUdpPipe` alone, as it stood on 6 November):
+
+| Path in the test | Before | Segments sent for 1,024 | After |
+|---|---|---|---|
+| No delay | 2,362 kB/s | 1,024 | 2,503 kB/s |
+| 20 ms each way | 1,425 kB/s | 1,024 | 1,415 kB/s |
+| 20 ms, 1% of packets lost | 434 kB/s | 1,434 | 779 kB/s, 1,036 sent |
+| 20 ms, 4 Mbit/s bottleneck, 64 KB queue | 476 kB/s | 1,024 | 475 kB/s |
+| 20 ms, 4 Mbit/s bottleneck, 32 KB queue | 274 kB/s | 1,600 | 386 kB/s, 1,289 sent |
+
+Two causes came out of it, plus one on Windows:
+
+- **Every lost packet stopped the link for an RTO** (at least 200 ms), and then
+  everything still unacknowledged went out again. With 1% loss the sender
+  needed 410 extra sends for 1,024 segments. The receiver did report the gap (SACK bits), but the
+  sender used them only to drop delivered segments, and only 32 segments
+  behind the gap fit in the map while the window is 64.
+- **The window counted unacknowledged segments**, so with a gap it kept sliding
+  past the end of the SACK map, and the segments beyond it had to be resent.
+- **Windows drops UDP packets sent in one burst.** `RawDatagramSocket.send`
+  returns 0 when the system's send buffer is full, and the packet never
+  leaves. Two processes on one PC, 20 bursts of 64 packets of 1,100 bytes,
+  50 ms apart: `send` returned 0 for 1,017 of the 1,280 packets and 263
+  arrived. With a queue that waits for the socket's write event, all 1,280
+  arrived. The link's own packets come out spaced by encryption (about 60 µs
+  each on the PC), and over loopback the pipe ran at 2 MB/s both before and
+  after, so on Ethernet this probably did not cost much; DHT queries and the
+  knock packets do go out in bursts.
+
+What changed: the SACK map has 64 bits and covers the whole window; the window
+counts sequence numbers from the oldest unacknowledged one; a segment is resent
+at once when three transmissions sent after it have been delivered, which also
+catches a resent segment that got lost again; `SocketUdpMux` queues packets the
+system refused and sends them in order on the socket's write event; the AES key
+is expanded once per link. The sender's counters (segments sent, resent at
+once, resent after an RTO) show in the spike's `link` mode after each transfer.
+
+Not changed: there is no congestion window. A queue smaller than the window
+still loses part of every window (the 32 KB row), and halving the window on
+every loss would cost the most on random loss: Reno's formula gives about
+300 kB/s at 1% loss and a 40 ms round trip, where the link now does 779 kB/s.
+The photo transfers have not been measured again on hardware after the
+change.
+
 ### Found along the way
 
 - Windows accepts `send` to 0.0.0.0 and then reports error 1214 on the
