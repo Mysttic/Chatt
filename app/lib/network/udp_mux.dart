@@ -17,6 +17,18 @@ class UdpPacket {
 /// podawać dalej.
 typedef UdpHandler = bool Function(UdpPacket packet);
 
+/// Czy pod ten adres gniazdo IPv4 może wysłać pakiet. Windows przyjmuje
+/// `send` pod 0.0.0.0 bez błędu, po czym zgłasza błąd w strumieniu gniazda
+/// i zamyka gniazdo. Taki adres potrafi przyjść z sieci (lista węzłów DHT),
+/// więc odpada przed wysłaniem, razem z portem 0, rozgłoszeniem i grupami
+/// multicast.
+bool udpSendable(InternetAddress address, int port) {
+  if (port <= 0 || port > 65535) return false;
+  if (address.type != InternetAddressType.IPv4) return false;
+  final pierwszy = address.rawAddress[0];
+  return pierwszy != 0 && pierwszy < 224;
+}
+
 /// Jedno gniazdo UDP, z którego korzysta kilka warstw naraz: STUN, DHT
 /// i łącze Chatta.
 ///
@@ -45,16 +57,53 @@ abstract class UdpMux {
 
 /// [UdpMux] na prawdziwym gnieździe UDP.
 class SocketUdpMux implements UdpMux {
-  final RawDatagramSocket _socket;
+  RawDatagramSocket _socket;
+  final InternetAddress _address;
+  int _port;
   final _handlers = <UdpHandler>[];
   StreamSubscription<RawSocketEvent>? _sub;
+  bool _closed = false;
 
   /// Pakiety, których nikt nie wziął. Wyłącznie do diagnostyki (spike).
   void Function(UdpPacket packet)? onUnhandled;
 
-  SocketUdpMux(this._socket) {
+  SocketUdpMux(this._socket)
+      : _address = _socket.address,
+        _port = _socket.port {
+    _listen();
+  }
+
+  void _listen() {
     _socket.readEventsEnabled = true;
-    _sub = _socket.listen(_onEvent);
+    _sub = _socket.listen(
+      _onEvent,
+      // Błąd jednego pakietu nie jest błędem warstwy wyżej: ta i tak ponawia.
+      onError: (Object _) {},
+      onDone: () => unawaited(_reopen()),
+    );
+  }
+
+  /// Gniazdo zamknęło się samo: Windows robi tak po niektórych błędach
+  /// wysyłki. Wstajemy na tym samym porcie, bo NAT trzyma mapowanie dla
+  /// portu, więc adres w skrzynce kontaktowej i u rozmówcy dalej jest ważny.
+  /// Gdy port jest zajęty, zostaje dowolny wolny.
+  Future<void> _reopen() async {
+    for (var proba = 0; proba < 4 && !_closed; proba++) {
+      try {
+        final nowe =
+            await RawDatagramSocket.bind(_address, proba < 3 ? _port : 0);
+        if (_closed) {
+          nowe.close();
+          return;
+        }
+        _socket = nowe;
+        _port = nowe.port;
+        _listen();
+        return;
+      } catch (_) {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+    }
   }
 
   /// Otwiera gniazdo na [port] (0 = dowolny wolny). Na IPv4, bo tyle wystarcza
@@ -71,7 +120,7 @@ class SocketUdpMux implements UdpMux {
   }
 
   @override
-  int get port => _socket.port;
+  int get port => _port;
 
   @override
   void register(UdpHandler handler) => _handlers.add(handler);
@@ -81,6 +130,7 @@ class SocketUdpMux implements UdpMux {
 
   @override
   void send(List<int> data, InternetAddress address, int port) {
+    if (_closed || !udpSendable(address, port)) return;
     try {
       _socket.send(data, address, port);
     } on SocketException {
@@ -113,6 +163,7 @@ class SocketUdpMux implements UdpMux {
 
   @override
   Future<void> close() async {
+    _closed = true;
     await _sub?.cancel();
     _sub = null;
     _socket.close();
