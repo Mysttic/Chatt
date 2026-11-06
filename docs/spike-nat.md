@@ -58,35 +58,65 @@ the commands). Output goes to `adb logcat -s flutter`.
    After the first success side `a` stays silent for 15, 30, 60 and 120 s and
    checks whether its next packet still reaches `b`. That bounds the keepalive
    interval in the direction toward `b`; swapping the roles measures the other
-   direction.
+   direction. With `CHATT_NAT_LISTEN=true` one side sends nothing until it
+   hears from the other, which shows whether its NAT lets in a packet from a
+   sender it never contacted.
 
 ## Results
 
-Addresses are left out on purpose.
+Measured on 6 November 2026: a Windows PC on Ethernet behind a home mesh
+router, and an Android 15 phone on LTE with Wi-Fi off, connected to the PC by
+USB only for adb. Addresses are left out on purpose.
 
 ### Single networks
 
-| Network | NAT mapping | Ports kept | Global IPv6 | DHT write | DHT read |
-|---|---|---|---|---|---|
-| Home, Ethernet behind a mesh router | endpoint-independent | yes | no | 8 nodes in 13 to 18 s; 1 run of 3 reached no node | 15 to 18 s |
-| Phone on LTE | | | | | |
+| Network | NAT mapping | Ports kept | Packet from a sender it never contacted | Global IPv6 |
+|---|---|---|---|---|
+| Home, PC | endpoint-independent | yes | dropped | no |
+| Phone on LTE | endpoint-independent | no (carrier-grade NAT) | dropped | no |
 
-The DHT times come from the first version of the lookup in `dht.dart`: six
-rounds in lock step, each waiting for its slowest node up to the 3 s timeout.
-When the first round toward the bootstrap nodes gets no answer, the whole
-operation ends with no node.
+"Dropped" comes from `CHATT_NAT_LISTEN=true`: the side that sent nothing
+received nothing in 30 s, in both directions. On the PC this can be the router
+or Windows Firewall; for Chatt the effect is the same.
+
+DHT, three writes to the same box 20 s apart, each followed by a read:
+
+| Network | Write | Read |
+|---|---|---|
+| Home, PC | 5.7 to 10.2 s, 7 or 8 nodes | 4.4 to 5.4 s, current record every time |
+| Phone on LTE | 6.0 to 8.3 s, 7 or 8 nodes | about 5.2 s, current record every time |
+
+The first version of the lookup took 13 to 22 s per write or read, and one
+write in three reached no node. Both causes are fixed in `dht.dart` (see
+below). Neither network blocks DHT.
 
 ### Pairs
 
-| Side A | Side B | Punch | Time to two-way traffic | Silence survived, A to B |
+| Side A | Side B | Punch | Two-way traffic | After silence, A's packet reaches B |
 |---|---|---|---|---|
-| home | phone LTE | | | |
-| phone LTE | home | | | |
-| home | other Wi-Fi | | | |
-| phone LTE | phone LTE | | | |
-| café or hotel Wi-Fi | any | | | |
+| home | phone LTE | 1 of 1, addresses by hand | 43 ms | after 60 s yes, after 120 s no |
+| phone LTE | home | 1 of 1, addresses by hand | 55 ms | after 60 s yes, after 90 s no |
+| home | phone LTE | 5 of 5, addresses through the DHT box | 45 to 90 ms after the later side started | (not run) |
+| home, sends | phone LTE, only listens | 0 of 1 | | |
+| phone LTE, sends | home, only listens | 0 of 1 | | |
 
-**Verdict:** to be written after the runs. If the home to LTE case succeeds in
-most attempts, the next steps are the receiver punching toward the caller
-(open point 1 in the issue) and intervals set from the silence column. If not,
-the add-on stays off and this file is the record of why.
+Not measured: other carriers, LTE to LTE, a second home network, hotel or café
+Wi-Fi, IPv6.
+
+### Found along the way
+
+- Windows accepts `send` to 0.0.0.0 and then reports error 1214 on the
+  socket's stream, after which Dart closes the socket. DHT node lists carry
+  such addresses. The spike died on it; the app would have lost the internet
+  route's socket. `udp_mux.dart` now drops such packets and reopens a socket
+  that closed on its own, on the same port.
+- The bootstrap routers answer BEP 44 `get` with error 204. The lookup now
+  asks them `find_node`, runs without rounds and remembers nodes between
+  lookups.
+
+**Verdict:** the main case connects: 7 of 7 attempts between the PC at home
+and the phone on LTE. Both NATs drop packets from a peer they have not sent to,
+so the receiver has to send toward the caller (open point 1 in the issue).
+After 60 s of silence the path still worked both ways; after 90 s in one
+direction and 120 s in the other it did not, so a kept link needs a keepalive
+well under 60 s. The route is worth finishing.

@@ -57,6 +57,10 @@
 //   CHATT_NAT_PORT   stały port lokalny, domyślnie dowolny wolny
 //   CHATT_NAT_LOCAL  true: bez STUN-u, adres 127.0.0.1; sprawdzenie samego
 //                    narzędzia na jednym komputerze
+//   CHATT_NAT_LISTEN true: ta strona nic nie wysyła, dopóki czegoś nie
+//                    dostanie. Gdy pakiet drugiej strony mimo to dojdzie,
+//                    NAT tej strony wpuszcza ruch od nieznanego nadawcy
+//                    i odbiorca nie musi nadawać pierwszy
 //
 // Na telefonie te same klucze można podać bez przebudowy, w pliku
 // chatt_nat.conf w katalogu tymczasowym aplikacji (ścieżka w wydruku),
@@ -95,6 +99,8 @@ final _ust = <String, String>{
       defaultValue: '15,30,60,120'),
   'CHATT_NAT_PORT':
       const String.fromEnvironment('CHATT_NAT_PORT', defaultValue: '0'),
+  'CHATT_NAT_LISTEN':
+      const String.fromEnvironment('CHATT_NAT_LISTEN', defaultValue: 'false'),
   'CHATT_NAT_LOCAL':
       const String.fromEnvironment('CHATT_NAT_LOCAL', defaultValue: 'false'),
 };
@@ -105,6 +111,7 @@ String get _slowo => _ust['CHATT_NAT_PAIR']!;
 int get _ileProb => int.tryParse(_ust['CHATT_NAT_TRIES']!) ?? 3;
 int get _stalyPort => int.tryParse(_ust['CHATT_NAT_PORT']!) ?? 0;
 bool get _lokalnie => _ust['CHATT_NAT_LOCAL'] == 'true';
+bool get _tylkoSlucha => _ust['CHATT_NAT_LISTEN'] == 'true';
 
 List<int> get _przerwy => [
       for (final s in _ust['CHATT_NAT_GAPS']!.split(','))
@@ -235,37 +242,55 @@ Future<bool> _globalnyV6() async {
 
 // --- dht -------------------------------------------------------------------
 
+/// Trzy zapisy do tej samej skrzynki co 20 s, każdy z odczytem, tak jak
+/// aplikacja odświeża swój adres. Do tego błędy KRPC od węzłów: 202 i 204
+/// to zwykle węzły bez BEP 44, inne kody wskazują problem z zapisem.
 Future<void> _dht() async {
   final mux = await SocketUdpMux.bind(port: _stalyPort);
+  final bledy = <String, int>{};
+  // Przed klientem DHT, więc widzi każdą odpowiedź i oddaje ją dalej.
+  mux.register((p) {
+    final m = tryBdecode(p.data);
+    if (m is Map && bText(m, 'y') == 'e') {
+      final e = m['e'];
+      final opis = e is List
+          ? e.map((x) => x is List<int> ? String.fromCharCodes(x) : '$x')
+              .join(' ')
+          : '$e';
+      bledy[opis] = (bledy[opis] ?? 0) + 1;
+    }
+    return false;
+  });
   final dht = DhtClient(mux);
   try {
     final los = Random.secure();
     final podpis = await DhtSigner.fromSeed(
         List<int>.generate(32, (_) => los.nextInt(256)));
     final sol = utf8.encode('chatt-nat-spike');
-    final wartosc =
-        bencode('spike ${DateTime.now().toUtc().toIso8601String()}');
-    wypisz('Zapis do DHT ...');
-    final t0 = DateTime.now();
-    final ile = await dht
-        .putMutable(podpis, bencodedValue: wartosc, seq: 1, salt: sol)
-        .timeout(const Duration(seconds: 30), onTimeout: () => -1);
-    final t1 = DateTime.now();
-    if (ile <= 0) {
-      wypisz(ile < 0
-          ? 'Zapis nie skończył się w 30 s.'
-          : 'Zapis nie dotarł do żadnego węzła.');
-      wypisz('Ruch DHT jest tu prawdopodobnie zablokowany.');
-      return;
+    for (var i = 1; i <= 3; i++) {
+      if (i > 1) await Future<void>.delayed(const Duration(seconds: 20));
+      final seq = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final t0 = DateTime.now();
+      final ile = await dht
+          .putMutable(podpis,
+              bencodedValue: bencode('spike $seq'), seq: seq, salt: sol)
+          .timeout(const Duration(seconds: 30), onTimeout: () => -1);
+      final t1 = DateTime.now();
+      final odczyt = await dht
+          .getMutable(podpis.publicKey, salt: sol)
+          .timeout(const Duration(seconds: 30), onTimeout: () => null);
+      final t2 = DateTime.now();
+      final zapis = ile < 0 ? 'nie skończył się w 30 s' : '$ile węzłów';
+      final rekord = odczyt == null
+          ? 'brak rekordu'
+          : odczyt.seq == seq
+              ? 'rekord aktualny'
+              : 'rekord poprzedni';
+      wypisz('Zapis $i: $zapis, ${t1.difference(t0).inMilliseconds} ms. '
+          'Odczyt: $rekord, ${t2.difference(t1).inMilliseconds} ms.'
+          '${bledy.isEmpty ? '' : ' Błędy węzłów: $bledy.'}');
+      bledy.clear();
     }
-    wypisz('Zapis: $ile węzłów, ${t1.difference(t0).inMilliseconds} ms.');
-    final odczyt = await dht
-        .getMutable(podpis.publicKey, salt: sol)
-        .timeout(const Duration(seconds: 30), onTimeout: () => null);
-    final ms = DateTime.now().difference(t1).inMilliseconds;
-    wypisz(odczyt == null
-        ? 'Odczyt: rekordu nie ma ($ms ms).'
-        : 'Odczyt: rekord jest, $ms ms.');
   } finally {
     await dht.close();
     await mux.close();
@@ -396,18 +421,25 @@ Future<(InternetAddress, int)?> _adresZeSkrzynki(
   );
   final start = DateTime.now();
   DateTime? zapisano;
+  var ostatnio = 0;
+  Future<void> zapisz() async {
+    final t0 = DateTime.now();
+    ostatnio = await skrzynka
+        .publish(dht, address: ip, port: port)
+        .catchError((Object _) => 0);
+    zapisano = DateTime.now();
+    wypisz('Zapis do skrzynki: $ostatnio węzłów, '
+        '${zapisano!.difference(t0).inMilliseconds} ms.');
+  }
+
   while (DateTime.now().difference(start) < const Duration(minutes: 3)) {
-    // Zapis co 30 s: rekord ma świeży znacznik czasu, a druga strona,
-    // uruchomiona później, i tak go znajdzie.
-    if (zapisano == null ||
-        DateTime.now().difference(zapisano) > const Duration(seconds: 30)) {
-      final t0 = DateTime.now();
-      final ile = await skrzynka
-          .publish(dht, address: ip, port: port)
-          .catchError((Object _) => 0);
-      zapisano = DateTime.now();
-      wypisz('Zapis do skrzynki: $ile węzłów, '
-          '${zapisano.difference(t0).inMilliseconds} ms.');
+    // Zapis co 30 s, żeby rekord miał świeży znacznik czasu, i od razu
+    // ponownie, gdy poprzedni nie trafił do żadnego węzła.
+    final ostatni = zapisano;
+    if (ostatni == null ||
+        ostatnio == 0 ||
+        DateTime.now().difference(ostatni) > const Duration(seconds: 30)) {
+      await zapisz();
     }
     final t0 = DateTime.now();
     final adres =
@@ -422,6 +454,11 @@ Future<(InternetAddress, int)?> _adresZeSkrzynki(
       wypisz('Adres drugiej strony ze skrzynki: '
           '${adres.address.address}:${adres.port} '
           '(odczyt $ms ms, rekord sprzed $wiek s).');
+      // Druga strona znajdzie nas tylko po rekordzie, więc nieudany zapis
+      // trzeba powtórzyć przed nadawaniem.
+      for (var i = 0; i < 3 && ostatnio == 0; i++) {
+        await zapisz();
+      }
       return (adres.address, adres.port);
     }
     await Future<void>.delayed(const Duration(seconds: 2));
@@ -480,7 +517,8 @@ Future<void> _przebij(UdpMux mux, _Proba p, InternetAddress ip, int port,
   int ms() => DateTime.now().difference(start).inMilliseconds;
   final los = Random();
 
-  var nadaje = true;
+  // Strona tylko słuchająca odzywa się dopiero echem na cudzy pakiet.
+  var nadaje = !_tylkoSlucha;
   var ostatnio = DateTime.now();
   var zapowiedzianaCisza = 0;
   var ostatniaRunda = 0;
@@ -573,8 +611,13 @@ Future<void> _przebij(UdpMux mux, _Proba p, InternetAddress ip, int port,
     }
   });
   mux.register(obsluz);
-  wypisz('Nadaję do ${ip.address}:$port co 200 ms ...');
-  mux.send(_pakiet(_probe, _bajty(numerStartu)), ip, celPort);
+  if (nadaje) {
+    wypisz('Nadaję do ${ip.address}:$port co 200 ms ...');
+    mux.send(_pakiet(_probe, _bajty(numerStartu)), ip, celPort);
+  } else {
+    wypisz('Tylko słucham: nic nie wysyłam, dopóki ${ip.address}:$port '
+        'się nie odezwie.');
+  }
 
   try {
     if (_rola == 'a') {
@@ -658,7 +701,8 @@ void _podsumuj(List<_Proba> wyniki) {
                     '${p.msPierwszy} ms'
                 : 'nieudana, nic nie przyszło';
     wypisz('Próba ${p.numer}: $wynik. NAT tej strony: ${p.nat}.'
-        '${p.innyPort ? ' Druga strona nadawała z innego portu.' : ''}');
+        '${p.innyPort ? ' Druga strona nadawała z innego portu.' : ''}'
+        '${_tylkoSlucha ? ' Ta strona tylko słuchała.' : ''}');
     for (final (s, otwarta) in p.cisza) {
       wypisz('  cisza $s s: pakiet ${otwarta ? 'doszedł' : 'nie doszedł'}');
     }
