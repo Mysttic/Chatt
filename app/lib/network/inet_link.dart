@@ -58,6 +58,17 @@ const Duration kWatchMax = Duration(minutes: 15);
 /// a dzwoniący przebija krócej niż dwa odstępy.
 const int kWatchPatience = 5;
 
+/// Odstęp do następnego odczytu skrzynki po [emptyReads] pustych odczytach
+/// z rzędu, gdy poprzedni odstęp wynosił [previous]. Dopóki pustych jest mniej
+/// niż [kWatchPatience], odczyt idzie co [interval]; potem odstęp rośnie
+/// dwukrotnie do [max]. Rekord w skrzynce zeruje licznik.
+Duration watchGapAfter(int emptyReads, Duration? previous,
+    {Duration interval = kWatchInterval, Duration max = kWatchMax}) {
+  if (emptyReads < kWatchPatience) return interval;
+  final dluzszy = (previous ?? interval) * 2;
+  return dluzszy > max ? max : dluzszy;
+}
+
 /// Znacznik „dzwonię" starszy niż to już nie budzi pukania.
 const Duration kCallFresh = Duration(minutes: 2);
 
@@ -326,8 +337,8 @@ class InetLinkManager {
         }
         final puste = rekord == null ? (_emptyReads[guid] ?? 0) + 1 : 0;
         _emptyReads[guid] = puste;
-        final odstep =
-            puste < kWatchPatience ? watchInterval : _longer(_watchGap[guid]);
+        final odstep = watchGapAfter(puste, _watchGap[guid],
+            interval: watchInterval, max: watchMax);
         _watchGap[guid] = odstep;
         _nextWatch[guid] = DateTime.now().add(odstep);
         if (rekord != null &&
@@ -342,11 +353,6 @@ class InetLinkManager {
     } finally {
       _watching = false;
     }
-  }
-
-  Duration _longer(Duration? poprzedni) {
-    final dluzszy = (poprzedni ?? watchInterval) * 2;
-    return dluzszy > watchMax ? watchMax : dluzszy;
   }
 
   bool _fresh(RendezvousAddress rekord) =>

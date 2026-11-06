@@ -170,4 +170,31 @@ void main() {
     await transportA.stop();
     await transportB.stop();
   });
+
+  test('pusta skrzynka: pięć odczytów co minutę, potem dłużej do 15 minut',
+      () {
+    // Odbiorca czyta skrzynkę rozmówcy bez dodatku coraz rzadziej, żeby nie
+    // pytać DHT bez potrzeby, ale nie rzadziej niż co kwadrans.
+    final odstepy = <int>[];
+    Duration? poprzedni;
+    for (var puste = 1; puste <= 10; puste++) {
+      poprzedni = watchGapAfter(puste, poprzedni);
+      odstepy.add(poprzedni.inSeconds);
+    }
+    expect(odstepy, [60, 60, 60, 60, 120, 240, 480, 900, 900, 900]);
+
+    // Rekord w skrzynce zeruje licznik: następny odczyt znów za minutę.
+    expect(watchGapAfter(0, const Duration(minutes: 15)),
+        const Duration(seconds: 60));
+  });
+
+  test('dzwoniący przebija dłużej, niż odbiorca czeka między odczytami', () {
+    // Odbiorca bez łącza zagląda do skrzynki co [kWatchInterval]. Dzwoniący
+    // musi nadawać HELLO dłużej, a znacznik „dzwonię” musi być świeży przez
+    // cały ten czas, inaczej odbiorca go zobaczy i nie zapuka.
+    expect(kPunchTimeout, greaterThan(kWatchInterval));
+    expect(kCallFresh, greaterThanOrEqualTo(kPunchTimeout));
+    // W trakcie przebijania dzwoniący zdąży kilka razy przeczytać nowy adres.
+    expect(kRelookup * 3, lessThanOrEqualTo(kPunchTimeout));
+  });
 }
