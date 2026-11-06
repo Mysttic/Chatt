@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:chatt/core/crypto.dart';
 import 'package:chatt/network/secure_udp.dart';
 import 'package:chatt/network/udp_mux.dart';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -55,11 +57,9 @@ void main() {
       return true;
     });
     muxB.register((p) {
-      if (p.data.isNotEmpty && p.data[0] == 1) {
-        // HELLO: guidLen|guid|ephem(32)
-        final guidLen = p.data[1];
-        final ephem = p.data.sublist(2 + guidLen, 2 + guidLen + 32);
-        b.acceptHello(ephem);
+      final hello = parseHello(p.data);
+      if (hello != null) {
+        b.acceptHello(hello.ephemeral);
       } else {
         b.handlePacket(p);
       }
@@ -135,9 +135,9 @@ void main() {
     b.input.listen(gotB.addAll);
     muxA.register((p) { a.handlePacket(p); return true; });
     muxB.register((p) {
-      if (p.data.isNotEmpty && p.data[0] == 1) {
-        final guidLen = p.data[1];
-        b.acceptHello(p.data.sublist(2 + guidLen, 2 + guidLen + 32));
+      final hello = parseHello(p.data);
+      if (hello != null) {
+        b.acceptHello(hello.ephemeral);
       } else {
         b.handlePacket(p);
         b.handlePacket(UdpPacket(Uint8List.fromList(p.data), p.address, p.port));
@@ -177,20 +177,23 @@ void main() {
     a.input.listen(gotA.addAll);
     muxA.register((p) { a.handlePacket(p); return true; });
     muxB.register((p) {
-      if (p.data.isNotEmpty && p.data[0] == 1) {
-        final guidLen = p.data[1];
-        zly.acceptHello(p.data.sublist(2 + guidLen, 2 + guidLen + 32));
+      final hello = parseHello(p.data);
+      if (hello != null) {
+        zly.acceptHello(hello.ephemeral);
       } else {
         zly.handlePacket(p);
       }
       return true;
     });
 
-    // Uścisk „staje" po stronie obu rur (wymieniły efemeryczne), ale klucze
-    // się różnią, więc dane się nie odszyfrują.
-    await a.connect();
+    // Klucze się różnią, więc żaden pakiet obcego się u A nie odszyfruje.
+    // A nigdy nie przejdzie w „stoi" (czeka na pakiet, który się odszyfruje),
+    // więc connect() nie kończy się sukcesem — nie czekamy na nie.
+    unawaited(a.connect());
     zly.add(utf8Bytes('cokolwiek'));
     await _settle();
+    expect(a.state, isNot(LinkState.up),
+        reason: 'bez wspólnego klucza łącze nie ma prawa stanąć');
     expect(gotA, isEmpty, reason: 'pakiet obcego nie powinien się odszyfrować');
     await a.close();
     await zly.close();

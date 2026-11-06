@@ -129,9 +129,11 @@ class InternetTransport implements PeerTransport {
     if (route is! InternetRoute || !route.isUsable || !_running) {
       return const TransportReply.unreachable();
     }
-    final muxed = await _muxFor(route.guid);
-    if (muxed == null) return const TransportReply.unreachable();
     try {
+      // `_muxFor` sięga do DHT i STUN-u: błąd stamtąd (brak węzłów, cisza
+      // sieci) ma być „nieosiągalny", a nie wyjątkiem lecącym do wołającego.
+      final muxed = await _muxFor(route.guid);
+      if (muxed == null) return const TransportReply.unreachable();
       final response = await muxed.link
           .send(
             method,
@@ -163,9 +165,9 @@ class InternetTransport implements PeerTransport {
     if (route is! InternetRoute || !route.isUsable || !_running) {
       return const TransportReply.unreachable();
     }
-    final muxed = await _muxFor(route.guid);
-    if (muxed == null) return const TransportReply.unreachable();
     try {
+      final muxed = await _muxFor(route.guid);
+      if (muxed == null) return const TransportReply.unreachable();
       final total = await file.length();
       final start = (offset < 0 || offset > total) ? 0 : offset;
       var sent = start;

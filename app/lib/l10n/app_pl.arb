@@ -612,6 +612,7 @@
   "addonInternetShort": "Rozmowy między różnymi sieciami",
   "addonInternetBody": "Połączenie z potwierdzonym urządzeniem w innej sieci, bez serwera pośredniczącego. Drogę pomagają znaleźć publiczne serwery STUN i sieć DHT BitTorrenta; widzą one twój adres IP i moment połączenia, nigdy treść. Nie zawsze się udaje: zwykle zawodzi, gdy obie strony są za CGNAT-em operatora, a część sieci Wi-Fi to blokuje. Domyślnie wyłączone.",
   "internetAddonExperimental": "Eksperymentalne. Działa bezpośrednio między urządzeniami, przebijając dziurę w NAT; udaje się około siedmiu połączeń na dziesięć.",
+  "internetBatteryWarning": "Żeby być osiągalnym, to urządzenie nasłuchuje w tle i co kilka minut odświeża swój adres. Zużywa to więcej baterii niż samo Wi-Fi.",
   "internetPublicAddressLabel": "To urządzenie widać pod: {address}",
   "@internetPublicAddressLabel": {
     "placeholders": { "address": { "type": "String" } }

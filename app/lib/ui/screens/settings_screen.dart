@@ -875,7 +875,7 @@ class _InternetAddonCardState extends ConsumerState<InternetAddonCard> {
     setState(() => _zajete = true);
     try {
       await ref.read(appServicesProvider).setInternetAddon(on);
-      if (!on) setState(() => _natOpis = null);
+      if (!on && mounted) setState(() => _natOpis = null);
     } finally {
       if (mounted) setState(() => _zajete = false);
     }
@@ -929,6 +929,8 @@ class _InternetAddonCardState extends ConsumerState<InternetAddonCard> {
                 if (wlaczony) ...[
                   _uwaga(scheme, Icons.science_outlined,
                       context.l10n.internetAddonExperimental),
+                  _uwaga(scheme, Icons.battery_alert_outlined,
+                      context.l10n.internetBatteryWarning),
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(

@@ -2348,6 +2348,12 @@ abstract class AppLocalizations {
   /// **'Eksperymentalne. Działa bezpośrednio między urządzeniami, przebijając dziurę w NAT; udaje się około siedmiu połączeń na dziesięć.'**
   String get internetAddonExperimental;
 
+  /// No description provided for @internetBatteryWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Żeby być osiągalnym, to urządzenie nasłuchuje w tle i co kilka minut odświeża swój adres. Zużywa to więcej baterii niż samo Wi-Fi.'**
+  String get internetBatteryWarning;
+
   /// No description provided for @internetPublicAddressLabel.
   ///
   /// In pl, this message translates to:

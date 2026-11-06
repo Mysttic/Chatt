@@ -1418,6 +1418,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Experimental. Works device-to-device by punching through NAT; about seven connections in ten get through.';
 
   @override
+  String get internetBatteryWarning =>
+      'To stay reachable, this device keeps listening in the background and refreshes its address every few minutes. That uses more battery than Wi-Fi alone.';
+
+  @override
   String internetPublicAddressLabel(String address) {
     return 'This device is seen at: $address';
   }

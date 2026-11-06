@@ -154,5 +154,36 @@ void main() {
       expect(got, isNull);
       await czytelnik.close();
     });
+
+    test('podrobiony rekord z wysokim numerem nie przesłania prawdziwego',
+        () async {
+      final signer = await DhtSigner.fromSeed(seed);
+      final salt = ascii.encode('chatt-test');
+      final target = keyOf(dhtTarget(signer.publicKey, salt));
+
+      // Zły węzeł: rekord z wyższym numerem, ale podpisem nie do przyjęcia.
+      node1.stored[target] = StoredItem(
+        value: bencode(<String, Object>{'addr': 'fałszywy'}),
+        seq: 999,
+        publicKey: signer.publicKey,
+        signature: Uint8List(64),
+      );
+      // Uczciwy węzeł (dalej w łańcuchu): prawdziwy, podpisany rekord.
+      final prawdziwy = bencode(<String, Object>{'addr': '203.0.113.7:51820'});
+      final sig = await signer.sign(bep44SignatureBuffer(salt, 1, prawdziwy));
+      node2.stored[target] = StoredItem(
+        value: prawdziwy,
+        seq: 1,
+        publicKey: signer.publicKey,
+        signature: sig,
+      );
+
+      final czytelnik = client();
+      final got = await czytelnik.getMutable(signer.publicKey, salt: salt);
+      expect(got, isNotNull, reason: 'prawdziwy rekord ma zostać znaleziony');
+      final decoded = bdecode(got!.value) as Map;
+      expect(latin1.decode(decoded['addr'] as Uint8List), '203.0.113.7:51820');
+      await czytelnik.close();
+    });
   });
 }

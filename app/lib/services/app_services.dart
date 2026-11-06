@@ -3182,6 +3182,13 @@ class AppServices {
     return _peerStaticKey(peer);
   }
 
+  /// Guidy potwierdzonych rozmówców: do ich skrzynek wpisujemy swój adres,
+  /// żeby dało się nas znaleźć, gdy to oni zaczną dzwonić.
+  Future<List<String>> _verifiedPeerGuids() async {
+    final peers = await db.allPeers();
+    return [for (final p in peers) if (p.verified) p.guid];
+  }
+
   /// Skrzynka kontaktowa pary dla danego guida. Null, gdy rozmówcy nie znamy
   /// albo nie jest potwierdzony.
   Future<Rendezvous?> _internetRendezvous(String guid) async {
@@ -3230,8 +3237,9 @@ class AppServices {
   Future<bool> _startInternet() async {
     if (_internet != null) return true;
     if (!internetAddon.value) return false;
+    SocketUdpMux? mux;
     try {
-      final mux = await SocketUdpMux.bind();
+      mux = await SocketUdpMux.bind();
       final manager = InetLinkManager(
         mux: mux,
         myStatic: _identityKeys,
@@ -3239,6 +3247,7 @@ class AppServices {
         myGuid: identity.guid,
         resolveStatic: _internetStaticKey,
         resolveRendezvous: _internetRendezvous,
+        verifiedPeers: _verifiedPeerGuids,
         onPhase: _internetPhase,
       );
       final transport = InternetTransport(
@@ -3249,8 +3258,11 @@ class AppServices {
       );
       transport.start();
       if (!internetAddon.value) {
-        // Dodatek zgaszono w trakcie podnoszenia.
+        // Dodatek zgaszono w trakcie podnoszenia: zatrzymujemy transport
+        // i zamykamy gniazdo tutaj (transport jeszcze nie trafił do pola, więc
+        // stopInternet by go nie posprzątało).
         await transport.stop();
+        await mux.close();
         return false;
       }
       _internetMux = mux;
@@ -3264,6 +3276,9 @@ class AppServices {
     } catch (blad, slad) {
       log.error(LogArea.net, 'Internet route failed to start',
           error: blad, stack: slad);
+      // Gniazdo mogło się już otworzyć, zanim coś dalej rzuciło: zamykamy je,
+      // żeby nie zostało związane bez właściciela.
+      await mux?.close();
       internetRunning.value = false;
       return false;
     }

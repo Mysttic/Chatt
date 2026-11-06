@@ -30,6 +30,10 @@ import 'udp_mux.dart';
 typedef StaticKeyResolver = Future<List<int>?> Function(String guid);
 typedef RendezvousResolver = Future<Rendezvous?> Function(String guid);
 
+/// Guidy rozmówców, do których skrzynek mamy wpisywać swój adres, żeby dało
+/// się nas znaleźć, gdy to oni dzwonią. Zwykle wszyscy z zieloną tarczą.
+typedef VerifiedPeersResolver = Future<List<String>> Function();
+
 /// Jak długo próbujemy przebić dziurę, zanim uznamy próbę za nieudaną.
 const Duration kPunchTimeout = Duration(seconds: 12);
 
@@ -70,6 +74,11 @@ class InetLinkManager {
   Timer? _publishTimer;
   bool _running = false;
 
+  /// Czyja skrzynka ma dostać nasz adres (zob. [VerifiedPeersResolver]).
+  /// Gdy null, adres trafia do skrzynki dopiero w chwili, gdy sami dzwonimy —
+  /// czyli urządzenie, które tylko czeka, jest nieosiągalne.
+  final VerifiedPeersResolver? verifiedPeers;
+
   InetLinkManager({
     required this.mux,
     required this.myStatic,
@@ -77,6 +86,7 @@ class InetLinkManager {
     required this.myGuid,
     required this.resolveStatic,
     required this.resolveRendezvous,
+    this.verifiedPeers,
     this.onPhase,
   });
 
@@ -98,8 +108,12 @@ class InetLinkManager {
     if (_running) return;
     _running = true;
     mux.register(_onPacket);
+    // Od razu wpisujemy swój adres do skrzynek, żeby odbiorca był osiągalny,
+    // nim ktokolwiek zadzwoni; potem co [kPublishInterval], bo NAT przestawia
+    // port, a rekord w DHT i tak wygasa po około godzinie.
+    unawaited(_publishToAll());
     _publishTimer =
-        Timer.periodic(kPublishInterval, (_) => unawaited(_refreshPublic()));
+        Timer.periodic(kPublishInterval, (_) => unawaited(_publishToAll()));
   }
 
   Future<void> stop() async {
@@ -116,8 +130,7 @@ class InetLinkManager {
     await _dht.close();
   }
 
-  /// Pyta STUN o własny adres i publikuje go do wszystkich znanych skrzynek
-  /// rozmówców, z którymi mamy stać. Woła to start i timer.
+  /// Pyta STUN o własny adres. Woła to [_publishToAll] i [_establish].
   Future<StunMapping?> _refreshPublic() async {
     final debug = debugPublic;
     if (debug != null) {
@@ -127,6 +140,33 @@ class InetLinkManager {
     final wynik = await _stun.discover();
     _publicV4 = wynik.mapping;
     return _publicV4;
+  }
+
+  /// Odświeża własny adres i wpisuje go do skrzynki każdego potwierdzonego
+  /// rozmówcy. Dzięki temu urządzenie, które tylko nasłuchuje, da się znaleźć,
+  /// gdy to druga strona zacznie dzwonić.
+  Future<void> _publishToAll() async {
+    final peers = verifiedPeers;
+    if (peers == null) return;
+    final mine = await _refreshPublic();
+    if (mine == null) return;
+    List<String> guids;
+    try {
+      guids = await peers();
+    } catch (_) {
+      return;
+    }
+    for (final guid in guids) {
+      if (!_running) return;
+      final box = await resolveRendezvous(guid);
+      if (box == null) continue;
+      try {
+        await box.publish(_dht, address: mine.address, port: mine.port);
+      } catch (_) {
+        // Jeden nieudany zapis (brak węzłów, chwilowa cisza sieci) nie
+        // przerywa reszty; następna runda spróbuje znowu.
+      }
+    }
   }
 
   /// Zwraca stojące łącze do rozmówcy albo próbuje je postawić. null, gdy się
@@ -165,11 +205,14 @@ class InetLinkManager {
       return null;
     }
 
-    // Własny adres, potem publikacja i odczyt skrzynki rozmówcy.
+    // Własny adres, potem publikacja i odczyt skrzynki rozmówcy. Publikacja
+    // best-effort, z połkniętym błędem: bez tego nieudany zapis (brak węzłów,
+    // cisza sieci) leciałby jako nieobsłużony wyjątek w tle.
     final mine = await _refreshPublic();
     if (mine != null) {
-      unawaited(rendezvous.publish(_dht,
-          address: mine.address, port: mine.port));
+      unawaited(rendezvous
+          .publish(_dht, address: mine.address, port: mine.port)
+          .catchError((_) => 0));
     }
     final theirs = await rendezvous.lookup(_dht);
     if (theirs == null) {
@@ -229,27 +272,41 @@ class InetLinkManager {
   // --- połączenia przychodzące ---------------------------------------------
 
   bool _onPacket(UdpPacket packet) {
-    if (packet.data.isEmpty) return false;
-    // Pakiety stojącego łącza (HELLO_ACK, dane, zamknięcie) idą do rury po
-    // adresie, z którego przyszły.
-    if (packet.data[0] != 1) {
+    if (!isLinkPacket(packet.data)) return false; // STUN/DHT biorą swoje
+    final hello = parseHello(packet.data);
+    if (hello == null) {
+      // Pakiet stojącego (albo stającego) łącza: dane, HELLO_ACK, zamknięcie.
+      // Najpierw po adresie; a gdy ten nie pasuje (NAT przestawił port),
+      // próbujemy każdej żywej rury — zła rura i tak nie odszyfruje pakietu,
+      // a właściwa odświeży sobie adres i od tej pory trafia po nim.
       final pipe = _byRemote['${packet.address.address}:${packet.port}'];
-      if (pipe == null || pipe.isClosed) return false;
-      pipe.handlePacket(packet);
+      if (pipe != null && !pipe.isClosed) {
+        pipe.handlePacket(packet);
+        return true;
+      }
+      for (final p in _pipes.values) {
+        if (!p.isClosed) p.handlePacket(packet);
+      }
       return true;
     }
     // HELLO: początek uścisku od strony inicjującej.
-    final data = packet.data;
-    if (data.length < 2) return true;
-    final guidLen = data[1];
-    if (data.length < 2 + guidLen + 32) return true;
-    final guid = String.fromCharCodes(data.sublist(2, 2 + guidLen));
-    final ephemeral = data.sublist(2 + guidLen, 2 + guidLen + 32);
-    // Już mamy łącze do tego rozmówcy (obie strony ruszyły naraz)? Niech
-    // dokończy to, które już stoi; nowego HELLO nie dubluje.
-    final istniejace = _pipes[guid];
-    if (istniejace != null && !istniejace.isClosed) return true;
-    unawaited(_acceptIncoming(guid, ephemeral, packet));
+    final istniejace = _pipes[hello.guid];
+    if (istniejace != null && !istniejace.isClosed) {
+      if (istniejace.state == LinkState.up) {
+        // Już stoimy, a druga strona wciąż powtarza HELLO (zgubiła nasze
+        // potwierdzenie): odsyłamy je jeszcze raz, żeby i ona stanęła.
+        istniejace.resendConfirm();
+        return true;
+      }
+      // Rurę wciąż w uścisku zostawiamy, jeśli to ten sam adres; HELLO
+      // z innego adresu może ją zastąpić (podszycie się, stary adres nigdy
+      // nie dowiezie klucza).
+      if (istniejace.remoteLabel == '${packet.address.address}:${packet.port}') {
+        return true;
+      }
+      unawaited(istniejace.close(powod: 'superseded by HELLO from another address'));
+    }
+    unawaited(_acceptIncoming(hello.guid, hello.ephemeral, packet));
     return true;
   }
 
@@ -262,7 +319,10 @@ class InetLinkManager {
       onPhase?.call(guid, InetLinkPhase.failed, 'unknown peer at the door');
       return;
     }
-    if (_pipes[guid] != null && !_pipes[guid]!.isClosed) return;
+    final stojace = _pipes[guid];
+    if (stojace != null && !stojace.isClosed && stojace.state == LinkState.up) {
+      return;
+    }
     final pipe = SecureUdpPipe(
       mux: mux,
       myStatic: myStatic,

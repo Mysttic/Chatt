@@ -310,8 +310,9 @@ class DhtClient {
   /// żetony zapisu z najbliższych węzłów i, przy odczycie, najlepszy rekord.
   Future<_Lookup> _lookup(
     Uint8List target,
-    Uint8List? wantPublicKey,
-  ) async {
+    Uint8List? wantPublicKey, {
+    List<int> verifySalt = const [],
+  }) async {
     final bootstrap = await _bootstrapEndpoints();
     if (bootstrap.isEmpty) {
       throw const DhtException('brak węzłów rozruchowych');
@@ -363,12 +364,19 @@ class DhtClient {
           tokens[n.ep.key] = token;
           closestWithToken.add((n.ep, token));
         }
-        // Rekord, jeśli pytamy o odczyt i węzeł go ma.
+        // Rekord, jeśli pytamy o odczyt i węzeł go ma. Sprawdzamy podpis od
+        // razu: bez tego jeden zły węzeł, oddając podrobiony rekord z wysokim
+        // numerem, przesłaniałby prawdziwy i cały odczyt kończyłby się niczym.
         if (wantPublicKey != null) {
           final kandydat = _readValue(r, wantPublicKey);
           final obecny = best;
-          if (kandydat != null && (obecny == null || kandydat.seq > obecny.seq)) {
-            best = kandydat;
+          if (kandydat != null &&
+              (obecny == null || kandydat.seq > obecny.seq)) {
+            final buffer =
+                bep44SignatureBuffer(verifySalt, kandydat.seq, kandydat.value);
+            final ok = await DhtSigner.verify(
+                buffer, kandydat.signature, kandydat.publicKey);
+            if (ok) best = kandydat;
           }
         }
         // Nowe węzły do kolejnych rund.
@@ -413,12 +421,11 @@ class DhtClient {
     List<int> salt = const [],
   }) async {
     final target = dhtTarget(publicKey, salt);
-    final lookup = await _lookup(target, Uint8List.fromList(publicKey));
-    final value = lookup.value;
-    if (value == null) return null;
-    final buffer = bep44SignatureBuffer(salt, value.seq, value.value);
-    final ok = await DhtSigner.verify(buffer, value.signature, value.publicKey);
-    return ok ? value : null;
+    // `_lookup` już odsiewa rekordy z błędnym podpisem, więc zwrócony jest
+    // albo zweryfikowany, albo go nie ma.
+    final lookup = await _lookup(target, Uint8List.fromList(publicKey),
+        verifySalt: salt);
+    return lookup.value;
   }
 
   /// Zapisuje rekord do skrzynki. [bencodedValue] to już zbencode'owana

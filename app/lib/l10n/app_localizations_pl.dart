@@ -1424,6 +1424,10 @@ class AppLocalizationsPl extends AppLocalizations {
       'Eksperymentalne. Działa bezpośrednio między urządzeniami, przebijając dziurę w NAT; udaje się około siedmiu połączeń na dziesięć.';
 
   @override
+  String get internetBatteryWarning =>
+      'Żeby być osiągalnym, to urządzenie nasłuchuje w tle i co kilka minut odświeża swój adres. Zużywa to więcej baterii niż samo Wi-Fi.';
+
+  @override
   String internetPublicAddressLabel(String address) {
     return 'To urządzenie widać pod: $address';
   }

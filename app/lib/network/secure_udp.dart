@@ -32,12 +32,56 @@ import 'udp_mux.dart';
 /// Nad tą rurą nic nie wie, że jedzie przez internet: uścisk sesji aplikacji,
 /// koperty wiadomości i szyfrowanie plików działają bez zmiany.
 
-/// Rodzaje pakietów łącza.
+/// Pierwszy bajt każdego pakietu łącza. Na wspólnym gnieździe odróżnia je od
+/// STUN-u (pierwszy bajt 0x00 lub 0x01, dwa najstarsze bity zerowe) i od
+/// bencode DHT (zaczyna się od `d`, `l`, `i` albo cyfry). 0xCC ma ustawione
+/// dwa najstarsze bity, więc [looksLikeStun] go odrzuca, a żaden bencode się
+/// nim nie zaczyna — bez tego odpowiedź STUN (0x01…) trafiała do obsługi
+/// pakietu powitalnego i nigdy nie docierała do klienta STUN.
+const int _linkMagic = 0xCC;
+
+/// Rodzaje pakietów łącza (drugi bajt, po [_linkMagic]).
 class _PacketType {
   static const hello = 1;
   static const helloAck = 2;
   static const data = 3;
-  static const close = 4;
+}
+
+/// Numer segmentu znaczący „zamykam łącze". Jedzie w nagłówku wewnątrz koperty
+/// AES-GCM, więc nie da się go podrobić bez klucza sesji (dawny jawny bajt
+/// zamknięcia dało się wysłać z dowolnego adresu).
+const int _closeSeq = 0xFFFFFFFF;
+
+/// Offsety w pakiecie danych, po [_linkMagic] i bajcie typu.
+const int _dataCounterOffset = 2;
+const int _dataMacOffset = _dataCounterOffset + 8; // 10
+const int _dataCipherOffset = _dataMacOffset + 16; // 26
+
+/// Pakiet powitalny rozłożony na części: guid nadawcy i jego klucz
+/// efemeryczny. Menedżer łącza potrzebuje guida, żeby znaleźć klucz statyczny
+/// rozmówcy, więc rozpoznaje HELLO sam, nie każda rura z osobna.
+class HelloPacket {
+  final String guid;
+  final Uint8List ephemeral;
+  const HelloPacket(this.guid, this.ephemeral);
+}
+
+/// Czy pakiet w ogóle jest pakietem łącza (odróżnia od STUN i DHT na wspólnym
+/// gnieździe).
+bool isLinkPacket(Uint8List data) =>
+    data.length >= 2 && data[0] == _linkMagic;
+
+/// Rozkłada HELLO na guid i klucz efemeryczny; null, gdy to nie HELLO albo
+/// jest obcięty.
+HelloPacket? parseHello(Uint8List data) {
+  if (!isLinkPacket(data) || data[1] != _PacketType.hello) return null;
+  if (data.length < 3) return null;
+  final guidLen = data[2];
+  if (data.length < 3 + guidLen + 32) return null;
+  final guid = String.fromCharCodes(data.sublist(3, 3 + guidLen));
+  final ephemeral =
+      Uint8List.fromList(data.sublist(3 + guidLen, 3 + guidLen + 32));
+  return HelloPacket(guid, ephemeral);
 }
 
 /// Największa treść segmentu danych. Ostrożnie poniżej typowego MTU (~1280
@@ -124,6 +168,7 @@ class SecureUdpPipe implements BytePipe {
   Timer? _rtoTimer;
   Timer? _keepaliveTimer;
   Timer? _deadTimer;
+  Timer? _handshakeTimer;
   DateTime _lastSent = DateTime.now();
 
   /// Wołane, gdy łącze zmienia stan (do logu i interfejsu).
@@ -177,9 +222,7 @@ class SecureUdpPipe implements BytePipe {
     await _prepareEphemeral();
     _armDead();
     _sendHello();
-    // Ponawianie HELLO, póki nie przyjdzie HELLO_ACK: pierwszy pakiet
-    // przebicia dziury często ginie.
-    _handshakeRetry(0);
+    _startHandshakeTimer();
     return ready;
   }
 
@@ -189,20 +232,33 @@ class SecureUdpPipe implements BytePipe {
     _myEphemeralPub = await ChattCrypto.publicKeyOf(kp);
   }
 
-  void _handshakeRetry(int attempt) {
-    if (_state != LinkState.handshaking || attempt >= 10) return;
-    Timer(const Duration(milliseconds: 400), () {
-      if (_state != LinkState.handshaking) return;
+  /// Powtarza swój krok uścisku co 400 ms, póki łącze nie stanie: pierwsze
+  /// pakiety przebicia dziury często giną, a odpowiedzi na HELLO nie da się
+  /// odzyskać inaczej niż ponawianiem. Stan „stoi" ustawia dopiero pierwszy
+  /// pakiet, który się odszyfruje (patrz [_onData]), więc timer chodzi aż do
+  /// tego momentu albo do zamknięcia łącza.
+  void _startHandshakeTimer() {
+    _handshakeTimer?.cancel();
+    _handshakeTimer = Timer.periodic(const Duration(milliseconds: 400), (_) {
+      if (_state != LinkState.handshaking) {
+        _handshakeTimer?.cancel();
+        _handshakeTimer = null;
+        return;
+      }
       if (initiator) {
         _sendHello();
+        if (_key != null) _sendConfirm();
+      } else {
+        _sendHelloAck();
+        _sendConfirm();
       }
-      _handshakeRetry(attempt + 1);
     });
   }
 
   void _sendHello() {
     final guid = Uint8List.fromList(_myGuid.codeUnits);
     final out = BytesBuilder(copy: false)
+      ..addByte(_linkMagic)
       ..addByte(_PacketType.hello)
       ..addByte(guid.length)
       ..add(guid)
@@ -210,24 +266,39 @@ class SecureUdpPipe implements BytePipe {
     _rawSend(out.takeBytes());
   }
 
-  /// Przyjmuje HELLO od strony inicjującej: liczy klucz i odsyła HELLO_ACK.
-  /// [theirEphemeral] wyjęła z pakietu warstwa, która go rozpoznała.
+  void _sendHelloAck() {
+    final out = BytesBuilder(copy: false)
+      ..addByte(_linkMagic)
+      ..addByte(_PacketType.helloAck)
+      ..add(_myEphemeralPub!);
+    _rawSend(out.takeBytes());
+  }
+
+  /// Pusty, uwierzytelniony pakiet (seq 0): dowód dla drugiej strony, że mamy
+  /// klucz. Dopiero taki pakiet, który się u niej odszyfruje, przełącza ją
+  /// w stan „stoi" — podszywający się pod cudzy guid nie policzy klucza i tego
+  /// pakietu nie wyśle.
+  void _sendConfirm() {
+    if (_key != null) unawaited(_sendPacket(seq: 0, payload: const []));
+  }
+
+  /// Przyjmuje HELLO od strony inicjującej: liczy klucz i odsyła HELLO_ACK
+  /// razem z potwierdzeniem. Nie przechodzi od razu w „stoi": zrobi to dopiero
+  /// pakiet od drugiej strony, który się odszyfruje.
   Future<void> acceptHello(List<int> theirEphemeral) async {
     if (_state != LinkState.handshaking || _key != null) return;
     await _prepareEphemeral();
     await _deriveKey(theirEphemeral, initiator: false);
-    final out = BytesBuilder(copy: false)
-      ..addByte(_PacketType.helloAck)
-      ..add(_myEphemeralPub!);
-    _rawSend(out.takeBytes());
     _armDead();
-    _up();
+    _sendHelloAck();
+    _sendConfirm();
+    _startHandshakeTimer();
   }
 
   Future<void> _onHelloAck(List<int> theirEphemeral) async {
     if (_state != LinkState.handshaking || _key != null) return;
     await _deriveKey(theirEphemeral, initiator: true);
-    _up();
+    _sendConfirm();
   }
 
   Future<void> _deriveKey(List<int> theirEphemeral,
@@ -249,11 +320,23 @@ class SecureUdpPipe implements BytePipe {
   void _up() {
     if (_state != LinkState.handshaking) return;
     _state = LinkState.up;
+    _handshakeTimer?.cancel();
+    _handshakeTimer = null;
     if (!_ready.isCompleted) _ready.complete(true);
     _armKeepalive();
+    // Jeszcze jedno potwierdzenie, już po przejściu w „stoi": druga strona
+    // mogła zgubić wcześniejsze (albo dostać je, zanim zdążyła policzyć
+    // klucz), a po tym, jak my stanęliśmy, przestajemy je słać z timera.
+    _sendConfirm();
     onState?.call(LinkState.up, initiator ? 'outgoing' : 'incoming');
     // Mogły już czekać bajty dodane przed końcem uścisku.
     _pump();
+  }
+
+  /// Druga strona wciąż się przedstawia (powtarza HELLO), choć my już stoimy:
+  /// odsyłamy potwierdzenie, żeby też mogła stanąć. Woła to menedżer.
+  void resendConfirm() {
+    if (_state == LinkState.up) _sendConfirm();
   }
 
   // --- wejście pakietów ----------------------------------------------------
@@ -261,23 +344,25 @@ class SecureUdpPipe implements BytePipe {
   /// Woła to multiplekser gniazda, gdy pakiet przyszedł z adresu tego łącza.
   /// Zwraca true, gdy pakiet był dla tego łącza.
   void handlePacket(UdpPacket packet) {
-    if (packet.data.isEmpty) return;
+    if (packet.data.length < 2 || packet.data[0] != _linkMagic) return;
     // Adres mógł się zmienić (NAT przestawił port). Ufamy tylko pakietowi,
-    // który się odszyfruje; sam fakt nowego adresu niczego nie przyznaje.
-    final type = packet.data[0];
+    // który się odszyfruje; sam fakt nowego adresu niczego nie przyznaje,
+    // a zamknięcie łącza jedzie teraz w zaszyfrowanym segmencie, nie jawnym
+    // bajtem, więc nie ma już czego obsługiwać bez klucza.
+    final type = packet.data[1];
     switch (type) {
       case _PacketType.hello:
         // Obsługiwane przez menedżera (potrzebuje guida), nie tutaj.
         break;
       case _PacketType.helloAck:
-        if (packet.data.length >= 33) {
-          _touch(packet);
-          unawaited(_onHelloAck(packet.data.sublist(1, 33)));
+        if (packet.data.length >= 2 + 32) {
+          // HELLO_ACK nie jest uwierzytelniony, więc nie odświeża licznika
+          // ciszy ([_touch] robi to dopiero pakiet, który się odszyfruje):
+          // sam efemeryczny klucz niczego nie dowodzi.
+          unawaited(_onHelloAck(packet.data.sublist(2, 2 + 32)));
         }
       case _PacketType.data:
         _onData(packet);
-      case _PacketType.close:
-        close(powod: 'peer closed');
     }
   }
 
@@ -297,13 +382,13 @@ class SecureUdpPipe implements BytePipe {
 
   Future<void> _onData(UdpPacket packet) async {
     final key = _key;
-    if (key == null || packet.data.length < 1 + 8 + 16) return;
-    final counter = _readCounter(packet.data, 1);
+    if (key == null || packet.data.length < _dataCipherOffset) return;
+    final counter = _readCounter(packet.data, _dataCounterOffset);
     // Antyreplay: licznik spoza okna albo już widziany odpada.
     if (!_acceptCounter(counter)) return;
     final nonce = _nonceFor(counter, incoming: true);
-    final mac = packet.data.sublist(9, 25);
-    final cipher = packet.data.sublist(25);
+    final mac = packet.data.sublist(_dataMacOffset, _dataCipherOffset);
+    final cipher = packet.data.sublist(_dataCipherOffset);
     List<int> clear;
     try {
       clear = await _gcm.decrypt(
@@ -318,6 +403,10 @@ class SecureUdpPipe implements BytePipe {
     }
     _touch(packet);
     _markSeen(counter);
+    // Pierwszy pakiet, który się odszyfrował, dowodzi, że druga strona ma
+    // klucz: dopiero teraz łącze „stoi". Dzięki temu podszycie się pod cudzy
+    // guid nie zajmuje miejsca jako gotowe łącze.
+    if (_state == LinkState.handshaking) _up();
     _handleReliable(Uint8List.fromList(clear));
   }
 
@@ -328,6 +417,10 @@ class SecureUdpPipe implements BytePipe {
     final ack = view.getUint32(4);
     final sack = view.getUint32(8);
     final len = view.getUint16(12);
+    if (seq == _closeSeq) {
+      close(powod: 'peer closed');
+      return;
+    }
     _onAck(ack, sack);
     if (seq == 0 || len == 0) return; // czysty ACK albo keepalive
     final payload = Uint8List.sublistView(clear, _reliableHeader, _reliableHeader + len);
@@ -461,6 +554,7 @@ class SecureUdpPipe implements BytePipe {
     final nonce = _nonceFor(counter, incoming: false);
     final box = await _gcm.encrypt(clear, secretKey: SecretKey(key), nonce: nonce);
     final out = BytesBuilder(copy: false)
+      ..addByte(_linkMagic)
       ..addByte(_PacketType.data)
       ..add(_counterBytes(counter))
       ..add(box.mac.bytes)
@@ -591,9 +685,11 @@ class SecureUdpPipe implements BytePipe {
     _rtoTimer?.cancel();
     _keepaliveTimer?.cancel();
     _deadTimer?.cancel();
+    _handshakeTimer?.cancel();
     if (byloUp && _key != null) {
-      // Grzeczne pożegnanie, best-effort.
-      _rawSend(Uint8List.fromList([_PacketType.close]));
+      // Grzeczne pożegnanie: zaszyfrowany segment z numerem [_closeSeq],
+      // best-effort. Jawnego bajtu nie wysyłamy — dało się go podrobić.
+      unawaited(_sendPacket(seq: _closeSeq, payload: const []));
     }
     if (!_ready.isCompleted) _ready.complete(false);
     for (final c in _windowDrained) {

@@ -31,6 +31,23 @@ switched off and honest about its limits until the hardware measurement in
   blocked, with no relay fallback by design. `app/tool/nat_spike.dart` measures
   whether it works in a given pair of networks.
 
+### Fixed (internet route, from the self-review)
+- Link packets carry a magic first byte so a STUN reply (which also starts
+  `0x01`) is no longer mistaken for a handshake packet and swallowed.
+- A device publishes its address to its verified peers' boxes on a timer, so
+  a device that is only listening is findable, not just one that is dialing.
+- The handshake confirms both directions with a packet that must decrypt
+  before a link counts as up, so an unauthenticated packet can neither occupy
+  a peer's slot nor be lost without recovery; a still-handshaking pipe can be
+  superseded by a handshake from another address.
+- Closing a link travels inside the encrypted channel; a one-byte plaintext
+  packet can no longer tear a link down.
+- A DHT record's signature is checked during the lookup, so a forged
+  high-sequence record cannot hide the genuine one.
+- Link packets route to a link even after the peer's NAT changes its port.
+- DHT and STUN errors on a call become "not delivered" instead of escaping to
+  the caller; the socket is not leaked when the add-on is toggled off mid-start.
+
 ## [0.13.0] - 2026-10-27
 
 One new thing on Android: other apps can share into Chatt. Text, links and
