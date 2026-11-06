@@ -81,29 +81,6 @@ class _SecuritySheet extends ConsumerWidget {
     final klucz = DeviceIdentity.decodeKey(peer.publicKey);
     final k = ChattTokens.of(context);
 
-    // Brak szyfrowania to zagrożenie w każdym stylu; niepotwierdzona
-    // tożsamość to ostrzeżenie w kolorze stylu.
-    final (ikona, kolory, naglowek, opis) = switch ((klucz.isNotEmpty, peer.verified)) {
-      (false, _) => (
-          Icons.gpp_bad_outlined,
-          k.dangerNote,
-          context.l10n.securityNoEncryptionTitle,
-          context.l10n.securityNoEncryptionBody,
-        ),
-      (true, false) => (
-          Icons.gpp_maybe_outlined,
-          k.security,
-          context.l10n.securityEncryptedTitle,
-          context.l10n.securityEncryptedBody,
-        ),
-      (true, true) => (
-          Icons.verified_user,
-          k.verifiedNote,
-          context.l10n.securityVerifiedTitle,
-          context.l10n.securityVerifiedBody,
-        ),
-    };
-
     // Przewijany: dwa odciski, przełączniki zgód i przyciski parowania nie
     // mieszczą się na niskim oknie ani przy powiększonej czcionce.
     return SafeArea(
@@ -113,41 +90,81 @@ class _SecuritySheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: kolory.background,
-                borderRadius: BorderRadius.circular(k.radiusWarning),
-                border: kolory.border == null || kolory.borderWidth == 0
-                    ? null
-                    : Border.all(
-                        color: kolory.border!, width: kolory.borderWidth),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(ikona, color: kolory.icon, size: 28),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(naglowek,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(color: kolory.foreground)),
-                        const SizedBox(height: 4),
-                        Text(opis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(color: kolory.foreground)),
-                      ],
+            // Stan słucha zbioru rozmówców bez klucza: odpowiedź `/info`
+            // przychodzi już przy otwartym panelu.
+            ValueListenableBuilder<Set<String>>(
+              valueListenable: services.peersWithoutKey,
+              builder: (context, bezKlucza, _) {
+                // Brak szyfrowania to zagrożenie w każdym stylu,
+                // niepotwierdzona tożsamość to ostrzeżenie w kolorze stylu,
+                // a nieznany jeszcze klucz to tylko znak, że rozmowy nie było.
+                final (ikona, kolory, naglowek, opis) = switch ((
+                  klucz.isNotEmpty,
+                  peer.verified,
+                  bezKlucza.contains(peer.guid),
+                )) {
+                  (false, _, true) => (
+                      Icons.gpp_bad_outlined,
+                      k.dangerNote,
+                      context.l10n.securityNoEncryptionTitle,
+                      context.l10n.securityNoEncryptionBody,
                     ),
+                  (false, _, false) => (
+                      Icons.shield_outlined,
+                      k.warningNote,
+                      context.l10n.securityKeyUnknownTitle,
+                      context.l10n.securityKeyUnknownBody,
+                    ),
+                  (true, false, _) => (
+                      Icons.gpp_maybe_outlined,
+                      k.security,
+                      context.l10n.securityEncryptedTitle,
+                      context.l10n.securityEncryptedBody,
+                    ),
+                  (true, true, _) => (
+                      Icons.verified_user,
+                      k.verifiedNote,
+                      context.l10n.securityVerifiedTitle,
+                      context.l10n.securityVerifiedBody,
+                    ),
+                };
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: kolory.background,
+                    borderRadius: BorderRadius.circular(k.radiusWarning),
+                    border: kolory.border == null || kolory.borderWidth == 0
+                        ? null
+                        : Border.all(
+                            color: kolory.border!, width: kolory.borderWidth),
                   ),
-                ],
-              ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(ikona, color: kolory.icon, size: 28),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(naglowek,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(color: kolory.foreground)),
+                            const SizedBox(height: 4),
+                            Text(opis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(color: kolory.foreground)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 20),
             _Nazwa(peer: peer),
