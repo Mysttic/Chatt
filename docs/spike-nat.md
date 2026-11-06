@@ -82,6 +82,11 @@ USB only for adb. Addresses are left out on purpose.
 | Home, PC | endpoint-independent | yes | dropped | no |
 | Phone on LTE | endpoint-independent | no (carrier-grade NAT) | dropped | no |
 
+A traceroute from the PC shows three NAT layers on the home side: the mesh
+router, the provider's modem and the provider's own carrier-grade NAT
+(`100.64.0.1`). Both ends of the pair sit behind a carrier-grade NAT, and the
+punch still works because every layer maps endpoint-independently.
+
 "Dropped" comes from `CHATT_NAT_LISTEN=true`: the side that sent nothing
 received nothing in 30 s, in both directions. On the PC this can be the router
 or Windows Firewall; for Chatt the effect is the same.
@@ -122,6 +127,25 @@ Side `b` reads boxes every 60 s, as the app does; every call starts cold.
 Each answer took one box read on the receiver's side: it found the "calling"
 record 43 to 62 s after the caller wrote it, knocked, and the link came up 1.1
 to 1.5 s later. The time to answer is therefore set by the read interval.
+
+### Round trip on the punched path
+
+`CHATT_NAT_PINGS=100`: side `a` sends 100 packets 100 ms apart over the
+punched path and times each echo. The phone lay next to the PC both times.
+
+| Path | Min | Median | Mean | 90% under | Max | Lost |
+|---|---|---|---|---|---|---|
+| PC at home to phone on LTE, punched | 34.0 ms | 36.9 ms | 40.0 ms | 50.8 ms | 69.5 ms | 0 of 100 |
+| PC to phone in one Wi-Fi network (`CHATT_NAT_LAN=true`) | 4.9 ms | 11.4 ms | 17.8 ms | 25.4 ms | 112.3 ms | 0 of 100 |
+
+Over LTE the packets leave the home network, cross the home provider's network
+to a Polish internet exchange, where the mobile carrier takes them, and come
+back over the radio; the traceroute reaches the exchange in about 15 ms and the
+carrier's network does not answer it. The Wi-Fi spread comes from the phone's
+power saving between packets. A round trip says only how far the path could
+reach: light in fiber covers about 200 km per millisecond, so 34 ms bounds the
+path at roughly 3,400 km each way, and the same numbers would come from a phone
+in another city.
 
 ### Found along the way
 

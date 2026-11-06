@@ -74,6 +74,10 @@
 //   CHATT_NAT_CALLS  link: ile razy `a` dzwoni, domyślnie 3
 //   CHATT_NAT_BYTES  link: bajtów w próbie przepustowości, domyślnie 262144
 //   CHATT_NAT_FOR    link: ile minut `b` czeka najwyżej, domyślnie 15
+//   CHATT_NAT_PINGS  punch: po zestawieniu `a` wysyła tyle pakietów co 100 ms
+//                    i mierzy czas obiegu (wysłanie, echo, powrót); 0 pomija
+//   CHATT_NAT_LAN    punch: true bierze adres w sieci lokalnej, bez STUN-u,
+//                    do porównania czasu obiegu w jednym Wi-Fi
 //
 // Na komputerze te same klucze można podać jako zmienne środowiska, co
 // przydaje się przy zbudowanym programie (`flutter build windows -t
@@ -131,6 +135,10 @@ final _ust = <String, String>{
       const String.fromEnvironment('CHATT_NAT_BYTES', defaultValue: '262144'),
   'CHATT_NAT_FOR':
       const String.fromEnvironment('CHATT_NAT_FOR', defaultValue: '15'),
+  'CHATT_NAT_PINGS':
+      const String.fromEnvironment('CHATT_NAT_PINGS', defaultValue: '0'),
+  'CHATT_NAT_LAN':
+      const String.fromEnvironment('CHATT_NAT_LAN', defaultValue: 'false'),
   'CHATT_NAT_LISTEN':
       const String.fromEnvironment('CHATT_NAT_LISTEN', defaultValue: 'false'),
   'CHATT_NAT_LOCAL':
@@ -144,6 +152,27 @@ int get _ileProb => int.tryParse(_ust['CHATT_NAT_TRIES']!) ?? 3;
 int get _stalyPort => int.tryParse(_ust['CHATT_NAT_PORT']!) ?? 0;
 bool get _lokalnie => _ust['CHATT_NAT_LOCAL'] == 'true';
 bool get _tylkoSlucha => _ust['CHATT_NAT_LISTEN'] == 'true';
+bool get _wSieciLokalnej => _ust['CHATT_NAT_LAN'] == 'true';
+int get _pingi => int.tryParse(_ust['CHATT_NAT_PINGS']!) ?? 0;
+
+/// Adres tego urządzenia w sieci lokalnej: najpierw 192.168/16, potem 10/8,
+/// potem 172.16/12 (bez wirtualnych kart, które zwykle siedzą wyżej).
+Future<InternetAddress?> _adresWSieci() async {
+  final adresy = [
+    for (final i in await NetworkInterface.list(type: InternetAddressType.IPv4))
+      for (final a in i.addresses) a,
+  ];
+  int ranga(InternetAddress a) {
+    final b = a.rawAddress;
+    if (b[0] == 192 && b[1] == 168) return 0;
+    if (b[0] == 10) return 1;
+    if (b[0] == 172 && b[1] >= 16 && b[1] < 32) return 2;
+    return 9;
+  }
+
+  adresy.sort((x, y) => ranga(x).compareTo(ranga(y)));
+  return adresy.isEmpty || ranga(adresy.first) == 9 ? null : adresy.first;
+}
 int _liczba(String klucz, int domyslna) =>
     int.tryParse(_ust[klucz]!) ?? domyslna;
 
@@ -388,6 +417,10 @@ class _Proba {
 
   /// (sekundy ciszy, czy pakiet `a` po niej doszedł)
   final cisza = <(int, bool)>[];
+
+  /// Czasy obiegu w milisekundach i ile pakietów nie wróciło.
+  final rtt = <double>[];
+  var zgubione = 0;
 }
 
 Future<void> _punch() async {
@@ -416,10 +449,15 @@ Future<_Proba> _jednaProba(int k, {required bool zCisza}) async {
   try {
     final InternetAddress mojIp;
     final int mojPort;
+    final wSieci = _wSieciLokalnej ? await _adresWSieci() : null;
     if (_lokalnie) {
       mojIp = InternetAddress.loopbackIPv4;
       mojPort = mux.port;
       p.nat = 'pominięty (CHATT_NAT_LOCAL)';
+    } else if (wSieci != null) {
+      mojIp = wSieci;
+      mojPort = mux.port;
+      p.nat = 'pominięty (CHATT_NAT_LAN)';
     } else {
       final wynik = await stun.discover(localAddresses: await _lokalneV4());
       final m = wynik.mapping;
@@ -531,13 +569,16 @@ Future<(InternetAddress, int)?> _adresRecznie(
   final wynik = Completer<(InternetAddress, int)?>();
   StreamSubscription<String>? wejscie;
   if (!Platform.isAndroid) {
-    wejscie = stdin
-        .transform(utf8.decoder)
-        .transform(const LineSplitter())
-        .listen((linia) {
-      final a = _adres(linia);
-      if (a != null && !wynik.isCompleted) wynik.complete(a);
-    }, onError: (Object _) {});
+    // Zbudowany program okienkowy może nie mieć wejścia: wtedy zostaje plik.
+    try {
+      wejscie = stdin
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((linia) {
+        final a = _adres(linia);
+        if (a != null && !wynik.isCompleted) wynik.complete(a);
+      }, onError: (Object _) {});
+    } catch (_) {}
   }
   final zegar = Timer.periodic(const Duration(milliseconds: 300), (_) {
     if (wynik.isCompleted || !plik.existsSync()) return;
@@ -569,6 +610,8 @@ Future<void> _przebij(UdpMux mux, _Proba p, InternetAddress ip, int port,
   final start = DateTime.now();
   int ms() => DateTime.now().difference(start).inMilliseconds;
   final los = Random();
+  final zegarRtt = Stopwatch()..start();
+  final wyslanePingi = <int, int>{};
 
   // Strona tylko słuchająca odzywa się dopiero echem na cudzy pakiet.
   var nadaje = !_tylkoSlucha;
@@ -611,6 +654,12 @@ Future<void> _przebij(UdpMux mux, _Proba p, InternetAddress ip, int port,
           wypisz('Ruch w obie strony po ${p.msObie} ms.');
         }
         nadaje = false;
+        if (d.length >= 7) {
+          final wyslano = wyslanePingi.remove(_numer(d));
+          if (wyslano != null) {
+            p.rtt.add((zegarRtt.elapsedMicroseconds - wyslano) / 1000);
+          }
+        }
         if (echoNumer != null && d.length >= 7 && _numer(d) == echoNumer) {
           domknij(echo);
         }
@@ -685,6 +734,19 @@ Future<void> _przebij(UdpMux mux, _Proba p, InternetAddress ip, int port,
       }
       // Chwila, żeby druga strona też dostała echo i przestała nadawać.
       await Future<void>.delayed(const Duration(seconds: 2));
+      if (_pingi > 0) {
+        wypisz('Mierzę czas obiegu: $_pingi pakietów co 100 ms ...');
+        for (var k = 0; k < _pingi; k++) {
+          final numer = los.nextInt(1 << 30);
+          wyslanePingi[numer] = zegarRtt.elapsedMicroseconds;
+          mux.send(_pakiet(_probe, _bajty(numer)), ip, celPort);
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        }
+        await Future<void>.delayed(const Duration(seconds: 2));
+        p.zgubione = wyslanePingi.length;
+        wyslanePingi.clear();
+        wypisz(_opisRtt(p));
+      }
       if (zCisza) {
         for (final s in _przerwy) {
           runda++;
@@ -759,9 +821,22 @@ void _podsumuj(List<_Proba> wyniki) {
     for (final (s, otwarta) in p.cisza) {
       wypisz('  cisza $s s: pakiet ${otwarta ? 'doszedł' : 'nie doszedł'}');
     }
+    if (p.rtt.isNotEmpty || p.zgubione > 0) wypisz('  ${_opisRtt(p)}');
   }
   final udane = wyniki.where((p) => p.msObie != null).length;
   wypisz('Udane: $udane z ${wyniki.length}.');
+}
+
+String _opisRtt(_Proba p) {
+  if (p.rtt.isEmpty) return 'Czas obiegu: żaden pakiet nie wrócił.';
+  final r = [...p.rtt]..sort();
+  String f(double v) => v.toStringAsFixed(1);
+  final srednia = r.reduce((a, b) => a + b) / r.length;
+  final p90 = r[((r.length - 1) * 0.9).round()];
+  return 'Czas obiegu (${r.length} pakietów): min ${f(r.first)} ms, '
+      'mediana ${f(r[r.length ~/ 2])} ms, średnio ${f(srednia)} ms, '
+      '90% poniżej ${f(p90)} ms, maks ${f(r.last)} ms; '
+      'nie wróciło ${p.zgubione}.';
 }
 
 // --- link ------------------------------------------------------------------
