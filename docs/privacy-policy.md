@@ -1,13 +1,14 @@
 # Chatt Privacy Policy
 
-Last updated: 27 October 2026.
+Last updated: 6 November 2026.
 
 ## In short
 
 Chatt sends no data to its author or to anyone else. There is no server, no
 account, no sign-in, no analytics and no crash reporting. Everything you type
-or send goes directly from one device to the other, on your local network or,
-with the Bluetooth add-on, over the radio, and stays on those two devices.
+or send goes directly from one device to the other, on your local network,
+with the Bluetooth add-on over the radio, or with the Internet add-on across
+the internet, and stays on those two devices.
 What each device keeps (the conversations, a typing history for Keyboard from
 a PC, a diagnostic log) lies in its encrypted database and leaves it only when
 you take it out yourself: an export, **Share history** for a conversation, or
@@ -31,10 +32,11 @@ a copy to the clipboard from its screen.
 | Names of the four most recent conversations (Android) | in the system's list of app shortcuts, outside the encrypted database, so the Share sheet and the home screen can show them; the list follows the conversations and a deleted one drops off | anyone who can use the phone, as with the names in Chatt's notifications |
 | An export made with **Export data** | one ZIP file, not encrypted, where you saved it or whichever app you handed it to. On Android, after the share sheet, a copy waits in the app's private cache until the next export, **Clear history**, **Clear typing history**, or the next start once it is an hour old | anyone who can open that file |
 
-None of the above is sent to the app's author or to anyone outside your local
-network. An export goes only where you take it. See "Connections outside your
-network" below for the two things the app can reach outside, both of which are
-off until you turn them on.
+None of the above is sent to the app's author. Outside your local network it
+travels only to your own confirmed device, encrypted, and only with the
+Internet add-on on. An export goes only where you take it. See "Connections
+outside your network" below for the three things the app can reach outside,
+all of which are off until you turn them on.
 
 ## Encryption
 
@@ -91,7 +93,7 @@ place in the system's save dialog. The export itself sends nothing anywhere.
 
 | Permission (Android) | Purpose |
 |---|---|
-| Internet, network state, Wi-Fi state, multicast | talking to and discovering devices on the local network, and the two optional calls described below |
+| Internet, network state, Wi-Fi state, multicast | talking to and discovering devices on the local network, and the optional connections described below |
 | Camera | scanning a QR code shown by the other device, only when you ask; the image never leaves the device |
 | Notifications | new message alerts and the persistent "listening" notice; with the Keyboard from a PC add-on also a request to type, the "Switch the keyboard to Chatt" prompt, and who is typing, shown in the persistent notice |
 | Foreground service | receiving messages while the window is closed |
@@ -120,15 +122,26 @@ visible to Bluetooth devices nearby, and turning the add-on off ends that.
 
 ## Connections outside your network
 
-Two features, both **off until you turn them on** in Settings, make the app
-connect to a server outside your local network. Neither carries an account, a
-token or an identifier: the other side sees an IP address and a timestamp, the
-same as any HTTPS server does.
+Three features, all **off until you turn them on** in Settings, make the app
+connect outside your local network. None of them carries an account or a
+token. The update check and link previews send no identifier either: the other
+side sees an IP address and a timestamp, the same as any HTTPS server does.
 
 | Feature | What it contacts | What the other side learns |
 |---|---|---|
 | Update check | `api.github.com`, once a day; and, when you press **Download and install**, GitHub's download server for the release file | your IP address and the time of the question; for a download also which release file |
 | Link previews | the page behind a link in a message | your IP address, the time, and which link it was |
+| Internet add-on | public STUN servers (`stun.l.google.com`, `stun.cloudflare.com`); the public BitTorrent DHT, entered through `router.bittorrent.com`, `router.utorrent.com`, `dht.transmissionbt.com` and `dht.libtorrent.org`; and your confirmed device | STUN servers: your IP address and when you connect. DHT nodes: your IP address and that it writes or reads a small sealed record, about once a minute for each confirmed device; the record's address and signing key change every day. Your confirmed device: what you send it, encrypted as on your local network |
+
+The Internet add-on is offered only for a device whose identity you confirmed
+(green shield). The record it leaves in the DHT holds this device's public
+address, sealed with a key only the two devices can compute; DHT nodes store
+and pass on the sealed bytes. Messages and files then go straight between the
+two devices, with the same encryption as on your local network. The network
+operators on the way see addresses and timing; the content stays encrypted. To
+stay reachable, a device with the add-on on checks every minute whether a
+confirmed device is calling it, and a connected pair exchanges a small packet
+every 25 seconds or so; on a phone that costs battery.
 
 Link previews are worth spelling out, because the address is chosen by
 **whoever sent you the message**, not by you. With them on, receiving a message
@@ -150,7 +163,9 @@ the address really leads to before anything opens.
 
 QR code scanning on Android uses Google ML Kit running **on the device**; the
 camera image is not sent anywhere. The app contains no ads, no analytics, no
-tracking and no external crash reporting.
+tracking and no external crash reporting. With the Internet add-on on, the app
+uses the public STUN servers of Google and Cloudflare and the public BitTorrent
+DHT, as described above; none of them gets an account, a token or any content.
 
 ## Deleting your data
 

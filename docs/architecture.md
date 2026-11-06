@@ -174,10 +174,10 @@ happens only when the user asks for it from the "Nearby" screen.
 
 ### The internet add-on (issue #68, experimental)
 
-A third road, off by default and still a spike: reach a confirmed device on
-another network, with no relay in between. It challenges the README's "there is
-no internet mode", so it ships only as an add-on the user turns on, with the
-limits stated plainly.
+A third road, off by default and experimental: reach a confirmed device on
+another network, with no relay in between. It ships only as an add-on the user
+turns on, with the limits stated plainly, so nothing leaves the network by
+itself while it stays off. The README lists it with the other add-ons.
 
 The pieces, bottom to top, all pure Dart (no native dependency, no WebRTC), on
 one shared UDP socket so the port STUN measures is the port the peer is told to
@@ -207,8 +207,9 @@ reach:
   AES-GCM seal key and salt base. Each publishes its address under a salt from
   its **own** guid and the day number, and reads the peer's under the peer's
   salt; the address inside the record is sealed, so DHT nodes see only a signed
-  ciphertext, and the daily epoch moves the mailbox so a fixed address cannot
-  track the pair.
+  ciphertext. The daily epoch moves the mailbox and changes its signing key, so
+  neither the mailbox address nor the public key in its records ties one day
+  to the next.
 - [`secure_udp.dart`](../app/lib/network/secure_udp.dart): a reliable,
   encrypted byte pipe over UDP: a Noise-KK handshake (the same
   `ChattCrypto.sessionKey` four-DH, so a wrong static key yields a dead key and

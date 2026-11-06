@@ -1411,7 +1411,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addonInternetBody =>
-      'Reach a confirmed device on another network, with no server in between. The connection is found through public STUN servers and the BitTorrent DHT, which see your IP address and when you connect, never the content. It does not always get through: it usually fails when both sides are behind a carrier-grade NAT, and some Wi-Fi networks block it. Off by default.';
+      'Reach a confirmed device on another network, with no server in between. The connection is found through public STUN servers and the BitTorrent DHT, which see your IP address and when you connect. None of them sees the content. It does not get through every network: a symmetric NAT (Check reachability shows it) or a network that blocks UDP stops it. Off by default.';
 
   @override
   String get internetAddonExperimental =>
@@ -1419,7 +1419,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get internetBatteryWarning =>
-      'To stay reachable, this device keeps listening in the background and refreshes its address every few minutes. That uses more battery than Wi-Fi alone.';
+      'To stay reachable, this device keeps listening in the background, checks every minute whether a confirmed device is calling, and refreshes its address every ten minutes. That uses more battery than Wi-Fi alone.';
 
   @override
   String internetPublicAddressLabel(String address) {

@@ -1417,7 +1417,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get addonInternetBody =>
-      'Połączenie z potwierdzonym urządzeniem w innej sieci, bez serwera pośredniczącego. Drogę pomagają znaleźć publiczne serwery STUN i sieć DHT BitTorrenta; widzą one twój adres IP i moment połączenia, nigdy treść. Nie zawsze się udaje: zwykle zawodzi, gdy obie strony są za CGNAT-em operatora, a część sieci Wi-Fi to blokuje. Domyślnie wyłączone.';
+      'Połączenie z potwierdzonym urządzeniem w innej sieci, bez serwera pośredniczącego. Drogę pomagają znaleźć publiczne serwery STUN i sieć DHT BitTorrenta; widzą one twój adres IP i moment połączenia. Treści nie widzi żaden z nich. Nie przechodzi przez każdą sieć: zatrzymuje je symetryczny NAT (pokaże go „Sprawdź osiągalność”) albo sieć, która blokuje UDP. Domyślnie wyłączone.';
 
   @override
   String get internetAddonExperimental =>
@@ -1425,7 +1425,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get internetBatteryWarning =>
-      'Żeby być osiągalnym, to urządzenie nasłuchuje w tle i co kilka minut odświeża swój adres. Zużywa to więcej baterii niż samo Wi-Fi.';
+      'Żeby być osiągalnym, to urządzenie nasłuchuje w tle, co minutę sprawdza, czy dzwoni do niego potwierdzone urządzenie, i co dziesięć minut odświeża swój adres. Zużywa to więcej baterii niż samo Wi-Fi.';
 
   @override
   String internetPublicAddressLabel(String address) {

@@ -380,6 +380,50 @@ the phone was paired with it.
 Bluetooth listening with the screen off on Android has not been checked on
 hardware yet.
 
+## Talking over the internet
+
+Bluetooth helps within ten metres. When the PC is at home and the phone is out
+on mobile data, the third road is the internet, and it is an add-on too:
+**Settings → Add-ons → Internet**, off from the start. It is experimental.
+
+**Who it works with.** Only a device whose identity is confirmed with the code
+or the QR (the green shield). For that the two devices meet once on the same
+network; after that each can be anywhere with internet access. Both need the
+add-on on.
+
+**What happens.** With the add-on on, each device asks a public STUN server
+what its address on the internet is, and leaves that address in a sealed
+mailbox in the public BitTorrent DHT, one mailbox for each confirmed device.
+When you send a message and the other device is neither on your network nor
+within radio range, Chatt reads the other device's mailbox and starts sending
+to that address. The other device looks into its mailboxes about once a
+minute; when it sees that you are calling, it answers toward your address, and
+the routers on both sides let the two devices through to each other. From then
+on messages and files go straight between the two, encrypted the same way as
+on Wi-Fi, and the connection stays open while both devices are online.
+
+**What to expect.**
+
+- The first message after a quiet spell waits for that look into the mailbox,
+  so it can take up to about a minute. The ones after it go at once.
+- Some networks stop it: a router with a symmetric NAT, or a network that
+  blocks UDP (often at work, at school or in a hotel). The message then ends as
+  not delivered, the same as with a device that is off, and you can retry it
+  later. There is no server to fall back on. **Check reachability** on the
+  add-on's card tells you whether the network you are on lets it through.
+- Files go at a few hundred kilobytes per second: between a PC at home and a
+  phone on LTE, 256 KB took half a second one way and one second the other.
+- On a phone the add-on costs battery: the look into the mailboxes every minute
+  and, while a connection is open, a small packet every 25 seconds or so. The
+  add-on's card says so.
+
+**What others see.** The STUN servers learn your IP address and when you
+connect. The DHT nodes learn your IP address and that it writes or reads a
+small sealed record, about once a minute for each confirmed device. What the
+record holds (your address) is readable only by the other device, and the
+mailbox moves and changes its key every day. Nobody along the way can read the
+messages or the files.
+
 ## Typing from a PC's keyboard
 
 The add-on has a page of its own, step by step, with pictures from Windows

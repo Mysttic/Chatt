@@ -12,10 +12,10 @@ into `master`.
 
 Research spike, measured on hardware. A third transport reaches a confirmed
 device on another network with no relay, behind an add-on that is off by
-default. It challenges the project's "there is no internet mode", so it ships
-switched off and plain about its limits. Between a PC at home and a phone on
-LTE it connects both ways; the numbers are in
-[docs/spike-nat.md](docs/spike-nat.md).
+default, so nothing leaves your network by itself while it stays off. Between a
+PC at home and a phone on LTE it connects both ways; the numbers are in
+[docs/spike-nat.md](docs/spike-nat.md). The README lists it with the other
+add-ons, and its line about there being no internet mode is gone.
 
 ### Added (experimental, off by default)
 - **Internet route** (issue #68). An add-on in Settings that connects two
@@ -35,9 +35,17 @@ LTE it connects both ways; the numbers are in
   about 70 s, later ones go over the kept link at once, and a link keeps its
   NAT path open with a packet after 25 s of silence.
 - STUN servers and DHT nodes see metadata: IPs, timing, and a mailbox read per
-  confirmed peer about once a minute. The route fails behind a symmetric NAT
-  and where UDP or DHT is blocked, with no relay fallback by design.
-  `app/tool/nat_spike.dart` measures a given pair of networks.
+  confirmed peer about once a minute. The mailbox moves and changes its signing
+  key every day, so the key in the records does not tie one day to the next.
+  The route fails behind a symmetric NAT and where UDP or DHT is blocked, with
+  no relay fallback by design. `app/tool/nat_spike.dart` measures a given pair
+  of networks.
+
+### Changed
+- The README lists the Internet add-on with the other add-ons, the guide (EN
+  and PL) has a section on it, and the privacy policy names it as the third
+  connection outside the local network, with what STUN servers and DHT nodes
+  learn.
 
 ## [0.13.0] - 2026-10-27
 

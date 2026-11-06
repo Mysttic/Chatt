@@ -674,7 +674,8 @@ so none of it needs a public IP or a real NAT:
   holding the box
 - the rendezvous box: both sides derive the same keys, a different pair does
   not, the published address is sealed (no plaintext address in the DHT), a
-  foreign pair cannot read the box, and the "calling" mark reaches the peer
+  foreign pair cannot read the box, the box's address and signing key change
+  every day, and the "calling" mark reaches the peer
 - the UDP socket: packets to 0.0.0.0 or port 0 are dropped and the socket
   keeps working, and a socket closed underneath reopens on the same port
 - the secure UDP pipe: the KK handshake agrees a key, a 50 KB stream arrives in

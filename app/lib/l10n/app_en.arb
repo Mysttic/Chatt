@@ -474,9 +474,9 @@
   "themeLabel": "Theme",
   "addonBluetoothShort": "Conversations with no shared Wi-Fi",
   "addonInternetShort": "Conversations across different networks",
-  "addonInternetBody": "Reach a confirmed device on another network, with no server in between. The connection is found through public STUN servers and the BitTorrent DHT, which see your IP address and when you connect, never the content. It does not always get through: it usually fails when both sides are behind a carrier-grade NAT, and some Wi-Fi networks block it. Off by default.",
+  "addonInternetBody": "Reach a confirmed device on another network, with no server in between. The connection is found through public STUN servers and the BitTorrent DHT, which see your IP address and when you connect. None of them sees the content. It does not get through every network: a symmetric NAT (Check reachability shows it) or a network that blocks UDP stops it. Off by default.",
   "internetAddonExperimental": "Experimental. Works device-to-device by punching through NAT; about seven connections in ten get through.",
-  "internetBatteryWarning": "To stay reachable, this device keeps listening in the background and refreshes its address every few minutes. That uses more battery than Wi-Fi alone.",
+  "internetBatteryWarning": "To stay reachable, this device keeps listening in the background, checks every minute whether a confirmed device is calling, and refreshes its address every ten minutes. That uses more battery than Wi-Fi alone.",
   "internetPublicAddressLabel": "This device is seen at: {address}",
   "@internetPublicAddressLabel": {
     "placeholders": { "address": { "type": "String" } }

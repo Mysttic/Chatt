@@ -86,6 +86,17 @@ pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
   wspólnej sieci, dla urządzeń w promieniu około dziesięciu metrów. Krótka
   wiadomość wraca równie szybko jak przez Wi‑Fi; pliki idą kilkadziesiąt razy
   wolniej.
+- **Internet** (eksperymentalny): rozmowa z potwierdzonym urządzeniem w innej
+  sieci, na przykład komputer w domu i telefon na danych komórkowych, bez
+  serwera po drodze. Urządzenia odnajdują się przez zaszyfrowaną skrzynkę
+  w publicznym DHT BitTorrenta i przebijają się przez NAT swoich routerów
+  prosto do siebie; wiadomości i pliki mają to samo szyfrowanie co przez
+  Wi‑Fi. Publiczne serwery STUN i węzły DHT widzą adres IP urządzenia
+  i moment połączenia. Treści nie widzi żaden z nich. Pierwsza wiadomość po
+  dłuższej ciszy idzie do około minuty, sieć, która to blokuje (symetryczny
+  NAT, odfiltrowany UDP), zostaje poza zasięgiem, a przekaźnika w zapasie nie
+  ma. Pomiar między komputerem w domu a telefonem na LTE:
+  [docs/spike-nat.md](docs/spike-nat.md).
 - **Klawiatura z PC**: klawiatura komputera pisze w polu z fokusem na
   telefonie albo tablecie z Androidem (przez klawiaturę Chatt bez klawiszy)
   albo na innym komputerze z Windows, w dowolnej aplikacji. Sesja zaczyna się
@@ -102,16 +113,16 @@ pokazuje się na żadnym innym ekranie i niczego nie uruchamia.
 |---|---|
 | <img src="docs/screenshots/windows/pl/06_klawiatura_pisanie.png" alt="Pisanie z komputera na telefonie" width="380"> | <img src="docs/screenshots/windows/pl/07_klawiatura_zgoda.png" alt="Karta zgody" width="380"> |
 
-Oba opisuje [instrukcja obsługi](docs/guide.pl.md); klawiatura ma własną
-stronę, krok po kroku, z obrazkami z obu systemów:
+Wszystkie trzy opisuje [instrukcja obsługi](docs/guide.pl.md); klawiatura ma
+własną stronę, krok po kroku, z obrazkami z obu systemów:
 [Klawiatura z PC](docs/keyboard.pl.md).
 
 Platformy: **Windows** i **Android**. Oba urządzenia muszą być w tej samej
-sieci albo, z dodatkiem Bluetooth, w zasięgu radia. Trybu przez internet nie
-ma i nie będzie: cały sens polega na tym, że nic samo nie wychodzi poza Twoją
-sieć. Wyjątki są dwa i oba stoją wyłączone,
-dopóki sam ich nie włączysz: pytanie do GitHuba o nowsze wydanie i podglądy
-stron pod odnośnikami w wiadomościach.
+sieci, z dodatkiem Bluetooth w zasięgu radia, a z dodatkiem Internet w dowolnych
+dwóch sieciach z dostępem do internetu, gdy już się nawzajem potwierdziły. Nic
+samo nie wychodzi poza Twoją sieć. Wyjątki są trzy i wszystkie stoją
+wyłączone, dopóki sam ich nie włączysz: pytanie do GitHuba o nowsze wydanie,
+podglądy stron pod odnośnikami w wiadomościach i dodatek Internet.
 
 ## Szybki start
 
@@ -144,7 +155,7 @@ Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 765 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury)
+flutter test        # 777 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury)
 flutter analyze
 ```
 

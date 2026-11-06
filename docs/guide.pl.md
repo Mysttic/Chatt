@@ -128,6 +128,51 @@ razy wolniej niż przez Wi‑Fi: megabajt idzie od 6 do 12 sekund. Krótka
 wiadomość wraca w 22 do 25 ms, więc pisania nie odróżnisz od tego przez sieć.
 Bolą dopiero pliki.
 
+## Dodatek Internet
+
+Bluetooth pomaga w promieniu dziesięciu metrów. Gdy komputer jest w domu,
+a telefon poza nim na danych komórkowych, trzecią drogą jest internet, też jako
+dodatek: **Ustawienia → Dodatki → Internet**, wyłączony od początku. To funkcja
+eksperymentalna.
+
+**Z kim działa.** Tylko z urządzeniem o potwierdzonej tożsamości (zielona
+tarcza, kod albo QR). Do tego oba urządzenia muszą się raz spotkać w tej samej
+sieci; potem każde może być gdziekolwiek z dostępem do internetu. Dodatek musi
+być włączony po obu stronach.
+
+**Co się dzieje.** Z włączonym dodatkiem każde urządzenie pyta publiczny serwer
+STUN, pod jakim adresem widać je w internecie, i zostawia ten adres
+w zaszyfrowanej skrzynce w publicznym DHT BitTorrenta, osobnej dla każdego
+potwierdzonego urządzenia. Gdy wysyłasz wiadomość, a drugiego urządzenia nie ma
+ani w Twojej sieci, ani w zasięgu radia, Chatt czyta jego skrzynkę i zaczyna
+nadawać pod ten adres. Drugie urządzenie zagląda do skrzynek mniej więcej co
+minutę; gdy zobaczy, że dzwonisz, odzywa się w stronę Twojego adresu i routery
+po obu stronach przepuszczają oba urządzenia do siebie. Od tej chwili
+wiadomości i pliki idą prosto między nimi, szyfrowane tak samo jak przez Wi‑Fi,
+a połączenie trzyma, dopóki oba urządzenia są w sieci.
+
+**Czego się spodziewać.**
+
+- Pierwsza wiadomość po dłuższej ciszy czeka na to zajrzenie do skrzynki, więc
+  może iść do około minuty. Następne idą od razu.
+- Część sieci tego nie przepuści: router z symetrycznym NAT-em albo sieć, która
+  blokuje UDP (często w pracy, w szkole albo w hotelu). Wiadomość kończy się
+  wtedy jako niedostarczona, jak przy wyłączonym urządzeniu, i można ją ponowić
+  później. Serwera w zapasie nie ma. **Sprawdź osiągalność** na karcie dodatku
+  pokazuje, czy sieć, w której jesteś, to przepuści.
+- Pliki idą z prędkością kilkuset kilobajtów na sekundę: między komputerem
+  w domu a telefonem na LTE 256 KB szło pół sekundy w jedną stronę i sekundę
+  w drugą.
+- Na telefonie dodatek kosztuje baterię: zajrzenie do skrzynek co minutę, a gdy
+  połączenie stoi, mały pakiet mniej więcej co 25 sekund. Karta dodatku to
+  mówi.
+
+**Co widzą inni.** Serwery STUN poznają Twój adres IP i moment połączenia.
+Węzły DHT poznają Twój adres IP i to, że zapisuje albo czyta mały zaszyfrowany
+rekord, mniej więcej co minutę dla każdego potwierdzonego urządzenia. To, co
+jest w rekordzie (Twój adres), odczyta tylko drugie urządzenie, a skrzynka co
+dobę zmienia miejsce i klucz. Nikt po drodze nie odczyta wiadomości ani plików.
+
 ## Dodatek „Klawiatura z PC”
 
 Dodatek ma własną stronę, krok po kroku, z obrazkami z Windows i z Androida:
