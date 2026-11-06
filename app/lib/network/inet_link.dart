@@ -288,6 +288,32 @@ class InetLinkManager {
     }
   }
 
+  /// Rozmówca właśnie dostał zieloną tarczę: wpisujemy mu swój adres od
+  /// razu. Bez tego adres trafiał do jego skrzynki dopiero przy następnym
+  /// odświeżeniu (co [kPublishInterval]), a pierwsza wiadomość po parowaniu
+  /// kończyła się „peer address not in DHT". Nieudany zapis ponawiamy, jak
+  /// w [_publishToAll].
+  Future<void> announceTo(String guid) async {
+    if (!_running || verifiedPeers == null) return;
+    final mine = await _refreshPublic();
+    if (mine == null) return;
+    for (var proba = 0; proba < 3 && _running; proba++) {
+      final ile = await _publishTo(guid, mine,
+          calling: _connecting.containsKey(guid));
+      if (ile > 0) return;
+    }
+  }
+
+  /// Odczyt skrzynki rozmówcy w trakcie dzwonienia, liczony jak odczyt przy
+  /// przeglądzie: pusta skrzynka podbija licznik pustych odczytów, rekord go
+  /// zeruje. Po jednym nieudanym czekaniu kolejne dzwonienie do rozmówcy
+  /// bez dodatku kończy się więc od razu.
+  Future<RendezvousAddress?> _lookupCounted(String guid, Rendezvous box) async {
+    final rekord = await _lookup(box);
+    _emptyReads[guid] = rekord == null ? (_emptyReads[guid] ?? 0) + 1 : 0;
+    return rekord;
+  }
+
   Future<RendezvousAddress?> _lookup(Rendezvous box) async {
     try {
       return await box.lookup(_dht);
@@ -314,13 +340,17 @@ class InetLinkManager {
       }
       for (final guid in guids) {
         if (!_running) return;
-        if (isLinked(guid) || _connecting.containsKey(guid)) {
+        if (isLinked(guid)) {
           // Po zerwaniu łącza czytamy od nowa w podstawowym odstępie.
           _nextWatch.remove(guid);
           _watchGap.remove(guid);
           _emptyReads.remove(guid);
           continue;
         }
+        // W trakcie dzwonienia skrzynkę czyta samo dzwonienie. Licznik
+        // pustych odczytów zostaje: następne dzwonienie ma wiedzieć, że
+        // skrzynka od dawna stoi pusta, i nie czekać na nią znowu 90 s.
+        if (_connecting.containsKey(guid)) continue;
         final termin = _nextWatch[guid];
         if (termin != null && DateTime.now().isBefore(termin)) continue;
         final box = await resolveRendezvous(guid);
@@ -430,18 +460,57 @@ class InetLinkManager {
       return null;
     }
 
+    // Skrzynka odbiorcy była pusta przy tylu odczytach z rzędu jeszcze przed
+    // tym dzwonieniem: rozmówca najpewniej nie ma dodatku albo dawno go nie
+    // było, więc nie ma na co czekać.
+    final dawnoPusta = (_emptyReads[guid] ?? 0) >= kWatchPatience;
     // Własny adres ze znacznikiem „dzwonię", równolegle z odczytem adresu
     // odbiorcy. Odbiorca puka tylko pod adres, który zobaczy w skrzynce,
     // a bez pukania jego NAT nie wpuści HELLO: nieudany zapis ponawiamy.
     final mine = await _refreshPublic();
     if (mine != null) unawaited(_publishCalling(guid, rendezvous, mine));
-    var theirs = await _lookup(rendezvous);
+    var theirs = await _lookupCounted(guid, rendezvous);
+    // Pusta skrzynka to jeszcze nie koniec: świeżo potwierdzony rozmówca
+    // mógł nie zdążyć wpisać adresu. Przy najbliższym przeglądzie skrzynek
+    // zobaczy nasz znacznik „dzwonię", zapuka i wpisze adres, więc czytamy
+    // ponownie co [relookup]. Czekanie ma własny limit: przegląd co minutę,
+    // zapis znacznika i adresu w DHT i nasz kolejny odczyt razem mieszczą
+    // się w [punchTimeout] i jeszcze jednym odstępie [relookup].
+    final czekajDo = DateTime.now().add(punchTimeout + relookup);
+    while (theirs == null && _running && !dawnoPusta) {
+      final reszta = czekajDo.difference(DateTime.now());
+      if (reszta <= Duration.zero) break;
+      onPhase?.call(guid, InetLinkPhase.resolving, 'waiting for the address');
+      await Future<void>.delayed(reszta < relookup ? reszta : relookup);
+      // W czasie czekania rozmówca mógł zadzwonić sam: jego łącze wystarczy,
+      // a własne HELLO tylko by mu przeszkodziło.
+      final przychodzaca = pipeFor(guid);
+      if (przychodzaca != null && !przychodzaca.initiator) {
+        final zostalo = czekajDo.difference(DateTime.now());
+        if (zostalo > Duration.zero &&
+            await przychodzaca.ready.timeout(zostalo, onTimeout: () => false)) {
+          return przychodzaca;
+        }
+      }
+      theirs = await _lookupCounted(guid, rendezvous);
+    }
     if (theirs == null) {
       onPhase?.call(guid, InetLinkPhase.failed, 'peer address not in DHT');
       return null;
     }
 
+    // Przebicie ma pełny czas od chwili, gdy znamy adres.
     final koniec = DateTime.now().add(punchTimeout);
+    // Rozmówca mógł zadzwonić sam, gdy czytaliśmy jego skrzynkę. Nowa rura
+    // zajęłaby miejsce jego łącza w mapach i jego pakiety trafiałyby do rury
+    // bez klucza, więc najpierw czekamy na jego łącze.
+    final juzDzwoni = pipeFor(guid);
+    if (juzDzwoni != null && !juzDzwoni.initiator) {
+      if (await juzDzwoni.ready.timeout(punchTimeout, onTimeout: () => false)) {
+        return juzDzwoni;
+      }
+    }
+
     SecureUdpPipe? pipe;
     while (_running) {
       final reszta = koniec.difference(DateTime.now());

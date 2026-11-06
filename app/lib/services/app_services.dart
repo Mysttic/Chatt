@@ -169,6 +169,12 @@ class _Pairing {
   /// To samo powiedziała druga strona (przyszedł [pairConfirm]).
   bool theirsConfirmed = false;
 
+  /// Tożsamość inicjatora z odsłonięcia klucza, po stronie przyjmującej. Kod
+  /// wiąże jej klucz statyczny, więc po zgodzie obu stron klucz trafia do
+  /// bazy: bez tego ta strona nie znała klucza aż do pierwszej wiadomości,
+  /// a droga internetowa bez klucza nie działa.
+  DeviceIdentity? theirIdentity;
+
   _Pairing({
     required this.expiresAt,
     this.keyPair,
@@ -216,6 +222,10 @@ class IncomingTransfer {
     required int received,
   }) : receivedBytes = ValueNotifier(received);
 }
+
+/// Jak długo sprawdzenie obecności czeka na odpowiedź przez internet. Gdy
+/// łącze stoi, odpowiedź przychodzi w ułamku sekundy.
+const Duration kInternetPresenceWait = Duration(seconds: 6);
 
 /// Zaakceptowana zapowiedź czekająca na bajty (POST /file zaraz po zgodzie).
 class _AcceptedOffer {
@@ -347,6 +357,10 @@ class AppServices {
 
   /// Parowania w toku: guid rozmówcy -> stan uzgodnienia.
   final Map<String, _Pairing> _pairings = {};
+
+  /// Tożsamości tych, którzy zgłosili zeskanowanie naszego kodu, do chwili
+  /// decyzji użytkownika: po zgodzie ich klucz trafia do bazy.
+  final Map<String, DeviceIdentity> _scanIdentities = {};
 
   /// Sesje wychodzące (guid rozmówcy -> sesja) i wszystkie sesje po numerze.
   /// Ta druga mapa obsługuje ruch przychodzący: koperta niesie tylko numer.
@@ -873,7 +887,17 @@ class AppServices {
     bool on(DeviceIdentity? info) => info != null && info.guid == peer.guid;
     return on(await _overRoutes(
       peer,
-      (route) => client.fetchInfo(route, timeout: const Duration(seconds: 2)),
+      (route) {
+        final pytanie =
+            client.fetchInfo(route, timeout: const Duration(seconds: 2));
+        // Przez internet pytanie może najpierw zestawiać łącze, a to trwa do
+        // półtorej minuty. Obecność nie czeka tyle: kropka i nagłówek wolą
+        // „niedostępny" od razu. Dzwonienie idzie dalej w tle, a gdy łącze
+        // stanie, nagłówek sam się przełączy (internetRevision).
+        return route is InternetRoute
+            ? pytanie.timeout(kInternetPresenceWait, onTimeout: () => null)
+            : pytanie;
+      },
       on,
     ));
   }
@@ -978,7 +1002,12 @@ class AppServices {
     // Potwierdzenie po zeskanowaniu: druga strona jest już pewna swojego
     // (widziała nasz ekran), więc tu wystarczy nasza zgoda.
     if (peer != null && oczekujace.isNotEmpty && oczekujace.first.fromScan) {
+      // Klucz skanującego przyszedł z jego tożsamością; przypinamy go dopiero
+      // teraz, po zgodzie użytkownika.
+      final skanujacy = _scanIdentities.remove(peerGuid);
+      if (skanujacy != null) await _przypnijKlucz(peer, skanujacy);
       await db.setPeerVerified(peer.id, true);
+      _announceInternet(peer.guid);
       _removePendingPairing(peerGuid);
       log.info(LogArea.pair, 'Pairing confirmed after a scan by ${_kto(peer)}');
       return PairOutcome.accepted;
@@ -1050,6 +1079,7 @@ class AppServices {
               'Pairing by scan from $kto rejected: identity does not match its key');
           return const PairReply(PairOutcome.rejected);
         }
+        _scanIdentities[peer.guid] = message.from;
         _showPairing(
           peer,
           ChattCrypto.fingerprint(message.from.publicKey),
@@ -1107,6 +1137,9 @@ class AppServices {
           responderStatic: identity.publicKey,
         );
         pairing.code = kod;
+        if (_identityMatchesKey(message.from)) {
+          pairing.theirIdentity = message.from;
+        }
         _showPairing(peer, kod);
         log.info(LogArea.pair, 'Pairing code shown for $kto');
         return const PairReply(PairOutcome.accepted);
@@ -1148,9 +1181,21 @@ class AppServices {
     final pairing = _pairings[peer.guid];
     if (pairing == null || pairing.code == null) return;
     if (!pairing.mineConfirmed || !pairing.theirsConfirmed) return;
+    final ich = pairing.theirIdentity;
+    if (ich != null) await _przypnijKlucz(peer, ich);
     await db.setPeerVerified(peer.id, true);
+    _announceInternet(peer.guid);
     _dropPairing(peer.guid);
     log.info(LogArea.pair, 'Pairing completed with ${_kto(peer)}');
+  }
+
+  /// Rozmówca właśnie dostał zieloną tarczę: przy włączonym dodatku Internet
+  /// nasz adres trafia do jego skrzynki od razu; przedtem czekał na najbliższe
+  /// odświeżenie (patrz [InetLinkManager.announceTo]). W tle: parowanie nie
+  /// czeka na DHT.
+  void _announceInternet(String guid) {
+    final manager = _internetManager;
+    if (manager != null) unawaited(manager.announceTo(guid));
   }
 
   void _showPairing(Peer peer, String code, {bool fromScan = false}) {
@@ -1198,6 +1243,7 @@ class AppServices {
     );
     await db.setPeerKey(peer.id, base64.encode(link.publicKey));
     await db.setPeerVerified(peer.id, true);
+    _announceInternet(peer.guid);
     _dropPairing(peer.guid);
     log.info(LogArea.pair, 'Paired by scanning the code of ${_kto(peer)}');
 
@@ -1425,6 +1471,7 @@ class AppServices {
   }
 
   void _removePendingPairing(String peerGuid) {
+    _scanIdentities.remove(peerGuid);
     pendingPairings.value = pendingPairings.value
         .where((pairing) => pairing.peerGuid != peerGuid)
         .toList(growable: false);

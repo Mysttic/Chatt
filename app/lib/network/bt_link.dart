@@ -82,7 +82,13 @@ const int _headerBytes = 9;
 /// Największa treść w jednej ramce. Pomiar z docs/spike-rfcomm.md nie pokazał
 /// progu, powyżej którego większe porcje coś dają, a mniejsze trzymają
 /// w ryzach pamięć i opóźnienie wiadomości wciśniętej między porcje pliku.
-const int btFrameBytes = 8192;
+///
+/// Cała ramka, z nagłówkiem, ma 8 KiB: łącze internetowe tnie bajty na
+/// segmenty po 1 KiB (`kSegmentPayload` w secure_udp.dart), więc pełna ramka
+/// to osiem pełnych segmentów. Przy treści 8192 bajtów nagłówek wypychał
+/// dziewiąty segment z 9 bajtami, czyli co dziewiąty pakiet szedł prawie
+/// pusty. Radiu i TCP rozmiar ramki jest obojętny.
+const int btFrameBytes = 8192 - _headerBytes;
 
 /// Górna granica jednej ramki przy odbiorze. Chroni przed łączem, które
 /// podaje długość z sufitu.

@@ -73,10 +73,13 @@ void main() {
   });
 
   /// Urządzenie za własnym NAT-em. [odbiera]: czyta skrzynkę rozmówcy i puka,
-  /// jak w aplikacji; bez tego tylko dzwoni.
+  /// jak w aplikacji; bez tego tylko dzwoni. [potwierdzeni]: lista, którą
+  /// test zmienia w trakcie (parowanie); bez niej rozmówca jest potwierdzony
+  /// od początku.
   _Strona strona(_Osoba ja, _Osoba on, String publiczny, String prywatny,
       {bool odbiera = true,
       Duration punch = const Duration(seconds: 6),
+      List<String>? potwierdzeni,
       Future<BtResponse> Function(BtRequest request, String guid)? obsluga}) {
     final nat = net.createNat(publiczny);
     final mux = net.create(prywatny, 4000, behind: nat);
@@ -93,7 +96,8 @@ void main() {
               myGuid: ja.guid,
               theirGuid: on.guid)
           : null,
-      verifiedPeers: odbiera ? () async => [on.guid] : null,
+      verifiedPeers:
+          odbiera ? () async => List.of(potwierdzeni ?? [on.guid]) : null,
       watchInterval: const Duration(milliseconds: 300),
       watchMax: const Duration(seconds: 1),
       punchTimeout: punch,
@@ -269,5 +273,106 @@ void main() {
     expect(odA, 0);
     expect(mgrA.linkedGuids, isEmpty);
     await rura.close();
+  });
+
+  test('pierwsze dzwonienie po parowaniu czeka, aż odbiorca wpisze adres',
+      () async {
+    // B ma już A wśród potwierdzonych, ale nic mu jeszcze nie wpisał (tak
+    // było przed zapisem przy potwierdzeniu: adres szedł dopiero przy
+    // odświeżeniu co 10 minut). A dzwoni do pustej skrzynki i czyta ją
+    // ponownie, aż B zobaczy znacznik „dzwonię" i wpisze adres.
+    final listaB = <String>[];
+    final sa = strona(a, b, '198.51.100.1', '192.168.1.10',
+        punch: const Duration(seconds: 8));
+    strona(b, a, '198.51.100.2', '192.168.2.10', potwierdzeni: listaB);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    listaB.add(a.guid);
+
+    final odp = await sa.zapytaj(b.guid);
+    expect(odp.status, 200);
+    expect(InternetTransport.asText(odp), a.guid);
+  });
+
+  test('skrzynka pusta od dawna: dzwoniący nie czeka całego czasu na przebicie',
+      () async {
+    // B nie ma dodatku, więc jego skrzynka jest zawsze pusta. Po kilku pustych
+    // odczytach przy przeglądzie A nie czeka 20 s na adres, którego nie będzie.
+    final sa = strona(a, b, '198.51.100.1', '192.168.1.10',
+        punch: const Duration(seconds: 20));
+    await Future<void>.delayed(const Duration(milliseconds: 2500));
+
+    final zegar = Stopwatch()..start();
+    final odp = await sa.zapytaj(b.guid);
+    expect(odp.status, -1);
+    expect(zegar.elapsed, lessThan(const Duration(seconds: 5)));
+  });
+
+  test('po jednym nieudanym czekaniu następne dzwonienie do pustej skrzynki '
+      'kończy się od razu', () async {
+    // B nie ma dodatku. Pierwsze dzwonienie A czeka na adres cały czas
+    // przebicia, a puste odczyty w trakcie się liczą, więc drugie wie już,
+    // że skrzynka od dawna stoi pusta. Przegląd skrzynek zerował wcześniej
+    // licznik przy każdym dzwonieniu i każda wiadomość czekała od nowa.
+    final sa = strona(a, b, '198.51.100.1', '192.168.1.10',
+        punch: const Duration(seconds: 5));
+    final pierwsze = Stopwatch()..start();
+    expect((await sa.zapytaj(b.guid)).status, -1);
+    expect(pierwsze.elapsed, greaterThan(const Duration(seconds: 4)));
+
+    final drugie = Stopwatch()..start();
+    expect((await sa.zapytaj(b.guid)).status, -1);
+    expect(drugie.elapsed, lessThan(const Duration(seconds: 2)));
+  });
+
+  test('świeżo potwierdzony rozmówca dostaje adres od razu', () async {
+    final listaB = <String>[];
+    final sb = strona(b, a, '198.51.100.2', '192.168.2.10', potwierdzeni: listaB);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final czytelnik = DhtClient(net.create('203.0.113.8', 4200),
+        bootstrap: const [])
+      ..debugBootstrap = [DhtEndpoint(dht.mux.address, dht.mux.port)];
+    addTearDown(czytelnik.close);
+    final skrzynkaB = await Rendezvous.forPeer(
+        myStatic: a.klucz, theirStatic: b.pub, myGuid: a.guid, theirGuid: b.guid);
+    expect(await skrzynkaB.lookup(czytelnik), isNull,
+        reason: 'przed potwierdzeniem B nic A nie wpisuje');
+
+    listaB.add(a.guid);
+    await sb.mgr.announceTo(a.guid);
+    final rekord = await skrzynkaB.lookup(czytelnik);
+    final mapowanie = sb.nat.mappingOf(sb.mux);
+    expect(rekord, isNotNull);
+    expect(rekord!.address.address, mapowanie.address.address);
+    expect(rekord.port, mapowanie.port);
+  });
+
+  test('duży plik idzie pełnymi segmentami łącza', () async {
+    // Ramka multipleksera z nagłówkiem ma 8 KiB, czyli osiem pełnych
+    // segmentów. Przy treści 8192 bajtów nagłówek wypychał dziewiąty segment
+    // z 9 bajtami: na 512 KiB szło 578 segmentów, teraz około 520.
+    final sa = strona(a, b, '198.51.100.1', '192.168.1.10');
+    strona(b, a, '198.51.100.2', '192.168.2.10',
+        obsluga: (request, peerGuid) async {
+      await for (final _ in request.body) {}
+      return BtResponse.ofBytes(200, const []);
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect((await sa.zapytaj(b.guid)).status, 200);
+    final rura = sa.mgr.pipeFor(b.guid)!;
+
+    const bajty = 512 * 1024;
+    final plik = File('${Directory.systemTemp.path}${Platform.pathSeparator}'
+        'chatt_ramki_${DateTime.now().microsecondsSinceEpoch}.bin');
+    await plik.writeAsBytes(Uint8List(bajty));
+    addTearDown(() => plik.delete());
+
+    final przed = rura.segmentsSent;
+    final odp = await sa.transport.stream(InternetRoute(b.guid), '/plik',
+        headers: const {}, file: plik);
+    expect(odp.status, 200);
+    // 512 pełnych segmentów treści, po jednym krótszym na każdy kawałek
+    // czytania pliku (64 KiB) i kilka na nagłówek i koniec żądania.
+    expect(rura.segmentsSent - przed,
+        lessThanOrEqualTo(bajty ~/ kSegmentPayload + bajty ~/ 65536 + 4));
   });
 }

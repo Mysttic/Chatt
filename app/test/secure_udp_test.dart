@@ -104,7 +104,11 @@ void main() {
     final data = Uint8List.fromList(
         List<int>.generate(50000, (i) => i % 251));
     p.a.add(data);
-    await _settle(rounds: 4000);
+    // Czekamy na komplet, a nie stałą liczbę rund: na Windowsie bez
+    // podniesionej rozdzielczości zegara Future.delayed(1 ms) trwa 15,6 ms
+    // i 4000 rund przekraczało limit testu.
+    await _czekajNa(() => p.gotB.length >= data.length,
+        limit: const Duration(seconds: 25));
     expect(p.gotB.length, data.length);
     expect(listEquals(p.gotB, data), isTrue);
     await p.a.close();

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:chatt/core/crypto.dart';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +33,31 @@ void main() {
     addTearDown(services.dispose);
     return services;
   }
+
+  test('obecność przez internet nie czeka całego dzwonienia', () async {
+    // Rozmówca z zieloną tarczą poza siecią i bez adresu w skrzynce:
+    // dzwonienie do niego potrafi trwać półtorej minuty, a kropka obecności
+    // i nagłówek rozmowy nie mają na nie czekać.
+    final s = await instancja();
+    expect(await s.setInternetAddon(true), isTrue);
+    final klucz = await ChattCrypto.newKeyPair();
+    final pub = await ChattCrypto.publicKeyOf(klucz);
+    final guid = ChattCrypto.guidFromPublicKey(pub);
+    final wpis = await s.db.upsertPeer(
+      guid: guid,
+      name: 'Daleko',
+      welcomeMessage: '',
+      host: '127.0.0.1',
+      port: 9,
+    );
+    await s.db.setPeerKey(wpis.id, base64.encode(pub));
+    await s.db.setPeerVerified(wpis.id, true);
+
+    final zegar = Stopwatch()..start();
+    expect(await s.isPeerOnline((await s.db.peerByGuid(guid))!), isFalse);
+    expect(zegar.elapsed,
+        lessThan(kInternetPresenceWait + const Duration(seconds: 4)));
+  });
 
   test('domyślnie wyłączony, włącza się i zapisuje w bazie', () async {
     final s = await instancja();
