@@ -7,7 +7,7 @@ decides whether the transport abstraction is worth building at all.
 This file is the record of how the Bluetooth transport came about. The work
 began as the measurement described in the first sections and grew, over the
 third and fourth runs, into the transport itself, which now ships as the
-Bluetooth add-on (Settings, Add-ons) and is described in
+Bluetooth add-on (Settings, Connection) and is described in
 [architecture.md](architecture.md#transports). Everything up to "What step 1
 deliberately left out" is the state of step 1.
 

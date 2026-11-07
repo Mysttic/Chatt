@@ -82,6 +82,7 @@ const Map<String, String> _pl = {
   'cieplo': 'Ciepło',
   'nieZgadza': 'Nie zgadza się',
   'prywatnosc': 'Prywatność',
+  'wyglad': 'Wygląd',
   'wyczysc': 'Wyczyść historię',
   'anuluj': 'Anuluj',
 };
@@ -111,6 +112,7 @@ const Map<String, String> _en = {
   'cieplo': 'Warm',
   'nieZgadza': 'They differ',
   'prywatnosc': 'Privacy',
+  'wyglad': 'Appearance',
   'wyczysc': 'Clear history',
   'anuluj': 'Cancel',
 };
@@ -149,31 +151,6 @@ Future<void> pasekDemo(bool wlacz) async {
   ]) {
     await adb(['shell', 'am', 'broadcast', '-a', akcja, ...polecenie]);
   }
-}
-
-/// Przewija ekran, aż węzeł z [etykieta] stanie u góry, między [od] a [az]
-/// pikseli od górnej krawędzi.
-Future<void> przewinDo(String etykieta, {int od = 300, int az = 800}) async {
-  for (var i = 0; i < 20; i++) {
-    final r = await ramka(etykieta, timeout: const Duration(seconds: 1));
-    if (r != null && r.$2 >= od && r.$2 <= az) return;
-    // Za nisko albo jeszcze go nie ma: w górę. Za wysoko: trochę w dół.
-    final wGore = r == null || r.$2 > az;
-    await adb([
-      'shell', 'input', 'swipe', '640', wGore ? '2000' : '1200', '640',
-      wGore ? '1300' : '1500', '500',
-    ]);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-  }
-  throw StateError('Nie przewinąłem do: $etykieta');
-}
-
-/// Wraca na górę przewijanego ekranu.
-Future<void> przewinNaGore() async {
-  for (var i = 0; i < 6; i++) {
-    await adb(['shell', 'input', 'swipe', '640', '700', '640', '2600', '200']);
-  }
-  await Future<void>.delayed(const Duration(seconds: 1));
 }
 
 /// CHATT_SHOTS_TARGETS=1: przy każdym zrzucie wypisuje klikalne elementy
@@ -468,6 +445,25 @@ Future<void> stuknij(String etykieta,
   await Future<void>.delayed(const Duration(seconds: 1));
 }
 
+/// Wraca z Ustawień na listę rozmów: Wstecz w pasku, dopóki nie widać
+/// przycisku „W pobliżu", najwyżej trzy razy. Z kategorii Wstecz prowadzi
+/// najpierw na listę kategorii, a w dwóch panelach od razu do rozmów.
+/// Etykieta dokładnie: „Background listening" na liście kategorii też
+/// zawiera „Back".
+Future<void> doListyRozmow() async {
+  for (var i = 0; i < 3; i++) {
+    if (await znajdz(t['wPoblizu']!,
+            timeout: const Duration(seconds: 2), dokladnie: true) !=
+        null) {
+      return;
+    }
+    await stuknij(t['wstecz']!, dokladnie: true);
+  }
+  if (await znajdz(t['wPoblizu']!, dokladnie: true) == null) {
+    throw StateError('Nie wróciłem na listę rozmów');
+  }
+}
+
 /// Rozmówca po stronie komputera: osobna instancja stosu, która rozmawia
 /// z aplikacją na emulatorze przez tunel adb.
 Future<AppServices> rozmowca({
@@ -541,19 +537,22 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 10));
     await pasekDemo(true);
 
-    // Świeża instalacja startuje po angielsku. Polskie zrzuty wymagają
-    // przestawienia w ustawieniach; angielskie nie.
-    if (jezyk == 'pl') {
+    // Świeża instalacja startuje po angielsku, w Ciszy. Język i styl
+    // przestawia się w kategorii Appearance, jeszcze przy angielskich
+    // etykietach.
+    if (jezyk == 'pl' || styl != 'cisza') {
       await stuknij('Settings');
-      // Pole języka pokazuje bieżący wybór, a lista ma nazwy po angielsku.
-      await stuknij('English', dokladnie: true);
-      await stuknij('Polish', dokladnie: true);
-      await stuknij(t['wstecz']!);
-    }
-    if (styl != 'cisza') {
-      await stuknij(t['ustawienia']!);
-      await stuknij(t[styl]!, dokladnie: true);
-      await stuknij(t['wstecz']!);
+      // Wiersz kategorii to jeden węzeł z nazwą i streszczeniem: stuknij
+      // szuka go po fragmencie opisu.
+      await stuknij('Appearance');
+      if (jezyk == 'pl') {
+        // Pole języka pokazuje bieżący wybór, a lista ma nazwy po angielsku.
+        await stuknij('English', dokladnie: true);
+        await stuknij('Polish', dokladnie: true);
+      }
+      // Od tej chwili aplikacja mówi językiem zrzutów.
+      if (styl != 'cisza') await stuknij(t[styl]!, dokladnie: true);
+      await doListyRozmow();
     }
 
     anna = await rozmowca(nazwa: t['anna']!, port: 47790, work: work);
@@ -679,17 +678,19 @@ Future<void> przejscie(
 
     // --- Prywatność i czyszczenie historii (przewodnik) ---------------------
     if (zrzutyPrzewodnika) {
-      await przewinDo(t['prywatnosc']!);
+      await stuknij(t['prywatnosc']!);
       await zrzut('and20_prywatnosc', katalog: przewodnik);
       await stuknij(t['wyczysc']!, dokladnie: true);
       await zrzut('and21_wyczysc_historie', katalog: przewodnik);
       await stuknij(t['anuluj']!, dokladnie: true);
-      await przewinNaGore();
+      // Z kategorii z powrotem na listę kategorii.
+      await stuknij(t['wstecz']!, dokladnie: true);
     }
 
     // --- To samo w trybie ciemnym -----------------------------------------
-    await stuknij(t['ciemny']!);
-    await stuknij(t['wstecz']!);
+    await stuknij(t['wyglad']!);
+    await stuknij(t['ciemny']!, dokladnie: true);
+    await doListyRozmow();
     await zrzut('android_lista_rozmow_ciemny');
   }
 }

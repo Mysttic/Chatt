@@ -63,11 +63,11 @@ unchanged.
 
 ### The Bluetooth add-on
 
-Everything below sits behind one switch: the Bluetooth add-on in the
-**Add-ons** section of Settings (`settings.bluetoothEnabled`, off by default).
-`AppServices.bluetoothAddon` is the single gate and `setBluetoothAddon` its only
-writer; the rules it shares with the keyboard add-on are in
-[Add-ons](#add-ons). With the add-on off:
+Everything below sits behind one switch: the Bluetooth add-on's card in the
+**Connection** category of Settings (`settings.bluetoothEnabled`, off by
+default). `AppServices.bluetoothAddon` is the single gate and
+`setBluetoothAddon` its only writer; the rules it shares with the other two
+add-ons are in [Add-ons](#add-ons). With the add-on off:
 
 - no transport is started, so nothing listens on RFCOMM and a PC stays
   undiscoverable;
@@ -81,12 +81,14 @@ writer; the rules it shares with the keyboard add-on are in
   `settings.wifiEnabled`, and switching the add-on off writes
   `wifiEnabled = true` back in the same update;
 - no screen shows any of it: Nearby has no road picker and no add by radio
-  address, and the conversation list and header carry no road mark
-  (`ProtocolBadge` takes no space, its padding included).
+  address, the conversation list and header carry no road mark
+  (`ProtocolBadge` takes no space, its padding included), and the line under
+  Connection on the Settings list names no Bluetooth.
 
 The add-on's card holds what belongs to it: the radio and permission state, the
-radio's own address, the discoverability notice on Windows and the local network
-switch (`settings.wifiEnabled`), which counts only while the add-on is on.
+radio's own address (shown nowhere else in Settings), the discoverability notice
+on Windows and the local network switch (`settings.wifiEnabled`), which counts
+only while the add-on is on.
 Android asks for the Bluetooth permissions when the add-on goes on, and again
 only from the card's button after the permission was taken away; that button
 opens the app's page in system settings, where a permanently refused permission
@@ -266,27 +268,33 @@ therefore every request, is reachable only after a key the user confirmed.
 
 ## Add-ons
 
-Settings has an **Add-ons** section for features most users can do without, so
-each one is built to cost nothing while it is off. There are two:
-[Bluetooth](#the-bluetooth-add-on), a second road, which is described under
-Transports, and [the keyboard](#the-keyboard-add-on). Both follow the same
-rules:
+Add-ons are features most users can do without, so each one is built to cost
+nothing while it is off. There are three: [Bluetooth](#the-bluetooth-add-on)
+and [the internet](#the-internet-add-on-issue-68-experimental), two more
+roads, which are described under Transports, and
+[the keyboard](#the-keyboard-add-on). Their cards sit in Settings: Bluetooth
+and Internet in the **Connection** category, the keyboard in a category of its
+own, **Keyboard from a PC**. All three follow the same rules:
 
-- **one switch** in Settings → Add-ons, off by default and stored in `settings`
-  (`bluetoothEnabled`, `keyboardEnabled`);
+- **one switch** on the add-on's card, off by default and stored in
+  `settings` (`bluetoothEnabled`, `internetEnabled`, `keyboardEnabled`);
 - **one gate in memory**, a `ValueNotifier<bool>` on `AppServices`
-  (`bluetoothAddon`, `keyboardAddon`), read from the database at start;
-- **one writer** (`setBluetoothAddon`, `setKeyboardAddon`), which runs its
-  calls one after another, so a quick "off, on" ends in the state of the last
-  click, in memory, in the database and on the native side alike;
+  (`bluetoothAddon`, `internetAddon`, `keyboardAddon`), read from the database
+  at start;
+- **one writer** (`setBluetoothAddon`, `setInternetAddon`,
+  `setKeyboardAddon`), which runs its calls one after another, so a quick
+  "off, on" ends in the state of the last click, in memory, in the database
+  and, for Bluetooth and the keyboard, on the native side alike;
 - **a database write alone never raises the gate**: no settings watcher
   touches it, so a late event from the database cannot bring an add-on back
   after it was switched off;
-- **while it is off, no screen other than its own card shows it**, and its
-  native channel (`chatt/bluetooth`, `chatt/remoteinput`) receives no call. The
-  one exception is the switch itself while it is being flipped: Bluetooth
-  checks and asks for the permission, the keyboard turns its system keyboard
-  component on or off.
+- **while it is off, no screen outside Settings shows it**, and nothing of it
+  runs: the native channels (`chatt/bluetooth`, `chatt/remoteinput`) receive
+  no call, and the internet road opens no UDP socket. In Settings its card is
+  then a single switch, and the keyboard's category stays on the list with the
+  summary "Off". The one exception is the switch itself while it is being
+  flipped: Bluetooth checks and asks for the permission, the keyboard turns
+  its system keyboard component on or off.
 
 ### The keyboard add-on
 
@@ -1686,7 +1694,9 @@ A plain Flutter process dies with its window, so:
 - **`reusePort` is off**, because Dart does not support `SO_REUSEPORT` on
   Android and the bind throws. The flag is set only on desktop Linux and macOS,
   where it lets two instances share the port. `AppServices` records whether the
-  responder started, and Settings shows a warning when it did not;
+  responder started (`discoveryListening`), and when it did not, Settings
+  shows a warning at the top of the Connection category and a line under
+  that category on the list;
 - **WifiLock** is taken only up to Android 12. From 13 the system accepts
   `WIFI_MODE_FULL_HIGH_PERF` and ignores it, and `LOW_LATENCY` works only for a
   foreground app;
@@ -1815,8 +1825,10 @@ One set of screens serves a phone and a monitor:
 - **A 900 px threshold** (`czyDwupanel`): above it the conversation list and
   the conversation stand side by side in one `Scaffold`, below it the
   conversation is a separate screen on the navigation stack. The same
-  `ChatScreen` in both cases; the embedded one gets no back arrow.
-- **Upper width limits**: bubbles 560 px, forms 760 px (`ContentColumn`).
+  `ChatScreen` in both cases; the embedded one gets no back arrow. Settings
+  splits at the same width ([below](#settings-a-list-of-categories)).
+- **Upper width limits**: bubbles 560 px, Settings 640 px
+  (`SettingsPage.szerokosc`), forms 760 px (`ContentColumn`).
 - **`VisualDensity.adaptivePlatformDensity`**: tighter spacing on a desktop
   than on a phone.
 - **Android system bars**: from API 35 the system draws them **over** the app
@@ -1832,6 +1844,92 @@ One set of screens serves a phone and a monitor:
 - **Selecting message text** is a `SelectionArea` around the conversation on
   the desktop, and a "Select text" entry in the bubble menu on a phone, where
   the long press already belongs to that menu.
+
+### Settings: a list of categories
+
+Settings (issue #71) is a short list of categories, each row with a line
+saying what is set in it, and a category opens in the same `SettingsScreen`,
+with no route of its own. `SettingsSection` in
+[`ui/screens/settings/settings_section.dart`](../app/lib/ui/screens/settings/settings_section.dart)
+is the one source of the order: eight categories in three cards (Profile;
+Connection, Background listening, Keyboard from a PC; Appearance, Privacy,
+Data and diagnostics, Updates). `SettingsSection.grupy(platform)` drops a
+category with nothing to show on that platform, and a card left empty with
+it: Background listening exists only on Android and Windows. The platform
+comes from `dart:io` (`biezacaPlatforma()`), because the battery and the
+registry decide what that category holds, and tests pass it in as
+`SettingsScreen(platform: …)`.
+
+- **Below 900 px** the screen shows the list or one category. The choice is
+  state (`SettingsSection? _wybrana`), and one `PopScope` turns the system
+  Back, the app bar's arrow and Esc into the way back to the list. Esc
+  arrives as the app's `DismissIntent`, which travels up from the focused
+  widget to the nearest action for it: a text field hides its own menu (Cut,
+  Copy, Paste) first and passes the intent on only without one. Every
+  `Scaffold` has an action of its own for that intent (it closes a drawer),
+  which stops the intent when there is no drawer, so an `Actions` entry that
+  calls `Navigator.maybePop` sits under the bar and the body of each
+  Scaffold, and one more above the whole screen. That last one wraps a
+  `FocusScope` with `autofocus`: a field that gives up its focus hands it to
+  that scope and Esc keeps working.
+- **From 900 px** the list (360 px) and the category stand side by side,
+  split by a `VerticalDivider`, the category in a column up to 640 px. The
+  right pane is never empty: with nothing picked it shows the first category
+  (`SettingsSection.pierwszaNa`). The picked row has the `primaryContainer`
+  background and is selected in the semantics, and no row has a chevron.
+  Each pane is its own `FocusTraversalGroup`, so Tab and a field's Next stay
+  in the category. The category's content is in a column at the pane's
+  start edge, under its name in the bar, and only that content takes the
+  route's `PrimaryScrollController` (the list has `primary: false`), so
+  PageUp and PageDown scroll it. Back, the arrow over the list and Esc close
+  Settings, because there is no list to go back to.
+- **`SettingsScreen(initialSection: …)`** opens a category straight away,
+  and below 900 px Back from it leads to the list; a category the platform
+  does not have opens the list. Nearby uses it for its **Connection settings** button while
+  Bluetooth is not running.
+- **A width change keeps the category.** Each category's content sits under a
+  `GlobalKey` of its own in both layouts, so crossing 900 px with a category
+  picked (snapping the window to half the screen) moves the content and its
+  state (a wait for the Bluetooth permission, a half-typed field) into the
+  other layout. An update download lives outside its card (a notifier in
+  `updates_section.dart`), so it runs to the end and hands over to the
+  installer even after the user has moved to another category. The category the right pane shows
+  with nothing picked becomes the picked one after its first frame, so the
+  narrow layout keeps it on screen too; Settings opened narrow with nothing
+  picked shows the list. The keys belong to the screen's `State`, so a
+  Settings screen on its way out and a new one on its way in never share one.
+  A second Back while the first one is still saving the fields closes
+  Settings only once.
+- **Files.** `settings_screen.dart` keeps the screen: the choice, both
+  layouts, the way back, and the battery and autostart state with its
+  lifecycle observer, which the Background listening line needs.
+  `ui/screens/settings/` holds the enum, the category row
+  (`settings_category_row.dart`), the shared pieces (`settings_widgets.dart`),
+  one file per category and the three add-on cards.
+- **The summaries are pure functions** in `settings_summary.dart`, with no
+  `BuildContext`: `streszczenie(section, state, l10n)` gives the line under
+  the name, and `linia(section, state, l10n)` an optional third line, news in
+  the accent colour or a problem in the warning colour, the most serious one
+  when several apply. `StanUstawien` is a plain object the screen builds for
+  every build of the list from the settings row, the add-on gates, the
+  Bluetooth state and the release notifier on `AppServices`, `keyProtected`,
+  `discoveryListening`, the battery and autostart state and a live count of
+  typing sessions. A row changes the moment its setting does, and the exact
+  strings in both languages, plural forms included, are tested with no
+  widgets.
+- **Fields save on leaving.** The nickname and the welcome message
+  (`AppServices.saveProfile`) and the preferred port (`AppServices.savePort`)
+  save when the field loses focus, on Enter and when the category is left. A
+  category with such fields mixes in `SettingsCommit`, and the screen awaits
+  its `commit()` before it opens another category, goes back to the list or
+  closes; `false` (an empty nickname, a port outside 1024 to 65535) keeps the
+  user in the category with the field's message. A field left as it was is
+  never validated, because the database can hold a port outside the field's
+  range (seeded from `CHATT_TCP_PORT`, or 0 in the tests). `savePort` reports
+  whether a restart is needed, and the toast says so when the saved port
+  differs from the one the server bound. A category torn down without Back (a
+  share from another app clears everything above the conversation list) saves
+  a valid value from its `dispose`.
 
 ## Styles: one app, three looks
 
@@ -1894,6 +1992,14 @@ information and the same controls in every style, so no code outside
   image of the old one, taken from the pane's repaint boundary at the moment
   of the switch. The old `ChatScreen` leaves in that frame, so its global
   Ctrl+V handler and drop target never see the new conversation's input.
+- **The Settings list and a category** (issue #71) swap inside one screen on
+  the same shared X axis as the pages. `ChattSharedAxisTransition`, the
+  transition `ChattPageTransitionsBuilder` builds, runs on a controller from
+  `motionController` in the style's `screenIn` and `screenOut` times, and that
+  controller is the category's `animation` and the list's
+  `secondaryAnimation`. Once the category stands, the list goes `Offstage`
+  under it and keeps its scroll position for the way back. In two panes a
+  newly picked category fades in, in the style's `paneSwitch` time.
 - **`chattTheme` keeps the themes it has built**, per style, brightness,
   background, reduced motion and platform. Saving an unrelated setting
   rebuilds `MaterialApp` with the very same `ThemeData`, so the theme

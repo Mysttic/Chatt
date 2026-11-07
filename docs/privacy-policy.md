@@ -1,6 +1,6 @@
 # Chatt Privacy Policy
 
-Last updated: 6 November 2026.
+Last updated: 7 November 2026.
 
 ## In short
 
@@ -55,9 +55,10 @@ all of which are off until you turn them on.
 
 ## Typing history, app log and export
 
-All three are in Settings, in the **Data and diagnostics** section; Typing
-history shows there once at least one session is saved, and the keyboard
-add-on's card opens it too while the add-on is on.
+The app log and the export are in Settings, in the **Data and diagnostics**
+category. Typing history is in the **Keyboard from a PC** category: a button
+on the add-on's card while the add-on is on, and under the card while the
+add-on is off and at least one session is saved.
 
 **Typing history.** With the Keyboard from a PC add-on on, both devices keep a
 record of every typing session: which device typed on which, when the session
@@ -122,10 +123,12 @@ visible to Bluetooth devices nearby, and turning the add-on off ends that.
 
 ## Connections outside your network
 
-Three features, all **off until you turn them on** in Settings, make the app
-connect outside your local network. None of them carries an account or a
-token. The update check and link previews send no identifier either: the other
-side sees an IP address and a timestamp, the same as any HTTPS server does.
+Three features, all **off until you turn them on** in Settings (the update
+check under **Updates**, link previews under **Privacy**, the Internet add-on
+under **Connection**), make the app connect outside your local network. None
+of them carries an account or a token. The update check and link previews send
+no identifier either: the other side sees an IP address and a timestamp, the
+same as any HTTPS server does.
 
 | Feature | What it contacts | What the other side learns |
 |---|---|---|
@@ -172,8 +175,8 @@ DHT, as described above; none of them gets an account, a token or any content.
 
 All data is on your device and under your control:
 
-- "Clear history" in settings deletes every message and conversation, and the
-  typing history with them,
+- "Clear history" in Settings → Privacy deletes every message and conversation,
+  and the typing history with them,
 - "Clear typing history" deletes the typing history alone,
 - both also delete an export still waiting in the app's cache on Android,
 - automatic deletion of messages older than a chosen number of days runs on

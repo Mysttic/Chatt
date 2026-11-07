@@ -8,7 +8,7 @@
 // android/.../ChattBluetooth.kt.
 //
 // Sama rejestracja niczego nie uruchamia. Kanal wola wylacznie dodatek
-// Bluetooth (Ustawienia, sekcja "Dodatki"); przy wylaczonym dodatku radio,
+// Bluetooth (Ustawienia, kategoria Polaczenie); przy wylaczonym dodatku radio,
 // Winsock i wykrywalnosc komputera zostaja nietkniete.
 //
 // Metody: status, openSettings, openLocationSettings, discoverable, scan,

@@ -8,6 +8,73 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.14.1] - 2026-11-07
+
+Settings is a short list of categories now, and each one says in a line what
+is set in it. A category opens on the same screen, and on a wide window it
+stands next to the list. Every setting stays and works as before; the
+nickname, the welcome message and the port now save on their own.
+
+### Changed
+- **Settings in categories** (issue #71). Eight categories in three cards:
+  **Profile**; **Connection**, **Background listening** and **Keyboard from a
+  PC**; **Appearance**, **Privacy**, **Data and diagnostics** and
+  **Updates**. Connection gathers the Bluetooth and Internet add-on cards
+  with the local network switch, the preferred listening port, the warning
+  that this device does not answer scans, the **This device** panel and
+  **Clean up unused devices**. Background listening holds the battery on
+  Android and starting with Windows on Windows, and is not on the list
+  elsewhere. Keyboard from a PC holds the add-on's card and, with the add-on
+  off, a **Typing history** button once a session is saved. Privacy holds the
+  database key, deleting old messages, link previews and **Clear history**;
+  Data and diagnostics holds the export and the app log. The Add-ons, Links
+  and Windows headers are gone; Bluetooth, Internet and Keyboard from a PC
+  stay add-ons, one switch each, off by default. The radio's address shows
+  once, on the Bluetooth card, and on a phone the background samples wrap
+  into rows, so the last one no longer hides past the edge.
+- **A line under each category**, in Polish and in English, says what is set
+  there, for example "Local network and Bluetooth · port 47780", "Off" or
+  "Deleting after 30 days · no link previews". A third line carries news
+  ("Version X.Y.Z is out") or a problem in the warning colour: "Others will
+  not find this device", a radio turned off, a missing permission, Android
+  dozing Chatt, the history key next to the database. The line changes as
+  soon as the setting does.
+- **Two panes from 900 px.** The list of categories (360 px) stands on the
+  left and the open category on the right, in a column up to 640 px. The
+  right pane is never empty, the picked row has a highlighted background, and
+  Back, the arrow and Esc close Settings. On a narrower window a category
+  takes the list's place with the style's motion; Back, the arrow and Esc go
+  back to the list, and from the list they close Settings. Crossing 900 px
+  keeps the picked category and its state: a typed field, an update
+  download, a wait for the Bluetooth permission.
+- **Fields save themselves.** The nickname, the welcome message and the port
+  save when you leave the field, on Enter and when you leave the category,
+  and the Save button is gone. An empty nickname or a port outside 1024 to
+  65535 keeps you in the category with the field's message. A hint under the
+  port says that a change takes effect after the app restarts, and saving a
+  port other than the one in use says so in a message.
+- **Nearby leads to Connection.** While Bluetooth is not running, Nearby
+  shows a **Connection settings** button under its note, which opens Settings
+  straight in the Connection category.
+- The texts that point into Settings name the new categories: the Bluetooth
+  note in Nearby and the help for adding by radio address say "under
+  Connection", and the typing history screen and the remote keyboard's
+  "Typing is off" say "under Keyboard from a PC".
+- The guides (EN and PL), both keyboard pages, both internet pages, the
+  privacy policy, `docs/architecture.md` and `docs/testing.md` describe the
+  categories, and the screenshots show them.
+
+### Fixed
+- The warning that this device will reach nobody, on the Bluetooth card and
+  under Connection, counts the internet road too: with the local network off
+  and Bluetooth down, a running Internet add-on still reaches confirmed
+  devices, so the warning stays away.
+- An update download runs to the end after you leave the Updates category
+  or Settings, and on Windows Chatt still closes to let the installer in.
+  Before, leaving dropped the hand-over and the installer could not replace
+  the running app. Coming back to the category shows the download where it
+  is.
+
 ## [0.14.0] - 2026-11-07
 
 The internet as a third road. With the **Internet** add-on, experimental and
@@ -1163,6 +1230,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.14.1]: https://github.com/Mysttic/Chatt/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/Mysttic/Chatt/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/Mysttic/Chatt/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Mysttic/Chatt/compare/v0.11.0...v0.12.0

@@ -141,8 +141,10 @@ class ChattMotion {
 
   /// Ruch przy „ogranicz animacje”: każde przejście to przenikanie 100 ms
   /// bez przesunięć i skali, pasek postępu idzie wprost za próbkami.
-  /// Komunikat stoi na ekranie tyle samo co zwykle.
-  ChattMotion get reduced => ChattMotion(
+  /// Komunikat stoi na ekranie tyle samo co zwykle. Jeden obiekt na styl:
+  /// przejścia, które porównują ruch, nie budują krzywych od nowa przy
+  /// każdej przebudowie.
+  ChattMotion get reduced => _ograniczone[this] ??= ChattMotion(
         enter: Curves.linear,
         exit: Curves.linear,
         screenIn: reducedDuration,
@@ -175,6 +177,8 @@ class ChattMotion {
         themeChange: reducedDuration,
         hover: reducedDuration,
       );
+
+  static final _ograniczone = Expando<ChattMotion>('ruch ograniczony');
 
   /// Czy to ruch przy „ogranicz animacje”.
   bool get isReduced => screenIn == reducedDuration && screenShift == 0;
@@ -338,7 +342,7 @@ class ChattPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) =>
-      _WspolnaOs(
+      ChattSharedAxisTransition(
         motion: motion,
         animation: animation,
         secondaryAnimation: secondaryAnimation,
@@ -346,13 +350,19 @@ class ChattPageTransitionsBuilder extends PageTransitionsBuilder {
       );
 }
 
-class _WspolnaOs extends StatefulWidget {
+/// Wspólna oś X stylu poza trasami: ten sam ruch, którym wjeżdżają ekrany.
+/// [animation] prowadzi widok, który przychodzi (0: poza ekranem, 1: na
+/// miejscu), a [secondaryAnimation] widok, który ustępuje mu miejsca
+/// (0: na miejscu, 1: odjechał). Ustawienia przełączają tym listę
+/// i kategorię w jednym ekranie (issue #71).
+class ChattSharedAxisTransition extends StatefulWidget {
   final ChattMotion motion;
   final Animation<double> animation;
   final Animation<double> secondaryAnimation;
   final Widget child;
 
-  const _WspolnaOs({
+  const ChattSharedAxisTransition({
+    super.key,
     required this.motion,
     required this.animation,
     required this.secondaryAnimation,
@@ -360,10 +370,10 @@ class _WspolnaOs extends StatefulWidget {
   });
 
   @override
-  State<_WspolnaOs> createState() => _WspolnaOsState();
+  State<ChattSharedAxisTransition> createState() => _WspolnaOsState();
 }
 
-class _WspolnaOsState extends State<_WspolnaOs> {
+class _WspolnaOsState extends State<ChattSharedAxisTransition> {
   late CurvedAnimation _wjazd;
   late CurvedAnimation _odjazd;
 
@@ -380,7 +390,7 @@ class _WspolnaOsState extends State<_WspolnaOs> {
   }
 
   @override
-  void didUpdateWidget(_WspolnaOs old) {
+  void didUpdateWidget(ChattSharedAxisTransition old) {
     super.didUpdateWidget(old);
     if (old.animation != widget.animation ||
         old.secondaryAnimation != widget.secondaryAnimation ||

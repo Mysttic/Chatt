@@ -1,6 +1,6 @@
 # Tests
 
-The split is simple: **723 `flutter test` tests** check everything that can be
+The split is simple: **880 `flutter test` tests** check everything that can be
 checked without hardware, and separate scenarios in `app/tool/` drive a live
 app on a device. The things neither of them can check are listed at the end.
 
@@ -297,9 +297,10 @@ when it speaks and when it stays quiet:
 - the whole app switches style as soon as the database changes, fonts
   included, and the top of the conversation list carries the device name with
   no version number
-- the style picker in Settings writes to the database, and the "This device"
-  panel shows the fingerprint and the identifier in the fixed-width font and
-  copies the identifier with a "Copied" message
+- the style picker in Settings → Appearance writes to the database, and the
+  "This device" panel in Settings → Connection shows the fingerprint and the
+  identifier in the fixed-width font and copies the identifier with a
+  "Copied" message
 - the conversation list draws every conversation as its own card in every
   style (the style's surface, corner, shadow, an outline in Precyzja, 8 dp
   apart, no shared panel), and after scrolling to the end the last card stands
@@ -320,9 +321,89 @@ when it speaks and when it stays quiet:
 - the live app crossfades the theme in the style's time and a new background
   from the old one without rebuilding the tree or dimming, also in 100 ms
   under the system flag
-- the background chip in Settings moves its border and check in the style's
-  control time and follows the theme every frame during a style change; the
-  clear-history question opens like a consent card over the style's scrim
+- the background chip in Settings → Appearance moves its border and check in
+  the style's control time and follows the theme every frame during a style
+  change; the clear-history question in Settings → Privacy opens like a
+  consent card over the style's scrim
+
+### Settings summaries (`test/settings_summary_test.dart`, 54 tests)
+The line under each category name and the third line come from pure
+functions, so the test checks the exact Polish and English strings with no
+widgets (`lookupAppLocalizations`):
+- Profile is the nickname, with the welcome message after it in the
+  language's quotes
+- Connection lists the roads and the preferred port from the database: the
+  local network stands whenever the Bluetooth add-on is off, and three roads
+  get a comma after the first and "and" before the last
+- Background listening says whether Android dozes Chatt or whether Chatt
+  starts with Windows, and stays empty on Linux
+- Keyboard from a PC off says "Off", with the sessions in typing history when
+  there are any; on, it says whether this device takes typing (left out on a
+  platform with no sink) and whether the history is saved
+- Appearance gives the style, the theme, the background and the language;
+  "No background", a background beyond the list and the system language drop
+  out
+- Privacy gives the retention and the link previews, Data and diagnostics a
+  fixed line, Updates the version and how updates are checked
+- the plural forms of the sessions (1, 2, 5, 12, 22) and of the days (1, 7,
+  30, 90, 365) in both languages
+- the third line: the Connection problems in their order (reaching nobody,
+  then a deaf discovery responder, then the radio off, then the missing
+  permission), with no reaching nobody, radio or permission line while
+  Bluetooth runs and no reaching nobody line while the internet road runs;
+  the battery warning on Android;
+  the key next to the database; a new release as news (`problem: false`);
+  never one under Profile, Keyboard from a PC, Appearance or Data and
+  diagnostics, and none at all on a fresh install or with everything working
+- the defaults of `StanUstawien` match the settings row of a fresh install
+- the categories: the order, the cards and the icons; three cards with
+  Background listening on Android and Windows and without it on Linux, macOS
+  and iOS; each category once, Profile first; the names exact in both
+  languages
+
+### Settings on screen (`test/settings_screen_test.dart`, 22 tests)
+Real `AppServices` instances, as in the other screen tests, with the platform
+passed to `SettingsScreen` so the category list is the same on Windows and on
+the Linux CI:
+- on a phone the list shows eight categories in three cards, each row with
+  its name, icon, summary and chevron; the silent discovery responder of the
+  tests gives Connection its warning line, a new release gives Updates a line
+  in the accent colour, and the first saved typing session changes the
+  Keyboard from a PC summary live
+- every category opens in the same screen with no new route, both views
+  standing during the transition, and the arrow, the system Back and Esc go
+  back to the list; from the list all three close Settings
+- `initialSection` shows its category in every frame of the route's entry,
+  and Back then leads to the list; on Linux an `initialSection` of Background
+  listening opens the list, which has no such category
+- a change inside a category (the style, link previews) changes its line on
+  the list at once
+- from 900 px the list (360 px) and Profile stand side by side, the category
+  in a column up to 640 px, with no chevrons and the picked row selected in
+  the semantics; another row switches the right pane, a tap on the picked one
+  changes nothing, and the arrow over the list, Esc and the system Back close
+  Settings; an `initialSection` stands picked in the right pane, and a change
+  in the category updates its row while the category stays open
+- a width change across 900 px moves the open Profile into two panes and
+  back with the same state and the typed nickname, and Back then saves it;
+  the Profile two panes show with nothing picked counts as picked, with or
+  without a tap on its row, so narrowing the window keeps it open with the
+  typed text
+- in two panes a second Back while the first one still saves the fields
+  closes Settings and leaves the screen under it in place
+- the nickname saves on Enter and on leaving the category, the welcome
+  message on Done, and there is no Save button; an empty nickname keeps the
+  category open with the field's message through every way back, in two
+  panes also against another category and against closing; the port field
+  left as it was (0 in the tests) lets the user out, a port out of range
+  keeps the category open, a new valid port saves on leaving with one restart
+  message, and the port the server already listens on saves on Enter with
+  none
+- Esc with a text field's menu open closes the menu and the next Esc closes
+  Settings; in two panes a field's Next moves the focus to the next field of
+  the category; PageDown scrolls an open category with the list mounted
+  underneath; a running internet road takes the reaching nobody line off
+  Connection
 
 ### Motion in the conversation (`test/chat_motion_test.dart`, 27 tests)
 - in every style a message that arrives while the conversation is open rises
@@ -647,7 +728,7 @@ Linux CI the add-on is the only thing keeping the channel silent:
   included; on a platform with no native code the same database gives no
   add-on at all
 
-### The add-on on screen (`test/bluetooth_addon_ui_test.dart`, 5 tests)
+### The add-on on screen (`test/bluetooth_addon_ui_test.dart`, 6 tests)
 - the road mark takes no space with the add-on off, padding included, and
   shows once the add-on is on
 - Nearby has no road picker with the add-on off; it appears with the add-on
@@ -658,6 +739,10 @@ Linux CI the add-on is the only thing keeping the channel silent:
 - **Show this phone nearby** stands in Nearby only on a phone, with the radio
   running and Bluetooth picked; a visible phone gets a note in its place, and
   a PC (no visibility fields in the status) gets neither
+- **Connection settings** stands in Nearby only with the add-on on and the
+  radio not running, under the note; it opens Settings straight in the
+  Connection category, and Back goes to the category list and then back to
+  Nearby
 
 ### The internet route (`test/bencode_test.dart`, `stun_test.dart`, `dht_test.dart`, `rendezvous_test.dart`, `secure_udp_test.dart`, `udp_mux_test.dart`, `inet_transport_test.dart`, `inet_nat_test.dart`, `internet_addon_test.dart`)
 The whole internet add-on (issue #68) is exercised over an in-memory UDP
@@ -974,16 +1059,24 @@ is being typed):
 - the app log has the keyboard events with each device named with the start
   of its identifier, and none of the typed text
 
-### Typing history on screen (`test/typing_history_ui_test.dart`, 8 tests)
+### Typing history on screen (`test/typing_history_ui_test.dart`, 9 tests)
 - the Save typing history switch is on the add-on card only while the add-on
   is on and writes to the database; the card's button opens an empty history
 - the list goes newest first, says the direction and the result in words and
   sets a refusal apart; the detail shows the rebuilt text, a hidden field as
   dots and keys as small symbols, never the text of a password
-- Clear typing history asks and clears; Clear history in Settings takes the
-  typing history too
-- Data and diagnostics sits between Privacy and Add-ons and shows Typing
-  history only once there is a session, then the log and the export
+- Clear typing history asks and clears; Clear history in Settings → Privacy
+  takes the typing history too
+- the Settings list stands in three cards in the order of `SettingsSection`
+  (Profile; Connection, Background listening, Keyboard from a PC; Appearance,
+  Privacy, Data and diagnostics, Updates), and on Linux without Background
+  listening
+- Keyboard from a PC shows the Typing history button under the add-on's card
+  only with the add-on off and at least one session saved, as soon as the
+  first one is, and on the card while the add-on is on; Back goes from the
+  history to the category and from the category to the list; Data and
+  diagnostics holds the export and then the log, each with its help, and no
+  typing history
 - every result, end reason and status has words in both languages, and the
   fixed names are right in Polish
 
@@ -1027,8 +1120,8 @@ Two real instances:
   entries as text, oldest first
 - Clear the log asks and clears; an empty log and an empty filter have their
   own text
-- the export button opens the dialog with only the log ticked; the Settings
-  button opens the screen, in Polish too
+- the export button opens the dialog with only the log ticked; the App log
+  button in Settings → Data and diagnostics opens the screen, in Polish too
 
 ### The ZIP writer (`test/zip_writer_test.dart`, 16 tests)
 Archives are read back by a small reader written in the test:

@@ -34,7 +34,7 @@
          położenie. Brak <uses-feature>, żeby aplikacja nie zniknęła ze Sklepu
          urządzeniom bez radia. Zgody leżą w manifeście, bo
          inaczej się nie da, ale aplikacja sięga po nie dopiero przy włączaniu
-         dodatku Bluetooth (Ustawienia, sekcja „Dodatki"), domyślnie
+         dodatku Bluetooth (Ustawienia, kategoria Połączenie), domyślnie
          wyłączonego. -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"

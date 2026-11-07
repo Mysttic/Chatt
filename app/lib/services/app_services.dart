@@ -2746,21 +2746,34 @@ class AppServices {
 
   // --- Ustawienia -----------------------------------------------------------
 
-  /// Zapis ustawień. Nick i powitanie działają od razu; nowy port zadziała
-  /// po restarcie aplikacji (zwracamy true, żeby UI o tym powiedział).
-  Future<bool> saveSettings({
+  /// Nick i wiadomość powitalna. Działają od razu: tak przedstawiamy się
+  /// przy następnym kontakcie. Te same wartości co teraz niczego nie
+  /// zapisują, więc kolejne wyjścia z pola nie piszą do bazy.
+  Future<void> saveProfile({
     required String nickname,
     required String welcomeMessage,
-    required int tcpPort,
   }) async {
-    await db.saveSettings(
-      nickname: nickname,
-      welcomeMessage: welcomeMessage,
-      tcpPort: tcpPort,
-    );
-    final portChanged = tcpPort != identity.tcpPort;
-    _identity = _identity.copyWith(name: nickname, welcomeMessage: welcomeMessage);
-    return portChanged;
+    if (nickname == _identity.name &&
+        welcomeMessage == _identity.welcomeMessage) {
+      return;
+    }
+    // Najpierw baza, potem tożsamość: nieudany zapis (np. pełny dysk) nie
+    // zostawia nowej nazwy w pamięci, więc następne wyjście z pola zapisze
+    // ją jeszcze raz. Dwa zapisy tych samych wartości naraz nic nie psują.
+    await db.saveProfile(nickname: nickname, welcomeMessage: welcomeMessage);
+    _identity =
+        _identity.copyWith(name: nickname, welcomeMessage: welcomeMessage);
+  }
+
+  /// Preferowany port nasłuchu. Zaczyna działać po restarcie aplikacji,
+  /// więc wynik mówi, czy restart jest potrzebny: zapisany port różni się
+  /// od tego, na którym serwer naprawdę słucha. Port równy temu w bazie
+  /// niczego nie zmienia i daje false.
+  Future<bool> savePort(int tcpPort) async {
+    final wBazie = (await db.getSettings())?.tcpPort;
+    if (wBazie == tcpPort) return false;
+    await db.saveTcpPort(tcpPort);
+    return tcpPort != identity.tcpPort;
   }
 
   /// Lokalne adresy IPv4, pokazywane w ustawieniach, żeby dało się ręcznie
@@ -2834,7 +2847,7 @@ class AppServices {
   /// jedno z nich trafia wtedy do transportu, którego nikt nie używa.
   Future<bool>? _bluetoothStarting;
 
-  /// Czy dodatek Bluetooth jest włączony (Ustawienia, sekcja „Dodatki").
+  /// Czy dodatek Bluetooth jest włączony (Ustawienia, kategoria Połączenie).
   ///
   /// To jest jedyny włącznik całej funkcji. Przy false Bluetooth w aplikacji
   /// nie istnieje: nasłuch stoi, kanał natywny milczy, żaden ekran nie
@@ -3115,6 +3128,8 @@ class AppServices {
   Future<BtStatus> refreshBluetoothStatus({bool force = false}) async {
     if (!force && !bluetoothAddon.value) return bluetoothStatus.value;
     final stan = await BtChannel.status();
+    // Odpowiedź kanału po zamknięciu serwisu nie ma już dokąd trafić.
+    if (_closing) return stan;
     bluetoothStatus.value = stan;
     _noteBtStatus(stan);
     if (bluetoothAddon.value && _bluetooth == null && stan.usable) {
@@ -3276,7 +3291,8 @@ class AppServices {
   InetLinkManager? _internetManager;
   Future<bool>? _internetStarting;
 
-  /// Czy dodatek drogi internetowej jest włączony (Ustawienia, „Dodatki").
+  /// Czy dodatek drogi internetowej jest włączony (Ustawienia, kategoria
+  /// Połączenie).
   /// Jedyny włącznik całej funkcji; przy false żadna trasa internetowa się
   /// nie pojawia, gniazdo UDP nie wstaje, a do DHT nie idzie ani jeden pakiet.
   final ValueNotifier<bool> internetAddon = ValueNotifier(false);
@@ -3288,8 +3304,8 @@ class AppServices {
   /// odświeża się po tym na żywo.
   final ValueNotifier<int> internetRevision = ValueNotifier(0);
 
-  /// Ostatni znany publiczny adres tego urządzenia (ze STUN), do panelu
-  /// „To urządzenie". Pusty, dopóki STUN nie odpowie.
+  /// Ostatni znany publiczny adres tego urządzenia (ze STUN), do karty
+  /// dodatku Internet. Pusty, dopóki STUN nie odpowie.
   final ValueNotifier<String> internetPublicAddress = ValueNotifier('');
 
   /// Adresy, z którymi stoi teraz łącze internetowe.
@@ -3445,7 +3461,7 @@ class AppServices {
     }
   }
 
-  /// Diagnostyka NAT-u dla panelu „To urządzenie" i narzędzia spike.
+  /// Diagnostyka NAT-u dla karty dodatku Internet i narzędzia spike.
   Future<({String? public, NatMapping nat})> probeInternetNat() async {
     final manager = _internetManager;
     if (manager == null) return (public: null, nat: NatMapping.unknown);
@@ -3520,7 +3536,8 @@ class AppServices {
   /// `remote_input.dart`, tu są tylko wejścia.
   late final _RemoteInput _remoteInput = _RemoteInput(this);
 
-  /// Czy dodatek klawiatury jest włączony (Ustawienia, sekcja „Dodatki").
+  /// Czy dodatek klawiatury jest włączony (Ustawienia, kategoria Klawiatura
+  /// z PC).
   /// Jedyny włącznik całej funkcji, w obie strony: wyłączony znaczy, że żaden
   /// ekran poza kartą dodatku jej nie pokazuje, prośby i paczki dostają
   /// odmowę bez karty, a kanał `chatt/remoteinput` nie dostaje wywołań.

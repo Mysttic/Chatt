@@ -102,42 +102,27 @@ Future<bool> telefonNasluchuje() async {
   return ostatni == 'nasłuch';
 }
 
-/// Przełącznik dodatku Bluetooth w ustawieniach aplikacji na telefonie.
-/// Stuka wyłącznie w elementy aplikacji Chatt.
+/// Przełącznik dodatku Bluetooth w kategorii Połączenie w ustawieniach
+/// aplikacji na telefonie. Stuka wyłącznie w elementy aplikacji Chatt i na
+/// koniec wraca na listę rozmów.
 Future<void> przelaczBluetoothNaTelefonie() async {
   await adb([
     'shell', 'monkey', '-p', appPackage, '-c',
     'android.intent.category.LAUNCHER', '1',
   ]);
   await Future<void>.delayed(const Duration(seconds: 2));
-  // Aplikacja wraca na ekranie, na którym ją zostawiono: najpierw lista.
-  for (var i = 0; i < 3; i++) {
-    final wstecz = await findAnyWidget(['Back', 'Wstecz'],
-        pakiet: appPackage, timeout: const Duration(seconds: 2));
-    if (wstecz == null) break;
-    await adb(['shell', 'input', 'tap', '${wstecz.$2.$1}', '${wstecz.$2.$2}']);
-    await Future<void>.delayed(const Duration(seconds: 1));
-  }
-  await stuknijEtykiete(['Settings', 'Ustawienia'], pakiet: appPackage);
-  // Tytuł i opis przełącznika to jeden węzeł: szukamy po początku opisu,
-  // bo samo „Bluetooth" pada też w innych napisach ustawień.
+  await otworzKategorieUstawien(appPackage, ['Connection', 'Połączenie']);
+  // Tytuł i podpis przełącznika to jeden węzeł: szukamy po początku
+  // podpisu, bo samo „Bluetooth" pada też w streszczeniu Połączenia
+  // i w innych napisach kategorii. Bez końcowego „Wi-Fi", w którym łatwo
+  // pomylić łącznik.
   const przelacznik = [
-    'Messages and files over the radio',
-    'Wiadomości i pliki przez radio',
+    'Conversations with no shared',
+    'Rozmowy bez wspólnej sieci',
   ];
-  for (var i = 0; i < 12; i++) {
-    if (await findAnyWidget(przelacznik,
-            fragment: true,
-            pakiet: appPackage,
-            timeout: const Duration(seconds: 2)) !=
-        null) {
-      break;
-    }
-    await adb(['shell', 'input', 'swipe', '640', '2200', '640', '1200', '300']);
-  }
   await stuknijEtykiete(przelacznik, fragment: true, pakiet: appPackage);
   await Future<void>.delayed(const Duration(seconds: 3));
-  await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+  await wrocDoListyRozmow(appPackage);
 }
 
 Future<void> main() async {

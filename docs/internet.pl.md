@@ -69,7 +69,7 @@ To najważniejsza cecha dodatku, więc idzie na początek.
 
 ## Włączanie
 
-**Ustawienia → Dodatki → Internet**, na obu urządzeniach. Karta dodatku
+**Ustawienia → Połączenie → Internet**, na obu urządzeniach. Karta dodatku
 pokazuje:
 
 - **To urządzenie widać pod**: publiczny adres, który sieć daje teraz temu
@@ -262,8 +262,9 @@ potrzebujesz: wyłączony nie wysyła niczego.
    akurat między dwoma zajrzeniami do skrzynki.
 4. **Drugie urządzenie jest w sieci** i działa na nim Chatt. Na Androidzie
    **Nasłuch w tle** trzyma je osiągalne przy zgaszonym ekranie.
-5. Dalej nic: **Ustawienia → Dziennik aplikacji** pokazuje zdarzenia drogi
-   internetowej (`Internet link up`, `Internet link ... ended` z powodem).
+5. Dalej nic: **Ustawienia → Dane i diagnostyka → Dziennik aplikacji** pokazuje
+   zdarzenia drogi internetowej (`Internet link up`, `Internet link ... ended`
+   z powodem).
 
 ## Dla programistów
 

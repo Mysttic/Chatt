@@ -12,6 +12,7 @@ import '../styles.dart';
 import '../widgets/common.dart';
 import '../widgets/motion.dart';
 import 'chat_screen.dart';
+import 'settings_screen.dart';
 import '../widgets/toasts.dart';
 
 /// Wyszukiwanie urządzeń w sieci (odpowiednik ListOfNearbyDevices.PNG
@@ -411,6 +412,24 @@ class _WyborProtokolu extends ConsumerWidget {
                   : context.l10n.searchBluetoothOff,
               style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
             ),
+            // Radio i zgoda są w kategorii Połączenie: przycisk prowadzi
+            // prosto do niej. „Wstecz” wraca przez listę kategorii.
+            if (!radioStoi) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    ChattPageRoute(
+                      builder: (_) => const SettingsScreen(
+                          initialSection: SettingsSection.connection),
+                    ),
+                  ),
+                  icon: const Icon(Icons.settings_outlined),
+                  label: Text(context.l10n.openConnectionSettings),
+                ),
+              ),
+            ],
             // Wyłączona lokalizacja to najczęstszy powód, dla którego szukanie
             // po radiu nie zwraca nic. Bez tego ostrzeżenia objaw wygląda na
             // „nikogo nie ma w pobliżu" i szuka się go godzinami.

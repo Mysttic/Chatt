@@ -44,9 +44,9 @@ class _Ujscie implements RemoteInputSink {
   Future<bool> setImeEnabled(bool on) async => true;
 }
 
-/// Dodatek „Klawiatura z PC" (Ustawienia, sekcja „Dodatki") jest jedynym
-/// włącznikiem zdalnej klawiatury. Wyłączony znaczy, że kanał natywny
-/// `chatt/remoteinput` nie dostaje ani jednego wywołania, a prośby
+/// Dodatek „Klawiatura z PC" (Ustawienia, kategoria Klawiatura z PC) jest
+/// jedynym włącznikiem zdalnej klawiatury. Wyłączony znaczy, że kanał
+/// natywny `chatt/remoteinput` nie dostaje ani jednego wywołania, a prośby
 /// zweryfikowanych urządzeń odbijają się bez karty.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

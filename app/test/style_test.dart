@@ -19,6 +19,8 @@ import 'package:chatt/services/app_services.dart';
 import 'package:chatt/services/providers.dart';
 import 'package:chatt/ui/backgrounds.dart';
 import 'package:chatt/ui/screens/conversations_screen.dart';
+import 'package:chatt/ui/screens/settings/settings_widgets.dart'
+    show SettingsPage;
 import 'package:chatt/ui/screens/settings_screen.dart';
 import 'package:chatt/ui/styles.dart';
 import 'package:chatt/ui/widgets/common.dart';
@@ -841,6 +843,42 @@ void main() {
         .text
         .style!;
 
+    /// Stuknięcie w wiersz [kategoria] na liście Ustawień, najpierw
+    /// przewiniętej do niego. Kategoria wjeżdża w czasie wejścia ekranu
+    /// stylu [m]; kontroler kończy w klatce po upływie czasu i wtedy lista
+    /// chowa się pod kategorią, a jej wiersze znikają z wyszukiwania.
+    Future<void> otworz(WidgetTester tester, SettingsSection kategoria,
+        ChattMotion m) async {
+      final wiersz = find.byKey(ValueKey(kategoria));
+      await tester.ensureVisible(wiersz);
+      await tester.pump();
+      await tester.tap(wiersz);
+      await tester.pump();
+      await tester.pump(m.screenIn);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(wiersz, findsNothing, reason: 'lista pod kategorią');
+      expect(find.byType(SettingsPage), findsOneWidget);
+    }
+
+    /// Systemowe Wstecz z kategorii: kategoria odjeżdża w czasie powrotu
+    /// stylu [m] i zostaje sama lista.
+    Future<void> doListy(WidgetTester tester, ChattMotion m) async {
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(m.screenOut);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.byType(SettingsPage), findsNothing,
+          reason: 'kategoria zeszła');
+    }
+
+    /// Przewijanie otwartej kategorii. Lista kategorii zostaje w drzewie pod
+    /// kategorią, a w czasie przejścia widać obie, więc pierwsze przewijanie
+    /// w drzewie bywa przewijaniem listy.
+    Finder przewijanieKategorii() => find
+        .descendant(
+            of: find.byType(SettingsPage), matching: find.byType(Scrollable))
+        .first;
+
     testWidgets('aplikacja przełącza styl od razu, a na górze listy stoi '
         'nazwa urządzenia', (tester) async {
       final services = await uruchom(tester);
@@ -871,8 +909,9 @@ void main() {
       await sprzatnij(tester, services);
     });
 
-    testWidgets('Ustawienia: wybór stylu zapisuje się w bazie, panel „To '
-        'urządzenie" kopiuje identyfikator', (tester) async {
+    testWidgets('Ustawienia: wybór stylu w Wyglądzie zapisuje się w bazie, '
+        'panel „To urządzenie" w Połączeniu kopiuje identyfikator',
+        (tester) async {
       tester.view.physicalSize = const Size(1080, 2340);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
@@ -905,8 +944,11 @@ void main() {
           home: const SettingsScreen(),
         ),
       ));
+      // Bez motywu Chatta ekran bierze ruch Ciszy.
+      final m = chattMotion(AppStyle.cisza);
       await dokoncz(
-          tester, () => find.text(teksty.stylePrecyzja).evaluate().isNotEmpty);
+          tester, () => find.text(teksty.appearance).evaluate().isNotEmpty);
+      await otworz(tester, SettingsSection.appearance, m);
 
       // Trzy style do wyboru, Cisza na start.
       final wybor = tester.widget<SegmentedButton<AppStyle>>(
@@ -930,12 +972,15 @@ void main() {
       final zapisane = await tester.runAsync(services.db.getSettings);
       expect(zapisane!.style, AppStyle.precyzja);
 
-      // Panel na samym dole: identyfikator i odcisk fontem o stałej
-      // szerokości, każdy z przyciskiem kopiowania.
+      // Wstecz wraca do listy, z niej do Połączenia. Panel pod nagłówkiem
+      // „To urządzenie": identyfikator i odcisk fontem o stałej szerokości,
+      // każdy z przyciskiem kopiowania.
+      await doListy(tester, m);
+      await otworz(tester, SettingsSection.connection, m);
       final identyfikator = find.byWidgetPredicate((w) =>
           w is SelectableText && w.data == services.identity.guid);
       await tester.scrollUntilVisible(identyfikator, 300,
-          scrollable: find.byType(Scrollable).first);
+          scrollable: przewijanieKategorii());
       await tester.pump();
       expect(find.text(teksty.thisDevice), findsOneWidget);
       final odcisk = ChattCrypto.fingerprint(services.identity.publicKey);
@@ -1276,6 +1321,11 @@ void main() {
         await tester.pumpWidget(ustawienia(
             services, chattTheme(styl, Brightness.light),
             key: ValueKey(powod), ograniczRuch: ogranicz));
+        // Nowe drzewo zaczyna od listy. Wygląd wjeżdża w czasie stylu,
+        // przy „ogranicz animacje” w 100 ms.
+        await dokoncz(
+            tester, () => find.text(teksty.appearance).evaluate().isNotEmpty);
+        await otworz(tester, SettingsSection.appearance, m);
         await dokoncz(tester, () => find.text(zmierzch).evaluate().isNotEmpty);
         await tester.ensureVisible(find.text(zmierzch));
         await tester.pump(const Duration(seconds: 1));
@@ -1349,6 +1399,12 @@ void main() {
       final od = chattTheme(AppStyle.cisza, Brightness.light);
       final cel = chattTheme(AppStyle.precyzja, Brightness.light);
       await tester.pumpWidget(ustawienia(services, od, key: klucz));
+      // Wygląd otwiera się raz: zmiana motywu niżej przebudowuje to samo
+      // drzewo, a kategoria zostaje otwarta.
+      await dokoncz(
+          tester, () => find.text(teksty.appearance).evaluate().isNotEmpty);
+      await otworz(
+          tester, SettingsSection.appearance, chattMotion(AppStyle.cisza));
       await dokoncz(tester, () => find.text(zmierzch).evaluate().isNotEmpty);
       await tester.ensureVisible(find.text(zmierzch));
       // Zaznaczenie przychodzi z bazy.
@@ -1416,11 +1472,13 @@ void main() {
         final m = ogranicz ? chattMotion(styl).reduced : chattMotion(styl);
         await tester.pumpWidget(ustawienia(services, theme,
             key: ValueKey(powod), ograniczRuch: ogranicz));
-        await dokoncz(tester,
-            () => find.text(teksty.stylePrecyzja).evaluate().isNotEmpty);
+        // Wyczyść historię stoi na końcu Prywatności.
+        await dokoncz(
+            tester, () => find.text(teksty.privacy).evaluate().isNotEmpty);
+        await otworz(tester, SettingsSection.privacy, m);
         final przycisk = find.text(teksty.clearHistory);
         await tester.scrollUntilVisible(przycisk, 300,
-            scrollable: find.byType(Scrollable).first);
+            scrollable: przewijanieKategorii());
         await tester.pump();
         await tester.tap(przycisk);
         await tester.pump();

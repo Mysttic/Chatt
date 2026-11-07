@@ -309,16 +309,32 @@ void main() {
     await sprzatnij(tester, services);
   });
 
-  testWidgets('Ustawienia: przycisk „Dziennik aplikacji" otwiera ekran, '
-      'po polsku', (tester) async {
-    tester.view.physicalSize = const Size(800, 6000);
-    tester.view.devicePixelRatio = 1;
+  testWidgets('Ustawienia: przycisk „Dziennik aplikacji" w kategorii „Dane '
+      'i diagnostyka" otwiera ekran, po polsku', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     final pl = lookupAppLocalizations(const Locale('pl'));
     final services = await uruchom(tester);
     await tester.pumpWidget(aplikacja(services, const SettingsScreen(),
         locale: const Locale('pl')));
     await dokoncz(tester, () => widac('Dane i diagnostyka'));
+    expect(find.text(pl.appLogHelp), findsNothing,
+        reason: 'na liście jest sam wiersz kategorii');
+
+    // Kategoria wjeżdża ruchem stylu, a po wjeździe lista chowa się pod
+    // nią: jej wiersze znikają z wyszukiwania.
+    final wiersz = find.byKey(const ValueKey(SettingsSection.data));
+    expect(
+        find.descendant(
+            of: wiersz, matching: find.text('Dane i diagnostyka')),
+        findsOneWidget);
+    await tester.ensureVisible(wiersz);
+    await tester.pump();
+    await tester.tap(find.text('Dane i diagnostyka'));
+    await dokoncz(tester, () => wiersz.evaluate().isEmpty);
+    expect(find.text('Dane i diagnostyka'), findsOneWidget,
+        reason: 'nazwa kategorii w pasku');
     expect(find.text(pl.appLogHelp), findsOneWidget);
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Dziennik aplikacji'));
