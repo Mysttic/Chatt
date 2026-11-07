@@ -294,38 +294,72 @@ Future<T?> czekajNaKarteAlbo<T>(Future<T> prosba, List<String> etykiety,
   return wynik;
 }
 
+/// Kategoria Ustawień „Klawiatura z PC". Ta sama nazwa stoi też w tytule
+/// otwartej kategorii i w tytule przełącznika dodatku.
+const kategoriaKlawiatury = ['Keyboard from a PC', 'Klawiatura z PC'];
+
+/// Przełącznik dodatku „Klawiatura z PC" po podpisie, jedynym napisie
+/// w kategorii, który ma tylko on. Angielski bez apostrofu z „computer's".
+const przelacznikKlawiatury = [
+  'Typing from a computer',
+  'Pisanie z klawiatury komputera',
+];
+
+/// Przełącznik odbioru w karcie dodatku „Klawiatura z PC".
+const odbiorKlawiatury = [
+  'Allow typing on this device',
+  'Pozwól pisać na tym urządzeniu',
+];
+
+/// Wraca w aplikacji [pakiet] na listę rozmów: stuka strzałkę wstecz
+/// w pasku, dopóki jakaś jest, najwyżej [ile] razy. Aplikacja wraca na
+/// ekranie, na którym ją zostawiono, a z kategorii Ustawień strzałka
+/// prowadzi najpierw na listę kategorii. Etykieta dokładnie: „Background
+/// listening" na liście kategorii też zawiera „Back".
+Future<void> wrocDoListyRozmow(String pakiet, {int ile = 4}) async {
+  for (var i = 0; i < ile; i++) {
+    final wstecz = await findAnyWidget(['Back', 'Wstecz'],
+        pakiet: pakiet, timeout: const Duration(seconds: 2));
+    if (wstecz == null) return;
+    await adb(['shell', 'input', 'tap', '${wstecz.$2.$1}', '${wstecz.$2.$2}']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+  }
+}
+
+/// Otwiera w aplikacji [pakiet] kategorię Ustawień o nazwie z [nazwy]
+/// (wersje językowe): z listy rozmów koło zębate, potem wiersz kategorii.
+/// Wiersz to jeden węzeł z nazwą i streszczeniem („Nazwa\nStreszczenie"),
+/// więc szukamy go po fragmencie.
+Future<void> otworzKategorieUstawien(String pakiet, List<String> nazwy) async {
+  await wrocDoListyRozmow(pakiet);
+  await stuknijEtykiete(['Settings', 'Ustawienia'], pakiet: pakiet);
+  await stuknijEtykiete(nazwy, fragment: true, pakiet: pakiet);
+}
+
 /// Dodatek „Klawiatura z PC" i „Pozwól pisać na tym urządzeniu" w aplikacji
 /// [pakiet], gdy prośba o sesję dostała `not_enabled`. Stuka wyłącznie
 /// w elementy tej aplikacji. Wyłączony dodatek gasi też odbiór, więc gdy
-/// przełącznika odbioru nie widać, najpierw idzie sam dodatek.
+/// przełącznika odbioru nie widać, najpierw idzie sam dodatek. Na koniec
+/// aplikacja wraca na listę rozmów.
 Future<void> wlaczDodatekKlawiatury(String pakiet) async {
   await adb([
     'shell', 'monkey', '-p', pakiet, '-c',
     'android.intent.category.LAUNCHER', '1',
   ]);
   await Future<void>.delayed(const Duration(seconds: 2));
-  await stuknijEtykiete(['Settings', 'Ustawienia'], pakiet: pakiet);
-  Future<bool> widac(List<String> etykiety) async =>
-      await findAnyWidget(etykiety,
+  await otworzKategorieUstawien(pakiet, kategoriaKlawiatury);
+  // Kategoria jest krótka: oba przełączniki stoją pod paskiem, bez
+  // przewijania.
+  final odbiorWidac = await findAnyWidget(odbiorKlawiatury,
           fragment: true, pakiet: pakiet, timeout: const Duration(seconds: 2)) !=
       null;
-
-  const dodatek = ['Keyboard from a PC', 'Klawiatura z PC'];
-  const odbior = [
-    'Allow typing on this device',
-    'Pozwól pisać na tym urządzeniu',
-  ];
-  for (var i = 0; i < 10 && !await widac(dodatek); i++) {
-    await adb(['shell', 'input', 'swipe', '640', '2200', '640', '1000', '300']);
+  if (!odbiorWidac) {
+    await stuknijEtykiete(przelacznikKlawiatury,
+        fragment: true, pakiet: pakiet);
   }
-  if (!await widac(odbior)) {
-    await stuknijEtykiete(dodatek, fragment: true, pakiet: pakiet);
-  }
-  for (var i = 0; i < 4 && !await widac(odbior); i++) {
-    await adb(['shell', 'input', 'swipe', '640', '2000', '640', '1500', '300']);
-  }
-  await stuknijEtykiete(odbior, fragment: true, pakiet: pakiet);
+  await stuknijEtykiete(odbiorKlawiatury, fragment: true, pakiet: pakiet);
   await Future<void>.delayed(const Duration(seconds: 2));
+  await wrocDoListyRozmow(pakiet);
 }
 
 /// Zrzut ekranu urządzenia do pliku (do dokumentacji i podglądu, co się stało).

@@ -14,6 +14,8 @@ import 'package:chatt/network/transport.dart';
 import 'package:chatt/services/app_services.dart';
 import 'package:chatt/services/providers.dart';
 import 'package:chatt/ui/screens/nearby_screen.dart';
+import 'package:chatt/ui/screens/settings/bluetooth_addon_card.dart';
+import 'package:chatt/ui/screens/settings/settings_category_row.dart';
 import 'package:chatt/ui/screens/settings_screen.dart';
 import 'package:chatt/ui/widgets/common.dart';
 import 'package:chatt/ui/widgets/protocol_badge.dart';
@@ -184,6 +186,70 @@ void main() {
     services.bluetoothAddon.value = true;
     await tester.pump();
     expect(find.widgetWithIcon(SwitchListTile, Icons.wifi), findsOneWidget);
+
+    await sprzatnij(tester, services);
+  });
+
+  testWidgets('W pobliżu: przy niedziałającym Bluetoothcie przycisk '
+      '„Ustawienia połączenia” otwiera kategorię Połączenie', (tester) async {
+    final teksty = lookupAppLocalizations(const Locale('en'));
+    final services = await uruchom(tester);
+    await tester.pumpWidget(osadz(services, const NearbyScreen()));
+    await tester.pump();
+    final przycisk =
+        find.widgetWithText(OutlinedButton, teksty.openConnectionSettings);
+    expect(przycisk, findsNothing, reason: 'bez dodatku nie ma wyboru drogi');
+
+    services.bluetoothAddon.value = true;
+    await tester.pump();
+    final napis = find.text(teksty.searchBluetoothOff);
+    expect(napis, findsOneWidget);
+    expect(przycisk, findsOneWidget);
+    expect(tester.getTopLeft(przycisk).dy,
+        greaterThan(tester.getTopLeft(napis).dy),
+        reason: 'przycisk stoi pod napisem');
+
+    // Działające radio: nie ma czego poprawiać.
+    services.bluetoothRunning.value = true;
+    await tester.pump();
+    expect(przycisk, findsNothing);
+    services.bluetoothRunning.value = false;
+    await tester.pump();
+    expect(przycisk, findsOneWidget);
+
+    // Na zmianę prawdziwy czas (baza) i fałszywy (przejście trasy), aż
+    // warunek się spełni. Potem przejście do końca.
+    Future<void> poczekaj(bool Function() warunek) async {
+      for (var i = 0; i < 100 && !warunek(); i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(warunek(), isTrue);
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    final kategoria = find.widgetWithText(AppBar, teksty.connectionSection);
+    final wiersze = find.byType(SettingsCategoryRow);
+    await tester.tap(przycisk);
+    await poczekaj(() => kategoria.evaluate().isNotEmpty);
+    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(kategoria, findsOneWidget);
+    expect(wiersze, findsNothing, reason: 'od razu kategoria, bez listy');
+    expect(find.byType(BluetoothAddonCard), findsOneWidget);
+
+    // Wstecz: najpierw lista kategorii, potem z powrotem W pobliżu.
+    await tester.tap(find.byType(BackButton));
+    await poczekaj(() => wiersze.evaluate().isNotEmpty);
+    expect(find.widgetWithText(AppBar, teksty.settingsTitle), findsOneWidget);
+    expect(kategoria, findsNothing);
+
+    await tester.tap(find.byType(BackButton));
+    await poczekaj(() => find
+        .byType(SettingsScreen, skipOffstage: false)
+        .evaluate()
+        .isEmpty);
+    expect(przycisk, findsOneWidget);
 
     await sprzatnij(tester, services);
   });

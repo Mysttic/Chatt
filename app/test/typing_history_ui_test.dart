@@ -14,13 +14,19 @@ import 'package:chatt/network/protocol.dart';
 import 'package:chatt/services/app_services.dart';
 import 'package:chatt/services/providers.dart';
 import 'package:chatt/services/typing_journal.dart';
+import 'package:chatt/ui/screens/settings/keyboard_addon_card.dart';
+import 'package:chatt/ui/screens/settings/settings_category_row.dart';
+import 'package:chatt/ui/screens/settings/settings_widgets.dart'
+    show SettingsPage;
 import 'package:chatt/ui/screens/settings_screen.dart';
 import 'package:chatt/ui/screens/typing_history_screen.dart';
 import 'package:chatt/ui/widgets/toasts.dart';
 
 /// Historia pisania na ekranie (issue #50): przełącznik w karcie dodatku,
 /// lista sesji z kierunkiem i wynikiem słowami, podgląd sesji z odtworzonym
-/// tekstem, ukryte pola jako kropki i czyszczenie z pytaniem.
+/// tekstem, ukryte pola jako kropki i czyszczenie z pytaniem. Do tego jej
+/// miejsce w Ustawieniach w kategoriach (issue #71): lista kategorii,
+/// wejście z Klawiatury z PC i Dane i diagnostyka bez historii pisania.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = null;
@@ -135,6 +141,51 @@ void main() {
         ]);
         return id;
       }))!;
+
+  /// Stuknięcie w wiersz [kategoria] na liście Ustawień, najpierw
+  /// przewiniętej do niego. Kategoria wjeżdża ruchem stylu, a po wjeździe
+  /// lista chowa się pod nią i jej wiersze znikają z wyszukiwania.
+  Future<void> otworz(WidgetTester tester, SettingsSection kategoria) async {
+    final wiersz = find.byKey(ValueKey(kategoria));
+    await dokoncz(tester, () => wiersz.evaluate().isNotEmpty);
+    await tester.ensureVisible(wiersz);
+    await tester.pump();
+    await tester.tap(wiersz);
+    await dokoncz(tester, () => wiersz.evaluate().isEmpty);
+  }
+
+  /// Systemowe Wstecz z kategorii: kategoria odjeżdża i zostaje sama lista.
+  Future<void> doListy(WidgetTester tester) async {
+    await tester.binding.handlePopRoute();
+    await dokoncz(tester, () => find.byType(SettingsPage).evaluate().isEmpty);
+  }
+
+  /// Przewijanie otwartej kategorii. Lista kategorii zostaje w drzewie pod
+  /// kategorią, a w czasie przejścia widać obie, więc pierwsze przewijanie
+  /// w drzewie bywa przewijaniem listy.
+  Finder przewijanieKategorii() => find
+      .descendant(
+          of: find.byType(SettingsPage), matching: find.byType(Scrollable))
+      .first;
+
+  /// Lista kategorii tak, jak stoi na ekranie: karty od góry, a w każdej
+  /// tytuły wierszy od góry.
+  List<List<String>> kartyListy(WidgetTester tester) {
+    final wiersze = find.byType(SettingsCategoryRow);
+    final odGory = [
+      for (var i = 0; i < wiersze.evaluate().length; i++) wiersze.at(i),
+    ]..sort(
+        (a, b) => tester.getTopLeft(a).dy.compareTo(tester.getTopLeft(b).dy));
+    final karty = <Element, List<String>>{};
+    for (final wiersz in odGory) {
+      final karta = tester.element(
+          find.ancestor(of: wiersz, matching: find.byType(Card)).first);
+      final tytul = tester.widget<Text>(
+          find.descendant(of: wiersz, matching: find.byType(Text)).first);
+      (karty[karta] ??= []).add(tytul.data!);
+    }
+    return [...karty.values];
+  }
 
   testWidgets('przełącznik „Zapisuj historię pisania" jest tylko z dodatkiem '
       'i zapisuje się w bazie', (tester) async {
@@ -470,11 +521,13 @@ void main() {
     );
 
     await tester.pumpWidget(aplikacja(services, const SettingsScreen()));
-    await dokoncz(
-        tester, () => find.text(teksty.stylePrecyzja).evaluate().isNotEmpty);
-    await tester.scrollUntilVisible(find.text(teksty.clearHistory), 300,
-        scrollable: find.byType(Scrollable).first);
+    // Prywatność: u góry opis kasowania starych wiadomości, który mówi
+    // o historii pisania, a Wyczyść historię na samym końcu.
+    await otworz(tester, SettingsSection.privacy);
     expect(find.text(teksty.retentionHelp), findsOneWidget);
+    await tester.scrollUntilVisible(find.text(teksty.clearHistory), 300,
+        scrollable: przewijanieKategorii());
+    await tester.pump();
     await tester.tap(find.text(teksty.clearHistory));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
@@ -489,38 +542,80 @@ void main() {
     await sprzatnij(tester, services);
   });
 
-  testWidgets('„Dane i diagnostyka": między Prywatnością a Dodatkami, '
-      'historia pisania tylko z sesjami, potem dziennik i eksport',
-      (tester) async {
-    // Wysokie okno: cała lista Ustawień naraz, bez przewijania.
-    tester.view.physicalSize = const Size(800, 6000);
-    tester.view.devicePixelRatio = 1;
+  testWidgets('lista Ustawień: kategorie od góry w kolejności SettingsSection, '
+      'w trzech kartach; na Linuksie bez Nasłuchu w tle', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     final services = await uruchom(tester);
 
-    await tester.pumpWidget(aplikacja(services, const SettingsScreen()));
-    await dokoncz(
-        tester, () => find.text(teksty.dataSection).evaluate().isNotEmpty);
+    // Od Ciebie, przez łączenie z innymi urządzeniami, do samej aplikacji.
+    final naWindows = [
+      [teksty.profileSection],
+      [
+        teksty.connectionSection,
+        teksty.backgroundListening,
+        teksty.keyboardAddon,
+      ],
+      [teksty.appearance, teksty.privacy, teksty.dataSection, teksty.updates],
+    ];
+    expect([for (final karta in naWindows) ...karta],
+        [for (final k in SettingsSection.values) k.title(teksty)]);
+
+    Future<void> lista(TargetPlatform platforma) async {
+      // Nowe drzewo: platforma ekranu ustala się przy jego powstaniu.
+      await tester.pumpWidget(KeyedSubtree(
+        key: ValueKey(platforma),
+        child: aplikacja(services, SettingsScreen(platform: platforma)),
+      ));
+      await dokoncz(tester,
+          () => find.byType(SettingsCategoryRow).evaluate().isNotEmpty);
+    }
+
+    await lista(TargetPlatform.windows);
+    expect(kartyListy(tester), naWindows);
+
+    // Na Linuksie proces żyje tak długo jak okno, więc Nasłuch w tle nie ma
+    // czego ustawiać i znika z listy.
+    await lista(TargetPlatform.linux);
+    expect(find.byKey(const ValueKey(SettingsSection.backgroundListening)),
+        findsNothing);
+    expect(find.text(teksty.backgroundListening), findsNothing);
+    expect(kartyListy(tester), [
+      naWindows[0],
+      [teksty.connectionSection, teksty.keyboardAddon],
+      naWindows[2],
+    ]);
+
+    await sprzatnij(tester, services);
+  });
+
+  testWidgets('„Klawiatura z PC": wejście do historii pisania pod kartą tylko '
+      'bez dodatku i z sesjami, na żywo; „Dane i diagnostyka" to eksport '
+      'i dziennik', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final services = await uruchom(tester);
     double y(Finder f) => tester.getTopLeft(f).dy;
-    final przyciskHistorii =
-        find.widgetWithText(OutlinedButton, teksty.typingHistory);
-    final przyciskDziennika =
-        find.widgetWithText(OutlinedButton, teksty.appLog);
-    final przyciskEksportu =
-        find.widgetWithText(OutlinedButton, teksty.exportData);
 
-    // Bez sesji i bez dodatku nie ma wejścia do historii pisania.
-    expect(przyciskHistorii, findsNothing);
-    expect(find.text(teksty.appLogHelp), findsOneWidget);
-    expect(find.text(teksty.exportDataHelp), findsOneWidget);
-    expect(y(find.text(teksty.clearHistory)),
-        lessThan(y(find.text(teksty.dataSection))));
-    expect(y(find.text(teksty.dataSection)), lessThan(y(przyciskDziennika)));
-    expect(y(przyciskDziennika), lessThan(y(przyciskEksportu)));
-    expect(y(przyciskEksportu), lessThan(y(find.text(teksty.addons))));
+    await tester.pumpWidget(aplikacja(
+        services, const SettingsScreen(platform: TargetPlatform.android)));
+    await otworz(tester, SettingsSection.keyboard);
+    // Nazwa kategorii w pasku, ta sama w tytule przełącznika dodatku.
+    expect(
+        find.descendant(
+            of: find.byType(AppBar), matching: find.text(teksty.keyboardAddon)),
+        findsOneWidget);
+    final karta = find.byType(KeyboardAddonCard);
+    final wejscie = find.widgetWithText(OutlinedButton, teksty.typingHistory);
+    expect(karta, findsOneWidget);
 
-    // Pierwsza sesja w historii: wejście pojawia się na górze sekcji, choć
-    // dodatek jest wyłączony.
+    // Bez dodatku i bez sesji: sama karta.
+    expect(find.text(teksty.typingHistory), findsNothing);
+
+    // Pierwsza sesja w historii: wejście pojawia się pod kartą od razu,
+    // choć dodatek jest wyłączony.
     await sesja(
       tester,
       services,
@@ -530,16 +625,47 @@ void main() {
       start: DateTime(2026, 10, 18, 10),
       end: DateTime(2026, 10, 18, 10),
     );
-    await dokoncz(tester, () => przyciskHistorii.evaluate().isNotEmpty);
+    await dokoncz(tester, () => wejscie.evaluate().isNotEmpty);
     expect(services.keyboardAddon.value, isFalse);
+    expect(find.descendant(of: karta, matching: wejscie), findsNothing);
+    expect(y(karta), lessThan(y(wejscie)));
     expect(find.text(teksty.typingHistoryEntryHelp(1)), findsOneWidget);
-    expect(y(find.text(teksty.dataSection)), lessThan(y(przyciskHistorii)));
-    expect(y(przyciskHistorii), lessThan(y(przyciskDziennika)));
 
-    await tester.tap(przyciskHistorii);
+    // Włączony dodatek ma ten przycisk w swojej karcie: wejście pod kartą
+    // znika i przycisk zostaje jeden.
+    services.keyboardAddon.value = true;
+    await tester.pump();
+    expect(wejscie, findsOneWidget);
+    expect(find.descendant(of: karta, matching: wejscie), findsOneWidget);
+    expect(find.text(teksty.typingHistoryEntryHelp(1)), findsNothing);
+    services.keyboardAddon.value = false;
+    await tester.pump();
+    expect(wejscie, findsOneWidget);
+    expect(find.descendant(of: karta, matching: wejscie), findsNothing);
+
+    await tester.tap(wejscie);
     await dokoncz(tester,
         () => find.text('Alicja typed on this device').evaluate().isNotEmpty);
     expect(find.byType(TypingHistoryScreen), findsOneWidget);
+
+    // Wstecz: z historii do kategorii, z kategorii do listy.
+    await tester.binding.handlePopRoute();
+    await dokoncz(
+        tester, () => find.byType(TypingHistoryScreen).evaluate().isEmpty);
+    expect(karta, findsOneWidget);
+    await doListy(tester);
+
+    // Dane i diagnostyka: eksport, pod nim dziennik, każdy z opisem pod
+    // spodem. Historii pisania tu nie ma, także z sesjami.
+    await otworz(tester, SettingsSection.data);
+    final eksport = find.widgetWithText(OutlinedButton, teksty.exportData);
+    final dziennik = find.widgetWithText(OutlinedButton, teksty.appLog);
+    expect(eksport, findsOneWidget);
+    expect(dziennik, findsOneWidget);
+    expect(y(eksport), lessThan(y(find.text(teksty.exportDataHelp))));
+    expect(y(find.text(teksty.exportDataHelp)), lessThan(y(dziennik)));
+    expect(y(dziennik), lessThan(y(find.text(teksty.appLogHelp))));
+    expect(find.text(teksty.typingHistory), findsNothing);
 
     await sprzatnij(tester, services);
   });

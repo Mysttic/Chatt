@@ -6,10 +6,10 @@
 //   adb reverse tcp:47790 tcp:47790   urządzenie -> instancja hosta
 //
 // Przygotowanie (raz, ręcznie albo tak jak w przewodniku): w aplikacji na
-// urządzeniu Ustawienia → Dodatki → „Klawiatura z PC" i „Pozwól pisać na tym
-// urządzeniu" włączone. Klawiaturę Chatt w systemie test włącza sam przez adb
-// (`ime enable`), a bieżącą wybiera w systemowym oknie wyboru, tak jak
-// użytkownik. Test paruje się z aplikacją kodem, za każdym razem od nowa.
+// urządzeniu Ustawienia → Klawiatura z PC, a tam dodatek i „Pozwól pisać na
+// tym urządzeniu" włączone. Klawiaturę Chatt w systemie test włącza sam
+// przez adb (`ime enable`), a bieżącą wybiera w systemowym oknie wyboru, tak
+// jak użytkownik. Test paruje się z aplikacją kodem, za każdym razem od nowa.
 //
 //   flutter test tool/klawiatura_android_e2e_test.dart
 //
@@ -238,36 +238,12 @@ void main() {
       'android.intent.category.LAUNCHER', '1',
     ]);
     await Future<void>.delayed(const Duration(seconds: 2));
-    // Aplikacja wraca na ekranie, na którym ją zostawiono: najpierw lista.
-    for (var i = 0; i < 3; i++) {
-      final wstecz = await findAnyWidget(['Back', 'Wstecz'],
-          pakiet: appPackage, timeout: const Duration(seconds: 2));
-      if (wstecz == null) break;
-      await adb(['shell', 'input', 'tap', '${wstecz.$2.$1}', '${wstecz.$2.$2}']);
-      await Future<void>.delayed(const Duration(seconds: 1));
-    }
-    await stuknijEtykiete(['Settings', 'Ustawienia'], pakiet: appPackage);
+    await otworzKategorieUstawien(appPackage, kategoriaKlawiatury);
+    // Kategoria jest krótka: cała karta dodatku z przyciskiem stoi pod
+    // paskiem kategorii, bez przewijania.
     const wlacz = ['Turn on the Chatt keyboard', 'Włącz klawiaturę Chatt'];
-    for (var i = 0; i < 12; i++) {
-      if (await findAnyWidget(wlacz,
-              pakiet: appPackage, timeout: const Duration(seconds: 2)) !=
-          null) {
-        break;
-      }
-      await adb(['shell', 'input', 'swipe', '640', '2200', '640', '1400', '300']);
-    }
-    final przycisk = await findAnyWidget(wlacz, pakiet: appPackage);
-    expect(przycisk, isNotNull,
+    expect(await findAnyWidget(wlacz, pakiet: appPackage), isNotNull,
         reason: 'na karcie dodatku nie ma „Turn on the Chatt keyboard"');
-    // Przycisk na dole kadru, nad nim cała karta z tytułem. Gdy już tam
-    // stoi, przesunięcie w to samo miejsce byłoby stuknięciem i otwierało
-    // ustawienia systemu przed zrzutem.
-    if ((przycisk!.$2.$2 - 2550).abs() > 100) {
-      await adb([
-        'shell', 'input', 'swipe', '640', '${przycisk.$2.$2}', '640', '2550',
-        '800',
-      ]);
-    }
     await Future<void>.delayed(const Duration(seconds: 1));
     await zrzutDoDokumentacji('and26_klawiatura_dodatek');
 
@@ -291,9 +267,11 @@ void main() {
           (await adb(['shell', 'ime', 'list', '-s'])).stdout as String;
       return lista.contains(imeId);
     }, 'klawiatura Chatt włączona w systemie');
+    // Z ustawień systemu z powrotem do kategorii, a stamtąd strzałkami na
+    // listę rozmów: przy zrzutach następny krok stuka w rozmowę na niej.
     await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
     await Future<void>.delayed(const Duration(seconds: 1));
-    await adb(['shell', 'input', 'keyevent', 'KEYCODE_BACK']);
+    await wrocDoListyRozmow(appPackage);
   });
 
   test('przed parowaniem: odmowa bez karty', () async {
@@ -549,64 +527,26 @@ void main() {
     Future<bool> naLiscie() async =>
         ((await adb(['shell', 'ime', 'list', '-a', '-s'])).stdout as String)
             .contains(imeId);
-    Future<void> doDodatkow() async {
-      // Aplikacja wraca na ekran, na którym ją zostawiono: z rozmowy na
-      // listę przyciskiem wstecz w pasku aplikacji.
-      for (var i = 0; i < 3; i++) {
-        final wstecz = await findWidget('Back',
-                timeout: const Duration(seconds: 2)) ??
-            await findWidget('Wstecz', timeout: const Duration(seconds: 1));
-        if (wstecz == null) break;
-        await adb(['shell', 'input', 'tap', '${wstecz.$1}', '${wstecz.$2}']);
-        await Future<void>.delayed(const Duration(seconds: 1));
-      }
-      await stuknijEtykiete(['Settings', 'Ustawienia']);
-      for (var i = 0;
-          i < 8 &&
-              await findWidget('Keyboard from a PC',
-                      fragment: true, timeout: const Duration(seconds: 1)) ==
-                  null &&
-              await findWidget('Klawiatura z PC',
-                      fragment: true, timeout: const Duration(seconds: 1)) ==
-                  null;
-          i++) {
-        await adb(['shell', 'input', 'swipe', '640', '2200', '640', '1000',
-            '300']);
-      }
-    }
 
     await adb([
       'shell', 'monkey', '-p', appPackage, '-c',
       'android.intent.category.LAUNCHER', '1',
     ]);
     await Future<void>.delayed(const Duration(seconds: 2));
-    await doDodatkow();
+    await otworzKategorieUstawien(appPackage, kategoriaKlawiatury);
     expect(await naLiscie(), isTrue);
-    await stuknijEtykiete(['Keyboard from a PC', 'Klawiatura z PC'],
-        fragment: true);
+    // Przełącznik dodatku po podpisie: nazwa dodatku jest też tytułem
+    // kategorii, a ten stoi w drzewie wyżej.
+    await stuknijEtykiete(przelacznikKlawiatury,
+        fragment: true, pakiet: appPackage);
     await czekaj(() async => !await naLiscie(),
         'klawiatura Chatt znika z listy systemu');
 
     // Z powrotem jak było, żeby następny przebieg zastał dodatek i odbiór.
-    await stuknijEtykiete(['Keyboard from a PC', 'Klawiatura z PC'],
-        fragment: true);
-    // Przełącznik odbioru stoi pod podpowiedzią dodatku, zwykle już pod
-    // krawędzią ekranu: lista przewija się kawałek, aż go widać.
-    for (var i = 0;
-        i < 4 &&
-            await findWidget('Allow typing on this device',
-                    fragment: true, timeout: const Duration(seconds: 1)) ==
-                null &&
-            await findWidget('Pozwól pisać na tym urządzeniu',
-                    fragment: true, timeout: const Duration(seconds: 1)) ==
-                null;
-        i++) {
-      await adb(['shell', 'input', 'swipe', '640', '2000', '640', '1500',
-          '300']);
-    }
-    await stuknijEtykiete(
-        ['Allow typing on this device', 'Pozwól pisać na tym urządzeniu'],
-        fragment: true);
+    // Przełącznik odbioru wraca razem z dodatkiem, wyłączony.
+    await stuknijEtykiete(przelacznikKlawiatury,
+        fragment: true, pakiet: appPackage);
+    await stuknijEtykiete(odbiorKlawiatury, fragment: true, pakiet: appPackage);
     await czekaj(() async => naLiscie(), 'klawiatura Chatt wraca na listę');
   });
 }

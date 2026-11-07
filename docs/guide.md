@@ -6,10 +6,11 @@ Chatt joins two devices on the same Wi-Fi network: a Windows PC and an Android
 phone. There is no account, no login and no server in the middle. Messages and
 files go straight from one device to the other.
 
-Two add-ons, both off until you turn them on, go further: **Bluetooth** carries
-the same conversation over the radio with no shared network, and **Keyboard
-from a PC** lets the PC's keyboard type into a field on the phone or on another
-PC.
+Three add-ons, all off until you turn them on, go further: **Bluetooth**
+carries the same conversation over the radio with no shared network,
+**Internet**, experimental, reaches a confirmed device on another network, and
+**Keyboard from a PC** lets the PC's keyboard type into a field on the phone or
+on another PC.
 
 ## First run
 
@@ -17,16 +18,26 @@ PC.
    PC may sit on a cable, as long as it is in the same subnet as the phone.
 2. On Windows the firewall asks about incoming traffic the first time. Tick the
    private network and allow it: without that the other device has no way in.
-3. Open **Settings** and set the nickname that identifies this device in the
-   other side's list.
+3. Open **Settings → Profile** and type the nickname that identifies this
+   device in the other side's list. It saves itself.
+
+Settings is a short list of categories. Under each name one line says what is
+set there, and a warning joins it when something needs attention, for example
+"Others will not find this device". A tap opens the category; Back, the arrow
+in the bar and, on a PC, Esc go back to the list, and from the list they
+close Settings. On a wide window the list and the category stand side by
+side, see [The window on a PC](#the-window-on-a-pc). Text fields (the
+nickname, the welcome message, the port) save themselves when you leave the
+field or the category. A wrong value, such as an empty nickname, stays in its
+field with a message and keeps you in the category.
 
 The top of the conversation list carries this device's name. The version
-number is in Settings, under **Updates**. At the very bottom of Settings the
-**This device** panel gathers the addresses the device listens on, its
-Bluetooth address (with the add-on on, when the system reports it), the
-identifier and the key fingerprint. The button next to each value copies it.
-Worth having at hand when reporting a problem or adding a device by IP
-address.
+number is in Settings, in the **Updates** category. In the **Connection**
+category the **This device** panel gathers the addresses the device listens
+on, the identifier and the key fingerprint, and the button next to each value
+copies it. The Bluetooth add-on's card in the same category shows the radio's
+address (with the add-on on, when the system reports it). Worth having at hand
+when reporting a problem or adding a device by IP address.
 
 ## Finding the other device
 
@@ -46,11 +57,11 @@ When a scan finds nothing:
 - some routers and guest networks isolate clients from each other. Broadcasts
   do not get through and the device has to be added by hand;
 - **Add by IP address**: the address and port of the other device are in its
-  Settings, under "This device".
+  Settings, in the **Connection** category, under "This device".
 
-Long-pressing an entry in the list removes that device. The "Clear unused
-devices" button in Settings sweeps out entries that have no messages and have
-not been seen for an hour.
+Long-pressing an entry in the list removes that device. The "Clean up unused
+devices" button in Settings, in the **Connection** category, sweeps out entries
+that have no messages and have not been seen for an hour.
 
 ## Messages
 
@@ -160,8 +171,9 @@ menu (long press, or right click on a PC), which is the reliable route on a PC,
 where the tap belongs to text selection.
 
 **Link previews** are separate, and off by default. Turned on in Settings under
-**Links**, a card appears under the message with the page's title, description
-and image, the way other messengers do it. Two things are worth knowing:
+**Privacy** (**Show link previews**), a card appears under the message with the
+page's title, description and image, the way other messengers do it. Two
+things are worth knowing:
 
 - Fetching a preview means **connecting to that page**, so its server sees this
   device's IP address and the moment the message arrived. The address is chosen
@@ -292,10 +304,10 @@ network first, because it is tens of times faster, and the radio when the
 network does not answer. Whichever worked last is tried first next time. There
 is no switch to flip per conversation.
 
-**Turning it on.** Bluetooth is an add-on. Settings has an **Add-ons** section
-with a **Bluetooth** switch, off from the start. While it is off, Bluetooth does
-not exist anywhere else in the app: no other screen mentions it, nothing listens
-on the radio, and the local network is the only road.
+**Turning it on.** Bluetooth is an add-on. Settings has a **Bluetooth** switch
+in the **Connection** category, off from the start. While it is off, Bluetooth
+does not exist anywhere in the app outside its card: no other screen mentions
+it, nothing listens on the radio, and the local network is the only road.
 
 Chatt asks Android for the nearby devices permission when the add-on goes on,
 and again only from the add-on's card if the permission is later taken away.
@@ -304,8 +316,10 @@ system, and on Android a missing permission, with an **Open settings** button
 next to it), this radio's own address where the system gives it out, and a
 **Local network** switch for when the radio should be the only road. With the
 network off and the radio not running, the card warns that this device reaches
-nobody. A radio turned on later in the system, or a permission granted later,
-brings Bluetooth up by itself within about ten seconds.
+nobody. That warning, a radio turned off and a missing permission also show on
+the Settings list, under the **Connection** category. A radio turned on later
+in the system, or a permission granted later, brings Bluetooth up by itself
+within about ten seconds.
 
 On Windows the add-on also makes the PC discoverable to anything nearby, and the
 card says so outright. Without that it is visible only while the system's "Add
@@ -314,9 +328,12 @@ device" window stands open. The add-on off, the visibility goes with it.
 **Finding the other device.** The **Nearby** screen asks **Where to look**
 before it searches: **Network** or **Bluetooth**. The question is there only
 with the add-on on, and the Bluetooth choice opens up once the radio is running
-on this device. A search over the radio takes up
-to a minute and a half and slows open conversations down while it runs, which
-is why it happens only when you ask for it.
+on this device. While it is not, a note under the question says so, and the
+**Connection settings** button under the note opens Settings in the
+**Connection** category, where the add-on's card says what stands in the way.
+A search over the radio takes up to a minute and a half and slows open
+conversations down while it runs, which is why it happens only when you ask
+for it.
 
 The radio itself cannot say which of the devices around runs Chatt. The app
 connects to each one it finds and asks, the way it does when a device is added
@@ -388,7 +405,7 @@ other without a server, what others can see and the measurements:
 
 Bluetooth helps within ten metres. When the PC is at home and the phone is out
 on mobile data, the third road is the internet, and it is an add-on too:
-**Settings → Add-ons → Internet**, off from the start. It is experimental.
+**Settings → Connection → Internet**, off from the start. It is experimental.
 
 **Who it works with.** Only a device whose identity is confirmed with the code
 or the QR (the green shield). For that the two devices meet once on the same
@@ -450,11 +467,12 @@ add-on on, over the radio too.
 
 <img src="screenshots/windows/en/06_klawiatura_pisanie.png" alt="Typing on a phone from a PC" width="760">
 
-**Turning it on.** Settings, **Add-ons**, **Keyboard from a PC**, off from the
-start. On the PC that types, that one switch is all. On the device you want to
-type on, the add-on's card holds a second switch, **Allow typing on this
-device**, also off from the start: turning the add-on on at your PC lets nobody
-type on that PC. While the add-on is off, no other screen shows it.
+**Turning it on.** Settings → **Keyboard from a PC**, the switch on the
+add-on's card, off from the start. On the PC that types, that one switch is
+all. On the device you want to type on, the add-on's card holds a second
+switch, **Allow typing on this device**, also off from the start: turning the
+add-on on at your PC lets nobody type on that PC. While the add-on is off, no
+screen outside Settings shows it.
 
 Both devices need each other's identity confirmed (the green shield, see
 [Encryption and identity confirmation](#encryption-and-identity-confirmation)).
@@ -566,10 +584,20 @@ typing like any other app's.
 card, on from the start), both devices keep a record of every session in
 their encrypted database: what was typed, into which app, when, and whether
 it landed. Text typed into a password field, or into a field Chatt cannot
-tell, is kept as a number of characters. Settings, **Data and diagnostics**,
-**Typing history** shows it (see
-[Data and diagnostics](#data-and-diagnostics)). The text itself travels
-encrypted, the same way messages do, and only between the two devices.
+tell, is kept as a number of characters. The text itself travels encrypted,
+the same way messages do, and only between the two devices.
+
+The **Typing history** button in Settings, in the **Keyboard from a PC**
+category, opens it: on the add-on's card while the add-on is on, and under
+the card while the add-on is off and at least one session is saved. The
+screen lists the sessions of Keyboard from a PC on this device: which device
+typed on which, when, how it ended, and what was typed, piece by piece, with
+the app it went into and whether it landed. Text for a password field, or for
+a field Chatt cannot tell, shows as dots with the number of characters.
+**Clear typing history** deletes all of it. The record runs while the
+keyboard add-on and its **Save typing history** switch are both on, and each
+device keeps its own history under its own switch; the
+[Keyboard from a PC](keyboard.md#typing-history) page has the details.
 
 ## Encryption and identity confirmation
 
@@ -626,10 +654,11 @@ Closing the window does not stop reception. The app keeps a foreground service
 with a permanent "Chatt is listening" notification, so messages and files
 arrive with the screen off too, and a new message raises a notification.
 
-In Settings, under **Background listening**, the app reports whether the system
-is putting it to sleep. If it warns, tap "Disable battery optimisation". On
-most phones the foreground service is enough by itself, but some manufacturers
-add their own app killing on top.
+In Settings, in the **Background listening** category, the app reports whether
+the system is putting it to sleep, and while it is, the Settings list shows a
+warning under the category's name too. If it warns, tap "Turn off battery
+optimisation". On most phones the foreground service is enough by itself, but
+some manufacturers add their own app killing on top.
 
 <img src="screenshots/produkt/en/android_ustawienia.png" alt="Settings" width="260">
 
@@ -643,10 +672,11 @@ Windows 11 hides new icons behind the "show hidden icons" arrow. To keep Chatt
 visible on the taskbar, drag it out of there or pin it in the system tray
 settings.
 
-In Settings, under **Windows**, there is a **"Start with Windows"** switch.
-Turned on, the app comes up after login and goes straight to the tray without
-opening a window. Underneath it is an ordinary user-account autostart entry:
-no service, no administrator rights, so it can also be removed by hand.
+In Settings, in the **Background listening** category, there is a
+**"Start with Windows"** switch. Turned on, the app comes up after login and
+goes straight to the tray without opening a window. Underneath it is an
+ordinary user-account autostart entry: no service, no administrator rights, so
+it can also be removed by hand.
 
 ## The window on a PC
 
@@ -656,9 +686,20 @@ A narrower window works as before, one screen at a time.
 
 <img src="screenshots/windows/en/04_plik_z_miniatura.png" alt="Two panes on Windows" width="760">
 
-Content has an upper width limit: bubbles up to 560 pixels, forms up to 760. On
-a 27 inch monitor a line running half a metre across is unreadable, and the eye
-loses the start of the next one.
+From the same width Settings has two panes too: the list of categories on the
+left and the open category on the right. The right pane is never empty: until
+you pick something, it shows Profile. The picked category has a highlighted
+background on the list. Back, the arrow in the bar and Esc then close
+Settings, since there is no list to go back to. Changing the window's width,
+for example snapping it to half the screen, keeps the picked category and
+whatever is going on in it: typed text, an update download, a wait for the
+Bluetooth permission.
+
+<img src="screenshots/windows/en/05_ustawienia.png" alt="Settings in two panes on Windows" width="760">
+
+Content has an upper width limit: bubbles up to 560 pixels, Settings up to
+640, forms up to 760. On a 27 inch monitor a line running half a metre across
+is unreadable, and the eye loses the start of the next one.
 
 ## Installing on Windows
 
@@ -677,13 +718,14 @@ reinstall. To really get rid of it, use "Clear history" before uninstalling.
 
 ## Staying up to date
 
-Settings has an **Updates** section. It is off when you first get there, and
-with it off the app never contacts anything outside your own network. Turned
-on, it asks GitHub once a day whether a newer release is out; the **Check now**
-button asks straight away either way.
+Settings has an **Updates** category. Its automatic check is off when you
+first get there, and with it off the app never contacts anything outside your
+own network. Turned on, it asks GitHub once a day whether a newer release is
+out; the **Check now** button asks straight away either way.
 
 When something newer exists, its number and release notes appear with a
-**Download and install** button. On Windows the installer runs and Chatt closes
+**Download and install** button, and the Settings list says "Version X.Y.Z is
+out" under the category's name. On Windows the installer runs and Chatt closes
 to let it work, then it comes back on its own. On Android the download is
 handed to the system installer, which asks you to confirm. The portable copy
 from the zip gets the release page address instead of a button, because an
@@ -748,10 +790,11 @@ notifications follow the app language.
 Conversation history lies on disk **encrypted**, and the key is held by the
 system keystore (Keystore on Android, DPAPI on Windows). The same database
 holds the typing history and the app log. Copying the database file alone gets
-you nothing. Settings says so outright, together with a warning for the case
-where the keystore did not work on a given device.
+you nothing. Settings → **Privacy** says so outright, together with a warning
+for the case where the keystore did not work on a given device, and that
+warning shows on the Settings list too, under the category's name.
 
-The same place has two things you can do by hand:
+The same category has two things you can do by hand:
 
 - **Delete messages older than**: 7, 30, 90 or 365 days. Off by default. The
   app sweeps at startup, after the setting changes, and every six hours. The
@@ -775,19 +818,9 @@ conversations, and a deleted conversation drops off it.
 
 ## Data and diagnostics
 
-Settings has a **Data and diagnostics** section, between Privacy and Add-ons.
-It holds **App log** and **Export data**, and **Typing history** above them
-once at least one typing session is saved. While the keyboard add-on is on,
-the **Typing history** button on its card opens the same screen.
-
-**Typing history** lists the sessions of Keyboard from a PC on this device:
-which device typed on which, when, how it ended, and what was typed, piece by
-piece, with the app it went into and whether it landed. Text for a password
-field, or for a field Chatt cannot tell, shows as dots with the number of
-characters. **Clear typing history** deletes all of it. The record runs while
-the keyboard add-on and its **Save typing history** switch are both on, and
-each device keeps its own history under its own switch; the
-[Keyboard from a PC](keyboard.md#typing-history) page has the details.
+Settings has a **Data and diagnostics** category with **Export data** and
+**App log**. **Typing history** is in the **Keyboard from a PC** category (see
+[Typing from a PC's keyboard](#typing-from-a-pcs-keyboard)).
 
 **App log** shows what the app did and what went wrong: connections and the
 road they took, pairing, file transfers, Bluetooth, typing sessions and

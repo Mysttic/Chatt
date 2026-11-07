@@ -711,7 +711,7 @@ class InetLinkManager {
   set onNewPipe(void Function(String guid, SecureUdpPipe pipe)? hook) =>
       _onNewPipe = hook;
 
-  /// Diagnostyka dla narzędzia spike i panelu „To urządzenie".
+  /// Diagnostyka dla narzędzia spike i karty dodatku Internet.
   Future<({StunMapping? mapping, NatMapping nat})> probeNat(
           {Iterable<String> localAddresses = const []}) =>
       _stun.discover(localAddresses: localAddresses);

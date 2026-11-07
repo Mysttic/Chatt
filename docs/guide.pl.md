@@ -9,9 +9,11 @@ z jednego urządzenia do drugiego.
 Drogą jest **sieć lokalna**, gdy oba urządzenia siedzą w tej samej sieci
 Wi‑Fi. Dodatek **Bluetooth**, domyślnie wyłączony, dokłada drugą drogę dla
 urządzeń w zasięgu radia (około 10 metrów). Z włączonym dodatkiem obie drogi
-działają naraz, a aplikacja sama wybiera, którą pójdzie.
+działają naraz, a aplikacja sama wybiera, którą pójdzie. Dodatek
+**Internet**, też domyślnie wyłączony i eksperymentalny, dokłada trzecią
+drogę: do potwierdzonego urządzenia w innej sieci.
 
-Drugi dodatek, **Klawiatura z PC**, też domyślnie wyłączony, pozwala pisać
+Trzeci dodatek, **Klawiatura z PC**, też domyślnie wyłączony, pozwala pisać
 klawiaturą komputera w polu na telefonie albo na innym komputerze.
 
 ## Pierwsze uruchomienie
@@ -22,15 +24,26 @@ klawiaturą komputera w polu na telefonie albo na innym komputerze.
 2. Na Windows przy pierwszym starcie zapora zapyta o zgodę na ruch
    przychodzący. Zaznacz sieć prywatną i pozwól, bo bez tego drugie urządzenie
    nie ma jak się połączyć.
-3. Wejdź w **Ustawienia** i ustaw nick, po którym rozpoznasz to urządzenie
-   na liście u rozmówcy.
+3. Wejdź w **Ustawienia → Profil** i wpisz nick, po którym rozpoznasz to
+   urządzenie na liście u rozmówcy. Nick zapisuje się sam.
+
+Ustawienia to krótka lista kategorii. Pod nazwą każdej stoi jedno zdanie
+o tym, co w niej jest ustawione, a gdy coś wymaga uwagi, także ostrzeżenie,
+na przykład „Inni nie znajdą tego urządzenia”. Stuknięcie otwiera kategorię,
+a Wstecz, strzałka w pasku i na komputerze Esc wracają do listy, a z listy
+zamykają Ustawienia. Na szerokim oknie lista i kategoria stoją obok siebie,
+patrz [Okno na komputerze](#okno-na-komputerze). Pola tekstowe (nick,
+wiadomość powitalna, port) zapisują się same, gdy wyjdziesz z pola albo
+z kategorii. Błędna wartość, na przykład pusty nick, zostaje w polu
+z komunikatem i zatrzymuje Cię w kategorii.
 
 Na górze listy rozmów stoi nazwa tego urządzenia. Numer wersji jest
-w Ustawieniach, w sekcji **Aktualizacje**. Na samym dole Ustawień panel **To
-urządzenie** zbiera adresy, pod którymi urządzenie słucha, adres Bluetooth
-(przy włączonym dodatku, gdy system go podaje), identyfikator i odcisk klucza.
-Każdą wartość kopiuje przycisk obok. Przydaje się przy zgłaszaniu problemu
-i przy dodawaniu po adresie IP.
+w Ustawieniach, w kategorii **Aktualizacje**. W kategorii **Połączenie** panel
+**To urządzenie** zbiera adresy, pod którymi urządzenie słucha, identyfikator
+i odcisk klucza, a każdą wartość kopiuje przycisk obok. Adres Bluetooth
+pokazuje w tej samej kategorii karta dodatku Bluetooth (przy włączonym
+dodatku, gdy system go podaje). Przydaje się to przy zgłaszaniu problemu i przy
+dodawaniu po adresie IP.
 
 ## Znajdowanie drugiego urządzenia
 
@@ -49,12 +62,14 @@ Gdy skan nic nie znajduje:
 - niektóre routery i sieci gościnne izolują klientów od siebie, wtedy
   rozgłoszenia nie przechodzą i trzeba dodać urządzenie ręcznie;
 - **Dodaj po adresie IP**: adres i port drugiego urządzenia znajdziesz u niego
-  w Ustawieniach, w sekcji „To urządzenie".
+  w Ustawieniach, w kategorii **Połączenie**, w panelu „To urządzenie".
 
 **Szukanie przez Bluetooth.** Ekran „W pobliżu" pyta najpierw o drogę: Sieć
 albo Bluetooth. To pytanie pojawia się tylko z włączonym dodatkiem Bluetooth,
-a sam Bluetooth jest do wzięcia, gdy radio działa. Radio samo z siebie nie
-mówi, które urządzenie ma Chatta, więc
+a sam Bluetooth jest do wzięcia, gdy radio działa. Gdy nie działa, mówi o tym
+napis pod pytaniem, a przycisk **Ustawienia połączenia** pod napisem otwiera
+Ustawienia w kategorii **Połączenie**, gdzie karta dodatku mówi, co stoi na
+przeszkodzie. Radio samo z siebie nie mówi, które urządzenie ma Chatta, więc
 aplikacja próbuje się połączyć po kolei z tymi, które się odezwały, i zostawia
 na liście te, które odpowiedziały jak Chatt. Idzie to dokładnie tą samą drogą
 co ręczne dodanie po adresie IP. Szukanie trwa do półtorej minuty i zagłusza
@@ -76,30 +91,31 @@ gdzie jesteś, ale bez nich Android nie oddaje żadnych wyników; ekran „W
 pobliżu" mówi o tym wprost i daje przycisk „Włącz lokalizację". Kiedy to nie
 wchodzi w grę, „Dodaj po adresie radia" (ikona łącza na pasku) łączy się od
 razu z adresem w rodzaju `12:34:56:78:9A:BC`, który drugie urządzenie pokazuje
-w ustawieniach Bluetooth. Komputer pokazuje swój także na karcie dodatku
-w Ustawieniach Chatta.
+w ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta,
+w kategorii **Połączenie**, na karcie dodatku Bluetooth.
 
 Na Androidzie 11 i starszym szukanie wymaga do tego zgody na lokalizację,
 o którą Chatt nie prosi. Tam drugie urządzenie dodaje się po adresie radia.
 
 Przytrzymanie wpisu na liście usuwa urządzenie. Przycisk „Wyczyść nieużywane
-urządzenia" w Ustawieniach sprząta wpisy, z którymi nie ma żadnej wiadomości
-i których nie widać od godziny.
+urządzenia" w Ustawieniach, w kategorii **Połączenie**, sprząta wpisy, z którymi
+nie ma żadnej wiadomości i których nie widać od godziny.
 
 ## Dodatek Bluetooth
 
-Bluetooth jest dodatkiem. W Ustawieniach, w sekcji **Dodatki**, stoi
+Bluetooth jest dodatkiem. W Ustawieniach, w kategorii **Połączenie**, stoi
 przełącznik **Bluetooth**, wyłączony od początku. Dopóki jest wyłączony,
-poza tą sekcją Bluetootha w aplikacji nie ma: żaden inny ekran o nim nie
+poza jego kartą Bluetootha w aplikacji nie ma: żaden inny ekran o nim nie
 wspomina, nic nie nasłuchuje na radiu, a sieć lokalna jest jedyną drogą.
 
 Po włączeniu karta dodatku pokazuje resztę: czy radio jest wyłączone
 w systemie, czy brakuje zgody (przycisk do jej wydania stoi obok), adres radia
 tego urządzenia, o ile system go podaje, i przełącznik **Sieć lokalna** na
 wypadek, gdy radio ma być jedyną drogą. Gdy sieć jest zgaszona, a radio nie
-działa, karta ostrzega, że to urządzenie z nikim się nie połączy. Radio
-włączone później w systemie albo zgoda wydana później podnoszą Bluetooth same,
-w ciągu około dziesięciu sekund.
+działa, karta ostrzega, że to urządzenie z nikim się nie połączy. To
+ostrzeżenie, wyłączone radio i brak zgody widać też na liście Ustawień, pod
+nazwą kategorii **Połączenie**. Radio włączone później w systemie albo zgoda
+wydana później podnoszą Bluetooth same, w ciągu około dziesięciu sekund.
 
 Na Androidzie o zgodę na Bluetooth aplikacja pyta w chwili włączania
 dodatku, a potem już tylko przyciskiem na karcie dodatku, gdy zgodę cofnięto.
@@ -136,7 +152,7 @@ bez serwera, co widzą inni, i z pomiarami:
 
 Bluetooth pomaga w promieniu dziesięciu metrów. Gdy komputer jest w domu,
 a telefon poza nim na danych komórkowych, trzecią drogą jest internet, też jako
-dodatek: **Ustawienia → Dodatki → Internet**, wyłączony od początku. To funkcja
+dodatek: **Ustawienia → Połączenie → Internet**, wyłączony od początku. To funkcja
 eksperymentalna.
 
 **Z kim działa.** Tylko z urządzeniem o potwierdzonej tożsamości (zielona
@@ -199,12 +215,13 @@ dodatku Bluetooth także przez radio.
 
 <img src="screenshots/windows/pl/06_klawiatura_pisanie.png" alt="Pisanie z komputera na telefonie" width="760">
 
-**Włączenie.** Ustawienia, **Dodatki**, **Klawiatura z PC**, wyłączony od
-początku. Na komputerze, z którego się pisze, ten jeden przełącznik
-wystarcza. Na urządzeniu, na którym ma się pisać, karta dodatku ma drugi
-przełącznik, **Pozwól pisać na tym urządzeniu**, też wyłączony od początku:
-włączenie dodatku na Twoim komputerze nikogo nie wpuszcza do pisania na tym
-komputerze. Dopóki dodatek jest wyłączony, żaden inny ekran go nie pokazuje.
+**Włączenie.** Ustawienia → **Klawiatura z PC**, przełącznik na karcie
+dodatku, wyłączony od początku. Na komputerze, z którego się pisze, ten jeden
+przełącznik wystarcza. Na urządzeniu, na którym ma się pisać, karta dodatku
+ma drugi przełącznik, **Pozwól pisać na tym urządzeniu**, też wyłączony od
+początku: włączenie dodatku na Twoim komputerze nikogo nie wpuszcza do pisania
+na tym komputerze. Dopóki dodatek jest wyłączony, poza Ustawieniami żaden
+ekran go nie pokazuje.
 
 Oba urządzenia muszą mieć nawzajem potwierdzoną tożsamość (zielona tarcza,
 patrz [Szyfrowanie i potwierdzanie tożsamości](#szyfrowanie-i-potwierdzanie-tożsamości)).
@@ -320,10 +337,20 @@ innej aplikacji.
 na karcie dodatku, włączony od początku) oba urządzenia zapisują każdą sesję
 w swojej zaszyfrowanej bazie: co wpisano, do której aplikacji, kiedy i czy
 dotarło. Tekst wpisany w pole hasła albo w pole, którego rodzaju Chatt nie
-rozpozna, zostaje zapisany jako liczba znaków. Historię znajdziesz
-w Ustawieniach: **Dane i diagnostyka**, **Historia pisania** (patrz
-[Dane i diagnostyka](#dane-i-diagnostyka)). Sam tekst jedzie zaszyfrowany,
+rozpozna, zostaje zapisany jako liczba znaków. Sam tekst jedzie zaszyfrowany,
 tak jak wiadomości, i wyłącznie między tymi dwoma urządzeniami.
+
+Historię otwiera przycisk **Historia pisania** w Ustawieniach, w kategorii
+**Klawiatura z PC**: na karcie dodatku, gdy dodatek jest włączony, a pod kartą,
+gdy dodatek jest wyłączony, a zapisała się choć jedna sesja. Ekran wymienia
+sesje Klawiatury z PC na tym urządzeniu: które urządzenie pisało na którym,
+kiedy, jak sesja się skończyła i co wpisano, kawałek po kawałku, z aplikacją,
+do której trafiło, i z tym, czy dotarło. Tekst do pola hasła albo do pola,
+którego rodzaju Chatt nie rozpozna, pokazuje się jako kropki z liczbą znaków.
+**Wyczyść historię pisania** kasuje całość. Zapis działa, gdy włączone są
+i dodatek klawiatury, i jego przełącznik **Zapisuj historię pisania**, a każde
+urządzenie prowadzi własną historię według swojego przełącznika; szczegóły są
+na stronie [Klawiatura z PC](keyboard.pl.md#historia-pisania).
 
 ## Wiadomości
 
@@ -438,7 +465,8 @@ w menu dymka (przytrzymanie, na komputerze prawy przycisk); to pewniejsza droga
 na komputerze, gdzie kliknięcie należy do zaznaczania tekstu.
 
 **Podglądy stron** to osobna sprawa i domyślnie są wyłączone. Po włączeniu ich
-w Ustawieniach, w sekcji **Odnośniki**, pod wiadomością pojawia się karta
+w Ustawieniach, w kategorii **Prywatność** (przełącznik **Pokazuj podglądy
+stron**), pod wiadomością pojawia się karta
 z tytułem, opisem i obrazkiem strony, tak jak w innych komunikatorach. Warto
 wiedzieć o dwóch rzeczach:
 
@@ -631,8 +659,9 @@ pierwszoplanową ze stałym powiadomieniem „Chatt nasłuchuje", dzięki czemu
 wiadomości i pliki dochodzą też przy zgaszonym ekranie, a o nowej wiadomości
 dostajesz powiadomienie.
 
-W Ustawieniach, w sekcji **Nasłuch w tle**, aplikacja mówi, czy system jej nie
-usypia. Jeśli ostrzega, kliknij „Wyłącz optymalizację baterii". Na większości
+W Ustawieniach, w kategorii **Nasłuch w tle**, aplikacja mówi, czy system jej
+nie usypia, a gdy usypia, ostrzeżenie widać też na liście Ustawień, pod nazwą
+kategorii. Jeśli ostrzega, kliknij „Wyłącz optymalizację baterii". Na większości
 telefonów usługa pierwszoplanowa wystarcza sama z siebie, ale część
 producentów dokłada własne mechanizmy ubijania aplikacji.
 
@@ -651,11 +680,11 @@ Windows 11 chowa nowe ikony pod strzałkę „pokaż ukryte ikony". Żeby Chatt
 siedział widocznie na pasku, przeciągnij go stamtąd na pasek albo przypnij
 w ustawieniach zasobnika systemu.
 
-W Ustawieniach, w sekcji **Windows**, jest przełącznik **„Uruchamiaj razem
-z Windowsem"**. Włączony sprawia, że aplikacja wstaje po zalogowaniu i od razu
-siada w zasobniku, bez otwierania okna. Pod spodem to zwykły wpis autostartu
-konta użytkownika: bez usług i bez uprawnień administratora, więc da się go
-skasować także ręcznie.
+W Ustawieniach, w kategorii **Nasłuch w tle**, jest przełącznik
+**„Uruchamiaj razem z Windowsem"**. Włączony sprawia, że aplikacja wstaje po
+zalogowaniu i od razu siada w zasobniku, bez otwierania okna. Pod spodem to
+zwykły wpis autostartu konta użytkownika: bez usług i bez uprawnień
+administratora, więc da się go skasować także ręcznie.
 
 ## Okno na komputerze
 
@@ -665,9 +694,20 @@ działa jak dotąd, jeden ekran naraz.
 
 <img src="screenshots/windows/pl/04_plik_z_miniatura.png" alt="Dwa panele na Windows" width="760">
 
-Treść ma górną granicę szerokości: dymki do 560 pikseli, formularze do 760.
-Na monitorze 27 cali linia ciągnąca się przez pół metra jest nie do czytania,
-a oko gubi początek następnej.
+Ustawienia mają od tej samej szerokości dwa panele: listę kategorii po lewej
+i otwartą kategorię po prawej. Prawy panel nigdy nie stoi pusty: dopóki nic
+nie wybierzesz, pokazuje Profil. Wybrana kategoria ma na liście wyróżnione
+tło. Wstecz, strzałka w pasku i Esc zamykają wtedy Ustawienia, bo nie ma
+listy, do której można wrócić. Zmiana szerokości okna, na przykład
+przyciągnięcie go do połowy ekranu, zostawia wybraną kategorię razem z tym, co
+się w niej dzieje: wpisanym tekstem, pobieraniem aktualizacji, czekaniem na
+zgodę Bluetooth.
+
+<img src="screenshots/windows/pl/05_ustawienia.png" alt="Ustawienia w dwóch panelach na Windows" width="760">
+
+Treść ma górną granicę szerokości: dymki do 560 pikseli, Ustawienia do 640,
+formularze do 760. Na monitorze 27 cali linia ciągnąca się przez pół metra
+jest nie do czytania, a oko gubi początek następnej.
 
 ## Instalacja na Windowsie
 
@@ -686,13 +726,15 @@ naprawdę się jej pozbyć, użyj „Wyczyść historię" przed odinstalowaniem.
 
 ## Nadążanie za wersjami
 
-W Ustawieniach jest sekcja **Aktualizacje**. Przy pierwszym wejściu stoi
-wyłączona i dopóki taka jest, aplikacja nie odzywa się nigdzie poza Twoją
-sieć. Włączona pyta GitHuba raz na dobę, czy wyszło nowsze wydanie, a przycisk
-**Sprawdź teraz** pyta od razu, niezależnie od przełącznika.
+W Ustawieniach jest kategoria **Aktualizacje**. Sprawdzanie stoi przy
+pierwszym wejściu wyłączone i dopóki takie jest, aplikacja nie odzywa się
+nigdzie poza Twoją sieć. Włączone pyta GitHuba raz na dobę, czy wyszło nowsze
+wydanie, a przycisk **Sprawdź teraz** pyta od razu, niezależnie od
+przełącznika.
 
 Gdy coś nowszego jest, pokazuje się numer, opis wydania i przycisk **Pobierz
-i zainstaluj**. Na Windowsie rusza instalator, a Chatt zamyka się, żeby mu nie
+i zainstaluj**, a lista Ustawień mówi pod nazwą kategorii „Wyszła wersja
+X.Y.Z”. Na Windowsie rusza instalator, a Chatt zamyka się, żeby mu nie
 przeszkadzać, i wraca sam. Na Androidzie pobrany plik trafia do systemowego
 instalatora, który pyta o zgodę. Wersja przenośna z zipa dostaje zamiast
 przycisku adres strony wydania, bo instalator zostawiłby katalog, z którego
@@ -713,7 +755,7 @@ zmieniłby nic w tym, co robi program.
 
 ## Wygląd i język
 
-W Ustawieniach, w sekcji **Wygląd**, wybierasz **styl**, motyw (systemowy,
+W Ustawieniach, w kategorii **Wygląd**, wybierasz **styl**, motyw (systemowy,
 jasny, ciemny), **tło** i język (systemowy, polski, angielski). Wszystkie
 wybory siedzą w bazie, więc przeżywają restart. Świeża instalacja startuje po
 angielsku, polski jest o jedno dotknięcie dalej.
@@ -759,12 +801,13 @@ Powiadomienia usługi w tle też idą za językiem aplikacji.
 Historia rozmów leży na dysku **zaszyfrowana**, a klucz do niej trzyma schowek
 systemowy (Keystore na Androidzie, DPAPI na Windowsie). W tej samej bazie leżą
 historia pisania i dziennik aplikacji. Skopiowanie samego pliku bazy nic nie
-daje. Ustawienia mówią o tym wprost, razem z ostrzeżeniem, gdyby na danym
-urządzeniu schowek nie zadziałał.
+daje. Kategoria **Prywatność** w Ustawieniach mówi o tym wprost, razem
+z ostrzeżeniem, gdyby na danym urządzeniu schowek nie zadziałał. To
+ostrzeżenie widać też na liście Ustawień, pod nazwą kategorii.
 
 <img src="screenshots/android/and20_prywatnosc.png" alt="Prywatność" width="260">
 
-Tam samym są dwie rzeczy do zrobienia ręcznie:
+W tej samej kategorii są dwie rzeczy do zrobienia ręcznie:
 
 - **Kasuj wiadomości starsze niż**: do wyboru 7, 30, 90 albo 365 dni.
   Domyślnie wyłączone. Aplikacja sprząta przy starcie, po zmianie ustawienia
@@ -791,21 +834,9 @@ Lista idzie za rozmowami, a usunięta rozmowa z niej znika.
 
 ## Dane i diagnostyka
 
-W Ustawieniach, między sekcjami Prywatność i Dodatki, stoi sekcja **Dane
-i diagnostyka** z **Dziennikiem aplikacji** i **Eksportem danych**.
-**Historia pisania** pojawia się nad nimi, gdy zapisze się choć jedna sesja
-pisania. Przy włączonym dodatku klawiatury ten sam ekran otwiera przycisk
-**Historia pisania** na jego karcie.
-
-**Historia pisania** wymienia sesje Klawiatury z PC na tym urządzeniu: które
-urządzenie pisało na którym, kiedy, jak sesja się skończyła i co wpisano,
-kawałek po kawałku, z aplikacją, do której trafiło, i z tym, czy dotarło.
-Tekst do pola hasła albo do pola, którego rodzaju Chatt nie rozpozna,
-pokazuje się jako kropki z liczbą znaków. **Wyczyść historię pisania** kasuje
-całość. Zapis działa, gdy włączone są i dodatek klawiatury, i jego
-przełącznik **Zapisuj historię pisania**, a każde urządzenie prowadzi własną
-historię według swojego przełącznika; szczegóły są na stronie
-[Klawiatura z PC](keyboard.pl.md#historia-pisania).
+W Ustawieniach kategoria **Dane i diagnostyka** ma przyciski **Eksportuj dane**
+i **Dziennik aplikacji**. **Historia pisania** jest w kategorii **Klawiatura
+z PC** (patrz [Dodatek „Klawiatura z PC”](#dodatek-klawiatura-z-pc)).
 
 **Dziennik aplikacji** pokazuje, co aplikacja robiła i co się nie udało:
 połączenia i drogę, którą poszły, parowanie, przesyłanie plików, Bluetooth,

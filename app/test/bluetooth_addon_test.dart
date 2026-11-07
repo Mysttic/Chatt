@@ -11,9 +11,10 @@ import 'package:chatt/network/bt_transport.dart';
 import 'package:chatt/network/transport.dart';
 import 'package:chatt/services/app_services.dart';
 
-/// Dodatek Bluetooth (Ustawienia, sekcja „Dodatki") jest jedynym włącznikiem
-/// całej funkcji. Wyłączony znaczy, że Bluetootha w aplikacji nie ma: kanał
-/// natywny nie dostaje ani jednego wywołania, a sieć lokalna chodzi zawsze.
+/// Dodatek Bluetooth (Ustawienia, kategoria Połączenie) jest jedynym
+/// włącznikiem całej funkcji. Wyłączony znaczy, że Bluetootha w aplikacji
+/// nie ma: kanał natywny nie dostaje ani jednego wywołania, a sieć lokalna
+/// chodzi zawsze.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // Wiązanie testowe podmienia HttpClient na taki, który na wszystko

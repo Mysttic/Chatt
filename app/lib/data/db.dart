@@ -75,7 +75,7 @@ class Settings extends Table {
   /// przepuszcza ruchu między urządzeniami i zostaje samo radio.
   BoolColumn get wifiEnabled => boolean().withDefault(const Constant(true))();
 
-  /// Czy włączony jest dodatek Bluetooth (sekcja „Dodatki" w ustawieniach).
+  /// Czy włączony jest dodatek Bluetooth (kategoria Połączenie w Ustawieniach).
   /// Domyślnie nie. Dodatek włącza radio, prosi o zgodę i czyni komputer
   /// wykrywalnym, więc włącza go użytkownik. Wyłączony nie zostawia
   /// w aplikacji żadnego śladu.
@@ -563,17 +563,21 @@ class ChattDb extends _$ChattDb {
     return (await getSettings())!;
   }
 
-  Future<void> saveSettings({
+  /// Nick i wiadomość powitalna z kategorii Profil.
+  Future<void> saveProfile({
     required String nickname,
     required String welcomeMessage,
-    required int tcpPort,
   }) => (update(settings)..where((s) => s.id.equals(1))).write(
     SettingsCompanion(
       nickname: Value(nickname),
       welcomeMessage: Value(welcomeMessage),
-      tcpPort: Value(tcpPort),
     ),
   );
+
+  /// Preferowany port nasłuchu z kategorii Połączenie.
+  Future<void> saveTcpPort(int tcpPort) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(tcpPort: Value(tcpPort)));
 
   /// Motyw i język zapisujemy osobno: zmieniają się jednym kliknięciem,
   /// bez formularza i bez przycisku „zapisz".

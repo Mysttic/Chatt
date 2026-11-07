@@ -18,7 +18,7 @@ import 'package:chatt/services/app_services.dart';
 import 'package:chatt/services/providers.dart';
 import 'package:chatt/ui/screens/chat_screen.dart';
 import 'package:chatt/ui/screens/conversations_screen.dart';
-import 'package:chatt/ui/screens/settings_screen.dart';
+import 'package:chatt/ui/screens/settings/keyboard_addon_card.dart';
 import 'package:chatt/ui/styles.dart';
 import 'package:chatt/ui/widgets/motion.dart';
 import 'package:chatt/ui/widgets/prompt_overlay.dart';

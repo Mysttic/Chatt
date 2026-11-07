@@ -91,8 +91,8 @@ mouse between PCs. Chatt fills the gap between them:
   else: no page is opened and no script from it runs. It is off by default,
   because fetching it means connecting to an address someone else chose.
 - **Comfort**: image thumbnails, one‑tap save to Pictures/Downloads, search,
-  per‑message delete, two‑pane layout on wide windows, backgrounds, light and
-  dark themes, English and Polish.
+  per‑message delete, two‑pane layout on wide windows, Settings
+  included, backgrounds, light and dark themes, English and Polish.
 
 ## Add-ons
 
@@ -182,7 +182,7 @@ The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 802 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt, the internet route (STUN, DHT, hole punching)
+flutter test        # 880 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt, the internet route (STUN, DHT, hole punching), Settings in categories
 flutter analyze
 ```
 
@@ -192,7 +192,7 @@ Layout of `app/lib/`:
 - `data/db.dart`: the SQLite schema (drift) and queries
 - `network/`: the protocol, UDP discovery, HTTP server and client, transports (HTTP, Bluetooth, and the experimental internet route: STUN, DHT, hole punching)
 - `services/`: `AppServices`, the root that ties everything together, plus Riverpod providers
-- `ui/screens/`: conversations, chat, nearby devices, settings
+- `ui/screens/`: conversations, chat, nearby devices, settings (`ui/screens/settings/`: one file per category, the add-on cards and the summaries on the category list)
 
 Device scenarios in `app/tool/` are described in
 [docs/testing.md](docs/testing.md).
