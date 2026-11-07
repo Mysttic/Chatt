@@ -142,6 +142,13 @@ class AppLocalizationsPl extends AppLocalizations {
       'Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.';
 
   @override
+  String get securityKeyUnknownTitle => 'Klucz jeszcze nieznany';
+
+  @override
+  String get securityKeyUnknownBody =>
+      'Chatt nie rozmawiał jeszcze z tym urządzeniem. Pobierze jego klucz przy pierwszym kontakcie i niczego nie wyśle bez szyfrowania.';
+
+  @override
   String get securityEncryptedTitle => 'Szyfrowane, tożsamość niepotwierdzona';
 
   @override
@@ -176,6 +183,10 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get shieldNoEncryption =>
       'Bez szyfrowania: druga strona ma starszą wersję';
+
+  @override
+  String get shieldKeyUnknown =>
+      'Klucz jeszcze nieznany: przyjdzie przy pierwszym kontakcie';
 
   @override
   String get shieldEncrypted =>

@@ -314,6 +314,18 @@ abstract class AppLocalizations {
   /// **'Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.'**
   String get securityNoEncryptionBody;
 
+  /// No description provided for @securityKeyUnknownTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klucz jeszcze nieznany'**
+  String get securityKeyUnknownTitle;
+
+  /// No description provided for @securityKeyUnknownBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt nie rozmawiał jeszcze z tym urządzeniem. Pobierze jego klucz przy pierwszym kontakcie i niczego nie wyśle bez szyfrowania.'**
+  String get securityKeyUnknownBody;
+
   /// No description provided for @securityEncryptedTitle.
   ///
   /// In pl, this message translates to:
@@ -373,6 +385,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Bez szyfrowania: druga strona ma starszą wersję'**
   String get shieldNoEncryption;
+
+  /// No description provided for @shieldKeyUnknown.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klucz jeszcze nieznany: przyjdzie przy pierwszym kontakcie'**
+  String get shieldKeyUnknown;
 
   /// No description provided for @shieldEncrypted.
   ///

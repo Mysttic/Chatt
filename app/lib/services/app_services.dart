@@ -355,6 +355,13 @@ class AppServices {
   final ValueNotifier<List<PendingPairing>> pendingPairings =
       ValueNotifier(const []);
 
+  /// Guidy rozmówców, którzy na `/info` odpowiedzieli bez klucza publicznego,
+  /// czyli w wersji sprzed szyfrowania. Sam brak klucza w bazie znaczy tylko
+  /// tyle, że rozmowy jeszcze nie było; dopiero ta odpowiedź pozwala panelowi
+  /// bezpieczeństwa mówić o starszej wersji. Trzymane w pamięci: po
+  /// restarcie wraca przy pierwszym kontakcie.
+  final ValueNotifier<Set<String>> peersWithoutKey = ValueNotifier(const {});
+
   /// Parowania w toku: guid rozmówcy -> stan uzgodnienia.
   final Map<String, _Pairing> _pairings = {};
 
@@ -871,6 +878,39 @@ class AppServices {
     return await db.peerByGuid(peer.guid) ?? peer;
   }
 
+  /// Odpowiedź `/info` od rozmówcy: klucza, którego jeszcze nie znamy,
+  /// przypina, a odpowiedź bez klucza zapisuje w [peersWithoutKey]. Wpis
+  /// czytamy z bazy na nowo, bo przekazany [peer] mógł powstać, zanim klucz
+  /// przypiął ktoś inny, a przypiętego klucza nic tu nie podmienia.
+  Future<Peer> _poznajKlucz(Peer peer, DeviceIdentity info) async {
+    if (info.guid != peer.guid) return peer;
+    _oznaczBezKlucza(peer.guid, !info.hasKey);
+    if (!info.hasKey) return peer;
+    final swiezy = await db.peerByGuid(peer.guid) ?? peer;
+    return _przypnijKlucz(swiezy, info);
+  }
+
+  void _oznaczBezKlucza(String guid, bool bez) {
+    final teraz = peersWithoutKey.value;
+    if (teraz.contains(guid) == bez) return;
+    peersWithoutKey.value =
+        bez ? {...teraz, guid} : ({...teraz}..remove(guid));
+  }
+
+  /// Klucz rozmówcy, którego jeszcze nie znamy, pobrany od razu z `/info`.
+  /// Woła to panel bezpieczeństwa: urządzenie dodane z „W pobliżu”, które przy
+  /// otwarciu rozmowy nie odpowiedziało, nie musi czekać z kluczem do
+  /// pierwszej wiadomości.
+  Future<void> ensurePeerKey(Peer peer) async {
+    if (peer.publicKey != null) return;
+    final info = await _overRoutes(
+      peer,
+      (route) => client.fetchInfo(route, timeout: const Duration(seconds: 2)),
+      (found) => found != null && found.guid == peer.guid,
+    );
+    if (info != null) await _poznajKlucz(peer, info);
+  }
+
   /// Ręczne usunięcie urządzenia z listy (razem z rozmową). Zgoda na pisanie,
   /// prośba o nią i własna sesja pisania do niego znikają razem z nim.
   Future<void> forgetPeer(Peer peer) {
@@ -883,9 +923,13 @@ class AppServices {
   /// Sprawdzenie obecności: czy rozmówca wciąż odpowiada pod znanym adresem.
   /// Liczy się odpowiedź od niego samego: pod starym adresem po zmianie
   /// adresów w sieci potrafi odpowiedzieć inne urządzenie.
+  ///
+  /// Ta sama odpowiedź niesie klucz, więc przy okazji go przypinamy: rozmowa
+  /// otwarta z „W pobliżu” zna swój stan szyfrowania od razu, bez czekania na
+  /// pierwszą wiadomość.
   Future<bool> isPeerOnline(Peer peer) async {
     bool on(DeviceIdentity? info) => info != null && info.guid == peer.guid;
-    return on(await _overRoutes(
+    final info = await _overRoutes(
       peer,
       (route) {
         final pytanie =
@@ -899,7 +943,16 @@ class AppServices {
             : pytanie;
       },
       on,
-    ));
+    );
+    if (!on(info)) return false;
+    try {
+      await _poznajKlucz(peer, info!);
+    } catch (blad) {
+      // Klucz to tutaj dodatek: obecność już wiadomo.
+      log.warning(LogArea.net, 'Key from /info of ${_kto(peer)} not stored',
+          error: blad);
+    }
+    return true;
   }
 
   Future<Peer> _rememberPeer(DiscoveredPeer peer) => db.upsertPeer(
@@ -1286,9 +1339,13 @@ class AppServices {
       (route) => client.fetchInfo(route),
       (found) => found != null && found.guid == peer.guid,
     );
+    if (info != null && info.guid == peer.guid && !info.hasKey) {
+      _oznaczBezKlucza(peer.guid, true);
+    }
     if (info == null || !_identityMatchesKey(info)) return null;
     if (info.guid != peer.guid) return null;
     await db.setPeerKey(peer.id, base64.encode(info.publicKey));
+    _oznaczBezKlucza(peer.guid, false);
     return info.publicKey;
   }
 

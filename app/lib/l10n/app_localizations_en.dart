@@ -142,6 +142,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'The other side runs an older version of Chatt that cannot encrypt. This conversation will not work until you update it.';
 
   @override
+  String get securityKeyUnknownTitle => 'Key not known yet';
+
+  @override
+  String get securityKeyUnknownBody =>
+      'Chatt has not talked to this device yet. It fetches the device\'s key at the first contact and sends nothing unencrypted.';
+
+  @override
   String get securityEncryptedTitle => 'Encrypted, identity unconfirmed';
 
   @override
@@ -176,6 +183,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get shieldNoEncryption =>
       'No encryption: the other side runs an older version';
+
+  @override
+  String get shieldKeyUnknown =>
+      'Key not known yet: it comes with the first contact';
 
   @override
   String get shieldEncrypted =>
