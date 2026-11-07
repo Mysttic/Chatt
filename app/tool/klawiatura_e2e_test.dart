@@ -9,8 +9,8 @@
 // nie trafi do przypadkowego okna.
 //
 // Przygotowanie: aplikacja Chatt z dodatkiem „Klawiatura z PC" i przełącznikiem
-// „Pozwól pisać na tym urządzeniu" włączonymi (Ustawienia → Dodatki). Jej port
-// to CHATT_KLAWIATURA_PORT (domyślnie 47780).
+// „Pozwól pisać na tym urządzeniu" włączonymi (Ustawienia → Klawiatura z PC).
+// Jej port to CHATT_KLAWIATURA_PORT (domyślnie 47780).
 //
 //   cd app
 //   flutter test tool/klawiatura_e2e_test.dart

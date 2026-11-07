@@ -446,9 +446,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String get save => 'Zapisz';
 
   @override
-  String get saved => 'Zapisano.';
-
-  @override
   String get savedRestartNeeded =>
       'Zapisano. Nowy port zacznie działać po ponownym uruchomieniu aplikacji.';
 
@@ -575,9 +572,6 @@ class AppLocalizationsPl extends AppLocalizations {
   String historyCleared(int count) {
     return 'Usunięto wiadomości: $count';
   }
-
-  @override
-  String get links => 'Odnośniki';
 
   @override
   String get linkPreviewsLabel => 'Pokazuj podglądy stron';
@@ -712,9 +706,6 @@ class AppLocalizationsPl extends AppLocalizations {
       'Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.';
 
   @override
-  String get windowsSection => 'Windows';
-
-  @override
   String get startWithWindows => 'Uruchamiaj razem z Windowsem';
 
   @override
@@ -795,9 +786,6 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get discoveryDeaf =>
       'To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.';
-
-  @override
-  String get addons => 'Dodatki';
 
   @override
   String get transportWifi => 'Sieć lokalna';
@@ -1019,7 +1007,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String remoteKeyboardNotEnabled(Object name) {
-    return 'Na urządzeniu $name pisanie jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.';
+    return 'Na urządzeniu $name pisanie jest wyłączone. Włącza się je w Ustawieniach, w kategorii Klawiatura z PC.';
   }
 
   @override
@@ -1077,7 +1065,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get searchBluetoothOff =>
-      'Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w sekcji Dodatki.';
+      'Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w kategorii Połączenie.';
 
   @override
   String get searchingBluetooth => 'Szukam przez Bluetooth…';
@@ -1127,7 +1115,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get manualAddBtHelp =>
-      'Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w sekcji Dodatki.';
+      'Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w kategorii Połączenie.';
 
   @override
   String get btAddressLabel => 'Adres Bluetooth';
@@ -1489,7 +1477,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get typingHistoryOff =>
-      'Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.';
+      'Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w kategorii Klawiatura z PC.';
 
   @override
   String get typingHistoryEmptyTitle => 'Brak historii pisania';
@@ -1691,6 +1679,132 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get dataSection => 'Dane i diagnostyka';
+
+  @override
+  String get connectionSection => 'Połączenie';
+
+  @override
+  String get portRestartHint =>
+      'Zmiana zacznie działać po ponownym uruchomieniu aplikacji.';
+
+  @override
+  String get openConnectionSettings => 'Ustawienia połączenia';
+
+  @override
+  String settingsSummaryProfile(Object nickname, Object welcome) {
+    return '$nickname · „$welcome”';
+  }
+
+  @override
+  String settingsSummaryAnd(Object first, Object last) {
+    return '$first i $last';
+  }
+
+  @override
+  String get settingsSummaryNobodyReached =>
+      'To urządzenie z nikim się nie skontaktuje';
+
+  @override
+  String get settingsSummaryOthersWontFind => 'Inni nie znajdą tego urządzenia';
+
+  @override
+  String get settingsSummaryBatteryOk => 'System nie usypia Chatta';
+
+  @override
+  String get settingsSummaryBatteryDozed => 'Android usypia Chatta';
+
+  @override
+  String get settingsSummaryBatteryWarning =>
+      'Wiadomości mogą nie dochodzić przy zgaszonym ekranie';
+
+  @override
+  String get settingsSummaryAutostartOn => 'Start razem z Windowsem';
+
+  @override
+  String get settingsSummaryAutostartOff => 'Start ręczny';
+
+  @override
+  String get settingsSummaryOff => 'Wyłączona';
+
+  @override
+  String get settingsSummaryOn => 'Włączona';
+
+  @override
+  String settingsSummaryTypingSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sesji w historii pisania',
+      many: '$count sesji w historii pisania',
+      few: '$count sesje w historii pisania',
+      one: '$count sesja w historii pisania',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsSummaryReceiveOn => 'pisanie na tym urządzeniu';
+
+  @override
+  String get settingsSummaryReceiveOff => 'bez pisania na tym urządzeniu';
+
+  @override
+  String get settingsSummaryHistoryOn => 'z historią pisania';
+
+  @override
+  String get settingsSummaryHistoryOff => 'bez historii pisania';
+
+  @override
+  String get settingsSummaryThemeSystem => 'motyw systemowy';
+
+  @override
+  String get settingsSummaryThemeLight => 'jasny';
+
+  @override
+  String get settingsSummaryThemeDark => 'ciemny';
+
+  @override
+  String get settingsSummaryLanguagePolish => 'polski';
+
+  @override
+  String get settingsSummaryLanguageEnglish => 'angielski';
+
+  @override
+  String settingsSummaryRetention(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Kasowanie po $days dniach',
+      many: 'Kasowanie po $days dniach',
+      few: 'Kasowanie po $days dniach',
+      one: 'Kasowanie po $days dniu',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsSummaryPreviewsOn => 'z podglądami stron';
+
+  @override
+  String get settingsSummaryPreviewsOff => 'bez podglądów stron';
+
+  @override
+  String get settingsSummaryKeyUnprotected =>
+      'Klucz do historii leży obok bazy';
+
+  @override
+  String get settingsSummaryData => 'Eksport danych · dziennik aplikacji';
+
+  @override
+  String settingsSummaryVersion(Object version) {
+    return 'Wersja $version';
+  }
+
+  @override
+  String get settingsSummaryChecksOn => 'sprawdzane automatycznie';
+
+  @override
+  String get settingsSummaryChecksOff => 'sprawdzanie ręczne';
 
   @override
   String get exportData => 'Eksportuj dane';

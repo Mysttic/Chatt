@@ -818,12 +818,6 @@ abstract class AppLocalizations {
   /// **'Zapisz'**
   String get save;
 
-  /// No description provided for @saved.
-  ///
-  /// In pl, this message translates to:
-  /// **'Zapisano.'**
-  String get saved;
-
   /// No description provided for @savedRestartNeeded.
   ///
   /// In pl, this message translates to:
@@ -1033,12 +1027,6 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Usunięto wiadomości: {count}'**
   String historyCleared(int count);
-
-  /// No description provided for @links.
-  ///
-  /// In pl, this message translates to:
-  /// **'Odnośniki'**
-  String get links;
 
   /// No description provided for @linkPreviewsLabel.
   ///
@@ -1262,12 +1250,6 @@ abstract class AppLocalizations {
   /// **'Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.'**
   String get manualPairingHint;
 
-  /// No description provided for @windowsSection.
-  ///
-  /// In pl, this message translates to:
-  /// **'Windows'**
-  String get windowsSection;
-
   /// No description provided for @startWithWindows.
   ///
   /// In pl, this message translates to:
@@ -1411,12 +1393,6 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.'**
   String get discoveryDeaf;
-
-  /// No description provided for @addons.
-  ///
-  /// In pl, this message translates to:
-  /// **'Dodatki'**
-  String get addons;
 
   /// No description provided for @transportWifi.
   ///
@@ -1769,7 +1745,7 @@ abstract class AppLocalizations {
   /// No description provided for @remoteKeyboardNotEnabled.
   ///
   /// In pl, this message translates to:
-  /// **'Na urządzeniu {name} pisanie jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.'**
+  /// **'Na urządzeniu {name} pisanie jest wyłączone. Włącza się je w Ustawieniach, w kategorii Klawiatura z PC.'**
   String remoteKeyboardNotEnabled(Object name);
 
   /// No description provided for @remoteKeyboardNoAnswer.
@@ -1859,7 +1835,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchBluetoothOff.
   ///
   /// In pl, this message translates to:
-  /// **'Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w sekcji Dodatki.'**
+  /// **'Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w kategorii Połączenie.'**
   String get searchBluetoothOff;
 
   /// No description provided for @searchingBluetooth.
@@ -1943,7 +1919,7 @@ abstract class AppLocalizations {
   /// No description provided for @manualAddBtHelp.
   ///
   /// In pl, this message translates to:
-  /// **'Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w sekcji Dodatki.'**
+  /// **'Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w kategorii Połączenie.'**
   String get manualAddBtHelp;
 
   /// No description provided for @btAddressLabel.
@@ -2453,7 +2429,7 @@ abstract class AppLocalizations {
   /// No description provided for @typingHistoryOff.
   ///
   /// In pl, this message translates to:
-  /// **'Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.'**
+  /// **'Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w kategorii Klawiatura z PC.'**
   String get typingHistoryOff;
 
   /// No description provided for @typingHistoryEmptyTitle.
@@ -2797,6 +2773,198 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Dane i diagnostyka'**
   String get dataSection;
+
+  /// No description provided for @connectionSection.
+  ///
+  /// In pl, this message translates to:
+  /// **'Połączenie'**
+  String get connectionSection;
+
+  /// No description provided for @portRestartHint.
+  ///
+  /// In pl, this message translates to:
+  /// **'Zmiana zacznie działać po ponownym uruchomieniu aplikacji.'**
+  String get portRestartHint;
+
+  /// No description provided for @openConnectionSettings.
+  ///
+  /// In pl, this message translates to:
+  /// **'Ustawienia połączenia'**
+  String get openConnectionSettings;
+
+  /// Streszczenie kategorii Profil: nick i wiadomość powitalna.
+  ///
+  /// In pl, this message translates to:
+  /// **'{nickname} · „{welcome}”'**
+  String settingsSummaryProfile(Object nickname, Object welcome);
+
+  /// Ostatni element wyliczenia dróg w streszczeniu Połączenia: „Sieć lokalna, Bluetooth i Internet”.
+  ///
+  /// In pl, this message translates to:
+  /// **'{first} i {last}'**
+  String settingsSummaryAnd(Object first, Object last);
+
+  /// No description provided for @settingsSummaryNobodyReached.
+  ///
+  /// In pl, this message translates to:
+  /// **'To urządzenie z nikim się nie skontaktuje'**
+  String get settingsSummaryNobodyReached;
+
+  /// No description provided for @settingsSummaryOthersWontFind.
+  ///
+  /// In pl, this message translates to:
+  /// **'Inni nie znajdą tego urządzenia'**
+  String get settingsSummaryOthersWontFind;
+
+  /// No description provided for @settingsSummaryBatteryOk.
+  ///
+  /// In pl, this message translates to:
+  /// **'System nie usypia Chatta'**
+  String get settingsSummaryBatteryOk;
+
+  /// No description provided for @settingsSummaryBatteryDozed.
+  ///
+  /// In pl, this message translates to:
+  /// **'Android usypia Chatta'**
+  String get settingsSummaryBatteryDozed;
+
+  /// No description provided for @settingsSummaryBatteryWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wiadomości mogą nie dochodzić przy zgaszonym ekranie'**
+  String get settingsSummaryBatteryWarning;
+
+  /// No description provided for @settingsSummaryAutostartOn.
+  ///
+  /// In pl, this message translates to:
+  /// **'Start razem z Windowsem'**
+  String get settingsSummaryAutostartOn;
+
+  /// No description provided for @settingsSummaryAutostartOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'Start ręczny'**
+  String get settingsSummaryAutostartOff;
+
+  /// Stan dodatku Klawiatura z PC w streszczeniu (rodzaj żeński: klawiatura).
+  ///
+  /// In pl, this message translates to:
+  /// **'Wyłączona'**
+  String get settingsSummaryOff;
+
+  /// Stan dodatku Klawiatura z PC w streszczeniu (rodzaj żeński: klawiatura).
+  ///
+  /// In pl, this message translates to:
+  /// **'Włączona'**
+  String get settingsSummaryOn;
+
+  /// No description provided for @settingsSummaryTypingSessions.
+  ///
+  /// In pl, this message translates to:
+  /// **'{count, plural, one{{count} sesja w historii pisania} few{{count} sesje w historii pisania} many{{count} sesji w historii pisania} other{{count} sesji w historii pisania}}'**
+  String settingsSummaryTypingSessions(int count);
+
+  /// No description provided for @settingsSummaryReceiveOn.
+  ///
+  /// In pl, this message translates to:
+  /// **'pisanie na tym urządzeniu'**
+  String get settingsSummaryReceiveOn;
+
+  /// No description provided for @settingsSummaryReceiveOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'bez pisania na tym urządzeniu'**
+  String get settingsSummaryReceiveOff;
+
+  /// No description provided for @settingsSummaryHistoryOn.
+  ///
+  /// In pl, this message translates to:
+  /// **'z historią pisania'**
+  String get settingsSummaryHistoryOn;
+
+  /// No description provided for @settingsSummaryHistoryOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'bez historii pisania'**
+  String get settingsSummaryHistoryOff;
+
+  /// No description provided for @settingsSummaryThemeSystem.
+  ///
+  /// In pl, this message translates to:
+  /// **'motyw systemowy'**
+  String get settingsSummaryThemeSystem;
+
+  /// No description provided for @settingsSummaryThemeLight.
+  ///
+  /// In pl, this message translates to:
+  /// **'jasny'**
+  String get settingsSummaryThemeLight;
+
+  /// No description provided for @settingsSummaryThemeDark.
+  ///
+  /// In pl, this message translates to:
+  /// **'ciemny'**
+  String get settingsSummaryThemeDark;
+
+  /// No description provided for @settingsSummaryLanguagePolish.
+  ///
+  /// In pl, this message translates to:
+  /// **'polski'**
+  String get settingsSummaryLanguagePolish;
+
+  /// No description provided for @settingsSummaryLanguageEnglish.
+  ///
+  /// In pl, this message translates to:
+  /// **'angielski'**
+  String get settingsSummaryLanguageEnglish;
+
+  /// No description provided for @settingsSummaryRetention.
+  ///
+  /// In pl, this message translates to:
+  /// **'{days, plural, one{Kasowanie po {days} dniu} few{Kasowanie po {days} dniach} many{Kasowanie po {days} dniach} other{Kasowanie po {days} dniach}}'**
+  String settingsSummaryRetention(int days);
+
+  /// No description provided for @settingsSummaryPreviewsOn.
+  ///
+  /// In pl, this message translates to:
+  /// **'z podglądami stron'**
+  String get settingsSummaryPreviewsOn;
+
+  /// No description provided for @settingsSummaryPreviewsOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'bez podglądów stron'**
+  String get settingsSummaryPreviewsOff;
+
+  /// No description provided for @settingsSummaryKeyUnprotected.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klucz do historii leży obok bazy'**
+  String get settingsSummaryKeyUnprotected;
+
+  /// No description provided for @settingsSummaryData.
+  ///
+  /// In pl, this message translates to:
+  /// **'Eksport danych · dziennik aplikacji'**
+  String get settingsSummaryData;
+
+  /// No description provided for @settingsSummaryVersion.
+  ///
+  /// In pl, this message translates to:
+  /// **'Wersja {version}'**
+  String settingsSummaryVersion(Object version);
+
+  /// No description provided for @settingsSummaryChecksOn.
+  ///
+  /// In pl, this message translates to:
+  /// **'sprawdzane automatycznie'**
+  String get settingsSummaryChecksOn;
+
+  /// No description provided for @settingsSummaryChecksOff.
+  ///
+  /// In pl, this message translates to:
+  /// **'sprawdzanie ręczne'**
+  String get settingsSummaryChecksOff;
 
   /// No description provided for @exportData.
   ///

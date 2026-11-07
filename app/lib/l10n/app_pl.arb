@@ -193,7 +193,6 @@
   "portFieldLabel": "Preferowany port nasłuchu",
   "portRange": "Port z zakresu 1024 do 65535",
   "save": "Zapisz",
-  "saved": "Zapisano.",
   "savedRestartNeeded": "Zapisano. Nowy port zacznie działać po ponownym uruchomieniu aplikacji.",
   "appearance": "Wygląd",
   "themeSystem": "Systemowy",
@@ -238,7 +237,6 @@
   "@historyCleared": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "links": "Odnośniki",
   "linkPreviewsLabel": "Pokazuj podglądy stron",
   "linkPreviewsHelp": "Pod odnośnikiem w rozmowie pojawia się karta z tytułem, opisem i obrazkiem strony. Żeby ją pobrać, aplikacja łączy się z tą stroną, więc jej serwer zobaczy adres IP tego urządzenia i moment, w którym wiadomość dotarła. Domyślnie wyłączone.",
   "linkPreviewsSafety": "Podgląd to sam tekst i obrazek. Aplikacja nie otwiera strony, nie uruchamia żadnych skryptów z niej i nie pobiera podglądów spod adresów w Twojej sieci lokalnej. Kliknięcie w odnośnik zawsze najpierw pyta o potwierdzenie.",
@@ -294,7 +292,6 @@
   },
   "manualPairingHint": "Ten adres wpisujesz na drugim urządzeniu w „Dodaj po adresie IP”, gdy automatyczne wykrywanie nie działa.",
 
-  "windowsSection": "Windows",
   "startWithWindows": "Uruchamiaj razem z Windowsem",
   "startWithWindowsHelp": "Chatt wstaje po zalogowaniu i od razu siada w zasobniku, więc wiadomości dochodzą bez otwierania okna.",
   "startWithWindowsFailed": "Nie udało się zmienić autostartu.",
@@ -332,7 +329,6 @@
 
   "discoveryDeaf": "To urządzenie nie odpowiada na skany. Inni znajdą je dopiero po ręcznym dodaniu adresu. Najczęstsza przyczyna: port 47777 zajęty przez inny program.",
 
-  "addons": "Dodatki",
   "transportWifi": "Sieć lokalna",
   "transportInternet": "Internet",
   "transportBluetooth": "Bluetooth",
@@ -424,7 +420,7 @@
   "@remoteKeyboardRejected": {
     "placeholders": { "name": {} }
   },
-  "remoteKeyboardNotEnabled": "Na urządzeniu {name} pisanie jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.",
+  "remoteKeyboardNotEnabled": "Na urządzeniu {name} pisanie jest wyłączone. Włącza się je w Ustawieniach, w kategorii Klawiatura z PC.",
   "@remoteKeyboardNotEnabled": {
     "placeholders": { "name": {} }
   },
@@ -454,7 +450,7 @@
   "protocolInternet": "Internet",
   "searchWhere": "Gdzie szukać",
   "searchBluetoothHint": "Szukanie przez radio trwa do półtorej minuty i na ten czas zwalnia otwarte rozmowy.",
-  "searchBluetoothOff": "Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w sekcji Dodatki.",
+  "searchBluetoothOff": "Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w kategorii Połączenie.",
   "searchingBluetooth": "Szukam przez Bluetooth…",
   "scanStartBluetooth": "Szukaj przez Bluetooth",
   "nearbyBeforeScanBluetooth": "Wyszukaj przez Bluetooth, żeby zobaczyć, które urządzenia obok odpowiadają.",
@@ -469,7 +465,7 @@
   "showThisPhoneFailed": "Android nie pokazał pytania o widoczność. Ten sam skutek daje otwarty ekran parowania w ustawieniach Bluetooth telefonu.",
   "addByBtAddress": "Dodaj po adresie radia",
   "manualAddBtTitle": "Dodaj po adresie Bluetooth",
-  "manualAddBtHelp": "Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w sekcji Dodatki.",
+  "manualAddBtHelp": "Adres drugiego urządzenia znajdziesz w jego ustawieniach Bluetooth. Komputer pokazuje swój także w Ustawieniach Chatta, w kategorii Połączenie.",
   "btAddressLabel": "Adres Bluetooth",
   "btAddressHint": "AA:BB:CC:DD:EE:FF",
   "noChattAtBtAddress": "Pod {address} nie odpowiada Chatt",
@@ -640,7 +636,7 @@
   "@typingHistoryEntryHelp": {
     "placeholders": { "count": { "type": "int" } }
   },
-  "typingHistoryOff": "Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w dodatku „Klawiatura z PC”.",
+  "typingHistoryOff": "Zapisywanie historii pisania jest wyłączone. Włącza się je w Ustawieniach, w kategorii Klawiatura z PC.",
   "typingHistoryEmptyTitle": "Brak historii pisania",
   "typingHistoryEmptyBody": "Tutaj pojawią się sesje zdalnej klawiatury w obu kierunkach: pisanie stąd na innych urządzeniach i pisanie innych urządzeń tutaj.",
   "typingHistoryClear": "Wyczyść historię pisania",
@@ -716,6 +712,61 @@
   "typingStatusUnsent": "Niewysłane",
 
   "dataSection": "Dane i diagnostyka",
+  "connectionSection": "Połączenie",
+  "portRestartHint": "Zmiana zacznie działać po ponownym uruchomieniu aplikacji.",
+  "openConnectionSettings": "Ustawienia połączenia",
+  "settingsSummaryProfile": "{nickname} · „{welcome}”",
+  "@settingsSummaryProfile": {
+    "description": "Streszczenie kategorii Profil: nick i wiadomość powitalna.",
+    "placeholders": { "nickname": {}, "welcome": {} }
+  },
+  "settingsSummaryAnd": "{first} i {last}",
+  "@settingsSummaryAnd": {
+    "description": "Ostatni element wyliczenia dróg w streszczeniu Połączenia: „Sieć lokalna, Bluetooth i Internet”.",
+    "placeholders": { "first": {}, "last": {} }
+  },
+  "settingsSummaryNobodyReached": "To urządzenie z nikim się nie skontaktuje",
+  "settingsSummaryOthersWontFind": "Inni nie znajdą tego urządzenia",
+  "settingsSummaryBatteryOk": "System nie usypia Chatta",
+  "settingsSummaryBatteryDozed": "Android usypia Chatta",
+  "settingsSummaryBatteryWarning": "Wiadomości mogą nie dochodzić przy zgaszonym ekranie",
+  "settingsSummaryAutostartOn": "Start razem z Windowsem",
+  "settingsSummaryAutostartOff": "Start ręczny",
+  "settingsSummaryOff": "Wyłączona",
+  "@settingsSummaryOff": {
+    "description": "Stan dodatku Klawiatura z PC w streszczeniu (rodzaj żeński: klawiatura)."
+  },
+  "settingsSummaryOn": "Włączona",
+  "@settingsSummaryOn": {
+    "description": "Stan dodatku Klawiatura z PC w streszczeniu (rodzaj żeński: klawiatura)."
+  },
+  "settingsSummaryTypingSessions": "{count, plural, one{{count} sesja w historii pisania} few{{count} sesje w historii pisania} many{{count} sesji w historii pisania} other{{count} sesji w historii pisania}}",
+  "@settingsSummaryTypingSessions": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "settingsSummaryReceiveOn": "pisanie na tym urządzeniu",
+  "settingsSummaryReceiveOff": "bez pisania na tym urządzeniu",
+  "settingsSummaryHistoryOn": "z historią pisania",
+  "settingsSummaryHistoryOff": "bez historii pisania",
+  "settingsSummaryThemeSystem": "motyw systemowy",
+  "settingsSummaryThemeLight": "jasny",
+  "settingsSummaryThemeDark": "ciemny",
+  "settingsSummaryLanguagePolish": "polski",
+  "settingsSummaryLanguageEnglish": "angielski",
+  "settingsSummaryRetention": "{days, plural, one{Kasowanie po {days} dniu} few{Kasowanie po {days} dniach} many{Kasowanie po {days} dniach} other{Kasowanie po {days} dniach}}",
+  "@settingsSummaryRetention": {
+    "placeholders": { "days": { "type": "int" } }
+  },
+  "settingsSummaryPreviewsOn": "z podglądami stron",
+  "settingsSummaryPreviewsOff": "bez podglądów stron",
+  "settingsSummaryKeyUnprotected": "Klucz do historii leży obok bazy",
+  "settingsSummaryData": "Eksport danych · dziennik aplikacji",
+  "settingsSummaryVersion": "Wersja {version}",
+  "@settingsSummaryVersion": {
+    "placeholders": { "version": {} }
+  },
+  "settingsSummaryChecksOn": "sprawdzane automatycznie",
+  "settingsSummaryChecksOff": "sprawdzanie ręczne",
   "exportData": "Eksportuj dane",
   "exportDataHelp": "Jeden plik ZIP z wybranymi danymi: rozmowy, urządzenia, ustawienia, historia pisania, dziennik aplikacji i odebrane pliki. Do archiwum albo do analizy w innym programie.",
   "exportDataConversations": "Rozmowy, urządzenia i ustawienia",

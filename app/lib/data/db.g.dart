@@ -599,7 +599,7 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// przepuszcza ruchu między urządzeniami i zostaje samo radio.
   final bool wifiEnabled;
 
-  /// Czy włączony jest dodatek Bluetooth (sekcja „Dodatki" w ustawieniach).
+  /// Czy włączony jest dodatek Bluetooth (kategoria Połączenie w Ustawieniach).
   /// Domyślnie nie. Dodatek włącza radio, prosi o zgodę i czyni komputer
   /// wykrywalnym, więc włącza go użytkownik. Wyłączony nie zostawia
   /// w aplikacji żadnego śladu.

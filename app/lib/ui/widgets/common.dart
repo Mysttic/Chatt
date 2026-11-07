@@ -294,11 +294,19 @@ class ContentColumn extends StatelessWidget {
   final Widget child;
   final double maxWidth;
 
-  const ContentColumn({super.key, required this.child, this.maxWidth = 760});
+  /// Gdzie stoi kolumna węższa od miejsca. Domyślnie na środku u góry.
+  final AlignmentGeometry alignment;
+
+  const ContentColumn({
+    super.key,
+    required this.child,
+    this.maxWidth = 760,
+    this.alignment = Alignment.topCenter,
+  });
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: Alignment.topCenter,
+        alignment: alignment,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: child,

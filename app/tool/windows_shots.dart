@@ -44,6 +44,7 @@ import 'package:chatt/services/app_services.dart';
 import 'package:chatt/services/presence.dart';
 import 'package:chatt/services/providers.dart';
 import 'package:chatt/ui/screens/remote_keyboard_screen.dart';
+import 'package:chatt/ui/screens/settings/keyboard_addon_card.dart';
 import 'package:chatt/ui/screens/settings_screen.dart';
 
 const Map<String, String> _pl = {
@@ -237,15 +238,15 @@ Future<AppServices> mojKomputer(Directory work, {RemoteInputSink? ujscie}) async
     receivedDirOverride: p.join(work.path, 'received'),
     remoteInputSink: ujscie,
   );
+  // Stos zrzutów działa bez wykrywania, więc bez tego wiersz Połączenia na
+  // liście kategorii ostrzegałby „Inni nie znajdą tego urządzenia".
+  ja.discoveryListening = true;
   await ja.db.saveLanguage(
       jezyk == 'en' ? AppLanguage.english : AppLanguage.polish);
   await ja.db.saveTheme(AppTheme.light);
   await ja.db.saveStyle(styl);
-  await ja.db.saveSettings(
-    nickname: t['ja']!,
-    welcomeMessage: '',
-    tcpPort: defaultTcpPort,
-  );
+  await ja.db.saveProfile(nickname: t['ja']!, welcomeMessage: '');
+  await ja.db.saveTcpPort(defaultTcpPort);
   return ja;
 }
 
@@ -442,8 +443,14 @@ void main() {
     await zrzut(tester, klucz, '04_plik_z_miniatura');
 
     print('etap: ustawienia');
-    // Ustawienia na szerokim oknie.
+    // Ustawienia na szerokim oknie: lista kategorii i obok wybrana
+    // kategoria, tu Wygląd.
     await tester.tap(find.byTooltip(t['ustawienia']!));
+    await odczekaj(tester);
+    await tester.tap(find.byKey(const ValueKey(SettingsSection.appearance)));
+    await odczekaj(tester);
+    // Bez wyboru prawy panel pokazuje Profil.
+    expect(find.byType(SegmentedButton<AppStyle>), findsOneWidget);
     await zrzut(tester, klucz, '05_ustawienia');
 
     // Zamknięcie stosu jeszcze w ciele testu, nie w tearDown: klient HTTP
@@ -706,7 +713,8 @@ void main() {
     await aplikacja(tester, klucz, ja, [anna]);
     await zrzut(tester, klucz, '07_klawiatura_zgoda');
 
-    // Zgoda: pasek „Pisze" u góry, a w ustawieniach karta dodatku.
+    // Zgoda: pasek „Pisze" u góry, a w Ustawieniach kategoria Klawiatura
+    // z PC z kartą dodatku.
     await tester.runAsync(() async {
       if (ja.pendingRemoteInput.value.isEmpty) {
         final wynik = await prosba.timeout(const Duration(seconds: 2),
@@ -722,30 +730,19 @@ void main() {
     });
     await tester.tap(find.byTooltip(t['ustawienia']!));
     await odczekaj(tester);
-    // Lista ustawień buduje się leniwie: karty dodatków nie ma, dopóki nie
-    // dojedzie się do niej przewijaniem.
-    await tester.scrollUntilVisible(
-      find.byType(KeyboardAddonCard),
-      400,
-      scrollable: find
-          .descendant(
-            of: find.byType(SettingsScreen),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
-    // Karta przy dolnej krawędzi kadru: niżej jest sekcja „To urządzenie"
-    // z adresami IP komputera, na którym powstaje zrzut, a wyżej czerwona
-    // karta o głuchym wykrywaniu (stos zrzutów działa bez wykrywania).
-    // Przesunięcie o 100 px chowa jedno i drugie.
-    final karta = tester.element(find.byType(KeyboardAddonCard));
-    await Scrollable.ensureVisible(karta, alignment: 1.0);
-    final pozycja = Scrollable.of(karta).position;
-    pozycja.jumpTo(pozycja.pixels + 100);
+    await tester.tap(find.byKey(const ValueKey(SettingsSection.keyboard)));
+    await odczekaj(tester);
+    // Przy włączonym dodatku kategoria to sama jego karta i mieści się
+    // w oknie bez przewijania.
+    expect(find.byType(KeyboardAddonCard), findsOneWidget);
     await zrzut(tester, klucz, '08_klawiatura_odbior');
 
+    // Stop zapisuje koniec sesji w historii pisania, a widżety śledzą bazę
+    // w udawanym czasie testu. Bez kilku klatek między Stopem a zamknięciem
+    // stosu `ja.dispose()` czekało do limitu testu.
+    await tester.runAsync(anna.stopRemoteInput);
+    await odczekaj(tester);
     await tester.runAsync(() async {
-      await anna.stopRemoteInput();
       await anna.dispose();
       await ja.dispose();
     });

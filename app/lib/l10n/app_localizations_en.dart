@@ -444,9 +444,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get save => 'Save';
 
   @override
-  String get saved => 'Saved.';
-
-  @override
   String get savedRestartNeeded =>
       'Saved. The new port takes effect after restarting the app.';
 
@@ -571,9 +568,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String historyCleared(int count) {
     return 'Messages deleted: $count';
   }
-
-  @override
-  String get links => 'Links';
 
   @override
   String get linkPreviewsLabel => 'Show link previews';
@@ -708,9 +702,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Type this address on the other device under “Add by IP address” when automatic discovery doesn\'t work.';
 
   @override
-  String get windowsSection => 'Windows';
-
-  @override
   String get startWithWindows => 'Start with Windows';
 
   @override
@@ -792,9 +783,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get discoveryDeaf =>
       'This device does not answer scans. Others will find it only by adding its address by hand. The usual cause is another program holding port 47777.';
-
-  @override
-  String get addons => 'Add-ons';
 
   @override
   String get transportWifi => 'Local network';
@@ -1018,7 +1006,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String remoteKeyboardNotEnabled(Object name) {
-    return 'Typing is off on $name. It is turned on in Settings, in the Keyboard from a PC add-on.';
+    return 'Typing is off on $name. It is turned on in Settings, under Keyboard from a PC.';
   }
 
   @override
@@ -1075,7 +1063,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get searchBluetoothOff =>
-      'Bluetooth is not running. Check the radio and the permission in Settings, under Add-ons.';
+      'Bluetooth is not running. Check the radio and the permission in Settings, under Connection.';
 
   @override
   String get searchingBluetooth => 'Looking over Bluetooth…';
@@ -1125,7 +1113,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get manualAddBtHelp =>
-      'The other device shows its address in its Bluetooth settings. A PC also shows its own in Chatt\'s Settings, under Add-ons.';
+      'The other device shows its address in its Bluetooth settings. A PC also shows its own in Chatt\'s Settings, under Connection.';
 
   @override
   String get btAddressLabel => 'Bluetooth address';
@@ -1482,7 +1470,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get typingHistoryOff =>
-      'Saving typing history is turned off. Turn it on in Settings, in the Keyboard from a PC add-on.';
+      'Saving typing history is turned off. Turn it on in Settings, under Keyboard from a PC.';
 
   @override
   String get typingHistoryEmptyTitle => 'No typing history';
@@ -1681,6 +1669,127 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dataSection => 'Data and diagnostics';
+
+  @override
+  String get connectionSection => 'Connection';
+
+  @override
+  String get portRestartHint => 'A change takes effect after the app restarts.';
+
+  @override
+  String get openConnectionSettings => 'Connection settings';
+
+  @override
+  String settingsSummaryProfile(Object nickname, Object welcome) {
+    return '$nickname · “$welcome”';
+  }
+
+  @override
+  String settingsSummaryAnd(Object first, Object last) {
+    return '$first and $last';
+  }
+
+  @override
+  String get settingsSummaryNobodyReached => 'This device will reach nobody';
+
+  @override
+  String get settingsSummaryOthersWontFind =>
+      'Others will not find this device';
+
+  @override
+  String get settingsSummaryBatteryOk => 'The system does not doze Chatt';
+
+  @override
+  String get settingsSummaryBatteryDozed => 'Android dozes Chatt';
+
+  @override
+  String get settingsSummaryBatteryWarning =>
+      'Messages may not arrive with the screen off';
+
+  @override
+  String get settingsSummaryAutostartOn => 'Starts with Windows';
+
+  @override
+  String get settingsSummaryAutostartOff => 'Manual start';
+
+  @override
+  String get settingsSummaryOff => 'Off';
+
+  @override
+  String get settingsSummaryOn => 'On';
+
+  @override
+  String settingsSummaryTypingSessions(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions in typing history',
+      one: '$count session in typing history',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsSummaryReceiveOn => 'typing on this device';
+
+  @override
+  String get settingsSummaryReceiveOff => 'no typing on this device';
+
+  @override
+  String get settingsSummaryHistoryOn => 'with typing history';
+
+  @override
+  String get settingsSummaryHistoryOff => 'no typing history';
+
+  @override
+  String get settingsSummaryThemeSystem => 'system theme';
+
+  @override
+  String get settingsSummaryThemeLight => 'light';
+
+  @override
+  String get settingsSummaryThemeDark => 'dark';
+
+  @override
+  String get settingsSummaryLanguagePolish => 'Polish';
+
+  @override
+  String get settingsSummaryLanguageEnglish => 'English';
+
+  @override
+  String settingsSummaryRetention(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: 'Deleting after $days days',
+      one: 'Deleting after $days day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsSummaryPreviewsOn => 'with link previews';
+
+  @override
+  String get settingsSummaryPreviewsOff => 'no link previews';
+
+  @override
+  String get settingsSummaryKeyUnprotected =>
+      'The history key sits next to the database';
+
+  @override
+  String get settingsSummaryData => 'Data export · app log';
+
+  @override
+  String settingsSummaryVersion(Object version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get settingsSummaryChecksOn => 'checked automatically';
+
+  @override
+  String get settingsSummaryChecksOff => 'checked by hand';
 
   @override
   String get exportData => 'Export data';
