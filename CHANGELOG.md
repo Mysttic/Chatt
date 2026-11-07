@@ -8,7 +8,7 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
-## [0.14.0] - 2026-11-06
+## [0.14.0] - 2026-11-07
 
 The internet as a third road. With the **Internet** add-on, experimental and
 off by default, two devices that have confirmed each other talk across
@@ -80,6 +80,12 @@ diagrams: [docs/internet.md](docs/internet.md)
   The README, the guide and the documentation index link to it.
 
 ### Fixed
+- The security panel and the shield in the conversation header no longer
+  call a device just picked from **Nearby** an older version of Chatt that
+  cannot encrypt. The check of the device that runs when the conversation
+  opens now stores its key, and until the key arrives the panel says **Key
+  not known yet**: Chatt sends nothing unencrypted in the meantime. **No
+  encryption** stays for a device that really answered without a key (#70).
 - The conversation header no longer says the device is unavailable while
   messages go over the internet. The header checked once, when the
   conversation opened, and right after the phone left Wi-Fi that check came

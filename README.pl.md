@@ -159,7 +159,7 @@ Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 795 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury)
+flutter test        # 802 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury)
 flutter analyze
 ```
 
