@@ -459,7 +459,57 @@ void main() {
     final wersja =
         await druga.customSelect('PRAGMA user_version;').getSingle();
     expect(wersja.read<int>('user_version'), druga.schemaVersion);
-    expect(druga.schemaVersion, 16);
+  });
+
+  /// Schemat 17 dokłada przełącznik drogi internetowej (issue #68): sama
+  /// kolumna, domyślnie wyłączona. Baza z 0.13.0 otwiera się z całą
+  /// zawartością, a dodatek stoi zgaszony, jak u każdego nowego użytkownika.
+  test('przejście na schemat 17 dokłada przełącznik drogi internetowej, '
+      'reszty nie rusza', () async {
+    final katalog = Directory.systemTemp.createTempSync('chatt-migracja-17');
+    addTearDown(() => katalog.deleteSync(recursive: true));
+    final plik = File(p.join(katalog.path, 'chatt.db'));
+
+    final pierwsza = ChattDb(NativeDatabase(plik));
+    final peer = await pierwsza.upsertPeer(
+      guid: 'guid-1',
+      name: 'Alicja',
+      welcomeMessage: '',
+      host: '192.168.0.2',
+      port: 47780,
+    );
+    await pierwsza.setPeerVerified(peer.id, true);
+    await pierwsza.ensureSettings(
+      identityFactory: () async => ('klucz', 'guid-ja'),
+      defaultNickname: 'Ja',
+      defaultPort: 47777,
+    );
+    await pierwsza.saveBluetoothAddon(true);
+    await pierwsza.close();
+
+    // Baza jak z 0.13.0: bez kolumny internet_enabled, licznik wersji na 16.
+    final surowa = raw.sqlite3.open(plik.path);
+    surowa.execute('ALTER TABLE settings DROP COLUMN internet_enabled;');
+    surowa.execute('PRAGMA user_version = 16;');
+    surowa.close();
+
+    final druga = ChattDb(NativeDatabase(plik));
+    addTearDown(druga.close);
+
+    final po = await druga.allPeers();
+    expect(po.single.name, 'Alicja');
+    expect(po.single.verified, isTrue);
+    final ustawienia = await druga.getSettings();
+    expect(ustawienia!.nickname, 'Ja');
+    expect(ustawienia.bluetoothEnabled, isTrue,
+        reason: 'dodatek Bluetooth zostaje, jak był');
+    expect(ustawienia.internetEnabled, isFalse,
+        reason: 'droga internetowa jest domyślnie wyłączona');
+
+    final wersja =
+        await druga.customSelect('PRAGMA user_version;').getSingle();
+    expect(wersja.read<int>('user_version'), druga.schemaVersion);
+    expect(druga.schemaVersion, 17);
   });
 
   /// Rozmówca poznany wyłącznie przez radio nie ma adresu w sieci, a rozmówca

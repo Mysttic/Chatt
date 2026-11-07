@@ -314,6 +314,18 @@ abstract class AppLocalizations {
   /// **'Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.'**
   String get securityNoEncryptionBody;
 
+  /// No description provided for @securityKeyUnknownTitle.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klucz jeszcze nieznany'**
+  String get securityKeyUnknownTitle;
+
+  /// No description provided for @securityKeyUnknownBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Chatt nie rozmawiał jeszcze z tym urządzeniem. Pobierze jego klucz przy pierwszym kontakcie i niczego nie wyśle bez szyfrowania.'**
+  String get securityKeyUnknownBody;
+
   /// No description provided for @securityEncryptedTitle.
   ///
   /// In pl, this message translates to:
@@ -373,6 +385,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Bez szyfrowania: druga strona ma starszą wersję'**
   String get shieldNoEncryption;
+
+  /// No description provided for @shieldKeyUnknown.
+  ///
+  /// In pl, this message translates to:
+  /// **'Klucz jeszcze nieznany: przyjdzie przy pierwszym kontakcie'**
+  String get shieldKeyUnknown;
 
   /// No description provided for @shieldEncrypted.
   ///
@@ -1133,7 +1151,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateChecksHelp.
   ///
   /// In pl, this message translates to:
-  /// **'Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.'**
+  /// **'Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. Pytanie wychodzi poza Twoją sieć, więc stoi wyłączone, dopóki go nie włączysz.'**
   String get updateChecksHelp;
 
   /// No description provided for @updateCheckNow.
@@ -1405,6 +1423,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Sieć lokalna'**
   String get transportWifi;
+
+  /// No description provided for @transportInternet.
+  ///
+  /// In pl, this message translates to:
+  /// **'Internet'**
+  String get transportInternet;
 
   /// No description provided for @transportBluetooth.
   ///
@@ -1796,6 +1820,12 @@ abstract class AppLocalizations {
   /// **'przez Bluetooth'**
   String get viaBluetooth;
 
+  /// No description provided for @viaInternet.
+  ///
+  /// In pl, this message translates to:
+  /// **'przez internet'**
+  String get viaInternet;
+
   /// No description provided for @protocolWifi.
   ///
   /// In pl, this message translates to:
@@ -1807,6 +1837,12 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Bluetooth'**
   String get protocolBluetooth;
+
+  /// No description provided for @protocolInternet.
+  ///
+  /// In pl, this message translates to:
+  /// **'Internet'**
+  String get protocolInternet;
 
   /// No description provided for @searchWhere.
   ///
@@ -2311,6 +2347,72 @@ abstract class AppLocalizations {
   /// In pl, this message translates to:
   /// **'Rozmowy bez wspólnej sieci Wi-Fi'**
   String get addonBluetoothShort;
+
+  /// No description provided for @addonInternetShort.
+  ///
+  /// In pl, this message translates to:
+  /// **'Rozmowy między różnymi sieciami'**
+  String get addonInternetShort;
+
+  /// No description provided for @addonInternetBody.
+  ///
+  /// In pl, this message translates to:
+  /// **'Połączenie z potwierdzonym urządzeniem w innej sieci, bez serwera pośredniczącego. Drogę pomagają znaleźć publiczne serwery STUN i sieć DHT BitTorrenta; widzą one twój adres IP i moment połączenia. Treści nie widzi żaden z nich. Nie przechodzi przez każdą sieć: zatrzymuje je symetryczny NAT (pokaże go „Sprawdź osiągalność”) albo sieć, która blokuje UDP. Domyślnie wyłączone.'**
+  String get addonInternetBody;
+
+  /// No description provided for @internetAddonExperimental.
+  ///
+  /// In pl, this message translates to:
+  /// **'Eksperymentalne. Działa bezpośrednio między urządzeniami, przebijając dziurę w NAT; udaje się około siedmiu połączeń na dziesięć.'**
+  String get internetAddonExperimental;
+
+  /// No description provided for @internetBatteryWarning.
+  ///
+  /// In pl, this message translates to:
+  /// **'Żeby być osiągalnym, to urządzenie nasłuchuje w tle, co minutę sprawdza, czy dzwoni do niego potwierdzone urządzenie, i co dziesięć minut odświeża swój adres. Zużywa to więcej baterii niż samo Wi-Fi.'**
+  String get internetBatteryWarning;
+
+  /// No description provided for @internetPublicAddressLabel.
+  ///
+  /// In pl, this message translates to:
+  /// **'To urządzenie widać pod: {address}'**
+  String internetPublicAddressLabel(String address);
+
+  /// No description provided for @internetPublicAddressUnknown.
+  ///
+  /// In pl, this message translates to:
+  /// **'Adres publiczny jeszcze nieznany.'**
+  String get internetPublicAddressUnknown;
+
+  /// No description provided for @internetCheckNat.
+  ///
+  /// In pl, this message translates to:
+  /// **'Sprawdź osiągalność'**
+  String get internetCheckNat;
+
+  /// No description provided for @internetNatOpen.
+  ///
+  /// In pl, this message translates to:
+  /// **'NAT niezależny od celu: przebicie dziury powinno działać.'**
+  String get internetNatOpen;
+
+  /// No description provided for @internetNatSymmetric.
+  ///
+  /// In pl, this message translates to:
+  /// **'NAT symetryczny: przebicie dziury zwykle tu zawodzi.'**
+  String get internetNatSymmetric;
+
+  /// No description provided for @internetNatNone.
+  ///
+  /// In pl, this message translates to:
+  /// **'Brak NAT: urządzenie jest osiągalne wprost.'**
+  String get internetNatNone;
+
+  /// No description provided for @internetNatUnknown.
+  ///
+  /// In pl, this message translates to:
+  /// **'Nie udało się połączyć z serwerami STUN.'**
+  String get internetNatUnknown;
 
   /// No description provided for @addonKeyboardShort.
   ///

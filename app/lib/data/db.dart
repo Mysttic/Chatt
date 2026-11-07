@@ -86,6 +86,8 @@ class Settings extends Table {
   /// nie zostawia w aplikacji śladu, a kanał natywny nie dostaje wywołań.
   BoolColumn get keyboardEnabled =>
       boolean().withDefault(const Constant(false))();
+  BoolColumn get internetEnabled =>
+      boolean().withDefault(const Constant(false))();
 
   /// Czy inne urządzenia mogą pisać na tym. Osobno od dodatku, bo włączenie
   /// dodatku na komputerze, z którego się pisze, nie jest zgodą na bycie
@@ -398,7 +400,7 @@ class ChattDb extends _$ChattDb {
   ChattDb(super.e);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -505,6 +507,12 @@ class ChattDb extends _$ChattDb {
         await m.createIndex(typingEntriesSession);
         await m.createTable(appLogEntries);
         await _dodajKolumneJesliBrak(m, settings, settings.typingHistory);
+      }
+      if (from < 17) {
+        // v17: dodatek drogi internetowej (przebicie dziury w NAT). Sam
+        // przełącznik, domyślnie wyłączony; nic z tego, co już leży w bazie,
+        // się nie zmienia.
+        await _dodajKolumneJesliBrak(m, settings, settings.internetEnabled);
       }
     },
   );
@@ -619,6 +627,12 @@ class ChattDb extends _$ChattDb {
         remoteInputReceive:
             enabled ? const Value.absent() : const Value(false),
       ));
+
+  /// Dodatek drogi internetowej. Jak Bluetooth: osobny włącznik, domyślnie
+  /// wyłączony.
+  Future<void> saveInternetAddon(bool enabled) =>
+      (update(settings)..where((s) => s.id.equals(1)))
+          .write(SettingsCompanion(internetEnabled: Value(enabled)));
 
   Future<void> saveRemoteInputReceive(bool enabled) =>
       (update(settings)..where((s) => s.id.equals(1)))

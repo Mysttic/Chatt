@@ -29,9 +29,15 @@ import '../data/db_open.dart';
 import '../network/bt_transport.dart';
 import '../network/client.dart';
 import '../network/discovery.dart';
+import '../network/inet_link.dart';
+import '../network/inet_transport.dart';
 import '../network/protocol.dart';
+import '../network/rendezvous.dart';
+import '../network/secure_udp.dart' show SecureUdpPipe;
 import '../network/server.dart';
+import '../network/stun.dart' show NatMapping;
 import '../network/transport.dart';
+import '../network/udp_mux.dart';
 import 'app_log.dart';
 import 'typing_journal.dart';
 
@@ -163,6 +169,12 @@ class _Pairing {
   /// To samo powiedziała druga strona (przyszedł [pairConfirm]).
   bool theirsConfirmed = false;
 
+  /// Tożsamość inicjatora z odsłonięcia klucza, po stronie przyjmującej. Kod
+  /// wiąże jej klucz statyczny, więc po zgodzie obu stron klucz trafia do
+  /// bazy: bez tego ta strona nie znała klucza aż do pierwszej wiadomości,
+  /// a droga internetowa bez klucza nie działa.
+  DeviceIdentity? theirIdentity;
+
   _Pairing({
     required this.expiresAt,
     this.keyPair,
@@ -210,6 +222,10 @@ class IncomingTransfer {
     required int received,
   }) : receivedBytes = ValueNotifier(received);
 }
+
+/// Jak długo sprawdzenie obecności czeka na odpowiedź przez internet. Gdy
+/// łącze stoi, odpowiedź przychodzi w ułamku sekundy.
+const Duration kInternetPresenceWait = Duration(seconds: 6);
 
 /// Zaakceptowana zapowiedź czekająca na bajty (POST /file zaraz po zgodzie).
 class _AcceptedOffer {
@@ -339,8 +355,19 @@ class AppServices {
   final ValueNotifier<List<PendingPairing>> pendingPairings =
       ValueNotifier(const []);
 
+  /// Guidy rozmówców, którzy na `/info` odpowiedzieli bez klucza publicznego,
+  /// czyli w wersji sprzed szyfrowania. Sam brak klucza w bazie znaczy tylko
+  /// tyle, że rozmowy jeszcze nie było; dopiero ta odpowiedź pozwala panelowi
+  /// bezpieczeństwa mówić o starszej wersji. Trzymane w pamięci: po
+  /// restarcie wraca przy pierwszym kontakcie.
+  final ValueNotifier<Set<String>> peersWithoutKey = ValueNotifier(const {});
+
   /// Parowania w toku: guid rozmówcy -> stan uzgodnienia.
   final Map<String, _Pairing> _pairings = {};
+
+  /// Tożsamości tych, którzy zgłosili zeskanowanie naszego kodu, do chwili
+  /// decyzji użytkownika: po zgodzie ich klucz trafia do bazy.
+  final Map<String, DeviceIdentity> _scanIdentities = {};
 
   /// Sesje wychodzące (guid rozmówcy -> sesja) i wszystkie sesje po numerze.
   /// Ta druga mapa obsługuje ruch przychodzący: koperta niesie tylko numer.
@@ -751,6 +778,10 @@ class AppServices {
     final candidates = <PeerRoute>[
       IpRoute(peer.host, peer.port),
       if (radio != null && radio.isNotEmpty) BluetoothRoute(radio),
+      // Droga internetowa tylko dla rozmówcy z zieloną tarczą: skrzynka
+      // kontaktowa i przebicie dziury opierają się na przypiętym kluczu
+      // statycznym, a napastnikowi bez niego i tak nic nie da.
+      if (internetAddon.value && peer.verified) InternetRoute(peer.guid),
     ];
     final last = _lastGoodProtocol[peer.guid];
     final ordered = last == null
@@ -770,9 +801,11 @@ class AppServices {
   /// parowania, odpis, zgoda na plik) poszła tą samą drogą. Bez tego po
   /// parowaniu przez radio odpowiedź szłaby najpierw na stary adres IP.
   int _drogaPrzychodzaca(String guid, String fromHost) {
-    final protokol = btAddressOf(fromHost) == null
-        ? PeerProtocol.wifi
-        : PeerProtocol.bluetooth;
+    final protokol = inetGuidOf(fromHost) != null
+        ? PeerProtocol.internet
+        : (btAddressOf(fromHost) == null
+            ? PeerProtocol.wifi
+            : PeerProtocol.bluetooth);
     _lastGoodProtocol[guid] = protokol;
     return protokol.index;
   }
@@ -845,6 +878,39 @@ class AppServices {
     return await db.peerByGuid(peer.guid) ?? peer;
   }
 
+  /// Odpowiedź `/info` od rozmówcy: klucza, którego jeszcze nie znamy,
+  /// przypina, a odpowiedź bez klucza zapisuje w [peersWithoutKey]. Wpis
+  /// czytamy z bazy na nowo, bo przekazany [peer] mógł powstać, zanim klucz
+  /// przypiął ktoś inny, a przypiętego klucza nic tu nie podmienia.
+  Future<Peer> _poznajKlucz(Peer peer, DeviceIdentity info) async {
+    if (info.guid != peer.guid) return peer;
+    _oznaczBezKlucza(peer.guid, !info.hasKey);
+    if (!info.hasKey) return peer;
+    final swiezy = await db.peerByGuid(peer.guid) ?? peer;
+    return _przypnijKlucz(swiezy, info);
+  }
+
+  void _oznaczBezKlucza(String guid, bool bez) {
+    final teraz = peersWithoutKey.value;
+    if (teraz.contains(guid) == bez) return;
+    peersWithoutKey.value =
+        bez ? {...teraz, guid} : ({...teraz}..remove(guid));
+  }
+
+  /// Klucz rozmówcy, którego jeszcze nie znamy, pobrany od razu z `/info`.
+  /// Woła to panel bezpieczeństwa: urządzenie dodane z „W pobliżu”, które przy
+  /// otwarciu rozmowy nie odpowiedziało, nie musi czekać z kluczem do
+  /// pierwszej wiadomości.
+  Future<void> ensurePeerKey(Peer peer) async {
+    if (peer.publicKey != null) return;
+    final info = await _overRoutes(
+      peer,
+      (route) => client.fetchInfo(route, timeout: const Duration(seconds: 2)),
+      (found) => found != null && found.guid == peer.guid,
+    );
+    if (info != null) await _poznajKlucz(peer, info);
+  }
+
   /// Ręczne usunięcie urządzenia z listy (razem z rozmową). Zgoda na pisanie,
   /// prośba o nią i własna sesja pisania do niego znikają razem z nim.
   Future<void> forgetPeer(Peer peer) {
@@ -857,13 +923,36 @@ class AppServices {
   /// Sprawdzenie obecności: czy rozmówca wciąż odpowiada pod znanym adresem.
   /// Liczy się odpowiedź od niego samego: pod starym adresem po zmianie
   /// adresów w sieci potrafi odpowiedzieć inne urządzenie.
+  ///
+  /// Ta sama odpowiedź niesie klucz, więc przy okazji go przypinamy: rozmowa
+  /// otwarta z „W pobliżu” zna swój stan szyfrowania od razu, bez czekania na
+  /// pierwszą wiadomość.
   Future<bool> isPeerOnline(Peer peer) async {
     bool on(DeviceIdentity? info) => info != null && info.guid == peer.guid;
-    return on(await _overRoutes(
+    final info = await _overRoutes(
       peer,
-      (route) => client.fetchInfo(route, timeout: const Duration(seconds: 2)),
+      (route) {
+        final pytanie =
+            client.fetchInfo(route, timeout: const Duration(seconds: 2));
+        // Przez internet pytanie może najpierw zestawiać łącze, a to trwa do
+        // półtorej minuty. Obecność nie czeka tyle: kropka i nagłówek wolą
+        // „niedostępny" od razu. Dzwonienie idzie dalej w tle, a gdy łącze
+        // stanie, nagłówek sam się przełączy (internetRevision).
+        return route is InternetRoute
+            ? pytanie.timeout(kInternetPresenceWait, onTimeout: () => null)
+            : pytanie;
+      },
       on,
-    ));
+    );
+    if (!on(info)) return false;
+    try {
+      await _poznajKlucz(peer, info!);
+    } catch (blad) {
+      // Klucz to tutaj dodatek: obecność już wiadomo.
+      log.warning(LogArea.net, 'Key from /info of ${_kto(peer)} not stored',
+          error: blad);
+    }
+    return true;
   }
 
   Future<Peer> _rememberPeer(DiscoveredPeer peer) => db.upsertPeer(
@@ -966,7 +1055,12 @@ class AppServices {
     // Potwierdzenie po zeskanowaniu: druga strona jest już pewna swojego
     // (widziała nasz ekran), więc tu wystarczy nasza zgoda.
     if (peer != null && oczekujace.isNotEmpty && oczekujace.first.fromScan) {
+      // Klucz skanującego przyszedł z jego tożsamością; przypinamy go dopiero
+      // teraz, po zgodzie użytkownika.
+      final skanujacy = _scanIdentities.remove(peerGuid);
+      if (skanujacy != null) await _przypnijKlucz(peer, skanujacy);
       await db.setPeerVerified(peer.id, true);
+      _announceInternet(peer.guid);
       _removePendingPairing(peerGuid);
       log.info(LogArea.pair, 'Pairing confirmed after a scan by ${_kto(peer)}');
       return PairOutcome.accepted;
@@ -1038,6 +1132,7 @@ class AppServices {
               'Pairing by scan from $kto rejected: identity does not match its key');
           return const PairReply(PairOutcome.rejected);
         }
+        _scanIdentities[peer.guid] = message.from;
         _showPairing(
           peer,
           ChattCrypto.fingerprint(message.from.publicKey),
@@ -1095,6 +1190,9 @@ class AppServices {
           responderStatic: identity.publicKey,
         );
         pairing.code = kod;
+        if (_identityMatchesKey(message.from)) {
+          pairing.theirIdentity = message.from;
+        }
         _showPairing(peer, kod);
         log.info(LogArea.pair, 'Pairing code shown for $kto');
         return const PairReply(PairOutcome.accepted);
@@ -1136,9 +1234,21 @@ class AppServices {
     final pairing = _pairings[peer.guid];
     if (pairing == null || pairing.code == null) return;
     if (!pairing.mineConfirmed || !pairing.theirsConfirmed) return;
+    final ich = pairing.theirIdentity;
+    if (ich != null) await _przypnijKlucz(peer, ich);
     await db.setPeerVerified(peer.id, true);
+    _announceInternet(peer.guid);
     _dropPairing(peer.guid);
     log.info(LogArea.pair, 'Pairing completed with ${_kto(peer)}');
+  }
+
+  /// Rozmówca właśnie dostał zieloną tarczę: przy włączonym dodatku Internet
+  /// nasz adres trafia do jego skrzynki od razu; przedtem czekał na najbliższe
+  /// odświeżenie (patrz [InetLinkManager.announceTo]). W tle: parowanie nie
+  /// czeka na DHT.
+  void _announceInternet(String guid) {
+    final manager = _internetManager;
+    if (manager != null) unawaited(manager.announceTo(guid));
   }
 
   void _showPairing(Peer peer, String code, {bool fromScan = false}) {
@@ -1186,6 +1296,7 @@ class AppServices {
     );
     await db.setPeerKey(peer.id, base64.encode(link.publicKey));
     await db.setPeerVerified(peer.id, true);
+    _announceInternet(peer.guid);
     _dropPairing(peer.guid);
     log.info(LogArea.pair, 'Paired by scanning the code of ${_kto(peer)}');
 
@@ -1228,9 +1339,13 @@ class AppServices {
       (route) => client.fetchInfo(route),
       (found) => found != null && found.guid == peer.guid,
     );
+    if (info != null && info.guid == peer.guid && !info.hasKey) {
+      _oznaczBezKlucza(peer.guid, true);
+    }
     if (info == null || !_identityMatchesKey(info)) return null;
     if (info.guid != peer.guid) return null;
     await db.setPeerKey(peer.id, base64.encode(info.publicKey));
+    _oznaczBezKlucza(peer.guid, false);
     return info.publicKey;
   }
 
@@ -1413,6 +1528,7 @@ class AppServices {
   }
 
   void _removePendingPairing(String peerGuid) {
+    _scanIdentities.remove(peerGuid);
     pendingPairings.value = pendingPairings.value
         .where((pairing) => pairing.peerGuid != peerGuid)
         .toList(growable: false);
@@ -1713,6 +1829,20 @@ class AppServices {
     return null;
   }
 
+  /// Liczniki łącza internetowego za czas jednego pliku, do dziennika: ile
+  /// segmentów poszło, ile trzeba było ponowić i jaki był czas obiegu. Pusto,
+  /// gdy plik poszedł inną drogą.
+  static String _linkStats(SecureUdpPipe? rura, (int, int, int)? przed) {
+    if (rura == null || przed == null) return '';
+    final (wyslane, szybko, poRto) = przed;
+    final segmenty = rura.segmentsSent - wyslane;
+    if (segmenty <= 0) return '';
+    return ', internet link: $segmenty segments, '
+        '${rura.fastRetransmits - szybko} resent at once, '
+        '${rura.timeoutRetransmits - poRto} after a timeout, '
+        'smoothed round trip ${rura.smoothedRtt.inMilliseconds} ms';
+  }
+
   /// Wysyłka pliku: najpierw zapowiedź (odbiorca decyduje, czy chce go
   /// przyjąć i od którego bajtu), potem dopiero bajty. Odmowa i zerwany
   /// transfer kończą się statusem "niedostarczone" z możliwością ponowienia:
@@ -1855,6 +1985,11 @@ class AppServices {
             'Outgoing file to $kto resumes at $resumeFrom of $total bytes $ktora');
       }
 
+      // Liczniki łącza internetowego sprzed przesyłu, do dziennika.
+      final rura = _internetManager?.pipeFor(target.guid);
+      final przed = rura == null
+          ? null
+          : (rura.segmentsSent, rura.fastRetransmits, rura.timeoutRetransmits);
       var wynik = await _streamFile(message, file, target, name, total, hash,
           resumeFrom, progress, fileKey, sesja.id);
       var delivered = wynik.delivered;
@@ -1887,7 +2022,8 @@ class AppServices {
       await status(
           delivered ? MessageStatus.delivered : MessageStatus.failed);
       if (delivered) {
-        log.info(LogArea.file, 'Outgoing file delivered to $kto: $total bytes $ktora');
+        log.info(LogArea.file,
+            'Outgoing file delivered to $kto: $total bytes $ktora${_linkStats(rura, przed)}');
       } else {
         nieWyszlo('transfer ${wynik.name}');
       }
@@ -2741,6 +2877,8 @@ class AppServices {
         (settings?.bluetoothEnabled ?? false) && BtChannel.supported;
     _applyWifi(settings);
     if (bluetoothAddon.value) await startBluetooth();
+    internetAddon.value = settings?.internetEnabled ?? false;
+    if (internetAddon.value) unawaited(startInternet());
     // Z obserwatora idzie wyłącznie sieć. Dodatek ma jednego właściciela,
     // [setBluetoothAddon], więc spóźnione zdarzenie z bazy nie podniesie
     // radia po jego wyłączeniu.
@@ -3131,6 +3269,192 @@ class AppServices {
     return _przypnijKlucz(peer, info);
   }
 
+  // --- Droga internetowa (dodatek, issue #68) -------------------------------
+
+  InternetTransport? _internet;
+  SocketUdpMux? _internetMux;
+  InetLinkManager? _internetManager;
+  Future<bool>? _internetStarting;
+
+  /// Czy dodatek drogi internetowej jest włączony (Ustawienia, „Dodatki").
+  /// Jedyny włącznik całej funkcji; przy false żadna trasa internetowa się
+  /// nie pojawia, gniazdo UDP nie wstaje, a do DHT nie idzie ani jeden pakiet.
+  final ValueNotifier<bool> internetAddon = ValueNotifier(false);
+
+  /// Czy droga internetowa naprawdę chodzi (gniazdo otwarte).
+  final ValueNotifier<bool> internetRunning = ValueNotifier(false);
+
+  /// Rośnie, gdy łącze internetowe stanie albo padnie: znacznik drogi
+  /// odświeża się po tym na żywo.
+  final ValueNotifier<int> internetRevision = ValueNotifier(0);
+
+  /// Ostatni znany publiczny adres tego urządzenia (ze STUN), do panelu
+  /// „To urządzenie". Pusty, dopóki STUN nie odpowie.
+  final ValueNotifier<String> internetPublicAddress = ValueNotifier('');
+
+  /// Adresy, z którymi stoi teraz łącze internetowe.
+  List<String> get internetLinks => _internet?.linkedGuids ?? const [];
+
+  /// Czy z tym rozmówcą stoi teraz łącze internetowe.
+  bool isLinkedByInternet(Peer peer) => _internet?.isLinked(peer.guid) ?? false;
+
+  /// Klucz statyczny rozmówcy dla drogi internetowej. Tylko rozmówca
+  /// z zieloną tarczą: bez potwierdzonej tożsamości przebicie dziury nie ma
+  /// komu ufać, a skrzynka kontaktowa i tak opiera się na jego kluczu.
+  Future<List<int>?> _internetStaticKey(String guid) async {
+    final peer = await db.peerByGuid(guid);
+    if (peer == null || !peer.verified) return null;
+    return _peerStaticKey(peer);
+  }
+
+  /// Guidy potwierdzonych rozmówców: do ich skrzynek wpisujemy swój adres,
+  /// żeby dało się nas znaleźć, gdy to oni zaczną dzwonić.
+  Future<List<String>> _verifiedPeerGuids() async {
+    final peers = await db.allPeers();
+    return [for (final p in peers) if (p.verified) p.guid];
+  }
+
+  /// Skrzynka kontaktowa pary dla danego guida. Null, gdy rozmówcy nie znamy
+  /// albo nie jest potwierdzony.
+  Future<Rendezvous?> _internetRendezvous(String guid) async {
+    final theirStatic = await _internetStaticKey(guid);
+    if (theirStatic == null) return null;
+    return Rendezvous.forPeer(
+      myStatic: _identityKeys,
+      theirStatic: theirStatic,
+      myGuid: identity.guid,
+      theirGuid: guid,
+    );
+  }
+
+  /// Przełącznik dodatku z ekranu ustawień (kolejkowany jak Bluetooth, żeby
+  /// szybkie „włącz, wyłącz" skończyło się tym, co kliknięto na końcu).
+  Future<bool> setInternetAddon(bool on) {
+    final wynik = _addonQueue.then((_) => _setInternetAddon(on));
+    _addonQueue = wynik.then((_) {}, onError: (_) {});
+    return wynik;
+  }
+
+  Future<bool> _setInternetAddon(bool on) async {
+    if (internetAddon.value != on) {
+      log.info(LogArea.net, 'Internet add-on turned ${on ? 'on' : 'off'}');
+    }
+    internetAddon.value = on;
+    if (!on) {
+      await stopInternet();
+      await db.saveInternetAddon(false);
+      return true;
+    }
+    await db.saveInternetAddon(true);
+    return startInternet();
+  }
+
+  Future<bool> startInternet() {
+    final trwa = _internetStarting;
+    if (trwa != null) return trwa;
+    if (_internet != null) return Future.value(true);
+    final proba = _startInternet();
+    _internetStarting = proba;
+    proba.whenComplete(() => _internetStarting = null);
+    return proba;
+  }
+
+  Future<bool> _startInternet() async {
+    if (_internet != null) return true;
+    if (!internetAddon.value) return false;
+    SocketUdpMux? mux;
+    try {
+      mux = await SocketUdpMux.bind();
+      final manager = InetLinkManager(
+        mux: mux,
+        myStatic: _identityKeys,
+        myStaticPub: identity.publicKey,
+        myGuid: identity.guid,
+        resolveStatic: _internetStaticKey,
+        resolveRendezvous: _internetRendezvous,
+        verifiedPeers: _verifiedPeerGuids,
+        onPhase: _internetPhase,
+      );
+      final transport = InternetTransport(
+        manager: manager,
+        // Żądanie z łącza internetowego idzie tą samą drogą co z gniazda TCP:
+        // ten sam routing, ci sami obsługujący, to samo szyfrowanie aplikacji.
+        onRequest: (request, guid) => server.handleInternet(request, guid),
+      );
+      transport.start();
+      if (!internetAddon.value) {
+        // Dodatek zgaszono w trakcie podnoszenia: zatrzymujemy transport
+        // i zamykamy gniazdo tutaj (transport jeszcze nie trafił do pola, więc
+        // stopInternet by go nie posprzątało).
+        await transport.stop();
+        await mux.close();
+        return false;
+      }
+      _internetMux = mux;
+      _internetManager = manager;
+      _internet = transport;
+      client.useInternet(transport);
+      internetRunning.value = true;
+      internetRevision.value++;
+      log.info(LogArea.net, 'Internet route started on UDP port ${mux.port}');
+      return true;
+    } catch (blad, slad) {
+      log.error(LogArea.net, 'Internet route failed to start',
+          error: blad, stack: slad);
+      // Gniazdo mogło się już otworzyć, zanim coś dalej rzuciło: zamykamy je,
+      // żeby nie zostało związane bez właściciela.
+      await mux?.close();
+      internetRunning.value = false;
+      return false;
+    }
+  }
+
+  Future<void> stopInternet() async {
+    final trwa = _internetStarting;
+    if (trwa != null) await trwa;
+    final transport = _internet;
+    final mux = _internetMux;
+    _internet = null;
+    _internetManager = null;
+    _internetMux = null;
+    client.useInternet(null);
+    internetRunning.value = false;
+    internetRevision.value++;
+    if (transport != null) {
+      await transport.stop();
+      // Transport zatrzymuje menedżera (STUN, DHT, łącza), ale samo gniazdo
+      // UDP należy do nas: zamykamy je tutaj.
+      await mux?.close();
+      log.info(LogArea.net, 'Internet route stopped');
+    }
+  }
+
+  void _internetPhase(String guid, InetLinkPhase phase, String reason) {
+    internetRevision.value++;
+    if (phase == InetLinkPhase.up) {
+      final adres = _internetManager?.publicAddress?.label;
+      if (adres != null) internetPublicAddress.value = adres;
+      unawaited(() async {
+        final peer = await db.peerByGuid(guid);
+        log.info(LogArea.net,
+            'Internet link up with ${peer == null ? guid : _kto(peer)}');
+      }());
+    } else if (phase == InetLinkPhase.failed) {
+      log.info(LogArea.net,
+          'Internet link to ${logText(guid)} ended: ${logText(reason)}');
+    }
+  }
+
+  /// Diagnostyka NAT-u dla panelu „To urządzenie" i narzędzia spike.
+  Future<({String? public, NatMapping nat})> probeInternetNat() async {
+    final manager = _internetManager;
+    if (manager == null) return (public: null, nat: NatMapping.unknown);
+    final addrs = await localAddresses();
+    final wynik = await manager.probeNat(localAddresses: addrs);
+    if (wynik.mapping != null) internetPublicAddress.value = wynik.mapping!.label;
+    return (public: wynik.mapping?.label, nat: wynik.nat);
+  }
+
   // --- Udostępnianie historii (issue #36) -----------------------------------
 
   /// Logika siedzi w `history.dart`, tu są tylko wejścia.
@@ -3491,6 +3815,12 @@ class AppServices {
     bluetoothRunning.dispose();
     bluetoothRevision.dispose();
     bluetoothStatus.dispose();
+    // Gniazdo UDP drogi internetowej gaśnie razem z aplikacją.
+    await stopInternet();
+    internetAddon.dispose();
+    internetRunning.dispose();
+    internetRevision.dispose();
+    internetPublicAddress.dispose();
     responder.stop();
     await server.stop();
     client.dispose();

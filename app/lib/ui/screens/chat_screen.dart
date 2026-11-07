@@ -55,6 +55,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scroll = ScrollController();
   bool? _online;
 
+  /// Numer bieżącego sprawdzenia obecności. Wynik starszego sprawdzenia,
+  /// który wraca po nowszej wiedzy o łączu, nie nadpisuje nagłówka.
+  var _obecnoscNr = 0;
+
+  /// Zmiany łączy internetowego i radiowego, na które czeka nagłówek.
+  late final Listenable _lacza;
+
   /// Szukanie filtruje listę dymków w miejscu. Pusty napis znaczy „nie szukam",
   /// wtedy pole w pasku w ogóle się nie pokazuje.
   final _search = TextEditingController();
@@ -107,9 +114,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     final services = ref.read(appServicesProvider);
     services.db.markConversationRead(widget.conversationId);
+    final nr = ++_obecnoscNr;
     services.isPeerOnline(widget.peer).then((online) {
-      if (mounted) setState(() => _online = online);
+      if (mounted && nr == _obecnoscNr) setState(() => _online = online);
     });
+    _lacza = Listenable.merge(
+        [services.internetRevision, services.bluetoothRevision])
+      ..addListener(_naZmianeLacza);
     // Treść czeka na tę rozmowę od chwili wyboru, a przy otwartej rozmowie
     // (prawy panel) może przyjść w każdej chwili.
     _intake = ref.read(shareIntakeProvider)
@@ -123,8 +134,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _trasa = ModalRoute.of(context);
   }
 
+  /// Łącze internetowe albo radiowe do rozmówcy właśnie stoi, więc rozmówca
+  /// odpowiada. Pierwsze sprawdzenie po zmianie sieci trafia często w chwilę,
+  /// gdy łącze dopiero się zestawia: bez tego nagłówek mówiłby „niedostępny”
+  /// aż do ponownego otwarcia rozmowy, choć wiadomości już chodzą. Samo
+  /// zerwanie łącza niczego tu nie zmienia, bo sieć lokalna mogła zostać.
+  void _naZmianeLacza() {
+    if (!mounted || _online == true) return;
+    final services = ref.read(appServicesProvider);
+    if (!services.isLinkedByInternet(widget.peer) &&
+        !services.isLinkedByBluetooth(widget.peer)) {
+      return;
+    }
+    _obecnoscNr++;
+    setState(() => _online = true);
+  }
+
   @override
   void dispose() {
+    _lacza.removeListener(_naZmianeLacza);
     _intake.staged.removeListener(_wezUdostepnione);
     // Wyjście z rozmowy bez „Wyślij": kopie udostępnionych plików do kosza.
     final udostepnione = _udostepnione;
@@ -444,49 +472,70 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     )
                   : const SizedBox.shrink(),
             ),
-          // Trzy stany, bo od protokołu 5 szyfrowanie i potwierdzenie
+          // Cztery stany, bo od protokołu 5 szyfrowanie i potwierdzenie
           // tożsamości to dwie różne rzeczy:
-          //   brak klucza:   po drugiej stronie starsza wersja, nie ma jak
-          //                    rozmawiać (i nie udajemy, że jest inaczej),
-          //   klucz jest:    ruch szyfrowany, ale nie wiadomo, czyj to
-          //                    klucz,
-          //   potwierdzony:  porównaliście kod, wiadomo z kim rozmawiacie.
-          Builder(builder: (context) {
-            final maKlucz = peer.publicKey != null;
-            final k = ChattTokens.of(context);
-            final (ikona, kolory, opis) = switch ((maKlucz, peer.verified)) {
-              (false, _) => (
-                  Icons.gpp_bad_outlined,
-                  k.dangerNote,
-                  context.l10n.shieldNoEncryption,
-                ),
-              (true, false) => (
-                  Icons.gpp_maybe_outlined,
-                  k.warningNote,
-                  context.l10n.shieldEncrypted,
-                ),
-              (true, true) => (
-                  Icons.verified_user,
-                  k.verifiedNote,
-                  context.l10n.shieldVerified,
-                ),
-            };
-            // Tarcza na tle w kolorze stanu: widać ją kątem oka, bez
-            // czytania podpowiedzi.
-            return IconButton(
-              tooltip: opis,
-              style: IconButton.styleFrom(backgroundColor: kolory.background),
-              icon: Icon(ikona, color: kolory.icon),
-              // Zawsze otwiera panel, także po potwierdzeniu: odciski mają
-              // dać się porównać w dowolnym momencie, a nie tylko raz.
-              onPressed: () => showSecuritySheet(
-                context,
-                peer: peer,
-                onPair: _startPairing,
-                onScan: _scanQr,
-              ),
-            );
-          }),
+          //   klucz nieznany:  rozmowy jeszcze nie było; klucz przyjdzie
+          //                      z `/info` przy pierwszym kontakcie,
+          //   bez klucza:      `/info` odpowiedziało bez niego, po drugiej
+          //                      stronie starsza wersja i nie ma jak rozmawiać,
+          //   klucz jest:      ruch szyfrowany, ale nie wiadomo, czyj to
+          //                      klucz,
+          //   potwierdzony:    porównaliście kod, wiadomo z kim rozmawiacie.
+          ValueListenableBuilder<Set<String>>(
+            valueListenable: services.peersWithoutKey,
+            builder: (context, bezKlucza, _) {
+              final maKlucz = peer.publicKey != null;
+              final k = ChattTokens.of(context);
+              final (ikona, kolory, opis) = switch ((
+                maKlucz,
+                peer.verified,
+                bezKlucza.contains(peer.guid),
+              )) {
+                (false, _, true) => (
+                    Icons.gpp_bad_outlined,
+                    k.dangerNote,
+                    context.l10n.shieldNoEncryption,
+                  ),
+                (false, _, false) => (
+                    Icons.shield_outlined,
+                    k.warningNote,
+                    context.l10n.shieldKeyUnknown,
+                  ),
+                (true, false, _) => (
+                    Icons.gpp_maybe_outlined,
+                    k.warningNote,
+                    context.l10n.shieldEncrypted,
+                  ),
+                (true, true, _) => (
+                    Icons.verified_user,
+                    k.verifiedNote,
+                    context.l10n.shieldVerified,
+                  ),
+              };
+              // Tarcza na tle w kolorze stanu: widać ją kątem oka, bez
+              // czytania podpowiedzi.
+              return IconButton(
+                tooltip: opis,
+                style: IconButton.styleFrom(backgroundColor: kolory.background),
+                icon: Icon(ikona, color: kolory.icon),
+                // Zawsze otwiera panel, także po potwierdzeniu: odciski mają
+                // dać się porównać w dowolnym momencie.
+                onPressed: () {
+                  // Klucz, którego jeszcze nie ma, dociąga się w tle; panel
+                  // zmieni stan, gdy tylko `/info` odpowie.
+                  unawaited(services
+                      .ensurePeerKey(peer)
+                      .catchError((Object _) {}));
+                  showSecuritySheet(
+                    context,
+                    peer: peer,
+                    onPair: _startPairing,
+                    onScan: _scanQr,
+                  );
+                },
+              );
+            },
+          ),
           // Menu rozmowy: historia (issue #36), a na telefonie także szukanie
           // i klawiatura z PC.
           PopupMenuButton<_MenuRozmowy>(

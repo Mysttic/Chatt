@@ -142,6 +142,13 @@ class AppLocalizationsPl extends AppLocalizations {
       'Po drugiej stronie działa starsza wersja Chatta, która nie umie szyfrować. Dopóki jej nie zaktualizujesz, ta rozmowa nie ruszy.';
 
   @override
+  String get securityKeyUnknownTitle => 'Klucz jeszcze nieznany';
+
+  @override
+  String get securityKeyUnknownBody =>
+      'Chatt nie rozmawiał jeszcze z tym urządzeniem. Pobierze jego klucz przy pierwszym kontakcie i niczego nie wyśle bez szyfrowania.';
+
+  @override
   String get securityEncryptedTitle => 'Szyfrowane, tożsamość niepotwierdzona';
 
   @override
@@ -176,6 +183,10 @@ class AppLocalizationsPl extends AppLocalizations {
   @override
   String get shieldNoEncryption =>
       'Bez szyfrowania: druga strona ma starszą wersję';
+
+  @override
+  String get shieldKeyUnknown =>
+      'Klucz jeszcze nieznany: przyjdzie przy pierwszym kontakcie';
 
   @override
   String get shieldEncrypted =>
@@ -632,7 +643,7 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get updateChecksHelp =>
-      'Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.';
+      'Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. Pytanie wychodzi poza Twoją sieć, więc stoi wyłączone, dopóki go nie włączysz.';
 
   @override
   String get updateCheckNow => 'Sprawdź teraz';
@@ -790,6 +801,9 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get transportWifi => 'Sieć lokalna';
+
+  @override
+  String get transportInternet => 'Internet';
 
   @override
   String get transportBluetooth => 'Bluetooth';
@@ -1043,10 +1057,16 @@ class AppLocalizationsPl extends AppLocalizations {
   String get viaBluetooth => 'przez Bluetooth';
 
   @override
+  String get viaInternet => 'przez internet';
+
+  @override
   String get protocolWifi => 'Sieć';
 
   @override
   String get protocolBluetooth => 'Bluetooth';
+
+  @override
+  String get protocolInternet => 'Internet';
 
   @override
   String get searchWhere => 'Gdzie szukać';
@@ -1402,6 +1422,47 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get addonBluetoothShort => 'Rozmowy bez wspólnej sieci Wi-Fi';
+
+  @override
+  String get addonInternetShort => 'Rozmowy między różnymi sieciami';
+
+  @override
+  String get addonInternetBody =>
+      'Połączenie z potwierdzonym urządzeniem w innej sieci, bez serwera pośredniczącego. Drogę pomagają znaleźć publiczne serwery STUN i sieć DHT BitTorrenta; widzą one twój adres IP i moment połączenia. Treści nie widzi żaden z nich. Nie przechodzi przez każdą sieć: zatrzymuje je symetryczny NAT (pokaże go „Sprawdź osiągalność”) albo sieć, która blokuje UDP. Domyślnie wyłączone.';
+
+  @override
+  String get internetAddonExperimental =>
+      'Eksperymentalne. Działa bezpośrednio między urządzeniami, przebijając dziurę w NAT; udaje się około siedmiu połączeń na dziesięć.';
+
+  @override
+  String get internetBatteryWarning =>
+      'Żeby być osiągalnym, to urządzenie nasłuchuje w tle, co minutę sprawdza, czy dzwoni do niego potwierdzone urządzenie, i co dziesięć minut odświeża swój adres. Zużywa to więcej baterii niż samo Wi-Fi.';
+
+  @override
+  String internetPublicAddressLabel(String address) {
+    return 'To urządzenie widać pod: $address';
+  }
+
+  @override
+  String get internetPublicAddressUnknown =>
+      'Adres publiczny jeszcze nieznany.';
+
+  @override
+  String get internetCheckNat => 'Sprawdź osiągalność';
+
+  @override
+  String get internetNatOpen =>
+      'NAT niezależny od celu: przebicie dziury powinno działać.';
+
+  @override
+  String get internetNatSymmetric =>
+      'NAT symetryczny: przebicie dziury zwykle tu zawodzi.';
+
+  @override
+  String get internetNatNone => 'Brak NAT: urządzenie jest osiągalne wprost.';
+
+  @override
+  String get internetNatUnknown => 'Nie udało się połączyć z serwerami STUN.';
 
   @override
   String get addonKeyboardShort => 'Pisanie z klawiatury komputera';

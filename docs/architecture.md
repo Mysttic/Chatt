@@ -149,7 +149,8 @@ It goes down again when the add-on goes off.
 [`bt_link.dart`](../app/lib/network/bt_link.dart) does the framing and the
 multiplexing over that single link. A frame is `[1 byte kind][4 bytes stream
 number][4 bytes length][payload]`, the kinds are `head`, `body`, `end`, `reply`
-and `abort`, and a payload holds at most 8192 bytes. The side that dialled
+and `abort`, and a payload holds at most 8,183 bytes, so a full frame with its
+header is 8 KiB, eight whole segments of the internet link. The side that dialled
 numbers its streams odd and the side that answered numbers them even, so two
 exchanges in flight cannot claim the same number. It is plain Dart over a
 `BytePipe` abstraction, which is what makes it testable without a radio.
@@ -171,6 +172,97 @@ connecting on our UUID and asking `GET /info`, the same way it is settled when a
 device is added by IP by hand. Devices without Chatt fall away, because they
 carry no such record in SDP. A scan jams the link for as long as it runs, so it
 happens only when the user asks for it from the "Nearby" screen.
+
+### The internet add-on (issue #68, experimental)
+
+A third road, off by default and experimental: reach a confirmed device on
+another network, with no relay in between. It ships only as an add-on the user
+turns on, with the limits stated plainly, so nothing leaves the network by
+itself while it stays off. The README lists it with the other add-ons.
+
+The pieces, bottom to top, all pure Dart (no native dependency, no WebRTC), on
+one shared UDP socket so the port STUN measures is the port the peer is told to
+reach:
+
+- [`udp_mux.dart`](../app/lib/network/udp_mux.dart) owns the socket and hands
+  each inbound datagram to the first handler that claims it (STUN by its magic
+  cookie, DHT by its bencode shape, a link by its header). It drops packets to
+  addresses the system rejects (0.0.0.0, port 0, multicast): Windows accepts
+  such a `send`, reports the error later and closes the socket. A socket that
+  closes on its own is reopened on the same port, so the NAT mapping and the
+  address in the box stay valid. A packet the system refuses (`send` returns
+  0, which Windows does for most of a burst) waits in a queue of up to 1,024
+  and goes out in order on the socket's write event.
+- [`stun.dart`](../app/lib/network/stun.dart): a minimal STUN Binding client
+  (RFC 5389) that learns the public address the NAT gives this socket, and, by
+  asking two servers, whether the NAT is endpoint-independent (punchable) or
+  symmetric (not).
+- [`bencode.dart`](../app/lib/network/bencode.dart) and
+  [`dht.dart`](../app/lib/network/dht.dart): a small Mainline DHT client doing
+  BEP 44 mutable `get`/`put` with Ed25519 (RFC 8032) signatures. A lookup has
+  no rounds: up to eight queries wait at once, a node silent for a second gives
+  up its place, bootstrap routers get `find_node` (most of them answer BEP 44
+  `get` with error 204), and nodes that answered are remembered for the run,
+  so rereading the same box starts next to it. Measured from home and from
+  LTE: about 5 s per read, 6 to 10 s per write.
+- [`rendezvous.dart`](../app/lib/network/rendezvous.dart): the contact box.
+  From the static×static X25519 secret both sides derive the same signing seed,
+  AES-GCM seal key and salt base. Each publishes its address under a salt from
+  its **own** guid and the day number, and reads the peer's under the peer's
+  salt; the address inside the record is sealed, so DHT nodes see only a signed
+  ciphertext. The daily epoch moves the mailbox and changes its signing key, so
+  neither the mailbox address nor the public key in its records ties one day
+  to the next.
+- [`secure_udp.dart`](../app/lib/network/secure_udp.dart): a reliable,
+  encrypted byte pipe over UDP: a Noise-KK handshake (the same
+  `ChattCrypto.sessionKey` four-DH, so a wrong static key yields a dead key and
+  the link never opens), per-packet AES-GCM with a monotonic counter in the
+  nonce and a replay window, then ARQ: sequence numbers, a cumulative ACK with
+  a 64-bit SACK map covering the whole window of 64 segments, a window counted
+  in sequence numbers from the oldest unacknowledged one, a resend as soon as
+  three transmissions sent after a segment have been delivered, an RTO with
+  backoff for the rest, and a keepalive. There is no congestion window (see
+  [spike-nat.md](spike-nat.md#files-over-the-punched-path)). It implements
+  `BytePipe`, so the same
+  `BtLink` request/response multiplexer the other roads use rides on top
+  unchanged.
+- [`inet_link.dart`](../app/lib/network/inet_link.dart) orchestrates it. Both
+  NATs measured in the spike ([spike-nat.md](spike-nat.md)) drop a packet from
+  a peer the device has not sent to, so both sides have to send:
+  - the caller asks STUN for its public address, writes it to its box with a
+    "calling" mark, reads the receiver's box and sends HELLO there for up to
+    90 s, rereading the box every 15 s in case the receiver's address moved.
+    An empty box is reread every 15 s for up to 105 s (90 s and one more
+    step), because the receiver answers a "calling" mark by writing its
+    address; the punch then still gets its full 90 s. A box that was empty at
+    five reads in a row (the watch reads and the caller's own) ends the call
+    at once, so a peer without the add-on costs one wait per run of the app;
+  - a device writes its address to a peer's box when the peer gets confirmed,
+    at start and every 10 minutes;
+  - the receiver reads the boxes of confirmed peers it has no link with every
+    60 s (after five empty reads in a row the gap doubles, up to 15 min). On
+    a "calling" record under two minutes old it sends two-byte knock packets
+    to the caller's address, which opens its own NAT to that address, and
+    rewrites its own address in the box when its NAT moved it;
+  - when both call at once, the bigger guid yields and takes the other HELLO,
+    so one link stays.
+
+  A link sends a keepalive after 25 s of its own silence and counts as dead
+  after 60 s without a packet. [`inet_transport.dart`](../app/lib/network/inet_transport.dart)
+  wraps all this as a `PeerTransport` (`InternetRoute` carries the guid) and
+  `ChattServer.handleInternet` feeds it into the one handler, with `inet:` as
+  "where it came from".
+
+Only a confirmed peer (green shield) gets this road: `routesOf` adds an
+`InternetRoute` only when the add-on is on and `peer.verified`, and the link
+manager hands out a static key only for a verified peer. Both sides of a
+pairing pin the other's static key when it completes: the answering side
+takes the key the code was computed from, and the scanned side the scanner's
+key once its user accepts. It used to learn the key only with the first
+message, and until then the road was closed in both directions. A presence
+check over this road waits at most 6 s, while a call it starts goes on in the
+background. The handshake, and
+therefore every request, is reachable only after a key the user confirmed.
 
 ## Add-ons
 
@@ -1550,6 +1642,36 @@ there as a count. What comes back goes onto the sender's screen, so
   Reject, so an Enter that got there first can only refuse. The same hold
   covers a device that is itself typing on another one, so its own typing
   screen never relays or echoes what it receives.
+- **The internet add-on leaks metadata and is not a sure thing.** With it on,
+  the STUN servers see this device's IP and when it connects, and the DHT
+  nodes see its IP and that it reads or writes a mailbox, about once a minute
+  per confirmed peer; none of them sees the content. Hole punching fails
+  behind a symmetric NAT (one mapping per destination), and some networks
+  block UDP or DHT outright; there is no relay fallback by design, so a
+  connection that will not punch ends as a plain "not delivered". Measured so
+  far: a PC at home and a phone on LTE connect both ways
+  ([spike-nat.md](spike-nat.md)); other carriers and networks are untested.
+- **The first message after a quiet spell waits for the receiver's next box
+  read**, so it arrives after up to about 70 s, and a phone pays for the
+  reads in battery. Keeping links up with keepalives makes later messages
+  instant and costs a radio wake every 25 s. Which of the two a phone should
+  do is still open.
+- **A link outlives a restart on the other side.** When one side restarts or
+  changes network, the other keeps its link up until 60 s pass without a
+  packet. A call in that window waits it out (the caller's 90 s covers it), and
+  a message sent over the stale link fails and has to be retried.
+- **The internet road has no automated test over the real internet**: CI has
+  no public IP and no NAT. The protocol is covered over an in-memory UDP
+  network with a NAT shaped like the measured ones (`test/inet_nat_test.dart`
+  and the tests listed in [testing.md](testing.md)), and the runs over real
+  networks with `app/tool/nat_spike.dart` are written up in
+  [spike-nat.md](spike-nat.md).
+- **A rendezvous record can be replayed within its epoch.** A recorded box
+  entry put back into the DHT points the peer at a stale address; the sealed
+  address is authentic (AES-GCM) but its freshness rests only on the `t`
+  timestamp inside and the once-a-day salt. The punch simply fails over to "not
+  delivered" against a dead address, but a tighter epoch or a nonce is the fix
+  if this proves to matter on hardware.
 
 ## Android: background listening
 

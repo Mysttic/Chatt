@@ -27,7 +27,11 @@ apart from checking and asking for the permission at the moment the switch is
 turned on:
 
 - **the protocol and the session handshake** (`app/lib/network/`): envelopes,
-  the key agreement, the discovery responder,
+  the key agreement, the discovery responder, and the internet add-on's own
+  stack (`udp_mux.dart`, `stun.dart`, `bencode.dart`, `dht.dart`,
+  `rendezvous.dart`, `secure_udp.dart`, `inet_link.dart`,
+  `inet_transport.dart`): every byte there is parsed from packets that anyone
+  on the internet can send,
 - **file reception** (`app/lib/services/app_services.dart` and
   `app/lib/core/received_paths.dart`): a string from the sender becomes a path
   on disk there,
@@ -140,7 +144,7 @@ These are design decisions:
   either. The app log is kept only in the encrypted database (30 days and
   20,000 entries at most). It leaves the database only when the user exports
   it or copies entries from its screen, and both leave the entries in place.
-  Two exceptions, both off by default:
+  Three exceptions, all off by default:
   - with update checks turned on, or when the button in Settings is pressed,
     the app asks `api.github.com` about the newest release. GitHub sees what
     any HTTPS server sees, an IP address and the time. Nothing about the
@@ -150,6 +154,33 @@ These are design decisions:
     learns an IP address, a time and which link it was. The address is chosen
     by the sender, which is why the switch starts off. Nothing from the page
     is executed, and previews are never fetched from local-network addresses.
+  - with the internet add-on turned on (experimental, issue #68), the app
+    reaches a confirmed device on another network with no relay. Public STUN
+    servers learn this device's IP and when it connects; the BitTorrent DHT
+    nodes learn its IP and that it reads or writes a mailbox, about once a
+    minute per confirmed peer. None of them sees the content, and the address
+    inside the mailbox is sealed. This is the one exception that carries
+    conversation traffic, so it is the loudest; it is described below and in
+    [architecture.md](architecture.md).
+- **The internet add-on is a cable too.** Like Bluetooth, the road is treated
+  as hostile wire: the Noise-KK handshake, the AES-GCM envelopes and the
+  AES-CTR file stream run over it unchanged, and on top of that the UDP link
+  adds its own per-packet AES-GCM with a counter and a replay window. The road
+  is offered only to a device with a green shield: `routesOf` adds it only for
+  a verified peer, and the link manager produces a static key only for a
+  verified peer. The handshake, and therefore every endpoint, is reachable
+  over the internet only after a key the user confirmed. A forged DHT record
+  or a hijacked address leads to a handshake that cannot complete, because the
+  attacker lacks the static private key; the message ends as "not delivered".
+  To get through its own NAT, a device that finds a fresh "calling" mark in a
+  confirmed peer's sealed record sends a few two-byte knock packets to the
+  address in that record. A knock carries nothing and tells that address only
+  what the record already told the caller. Node lists from the DHT are
+  filtered: loopback, private and other unroutable addresses are skipped, so a
+  hostile node cannot make the app send queries into the local network.
+  What it does not hide is metadata (the IPs and timing the STUN servers and
+  DHT nodes see) and it is not reliable: it fails behind a symmetric NAT and
+  where UDP or DHT is blocked, with no relay fallback by design.
 - **A preview loses one race by design.** Between our DNS check and the one
   the HTTP client makes, the record can change ("DNS rebinding"). The cost is
   one empty GET to a local address; the answer still cannot run anything,

@@ -8,6 +8,96 @@ The release number lives in [VERSION.md](VERSION.md) and is what triggers a
 release: the workflow starts only when that file was among the changes merged
 into `master`.
 
+## [0.14.0] - 2026-11-07
+
+The internet as a third road. With the **Internet** add-on, experimental and
+off by default, two devices that have confirmed each other talk across
+different networks, for example a PC at home and a phone on mobile data,
+directly and with no server: messages and files are never stored on or relayed
+through anything outside the two devices. Measured on hardware between a PC at
+home and a phone on LTE: it connects both ways, and photos of 2.5 and 7.7 MB
+went through in 4 to 13 seconds. A new page explains how it works, with
+diagrams: [docs/internet.md](docs/internet.md)
+([polski](docs/internet.pl.md)).
+
+### Added (experimental, off by default)
+- **Internet route** (issue #68). An add-on in Settings that connects two
+  already-paired devices across different networks by punching a hole through
+  NAT, with no server carrying the traffic. Pure Dart, no new native
+  dependency: a shared UDP socket, a STUN client (RFC 5389) for the public
+  address and NAT type, a Mainline DHT client (BEP 44, RFC 8032 signatures) as
+  a per-pair contact box whose address record is sealed with a key derived from
+  the pair's static×static secret, and a reliable encrypted UDP link (Noise-KK
+  handshake, per-packet AES-GCM with a replay window, ARQ) under the same
+  request/response multiplexer the other roads use. Offered only to a peer with
+  a green shield.
+- Both measured NATs drop a packet from a peer the device has not contacted.
+  The caller marks its record "calling" and keeps sending for 90 s; the
+  receiver reads its confirmed peers' boxes every minute and knocks toward a
+  caller it finds there. The first message after a quiet spell arrives within
+  about 70 s, later ones go over the kept link at once, and a link keeps its
+  NAT path open with a packet after 25 s of silence.
+- STUN servers and DHT nodes see metadata: IPs, timing, and a mailbox read per
+  confirmed peer about once a minute. The mailbox moves and changes its signing
+  key every day, so the key in the records does not tie one day to the next.
+  The route fails behind a symmetric NAT and where UDP or DHT is blocked, with
+  no relay fallback by design. `app/tool/nat_spike.dart` measures a given pair
+  of networks.
+- The link resends a lost segment as soon as three transmissions sent after
+  it have arrived, and its SACK map covers the whole window. Before, every
+  loss stopped the link for at least 200 ms until the retransmission timeout,
+  and then everything still unacknowledged went again: in a simulated network
+  with 1% loss, 1 MB went at 434 kB/s with 410 extra sends, and now at
+  779 kB/s with 12. On Windows the UDP socket queues packets the system refuses
+  in a burst (it dropped about four in five of them) and sends them when the
+  socket is ready. On hardware a 7.7 MB photo from a PC at home to a phone on
+  LTE took 11.2 s, down from 45.4 s, and 12.2 to 13.3 s the other way, down
+  from 16.1 to 16.4 s. The app log adds the link's counters (segments, resends,
+  round trip) to every file sent over the internet.
+- The first message after pairing gets through over the internet. A device
+  writes its address to a peer's mailbox as soon as the peer is confirmed, and
+  a caller that finds the mailbox empty keeps reading it for up to 105 s,
+  since the other device answers the "calling" mark by writing its address.
+  Before, the address went in only at the next ten-minute refresh and the
+  first message failed with "peer address not in DHT". A mailbox that stayed
+  empty at five reads in a row ends the call at once.
+- The side that answered a pairing stores the other device's key when the
+  pairing completes (after a scan: when its user accepts). It used to learn the
+  key only with the first message, and until then the internet route could not
+  reach that device in either direction.
+- A presence check over the internet waits at most 6 s, so the online dots and
+  the conversation header do not hang on a call that takes up to a minute and
+  a half.
+- A frame of the request multiplexer, header included, is 8 KiB, so files go
+  over the internet in full 1 KiB packets: every ninth packet used to carry 9
+  bytes.
+- **A page about the add-on** in the documentation, in English and Polish
+  ([docs/internet.md](docs/internet.md)). It starts with what matters most:
+  messages and files never pass through or stay on a server. Two diagrams
+  show how two devices find each other through STUN and the DHT without one,
+  a table lists what STUN servers, DHT nodes, providers and the other device
+  can see, and the measured times include photos sent both ways in the app.
+  The README, the guide and the documentation index link to it.
+
+### Fixed
+- The security panel and the shield in the conversation header no longer
+  call a device just picked from **Nearby** an older version of Chatt that
+  cannot encrypt. The check of the device that runs when the conversation
+  opens now stores its key, and until the key arrives the panel says **Key
+  not known yet**: Chatt sends nothing unencrypted in the meantime. **No
+  encryption** stays for a device that really answered without a key (#70).
+- The conversation header no longer says the device is unavailable while
+  messages go over the internet. The header checked once, when the
+  conversation opened, and right after the phone left Wi-Fi that check came
+  before the internet link stood up. It now turns to available as soon as an
+  internet or Bluetooth link to the device comes up.
+
+### Changed
+- The README lists the Internet add-on with the other add-ons and drops its
+  line about there being no internet mode, the guide (EN and PL) has a section
+  on it, and the privacy policy names it as the third connection outside the
+  local network, with what STUN servers and DHT nodes learn.
+
 ## [0.13.0] - 2026-10-27
 
 One new thing on Android: other apps can share into Chatt. Text, links and
@@ -1073,6 +1163,7 @@ Wi-Fi network, with no server.
 Traffic between devices that had not paired still travelled in plaintext. That
 is what 0.2.0 is about.
 
+[0.14.0]: https://github.com/Mysttic/Chatt/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/Mysttic/Chatt/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/Mysttic/Chatt/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/Mysttic/Chatt/compare/v0.10.0...v0.11.0

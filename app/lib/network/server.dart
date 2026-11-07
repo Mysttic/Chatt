@@ -156,11 +156,35 @@ class ChattServer {
     );
   }
 
-  /// Skąd przyszło żądanie: adres IP dla TCP, `bt:AA:BB:...` dla Bluetootha.
+  /// Żądanie, które przyszło łączem internetowym. Guid rozmówcy wchodzi jako
+  /// „skąd", z przedrostkiem [inetHostPrefix]: tożsamość jest pewna (łącze
+  /// stoi tylko z rozmówcą, którego klucz statyczny się zgodził), a adres
+  /// publiczny jest ulotny i nie ma go po co zapisywać jako trasy.
+  Future<BtResponse> handleInternet(BtRequest request, String peerGuid) async {
+    final response = await handler(Request(
+      request.method,
+      Uri.parse('http://internet${request.path}'),
+      headers: request.headers,
+      body: request.body,
+      context: {contextPeerGuid: peerGuid},
+    ));
+    return BtResponse(
+      status: response.statusCode,
+      headers: response.headers,
+      body: response.read(),
+    );
+  }
+
+  /// Skąd przyszło żądanie: adres IP dla TCP, `bt:AA:BB:...` dla Bluetootha,
+  /// `inet:<guid>` dla drogi internetowej.
   static String _from(Request request) {
     final bluetooth = request.context[contextPeerAddress];
     if (bluetooth is String && bluetooth.isNotEmpty) {
       return '$btHostPrefix$bluetooth';
+    }
+    final internet = request.context[contextPeerGuid];
+    if (internet is String && internet.isNotEmpty) {
+      return '$inetHostPrefix$internet';
     }
     final connection =
         request.context['shelf.io.connection_info'] as HttpConnectionInfo?;

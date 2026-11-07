@@ -166,6 +166,35 @@ void main() {
     expect(bob.pendingPairings.value, isEmpty);
   });
 
+  test('po parowaniu kodem strona przyjmująca zna klucz inicjatora', () async {
+    // Bartek dowiaduje się o Alicji tylko z parowania. Kod wiąże jej klucz,
+    // więc po zgodzie obu stron klucz ma trafić do bazy: bez niego droga
+    // internetowa nie ma czym otworzyć skrzynki ani przyjąć HELLO.
+    final bobAtAlice =
+        await alice.addPeerByAddress('127.0.0.1', bob.server.port!);
+    expect(await alice.startPairing(bobAtAlice!), isNotNull);
+    expect((await bob.db.peerByGuid(alice.identity.guid))!.publicKey, isNull,
+        reason: 'przed zgodą Bartek klucza nie przypina');
+
+    await alice.confirmPairing(bob.identity.guid);
+    await bob.confirmPairing(alice.identity.guid);
+    final alicjaUBartka = await bob.db.peerByGuid(alice.identity.guid);
+    expect(alicjaUBartka!.verified, isTrue);
+    expect(alicjaUBartka.publicKey, base64.encode(alice.identity.publicKey));
+  });
+
+  test('po zgodzie na zeskanowanie strona skanowana zna klucz skanującej',
+      () async {
+    final kod = PairLink.encode(identity: bob.identity, address: '127.0.0.1');
+    await alice.pairByScan(PairLink.decode(kod)!);
+    expect((await bob.db.peerByGuid(alice.identity.guid))!.publicKey, isNull,
+        reason: 'dopóki Bartek nie potwierdzi, klucz nie trafia do bazy');
+
+    expect(await bob.confirmPairing(alice.identity.guid), PairOutcome.accepted);
+    expect((await bob.db.peerByGuid(alice.identity.guid))!.publicKey,
+        base64.encode(alice.identity.publicKey));
+  });
+
   test('kod z cudzym kluczem pod tym adresem jest odrzucany', () async {
     // Napastnik pokazuje kod ze swoim kluczem, ale adresem Bartka: liczy na
     // to, że skanujący przypnie jego klucz do rozmowy z Bartkiem.

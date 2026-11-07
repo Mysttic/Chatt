@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../core/identity.dart';
 import 'bt_transport.dart';
 import 'http_transport.dart';
+import 'inet_transport.dart';
 import 'protocol.dart';
 import 'transport.dart';
 
@@ -18,6 +19,7 @@ import 'transport.dart';
 class PeerClient {
   final HttpTransport _ip;
   BluetoothTransport? _bluetooth;
+  InternetTransport? _internet;
   bool _wifiOn = true;
 
   PeerClient([http.Client? client]) : _ip = HttpTransport(client);
@@ -31,12 +33,19 @@ class PeerClient {
     _onStreamError = hook;
     _ip.onStreamError = hook;
     _bluetooth?.onStreamError = hook;
+    _internet?.onStreamError = hook;
   }
 
   /// Podpina transport Bluetooth. null odpina: tak wygląda wyłączenie go
   /// w ustawieniach.
   void useBluetooth(BluetoothTransport? transport) {
     _bluetooth = transport;
+    transport?.onStreamError = _onStreamError;
+  }
+
+  /// Podpina transport internetowy. null odpina (wyłączenie dodatku).
+  void useInternet(InternetTransport? transport) {
+    _internet = transport;
     transport?.onStreamError = _onStreamError;
   }
 
@@ -53,6 +62,8 @@ class PeerClient {
     if (_wifiOn && _ip.handles(route)) return _ip;
     final bluetooth = _bluetooth;
     if (bluetooth != null && bluetooth.handles(route)) return bluetooth;
+    final internet = _internet;
+    if (internet != null && internet.handles(route)) return internet;
     return null;
   }
 
