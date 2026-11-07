@@ -32,6 +32,10 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.mysttic.chatt"
+        // Narzędzia pomiarowe z tool/ instalują się obok prawdziwego Chatta,
+        // pod osobnym identyfikatorem, i nie ruszają jego danych:
+        //   flutter run -t tool/nat_spike.dart -P chattAppIdSuffix=.natspike
+        providers.gradleProperty("chattAppIdSuffix").orNull?.let { applicationIdSuffix = it }
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

@@ -659,6 +659,69 @@ Linux CI the add-on is the only thing keeping the channel silent:
   running and Bluetooth picked; a visible phone gets a note in its place, and
   a PC (no visibility fields in the status) gets neither
 
+### The internet route (`test/bencode_test.dart`, `stun_test.dart`, `dht_test.dart`, `rendezvous_test.dart`, `secure_udp_test.dart`, `udp_mux_test.dart`, `inet_transport_test.dart`, `inet_nat_test.dart`, `internet_addon_test.dart`)
+The whole internet add-on (issue #68) is exercised over an in-memory UDP
+network (`test/fake_udp.dart`) and a fake DHT node (`test/dht_test_support.dart`),
+so none of it needs a public IP or a real NAT:
+- bencode round-trips and rejects malformed packets from the wire
+- STUN parses the RFC 5769 vector and classifies NAT (independent / symmetric /
+  none) from two answers
+- the DHT client matches RFC 8032 Ed25519 (cross-checked against OpenSSL; the
+  examples in BEP 44 predate RFC 8032), computes the BEP 44 target and
+  signature buffer, and does a full `put`/`get` over the fake node, rejecting a
+  record whose signature does not verify; a bootstrap node that answers
+  BEP 44 with error 204, like the real routers, still leads to the node
+  holding the box
+- the rendezvous box: both sides derive the same keys, a different pair does
+  not, the published address is sealed (no plaintext address in the DHT), a
+  foreign pair cannot read the box, the box's address and signing key change
+  every day, and the "calling" mark reaches the peer
+- the UDP socket: packets to 0.0.0.0 or port 0 are dropped and the socket
+  keeps working, and a socket closed underneath reopens on the same port; a
+  packet the system refuses (`send` returns 0, through a fake socket) waits
+  and goes out in order on the write event, a new packet queues behind the
+  waiting ones, and a full queue drops the excess
+- the secure UDP pipe: the KK handshake agrees a key, a 50 KB stream arrives in
+  order through 20% packet loss, a replayed packet does not double bytes, and a
+  peer with the wrong static key cannot bring the link up; a lost segment is
+  resent once, before any RTO, when later ones arrive, and nothing delivered
+  behind the gap goes again, also with the gap at the start of a full window;
+  with every hundredth data packet lost, 512 KB needs exactly one resend per
+  lost packet and no RTO
+- the full path: two managers find each other through the DHT, punch, and
+  complete a request/response
+- behind NATs shaped like the measured ones (`FakeNat`: endpoint-independent
+  mapping, filtering by address and port): without a knock the receiver's NAT
+  drops the HELLO; with it the link comes up, also when the receiver's address
+  in the box is stale; when both sides call at once one link stays
+- a 1 MB file crosses both NATs whole while one packet in twenty is lost (the
+  receiver's SHA-256 matches the sender's); the routine address refresh that
+  runs while a call starts keeps the "calling" mark in the box; a device with a
+  valid identity that the receiver has not confirmed gets not a single packet
+  back, and no link appears
+- the first call after pairing, to a box the receiver has not written yet,
+  waits and gets through once the receiver answers the "calling" mark; a box
+  empty for five reads before the call ends it within seconds, and so does the
+  next call after one unsuccessful wait; a newly confirmed peer finds the
+  address in the box at once; a 512 KiB file goes in full segments of the link
+  (at most one short segment per 64 KiB read)
+- in `AppServices` (`internet_addon_test.dart`): a presence check over the
+  internet road to a confirmed peer with an empty box answers within the 6 s
+  limit
+- the receiver's reading schedule: five reads a minute apart for an empty box,
+  then twice as long each time up to 15 minutes, back to a minute once a record
+  shows up; the caller punches longer than the receiver waits between reads,
+  the "calling" mark stays fresh for the whole punch, and the caller rereads
+  the box several times while it punches
+- the add-on in `AppServices`: off by default, the switch persists, and an
+  `InternetRoute` appears only for a verified peer with the add-on on, after
+  the local-network route
+
+Runs over real networks use `app/tool/nat_spike.dart` and are written up in
+[spike-nat.md](spike-nat.md): NAT type, DHT times, hole punching, how long a
+quiet pair stays open, and the `link` mode, which runs the app's own link
+manager and transport between a PC and a phone.
+
 ### The keyboard add-on (`test/keyboard_addon_test.dart`, 12 tests)
 The add-on that is off must not exist, as with Bluetooth. The test mocks the
 `chatt/remoteinput` channel, records every call with its arguments and sets
@@ -1468,6 +1531,13 @@ Deliberate holes in coverage, to be checked by hand at release time:
   checked by eye.
 - **Very large files and weak links**: the tests run over loopback, so they do
   not catch the timeouts typical of distant Wi-Fi.
+- **Real NAT traversal (internet add-on)**: CI has no public IP and no NAT, so
+  hole punching, STUN and DHT reachability, and the keepalive interval are
+  measured by hand with `app/tool/nat_spike.dart` and written up in
+  [spike-nat.md](spike-nat.md). Measured: a PC at home and a phone on LTE.
+  The protocol itself is covered over an in-memory UDP network with NATs.
+  Photos of 2.5 and 7.7 MB went both ways between test copies of the app
+  on those two networks, with the times in [internet.md](internet.md#how-fast-it-is).
 - **Pasting a file on Android**: a stock emulator image has no app that puts a
   `content://` on the clipboard, so the reading side of `ChattClipboard` is
   checked on a real phone, with a file manager and with "copy image" in a

@@ -41,9 +41,10 @@ mouse between PCs. Chatt fills the gap between them:
   paired one. Recorded traffic cannot be decrypted after a
   device is stolen (forward secrecy).
 - **Nothing leaves your network by itself.** No server, no telemetry, no ads.
-  The app works with no internet at all. Exactly two things can reach outside,
-  and both stay switched off until you switch them on: a question to GitHub
-  about a newer release, and previews for links in messages.
+  The app works with no internet at all. Three things can reach outside, and
+  all three stay switched off until you switch them on: a question to GitHub
+  about a newer release, previews for links in messages, and the Internet
+  add-on.
 - **A keyboard for the device that has none.** An add-on lets the PC's
   keyboard type into the field you point at on a phone, a tablet or a PC run
   by touch. Only a keyboard, encrypted, with no account, between devices that
@@ -102,6 +103,21 @@ nothing.
 - **Bluetooth**: the same messages and files over the radio, with no router
   and no shared network, for devices within some ten metres. A short message
   comes back as fast as over Wi-Fi; files are tens of times slower.
+- **Internet** (experimental): a conversation with a confirmed device on
+  another network, for example a PC at home and a phone on mobile data.
+  **Messages and files go straight from one device to the other and are never
+  stored on any server**: Chatt has none. The two devices find each other
+  through a sealed mailbox in the public BitTorrent DHT and punch through
+  their routers' NAT straight to each other; every packet is encrypted, and
+  inside it messages and files keep the same encryption as on Wi-Fi. Public
+  STUN servers and DHT nodes see this device's IP address and when it
+  connects. None of them sees the content. The first message after a quiet
+  spell takes up to about a minute, a network that blocks it (a symmetric NAT,
+  UDP filtered) stays out of reach, and there is no relay to fall back on. A
+  7.7 MB photo took 11 to 13 seconds each way between a PC at home and a phone
+  on LTE.
+  How it works, step by step with diagrams, and the measurements:
+  [Talking over the internet](docs/internet.md).
 - **Keyboard from a PC**: the PC's keyboard types into the field that has the
   focus on an Android phone or tablet (through a Chatt keyboard with no keys)
   or on another Windows PC, in any app. A session starts only after consent
@@ -116,14 +132,15 @@ nothing.
 |---|---|
 | <img src="docs/screenshots/windows/en/06_klawiatura_pisanie.png" alt="Typing on a phone from a PC" width="380"> | <img src="docs/screenshots/windows/en/07_klawiatura_zgoda.png" alt="The consent card" width="380"> |
 
-Both are described in the [user guide](docs/guide.md); the keyboard has a
-page of its own, step by step with pictures from both systems:
-[Keyboard from a PC](docs/keyboard.md).
+All three are described in the [user guide](docs/guide.md). The keyboard has
+a page of its own, step by step with pictures from both systems:
+[Keyboard from a PC](docs/keyboard.md), and so has the internet:
+[Talking over the internet](docs/internet.md).
 
 Platforms: **Windows** and **Android**. Both devices must be on the same
-network, or within radio range with the Bluetooth add-on. There is no internet
-mode, and there will not be one: the whole point is that nothing leaves your
-network.
+network, within radio range with the Bluetooth add-on, or, with the Internet
+add-on, on any two networks with internet access once they have confirmed each
+other.
 
 ## Download
 
@@ -165,7 +182,7 @@ The release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 723 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt
+flutter test        # 802 tests: database, discovery, messages, files, identity, encryption, attacker on the wire, Bluetooth framing, the remote keyboard, shared history, styles and their motion, typing history, app log, export, sharing into Chatt, the internet route (STUN, DHT, hole punching)
 flutter analyze
 ```
 
@@ -173,7 +190,7 @@ Layout of `app/lib/`:
 
 - `core/`: device identity, cryptography, platform channels
 - `data/db.dart`: the SQLite schema (drift) and queries
-- `network/`: the protocol, UDP discovery, HTTP server and client
+- `network/`: the protocol, UDP discovery, HTTP server and client, transports (HTTP, Bluetooth, and the experimental internet route: STUN, DHT, hole punching)
 - `services/`: `AppServices`, the root that ties everything together, plus Riverpod providers
 - `ui/screens/`: conversations, chat, nearby devices, settings
 

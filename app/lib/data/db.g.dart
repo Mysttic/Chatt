@@ -216,6 +216,21 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _internetEnabledMeta = const VerificationMeta(
+    'internetEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> internetEnabled = GeneratedColumn<bool>(
+    'internet_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("internet_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _remoteInputReceiveMeta =
       const VerificationMeta('remoteInputReceive');
   @override
@@ -264,6 +279,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     wifiEnabled,
     bluetoothEnabled,
     keyboardEnabled,
+    internetEnabled,
     remoteInputReceive,
     typingHistory,
   ];
@@ -391,6 +407,15 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         ),
       );
     }
+    if (data.containsKey('internet_enabled')) {
+      context.handle(
+        _internetEnabledMeta,
+        internetEnabled.isAcceptableOrUnknown(
+          data['internet_enabled']!,
+          _internetEnabledMeta,
+        ),
+      );
+    }
     if (data.containsKey('remote_input_receive')) {
       context.handle(
         _remoteInputReceiveMeta,
@@ -492,6 +517,10 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.bool,
         data['${effectivePrefix}keyboard_enabled'],
       )!,
+      internetEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}internet_enabled'],
+      )!,
       remoteInputReceive: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}remote_input_receive'],
@@ -579,6 +608,7 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// Czy włączony jest dodatek „Klawiatura z PC". Domyślnie nie. Wyłączony
   /// nie zostawia w aplikacji śladu, a kanał natywny nie dostaje wywołań.
   final bool keyboardEnabled;
+  final bool internetEnabled;
 
   /// Czy inne urządzenia mogą pisać na tym. Osobno od dodatku, bo włączenie
   /// dodatku na komputerze, z którego się pisze, nie jest zgodą na bycie
@@ -608,6 +638,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.wifiEnabled,
     required this.bluetoothEnabled,
     required this.keyboardEnabled,
+    required this.internetEnabled,
     required this.remoteInputReceive,
     required this.typingHistory,
   });
@@ -641,6 +672,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     map['wifi_enabled'] = Variable<bool>(wifiEnabled);
     map['bluetooth_enabled'] = Variable<bool>(bluetoothEnabled);
     map['keyboard_enabled'] = Variable<bool>(keyboardEnabled);
+    map['internet_enabled'] = Variable<bool>(internetEnabled);
     map['remote_input_receive'] = Variable<bool>(remoteInputReceive);
     map['typing_history'] = Variable<bool>(typingHistory);
     return map;
@@ -667,6 +699,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       wifiEnabled: Value(wifiEnabled),
       bluetoothEnabled: Value(bluetoothEnabled),
       keyboardEnabled: Value(keyboardEnabled),
+      internetEnabled: Value(internetEnabled),
       remoteInputReceive: Value(remoteInputReceive),
       typingHistory: Value(typingHistory),
     );
@@ -701,6 +734,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       wifiEnabled: serializer.fromJson<bool>(json['wifiEnabled']),
       bluetoothEnabled: serializer.fromJson<bool>(json['bluetoothEnabled']),
       keyboardEnabled: serializer.fromJson<bool>(json['keyboardEnabled']),
+      internetEnabled: serializer.fromJson<bool>(json['internetEnabled']),
       remoteInputReceive: serializer.fromJson<bool>(json['remoteInputReceive']),
       typingHistory: serializer.fromJson<bool>(json['typingHistory']),
     );
@@ -732,6 +766,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       'wifiEnabled': serializer.toJson<bool>(wifiEnabled),
       'bluetoothEnabled': serializer.toJson<bool>(bluetoothEnabled),
       'keyboardEnabled': serializer.toJson<bool>(keyboardEnabled),
+      'internetEnabled': serializer.toJson<bool>(internetEnabled),
       'remoteInputReceive': serializer.toJson<bool>(remoteInputReceive),
       'typingHistory': serializer.toJson<bool>(typingHistory),
     };
@@ -755,6 +790,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     bool? wifiEnabled,
     bool? bluetoothEnabled,
     bool? keyboardEnabled,
+    bool? internetEnabled,
     bool? remoteInputReceive,
     bool? typingHistory,
   }) => Setting(
@@ -777,6 +813,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     wifiEnabled: wifiEnabled ?? this.wifiEnabled,
     bluetoothEnabled: bluetoothEnabled ?? this.bluetoothEnabled,
     keyboardEnabled: keyboardEnabled ?? this.keyboardEnabled,
+    internetEnabled: internetEnabled ?? this.internetEnabled,
     remoteInputReceive: remoteInputReceive ?? this.remoteInputReceive,
     typingHistory: typingHistory ?? this.typingHistory,
   );
@@ -821,6 +858,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       keyboardEnabled: data.keyboardEnabled.present
           ? data.keyboardEnabled.value
           : this.keyboardEnabled,
+      internetEnabled: data.internetEnabled.present
+          ? data.internetEnabled.value
+          : this.internetEnabled,
       remoteInputReceive: data.remoteInputReceive.present
           ? data.remoteInputReceive.value
           : this.remoteInputReceive,
@@ -850,6 +890,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('wifiEnabled: $wifiEnabled, ')
           ..write('bluetoothEnabled: $bluetoothEnabled, ')
           ..write('keyboardEnabled: $keyboardEnabled, ')
+          ..write('internetEnabled: $internetEnabled, ')
           ..write('remoteInputReceive: $remoteInputReceive, ')
           ..write('typingHistory: $typingHistory')
           ..write(')'))
@@ -875,6 +916,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     wifiEnabled,
     bluetoothEnabled,
     keyboardEnabled,
+    internetEnabled,
     remoteInputReceive,
     typingHistory,
   );
@@ -899,6 +941,7 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.wifiEnabled == this.wifiEnabled &&
           other.bluetoothEnabled == this.bluetoothEnabled &&
           other.keyboardEnabled == this.keyboardEnabled &&
+          other.internetEnabled == this.internetEnabled &&
           other.remoteInputReceive == this.remoteInputReceive &&
           other.typingHistory == this.typingHistory);
 }
@@ -921,6 +964,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<bool> wifiEnabled;
   final Value<bool> bluetoothEnabled;
   final Value<bool> keyboardEnabled;
+  final Value<bool> internetEnabled;
   final Value<bool> remoteInputReceive;
   final Value<bool> typingHistory;
   const SettingsCompanion({
@@ -941,6 +985,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.wifiEnabled = const Value.absent(),
     this.bluetoothEnabled = const Value.absent(),
     this.keyboardEnabled = const Value.absent(),
+    this.internetEnabled = const Value.absent(),
     this.remoteInputReceive = const Value.absent(),
     this.typingHistory = const Value.absent(),
   });
@@ -962,6 +1007,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.wifiEnabled = const Value.absent(),
     this.bluetoothEnabled = const Value.absent(),
     this.keyboardEnabled = const Value.absent(),
+    this.internetEnabled = const Value.absent(),
     this.remoteInputReceive = const Value.absent(),
     this.typingHistory = const Value.absent(),
   }) : deviceGuid = Value(deviceGuid),
@@ -984,6 +1030,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<bool>? wifiEnabled,
     Expression<bool>? bluetoothEnabled,
     Expression<bool>? keyboardEnabled,
+    Expression<bool>? internetEnabled,
     Expression<bool>? remoteInputReceive,
     Expression<bool>? typingHistory,
   }) {
@@ -1005,6 +1052,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (wifiEnabled != null) 'wifi_enabled': wifiEnabled,
       if (bluetoothEnabled != null) 'bluetooth_enabled': bluetoothEnabled,
       if (keyboardEnabled != null) 'keyboard_enabled': keyboardEnabled,
+      if (internetEnabled != null) 'internet_enabled': internetEnabled,
       if (remoteInputReceive != null)
         'remote_input_receive': remoteInputReceive,
       if (typingHistory != null) 'typing_history': typingHistory,
@@ -1029,6 +1077,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<bool>? wifiEnabled,
     Value<bool>? bluetoothEnabled,
     Value<bool>? keyboardEnabled,
+    Value<bool>? internetEnabled,
     Value<bool>? remoteInputReceive,
     Value<bool>? typingHistory,
   }) {
@@ -1050,6 +1099,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       wifiEnabled: wifiEnabled ?? this.wifiEnabled,
       bluetoothEnabled: bluetoothEnabled ?? this.bluetoothEnabled,
       keyboardEnabled: keyboardEnabled ?? this.keyboardEnabled,
+      internetEnabled: internetEnabled ?? this.internetEnabled,
       remoteInputReceive: remoteInputReceive ?? this.remoteInputReceive,
       typingHistory: typingHistory ?? this.typingHistory,
     );
@@ -1115,6 +1165,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (keyboardEnabled.present) {
       map['keyboard_enabled'] = Variable<bool>(keyboardEnabled.value);
     }
+    if (internetEnabled.present) {
+      map['internet_enabled'] = Variable<bool>(internetEnabled.value);
+    }
     if (remoteInputReceive.present) {
       map['remote_input_receive'] = Variable<bool>(remoteInputReceive.value);
     }
@@ -1144,6 +1197,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('wifiEnabled: $wifiEnabled, ')
           ..write('bluetoothEnabled: $bluetoothEnabled, ')
           ..write('keyboardEnabled: $keyboardEnabled, ')
+          ..write('internetEnabled: $internetEnabled, ')
           ..write('remoteInputReceive: $remoteInputReceive, ')
           ..write('typingHistory: $typingHistory')
           ..write(')'))
@@ -4833,6 +4887,7 @@ typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   Value<bool> wifiEnabled,
   Value<bool> bluetoothEnabled,
   Value<bool> keyboardEnabled,
+  Value<bool> internetEnabled,
   Value<bool> remoteInputReceive,
   Value<bool> typingHistory,
 });
@@ -4854,6 +4909,7 @@ typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
   Value<bool> wifiEnabled,
   Value<bool> bluetoothEnabled,
   Value<bool> keyboardEnabled,
+  Value<bool> internetEnabled,
   Value<bool> remoteInputReceive,
   Value<bool> typingHistory,
 });
@@ -4952,6 +5008,11 @@ class $$SettingsTableFilterComposer
 
   ColumnFilters<bool> get keyboardEnabled => $composableBuilder(
     column: $table.keyboardEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get internetEnabled => $composableBuilder(
+    column: $table.internetEnabled,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5060,6 +5121,11 @@ class $$SettingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get internetEnabled => $composableBuilder(
+    column: $table.internetEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get remoteInputReceive => $composableBuilder(
     column: $table.remoteInputReceive,
     builder: (column) => ColumnOrderings(column),
@@ -5153,6 +5219,11 @@ class $$SettingsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get internetEnabled => $composableBuilder(
+    column: $table.internetEnabled,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<bool> get remoteInputReceive => $composableBuilder(
     column: $table.remoteInputReceive,
     builder: (column) => column,
@@ -5209,6 +5280,7 @@ class $$SettingsTableTableManager
                 Value<bool> wifiEnabled = const Value.absent(),
                 Value<bool> bluetoothEnabled = const Value.absent(),
                 Value<bool> keyboardEnabled = const Value.absent(),
+                Value<bool> internetEnabled = const Value.absent(),
                 Value<bool> remoteInputReceive = const Value.absent(),
                 Value<bool> typingHistory = const Value.absent(),
               }) => SettingsCompanion(
@@ -5229,6 +5301,7 @@ class $$SettingsTableTableManager
                 wifiEnabled: wifiEnabled,
                 bluetoothEnabled: bluetoothEnabled,
                 keyboardEnabled: keyboardEnabled,
+                internetEnabled: internetEnabled,
                 remoteInputReceive: remoteInputReceive,
                 typingHistory: typingHistory,
               ),
@@ -5251,6 +5324,7 @@ class $$SettingsTableTableManager
                 Value<bool> wifiEnabled = const Value.absent(),
                 Value<bool> bluetoothEnabled = const Value.absent(),
                 Value<bool> keyboardEnabled = const Value.absent(),
+                Value<bool> internetEnabled = const Value.absent(),
                 Value<bool> remoteInputReceive = const Value.absent(),
                 Value<bool> typingHistory = const Value.absent(),
               }) => SettingsCompanion.insert(
@@ -5271,6 +5345,7 @@ class $$SettingsTableTableManager
                 wifiEnabled: wifiEnabled,
                 bluetoothEnabled: bluetoothEnabled,
                 keyboardEnabled: keyboardEnabled,
+                internetEnabled: internetEnabled,
                 remoteInputReceive: remoteInputReceive,
                 typingHistory: typingHistory,
               ),

@@ -55,6 +55,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scroll = ScrollController();
   bool? _online;
 
+  /// Numer bieżącego sprawdzenia obecności. Wynik starszego sprawdzenia,
+  /// który wraca po nowszej wiedzy o łączu, nie nadpisuje nagłówka.
+  var _obecnoscNr = 0;
+
+  /// Zmiany łączy internetowego i radiowego, na które czeka nagłówek.
+  late final Listenable _lacza;
+
   /// Szukanie filtruje listę dymków w miejscu. Pusty napis znaczy „nie szukam",
   /// wtedy pole w pasku w ogóle się nie pokazuje.
   final _search = TextEditingController();
@@ -107,9 +114,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     final services = ref.read(appServicesProvider);
     services.db.markConversationRead(widget.conversationId);
+    final nr = ++_obecnoscNr;
     services.isPeerOnline(widget.peer).then((online) {
-      if (mounted) setState(() => _online = online);
+      if (mounted && nr == _obecnoscNr) setState(() => _online = online);
     });
+    _lacza = Listenable.merge(
+        [services.internetRevision, services.bluetoothRevision])
+      ..addListener(_naZmianeLacza);
     // Treść czeka na tę rozmowę od chwili wyboru, a przy otwartej rozmowie
     // (prawy panel) może przyjść w każdej chwili.
     _intake = ref.read(shareIntakeProvider)
@@ -123,8 +134,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _trasa = ModalRoute.of(context);
   }
 
+  /// Łącze internetowe albo radiowe do rozmówcy właśnie stoi, więc rozmówca
+  /// odpowiada. Pierwsze sprawdzenie po zmianie sieci trafia często w chwilę,
+  /// gdy łącze dopiero się zestawia: bez tego nagłówek mówiłby „niedostępny”
+  /// aż do ponownego otwarcia rozmowy, choć wiadomości już chodzą. Samo
+  /// zerwanie łącza niczego tu nie zmienia, bo sieć lokalna mogła zostać.
+  void _naZmianeLacza() {
+    if (!mounted || _online == true) return;
+    final services = ref.read(appServicesProvider);
+    if (!services.isLinkedByInternet(widget.peer) &&
+        !services.isLinkedByBluetooth(widget.peer)) {
+      return;
+    }
+    _obecnoscNr++;
+    setState(() => _online = true);
+  }
+
   @override
   void dispose() {
+    _lacza.removeListener(_naZmianeLacza);
     _intake.staged.removeListener(_wezUdostepnione);
     // Wyjście z rozmowy bez „Wyślij": kopie udostępnionych plików do kosza.
     final udostepnione = _udostepnione;

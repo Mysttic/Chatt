@@ -639,7 +639,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateChecksHelp =>
-      'Once a day Chatt asks GitHub whether a newer release is out. It is the only thing the app sends outside your own network, and it stays off until you turn it on.';
+      'Once a day Chatt asks GitHub whether a newer release is out. The question leaves your own network, so it stays off until you turn it on.';
 
   @override
   String get updateCheckNow => 'Check now';
@@ -798,6 +798,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get transportWifi => 'Local network';
+
+  @override
+  String get transportInternet => 'Internet';
 
   @override
   String get transportBluetooth => 'Bluetooth';
@@ -1052,10 +1055,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get viaBluetooth => 'over Bluetooth';
 
   @override
+  String get viaInternet => 'over the internet';
+
+  @override
   String get protocolWifi => 'Network';
 
   @override
   String get protocolBluetooth => 'Bluetooth';
+
+  @override
+  String get protocolInternet => 'Internet';
 
   @override
   String get searchWhere => 'Where to look';
@@ -1407,6 +1416,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get addonBluetoothShort => 'Conversations with no shared Wi-Fi';
+
+  @override
+  String get addonInternetShort => 'Conversations across different networks';
+
+  @override
+  String get addonInternetBody =>
+      'Reach a confirmed device on another network, with no server in between. The connection is found through public STUN servers and the BitTorrent DHT, which see your IP address and when you connect. None of them sees the content. It does not get through every network: a symmetric NAT (Check reachability shows it) or a network that blocks UDP stops it. Off by default.';
+
+  @override
+  String get internetAddonExperimental =>
+      'Experimental. Works device-to-device by punching through NAT; about seven connections in ten get through.';
+
+  @override
+  String get internetBatteryWarning =>
+      'To stay reachable, this device keeps listening in the background, checks every minute whether a confirmed device is calling, and refreshes its address every ten minutes. That uses more battery than Wi-Fi alone.';
+
+  @override
+  String internetPublicAddressLabel(String address) {
+    return 'This device is seen at: $address';
+  }
+
+  @override
+  String get internetPublicAddressUnknown => 'Public address not known yet.';
+
+  @override
+  String get internetCheckNat => 'Check reachability';
+
+  @override
+  String get internetNatOpen =>
+      'Endpoint-independent NAT: hole punching should work.';
+
+  @override
+  String get internetNatSymmetric =>
+      'Symmetric NAT: hole punching will usually fail here.';
+
+  @override
+  String get internetNatNone => 'No NAT: this device is directly reachable.';
+
+  @override
+  String get internetNatUnknown => 'Could not reach the STUN servers.';
 
   @override
   String get addonKeyboardShort => 'Typing from a computer\'s keyboard';

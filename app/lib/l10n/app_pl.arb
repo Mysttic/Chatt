@@ -261,7 +261,7 @@
 
   "updates": "Aktualizacje",
   "updateChecksLabel": "Sprawdzaj aktualizacje automatycznie",
-  "updateChecksHelp": "Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. To jedyna rzecz, którą aplikacja wysyła poza Twoją sieć, i stoi wyłączona, dopóki jej nie włączysz.",
+  "updateChecksHelp": "Raz na dobę Chatt pyta GitHuba, czy wyszło nowsze wydanie. Pytanie wychodzi poza Twoją sieć, więc stoi wyłączone, dopóki go nie włączysz.",
   "updateCheckNow": "Sprawdź teraz",
   "updateChecking": "Sprawdzam…",
   "updateUpToDate": "To najnowsze wydanie.",
@@ -334,6 +334,7 @@
 
   "addons": "Dodatki",
   "transportWifi": "Sieć lokalna",
+  "transportInternet": "Internet",
   "transportBluetooth": "Bluetooth",
   "transportBluetoothUnsupported": "Na tym systemie nie ma Bluetootha w Chatcie.",
   "transportBluetoothRadioOff": "Włącz Bluetooth w ustawieniach systemu.",
@@ -447,8 +448,10 @@
   "remoteKeyboardAddonOff": "Dodatek „Klawiatura z PC” jest wyłączony.",
   "viaWifi": "przez sieć",
   "viaBluetooth": "przez Bluetooth",
+  "viaInternet": "przez internet",
   "protocolWifi": "Sieć",
   "protocolBluetooth": "Bluetooth",
+  "protocolInternet": "Internet",
   "searchWhere": "Gdzie szukać",
   "searchBluetoothHint": "Szukanie przez radio trwa do półtorej minuty i na ten czas zwalnia otwarte rozmowy.",
   "searchBluetoothOff": "Bluetooth nie działa. Sprawdź radio i zgodę w Ustawieniach, w sekcji Dodatki.",
@@ -609,6 +612,20 @@
   "styleCieplo": "Ciepło",
   "themeLabel": "Motyw",
   "addonBluetoothShort": "Rozmowy bez wspólnej sieci Wi-Fi",
+  "addonInternetShort": "Rozmowy między różnymi sieciami",
+  "addonInternetBody": "Połączenie z potwierdzonym urządzeniem w innej sieci, bez serwera pośredniczącego. Drogę pomagają znaleźć publiczne serwery STUN i sieć DHT BitTorrenta; widzą one twój adres IP i moment połączenia. Treści nie widzi żaden z nich. Nie przechodzi przez każdą sieć: zatrzymuje je symetryczny NAT (pokaże go „Sprawdź osiągalność”) albo sieć, która blokuje UDP. Domyślnie wyłączone.",
+  "internetAddonExperimental": "Eksperymentalne. Działa bezpośrednio między urządzeniami, przebijając dziurę w NAT; udaje się około siedmiu połączeń na dziesięć.",
+  "internetBatteryWarning": "Żeby być osiągalnym, to urządzenie nasłuchuje w tle, co minutę sprawdza, czy dzwoni do niego potwierdzone urządzenie, i co dziesięć minut odświeża swój adres. Zużywa to więcej baterii niż samo Wi-Fi.",
+  "internetPublicAddressLabel": "To urządzenie widać pod: {address}",
+  "@internetPublicAddressLabel": {
+    "placeholders": { "address": { "type": "String" } }
+  },
+  "internetPublicAddressUnknown": "Adres publiczny jeszcze nieznany.",
+  "internetCheckNat": "Sprawdź osiągalność",
+  "internetNatOpen": "NAT niezależny od celu: przebicie dziury powinno działać.",
+  "internetNatSymmetric": "NAT symetryczny: przebicie dziury zwykle tu zawodzi.",
+  "internetNatNone": "Brak NAT: urządzenie jest osiągalne wprost.",
+  "internetNatUnknown": "Nie udało się połączyć z serwerami STUN.",
   "addonKeyboardShort": "Pisanie z klawiatury komputera",
 
   "historyClearedWithTyping": "Usunięto wiadomości: {messages}, sesje pisania: {sessions}",
