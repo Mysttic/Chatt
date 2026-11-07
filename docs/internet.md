@@ -67,7 +67,7 @@ This is the most important property of the add-on, so it comes first.
 
 ## Turning it on
 
-**Settings → Add-ons → Internet**, on both devices. The add-on's card shows:
+**Settings → Connection → Internet**, on both devices. The add-on's card shows:
 
 - **This device is seen at**: the public address the network gives this
   device right now;
@@ -260,8 +260,9 @@ need it: off, it sends nothing at all.
    two looks into its mailbox.
 4. **The other device is online** and Chatt is running there. On Android
    **Background listening** keeps it reachable with the screen off.
-5. Still nothing: **Settings → App log** shows the internet road's events
-   (`Internet link up`, `Internet link ... ended` with the reason).
+5. Still nothing: **Settings → Data and diagnostics → App log** shows the
+   internet road's events (`Internet link up`, `Internet link ... ended` with
+   the reason).
 
 ## For developers
 

@@ -66,7 +66,8 @@
 - **Wygoda**: wiele plików naraz (także przeciągniętych na okno), miniatury
   obrazków, zapisanie odebranego pliku do Zdjęć/Pobranych jednym dotknięciem,
   szukanie w rozmowach, kasowanie pojedynczych wiadomości.
-- **Dwa panele na szerokim oknie** (lista obok rozmowy) i tła do wyboru.
+- **Dwa panele na szerokim oknie** (lista obok rozmowy, a w Ustawieniach
+  lista kategorii obok otwartej kategorii) i tła do wyboru.
 - **Odnośniki z podglądem**: pod adresem w wiadomości pojawia się karta
   z tytułem, opisem i obrazkiem strony, a kliknięcie w odnośnik zawsze pyta
   i pokazuje, do jakiego serwera naprawdę prowadzi. Podgląd to sam tekst
@@ -159,7 +160,7 @@ Historia wydań jest w [CHANGELOG.md](CHANGELOG.md).
 
 ```
 cd app
-flutter test        # 802 testy: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury)
+flutter test        # 880 testów: baza, discovery, wiadomości, pliki, tożsamość, szyfrowanie, Bluetooth, zdalna klawiatura, wspólna historia, style i ich ruch, historia pisania, dziennik, eksport, udostępnianie do Chatta, droga internetowa (STUN, DHT, przebicie dziury), Ustawienia w kategoriach
 flutter analyze
 ```
 
@@ -169,7 +170,7 @@ Struktura `app/lib/`:
 - `data/db.dart`: schemat SQLite (drift) i zapytania
 - `network/`: protokół, discovery UDP, serwer HTTP, klient, transporty (HTTP, Bluetooth i eksperymentalna droga internetowa: STUN, DHT, przebicie dziury)
 - `services/`: `AppServices` (korzeń łączący wszystko) i providery Riverpod
-- `ui/screens/`: rozmowy, czat, urządzenia w pobliżu, ustawienia
+- `ui/screens/`: rozmowy, czat, urządzenia w pobliżu, ustawienia (`ui/screens/settings/`: plik na każdą kategorię, karty dodatków i streszczenia na liście kategorii)
 
 Scenariusze na żywym sprzęcie (`app/tool/`) opisuje
 [docs/testing.md](docs/testing.md).

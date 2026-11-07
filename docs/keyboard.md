@@ -82,9 +82,10 @@ waiting there for an answer).
 
 ### On the PC that types
 
-Settings, **Add-ons**, **Keyboard from a PC**. That one switch is all. To
-type on another device, open the conversation with it and pick the keyboard
-button at the top (on a phone: the **⋮** menu, **Type on that device**).
+Settings → **Keyboard from a PC**, the switch on the add-on's card. That one
+switch is all. To type on another device, open the conversation with it and
+pick the keyboard button at the top (on a phone: the **⋮** menu, **Type on
+that device**).
 
 ### On the device you want to type on
 
@@ -463,14 +464,14 @@ does not know where the cursor was over there, and text that was in the field
 before the session does not show. The keys themselves are the exact record,
 and an export carries them.
 
-**Where to find it.** Settings, **Data and diagnostics**, **Typing history**,
-shown there once a session is saved, or the **Typing history** button on the
-add-on's card. Both devices write a session under the same identifier, so the
-record on the PC and the one on the device being typed on can be laid side by
-side.
+**Where to find it.** Settings → **Keyboard from a PC**: the **Typing
+history** button on the add-on's card, and with the add-on off a **Typing
+history** button under the card, shown once a session is saved. Both devices
+write a session under the same identifier, so the record on the PC and the one
+on the device being typed on can be laid side by side.
 
 **Deleting it.** **Delete messages older than** and **Clear history** in
-Settings, Privacy, take the typing history along, and **Clear typing history**
+Settings → **Privacy** take the typing history along, and **Clear typing history**
 deletes it alone. A session still running when the history is cleared goes on
 without a record. **Export data** can take the typing history along in a file
 (see the [user guide](guide.md#data-and-diagnostics)).
@@ -562,7 +563,7 @@ there; ordinary text of that length takes about 9 to 10 seconds.
 
 | What you see | Why, and what to do |
 |---|---|
-| No keyboard button in the conversation, and no entry in its ⋮ menu | The add-on is off on this PC: Settings, Add-ons, Keyboard from a PC. |
+| No keyboard button in the conversation, and no entry in its ⋮ menu | The add-on is off on this PC: Settings, Keyboard from a PC. |
 | The keyboard button, or the menu entry, is grey | No green shield: compare the code in the conversation's security sheet. |
 | "Typing is off on X" | Turn on the add-on and **Allow typing on this device** over there. |
 | "X did not answer the request" | Nobody answered the card within two minutes. On Android, let Chatt post notifications so the request shows while Chatt is not on screen. |
@@ -571,7 +572,7 @@ there; ordinary text of that length takes about 9 to 10 seconds.
 | The text lands in the wrong window on Windows | Typing goes into the window in front. Click the field you want first; the floating bar never takes the focus. |
 | A message got sent by Enter | Enter is the field's Enter. On Android, Shift+Enter gives a new line in a field with several lines, and so does a line break in Compose with **Then Enter** unticked. On Windows every new line arrives as Enter (see [A new line](#a-new-line)), so in an app where Enter sends, keep the text on one line. |
 | Letters missing in a slow Windows app | Report it with the app's name: Chatt types at a pace that even the Windows 11 Notepad keeps up with, and a slower app may need more. |
-| You want to know what reached the other device | Settings, **Data and diagnostics**, **Typing history**: every piece says whether it was typed. |
+| You want to know what reached the other device | Settings, **Keyboard from a PC**, **Typing history**: every piece says whether it was typed. |
 | You are reporting a problem | Settings, **Data and diagnostics**, **Export data** with only **App log** ticked gives a file to attach. It holds no typed text. |
 
 ## For developers

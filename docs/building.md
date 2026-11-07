@@ -197,8 +197,8 @@ copies both values into the native projects, so there is nothing to change in
 Gradle or in the Windows files.
 
 The third is `appVersion` in `app/lib/core/version.dart`: the number the app
-shows in its bar and in Settings, and compares with the newest release when it
-checks for updates.
+shows in Settings, in the Updates category, and compares with the newest
+release when it checks for updates.
 
 All three files have to say the same thing, so they are bumped with one
 command:

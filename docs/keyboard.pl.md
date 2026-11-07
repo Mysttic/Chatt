@@ -85,9 +85,10 @@ z pytaniem czekająca tam na odpowiedź).
 
 ### Na komputerze, który pisze
 
-Ustawienia, **Dodatki**, **Klawiatura z PC**. Wystarczy ten jeden przełącznik.
-Żeby pisać na innym urządzeniu, otwórz z nim rozmowę i wybierz przycisk
-klawiatury u góry (na telefonie: menu **⋮**, **Pisz na tamtym urządzeniu**).
+Ustawienia → **Klawiatura z PC**, przełącznik na karcie dodatku. Wystarczy ten
+jeden przełącznik. Żeby pisać na innym urządzeniu, otwórz z nim rozmowę
+i wybierz przycisk klawiatury u góry (na telefonie: menu **⋮**, **Pisz na
+tamtym urządzeniu**).
 
 ### Na urządzeniu, na którym chcesz pisać
 
@@ -477,14 +478,15 @@ zaczyna nową linię. Delete niczego w nim nie zmienia, bo Chatt nie wie, gdzie
 po drugiej stronie stał kursor, a tekstu, który był w polu przed sesją, nie
 widać. Dokładnym zapisem są same klawisze i to je niesie eksport.
 
-**Gdzie to znaleźć.** Ustawienia, **Dane i diagnostyka**, **Historia
-pisania**, widoczna tam, gdy zapisze się choć jedna sesja, albo przycisk
-**Historia pisania** na karcie dodatku. Oba urządzenia zapisują sesję pod tym
-samym identyfikatorem, więc zapis z komputera i zapis z urządzenia, na którym
-się pisało, da się położyć obok siebie.
+**Gdzie to znaleźć.** Ustawienia → **Klawiatura z PC**: przycisk **Historia
+pisania** na karcie dodatku, a przy wyłączonym dodatku przycisk **Historia
+pisania** pod kartą, widoczny, gdy zapisze się choć jedna sesja. Oba
+urządzenia zapisują sesję pod tym samym identyfikatorem, więc zapis
+z komputera i zapis z urządzenia, na którym się pisało, da się położyć obok
+siebie.
 
 **Kasowanie.** **Kasuj wiadomości starsze niż** i **Wyczyść historię**
-w Ustawieniach, w sekcji Prywatność, zabierają też historię pisania,
+w Ustawieniach, w kategorii **Prywatność**, zabierają też historię pisania,
 a **Wyczyść historię pisania** kasuje ją samą. Sesja, która jeszcze trwa
 w chwili czyszczenia, toczy się dalej bez zapisu. **Eksportuj dane** może
 zabrać historię pisania do pliku (patrz
@@ -575,7 +577,7 @@ tekst tej długości zajmuje około 9 do 10 sekund.
 
 | Co widać | Dlaczego i co zrobić |
 |---|---|
-| W rozmowie nie ma przycisku klawiatury ani pozycji w menu ⋮ | Dodatek na tym komputerze jest wyłączony: Ustawienia, Dodatki, Klawiatura z PC. |
+| W rozmowie nie ma przycisku klawiatury ani pozycji w menu ⋮ | Dodatek na tym komputerze jest wyłączony: Ustawienia, Klawiatura z PC. |
 | Przycisk klawiatury albo pozycja menu jest szara | Nie ma zielonej tarczy: porównaj kod w panelu bezpieczeństwa rozmowy. |
 | „Na urządzeniu X pisanie jest wyłączone.” | Włącz tam dodatek i **Pozwól pisać na tym urządzeniu**. |
 | „Urządzenie X nie odpowiedziało na prośbę.” | Nikt nie odpowiedział na kartę w dwie minuty. Na Androidzie daj Chatt zgodę na powiadomienia, żeby prośba pokazała się, gdy Chatt nie jest na ekranie. |
@@ -584,7 +586,7 @@ tekst tej długości zajmuje około 9 do 10 sekund.
 | Tekst trafia do złego okna na Windows | Pisanie idzie do okna na wierzchu. Najpierw kliknij pole, o które chodzi; pływający pasek nigdy nie zabiera fokusu. |
 | Enter wysłał wiadomość | Enter to Enter pola. Na Androidzie nową linię w polu wielowierszowym daje Shift+Enter, a także nowa linia w trybie Całość naraz bez zaznaczonego **Potem Enter**. Na Windows każda nowa linia dochodzi jako Enter (patrz [Nowa linia](#nowa-linia)), więc w aplikacji, w której Enter wysyła, pisz w jednej linii. |
 | W wolnej aplikacji na Windows brakuje liter | Zgłoś to z nazwą aplikacji: Chatt pisze w tempie, za którym nadąża nawet Notatnik z Windows 11, a wolniejsza aplikacja może potrzebować więcej. |
-| Chcesz sprawdzić, co dotarło na drugie urządzenie | Ustawienia, **Dane i diagnostyka**, **Historia pisania**: przy każdym kawałku widać, czy się wpisał. |
+| Chcesz sprawdzić, co dotarło na drugie urządzenie | Ustawienia, **Klawiatura z PC**, **Historia pisania**: przy każdym kawałku widać, czy się wpisał. |
 | Zgłaszasz problem | Ustawienia, **Dane i diagnostyka**, **Eksportuj dane** z zaznaczonym tylko polem **Dziennik aplikacji** daje plik do dołączenia. Nie ma w nim wpisywanego tekstu. |
 
 ## Dla programistów
